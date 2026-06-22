@@ -1,6 +1,6 @@
 # 0047TUIAUTWOR-018: Acceptance artifact + evidence consolidation (capstone)
 
-**Status**: PENDING
+**Status**: DONE
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: Yes — new acceptance artifact at `reports/0047_tui_authoritative_world_advance_acceptance.md` (no new production logic)
@@ -69,3 +69,17 @@ Against the `0003` template, populate: command transcripts; typed event ledgers;
 1. `cargo test --workspace`
 2. `cargo clippy --workspace --all-targets -- -D warnings && cargo fmt --all --check`
 3. The full-workspace + clippy + fmt run is the correct boundary: the capstone certifies the whole feature's evidence base, so the complete acceptance command set applies (per `CLAUDE.md` build/test/lint contract).
+
+## Outcome
+
+Completed: 2026-06-22
+
+Evidence:
+- Authored and archived `archive/reports/0047_tui_authoritative_world_advance_acceptance.md` against the existing acceptance template.
+- The artifact records exact implementation/evidence commit `4228e1e2e5efd759e7e7bddb939a599e344742e9`, parity count `21 + 6`, named real-pipeline witnesses, human/no-human differential result, hidden-source anti-leak witness, replay evidence, CI/PAR-011 lane, and explicit scope limitations.
+- Verified `.github/workflows/ci.yml` already runs the focused parity target, locked workspace tests, locked workspace build, and warnings-denied clippy.
+- Passed `cargo test -p tracewake-tui --test playable_capability_parity`.
+- Passed `cargo fmt --all --check`.
+- Passed `cargo test --workspace`.
+- Passed `cargo clippy --workspace --all-targets -- -D warnings`.
+- Passed `cargo build --workspace --all-targets --locked`.

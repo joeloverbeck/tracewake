@@ -1,6 +1,6 @@
 # 0047 TUI Authoritative World Advance, Duration Completion, and Actor-Known Interval Summaries Spec
 
-**Status**: PROPOSED
+**Status**: COMPLETED
 
 This is a post-`FIRST-PROOF-CERT` **feature/capability** spec in the parallel `specs/NNNN`
 series. It is staged in `specs/` and is promoted to `archive/specs/` on acceptance; it is
@@ -499,10 +499,20 @@ question to raise before proceeding — not a silent divergence.
 
 ## Outcome
 
-PROPOSED. This spec scopes a single committed solution to the human-TUI time-control wiring gap:
-a kernel-owned authoritative one-world-tick coordinator looped by all time-advancing modes, full
-loaded-world tick semantics, log-derived duration completion, unified single-charge accounting,
-general body-exclusive reservation enforcement, `TimeAdvanced` replay ancestry, and an actor-known
-interval-summary projection — extending (not bypassing) the spec-0046 parity contract, with doctrine
-amendments routed as substance + home to their owning tiers and no constitutional change. It certifies
-nothing on its own and receives its ledger row only at acceptance/closeout.
+Completed: 2026-06-22
+
+Accepted for the scoped spec-0047 TUI authoritative world-advance feature at exact implementation and
+evidence commit `4228e1e2e5efd759e7e7bddb939a599e344742e9`, with acceptance evidence packaged in
+`archive/reports/0047_tui_authoritative_world_advance_acceptance.md`. The ticket series landed a
+kernel-owned authoritative one-world-tick coordinator looped by human wait, duration continuation, and
+no-human progression; log-derived duration completion; unified need accounting; body-exclusive
+reservation enforcement; replay-visible `TimeAdvanced` ancestry; actor-known interval summaries; real
+human sleep/work completion witnesses; a human/no-human differential; hidden-truth anti-leak coverage;
+and a six-entry spec-0047 extension to the playable capability parity registry.
+
+Verification recorded by the acceptance artifact includes `cargo fmt --all --check`,
+`cargo clippy --workspace --all-targets -- -D warnings`, `cargo build --workspace --all-targets
+--locked`, `cargo test --workspace`, and `cargo test -p tracewake-tui --test
+playable_capability_parity`. This is scoped feature evidence only; it does not certify latest `main`,
+Phase-4 entry, second-proof entry, institutions, notices, travel, LOD, LLM/speech, story-sifting, or
+future feature surfaces, and it mints no new gate, invariant, risk ID, or glossary term.

@@ -206,7 +206,7 @@ const EMBODIED_SURFACE_FIELD_PRODUCERS: &[EmbodiedSurfaceFieldProducer] =
             field_name: "actor_known_interval_summary",
             source_path: "tracewake-tui/src/app.rs",
             producer_snippet: "view.actor_known_interval_summary = self.last_interval_summary.clone();",
-            cite: "specs/0047_TUI_AUTHORITATIVE_WORLD_ADVANCE_DURATION_COMPLETION_AND_ACTOR_KNOWN_INTERVAL_SUMMARIES_SPEC.md",
+            cite: "archive/specs/0047_TUI_AUTHORITATIVE_WORLD_ADVANCE_DURATION_COMPLETION_AND_ACTOR_KNOWN_INTERVAL_SUMMARIES_SPEC.md",
             rationale: "Core builds the sealed embodied shell; the TUI boundary attaches the last completed advance summary constructed from source-bearing interval inputs.",
         },
         EmbodiedSurfaceFieldProducer {
