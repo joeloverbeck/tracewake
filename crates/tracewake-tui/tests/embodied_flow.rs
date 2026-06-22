@@ -134,6 +134,45 @@ fn wait_command_during_sleep_is_reservation_conflict_without_world_advance() {
 }
 
 #[test]
+fn human_sleep_completion_real_pipeline_witness() {
+    let mut app = TuiApp::from_golden(fixtures::sleep_eat_work_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+    let mut output = Vec::new();
+
+    run_command_loop(
+        &mut app,
+        b"do sleep.here\nwait\ncontinue\nbind-debug actor_tomas\ndebug replay\nquit\n".as_slice(),
+        &mut output,
+    )
+    .unwrap();
+
+    let rendered = String::from_utf8(output).unwrap();
+    assert!(rendered.contains("Accepted: sleep.here"));
+    assert!(rendered.contains("Why-not:"));
+    assert!(rendered.contains("reasons=reservation_conflict"));
+    assert!(
+        rendered.contains("Advanced until: reason=possessed_duration_terminal ticks=4 stop_tick=4")
+    );
+    assert!(rendered.contains("Recent interval: ticks 0-4 stop=possessed_duration_terminal"));
+    assert!(rendered.contains("- sleep completed source="));
+    assert!(rendered.contains("Bound debug actor: actor_tomas"));
+    assert!(rendered.contains("DEBUG NON-DIEGETIC: Replay"));
+    assert!(rendered.contains("matches_expected=true"));
+    assert!(rendered.contains("agent_checksum_matches=true"));
+    assert!(!rendered.contains("RunNoHumanDay"));
+    assert!(!rendered.contains("No Human Day"));
+
+    let needs = app.render_debug_needs_panel();
+    assert!(needs.contains("actor=actor_tomas need=fatigue"));
+    assert!(needs.contains("actor=actor_tomas need=hunger"));
+    assert!(needs.contains("cause=action_effect:sleep"));
+    let replay = app.render_debug_replay_panel();
+    assert!(replay.contains("matches_expected=true"));
+    assert!(replay.contains("agent_checksum_matches=true"));
+}
+
+#[test]
 fn embodied_view_omits_raw_workplace_assignment_without_context() {
     let mut app =
         TuiApp::from_golden(fixtures::embodied_view_omits_raw_assignment_without_context_001())
