@@ -43,24 +43,31 @@ fn dispatch_command<W: Write>(
             let notebook = app_result(app.notebook_view())?;
             writeln!(writer, "{}", render_notebook(&notebook))
         }
-        UiCommand::BindActor(actor_id) => {
-            app_result(app.bind_actor(actor_id.clone()))?;
-            writeln!(writer, "Bound actor: {}", actor_id.as_str())?;
-            writeln!(writer, "{}", app_result(app.render_current_view())?)
-        }
-        UiCommand::BindDebugActor(actor_id) => {
-            app_result(app.bind_debug_actor(actor_id.clone()))?;
-            writeln!(writer, "Bound debug actor: {}", actor_id.as_str())?;
-            writeln!(writer, "{}", app_result(app.render_current_view())?)
-        }
+        UiCommand::BindActor(actor_id) => match app.bind_actor(actor_id.clone()) {
+            Ok(()) => {
+                writeln!(writer, "Bound actor: {}", actor_id.as_str())?;
+                writeln!(writer, "{}", app_result(app.render_current_view())?)
+            }
+            Err(error) => writeln!(writer, "Error: {}", describe_app_error(&error)),
+        },
+        UiCommand::BindDebugActor(actor_id) => match app.bind_debug_actor(actor_id.clone()) {
+            Ok(()) => {
+                writeln!(writer, "Bound debug actor: {}", actor_id.as_str())?;
+                writeln!(writer, "{}", app_result(app.render_current_view())?)
+            }
+            Err(error) => writeln!(writer, "Error: {}", describe_app_error(&error)),
+        },
         UiCommand::SelectSemanticAction(semantic_action_id) => {
             submit_and_render(app, &semantic_action_id, writer)
         }
         UiCommand::SelectByMenuIndex(one_based_selection) => {
             let view = app_result(app.current_view())?;
-            let semantic_action_id = semantic_id_for_selection(&view, one_based_selection)
-                .map_err(|error| std::io::Error::other(describe_input_error(&error)))?;
-            submit_and_render(app, &semantic_action_id, writer)
+            // An out-of-range index parses fine but cannot resolve here; report it as
+            // an input error and keep the loop alive rather than aborting the TUI.
+            match semantic_id_for_selection(&view, one_based_selection) {
+                Ok(semantic_action_id) => submit_and_render(app, &semantic_action_id, writer),
+                Err(error) => writeln!(writer, "Error: {}", describe_input_error(&error)),
+            }
         }
         UiCommand::WaitOneTick => {
             let view = app_result(app.current_view())?;
@@ -145,22 +152,22 @@ fn render_debug<W: Write>(
                 crate::debug_panels::render_debug_epistemics_panel(&app.debug_epistemics_view())
             )
         }
-        DebugCommand::Beliefs(actor_id) => {
-            let view = app_result(app.debug_beliefs_view(&actor_id))?;
-            writeln!(
+        DebugCommand::Beliefs(actor_id) => match app.debug_beliefs_view(&actor_id) {
+            Ok(view) => writeln!(
                 writer,
                 "{}",
                 crate::debug_panels::render_debug_beliefs_panel(&view)
-            )
-        }
-        DebugCommand::Observations(actor_id) => {
-            let view = app_result(app.debug_observations_view(&actor_id))?;
-            writeln!(
+            ),
+            Err(error) => writeln!(writer, "Error: {}", describe_app_error(&error)),
+        },
+        DebugCommand::Observations(actor_id) => match app.debug_observations_view(&actor_id) {
+            Ok(view) => writeln!(
                 writer,
                 "{}",
                 crate::debug_panels::render_debug_observations_panel(&view)
-            )
-        }
+            ),
+            Err(error) => writeln!(writer, "Error: {}", describe_app_error(&error)),
+        },
         DebugCommand::Needs => writeln!(writer, "{}", app.render_debug_needs_panel()),
         DebugCommand::Routines => writeln!(writer, "{}", app.render_debug_routines_panel()),
         DebugCommand::Planner(actor_id) => {
@@ -186,6 +193,18 @@ fn write_prompt<W: Write>(writer: &mut W) -> std::io::Result<()> {
 
 fn app_result<T>(result: Result<T, crate::app::AppError>) -> std::io::Result<T> {
     result.map_err(|error| std::io::Error::other(format!("{error:?}")))
+}
+
+fn describe_app_error(error: &AppError) -> String {
+    match error {
+        AppError::ActorNotFound(actor_id) => format!("no such actor: {}", actor_id.as_str()),
+        AppError::ActorNotBound => "no actor is bound".to_string(),
+        AppError::DebugUnavailable => "debug unavailable".to_string(),
+        AppError::SemanticActionNotFound(action_id) => {
+            format!("no such current action: {action_id}")
+        }
+        other => format!("{other:?}"),
+    }
 }
 
 fn describe_input_error(error: &InputError) -> String {
@@ -239,6 +258,56 @@ mod tests {
         assert!(rendered.contains("DEBUG NON-DIEGETIC: Observations"));
         assert!(rendered.contains("Error: unknown command: bogus"));
         assert!(rendered.contains(PROMPT));
+    }
+
+    #[test]
+    fn out_of_range_menu_selection_is_reported_without_crashing() {
+        let mut app = TuiApp::load_default().unwrap();
+        app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())
+            .unwrap();
+        // 999 parses as a valid index but exceeds the menu; it must be reported as
+        // an input error and the loop must keep running, not abort the whole TUI.
+        let script = b"999\nwait\nquit\n";
+        let mut output = Vec::new();
+
+        run_command_loop(&mut app, &script[..], &mut output).unwrap();
+
+        let rendered = String::from_utf8(output).unwrap();
+        assert!(
+            rendered.contains("Error: menu selection out of range: 999"),
+            "out-of-range selection must be reported as an input error: {rendered}"
+        );
+        assert!(
+            rendered.contains("Accepted: wait.1_tick"),
+            "the command loop must keep running after a bad selection: {rendered}"
+        );
+    }
+
+    #[test]
+    fn unknown_actor_arguments_are_reported_without_crashing() {
+        let mut app = TuiApp::load_default().unwrap();
+        app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())
+            .unwrap();
+        // Each of these names a syntactically valid but absent actor; every one must
+        // be reported as an input error and leave the existing binding intact so the
+        // loop keeps running.
+        let script = b"bind actor_ghost\nbind-debug actor_ghost\ndebug beliefs actor_ghost\ndebug observations actor_ghost\nwait\nquit\n";
+        let mut output = Vec::new();
+
+        run_command_loop(&mut app, &script[..], &mut output).unwrap();
+
+        let rendered = String::from_utf8(output).unwrap();
+        assert_eq!(
+            rendered
+                .matches("Error: no such actor: actor_ghost")
+                .count(),
+            4,
+            "every unknown-actor command must be reported as an input error: {rendered}"
+        );
+        assert!(
+            rendered.contains("Accepted: wait.1_tick"),
+            "the existing binding must survive so the loop keeps running: {rendered}"
+        );
     }
 
     #[test]

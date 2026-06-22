@@ -1270,6 +1270,16 @@ fn build_absence_detection_events(
                 observation_event.sim_tick.value().to_string(),
             ),
             PayloadField::new("channel", "absence_marker"),
+            PayloadField::new(
+                "contradiction_ids",
+                detection
+                    .missing_belief
+                    .contradiction_ids()
+                    .iter()
+                    .map(|id| id.as_str())
+                    .collect::<Vec<_>>()
+                    .join(","),
+            ),
         ];
         belief_event.effects_summary = "missing expected item belief updated".to_string();
 

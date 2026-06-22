@@ -7,8 +7,8 @@ use crate::epistemics::contradiction::{Contradiction, ContradictionKind};
 use crate::epistemics::proposition::Proposition;
 use crate::epistemics::{
     ActorKnownCarriedItemFact, ActorKnownContainerFact, ActorKnownCurrentPlaceFact,
-    ActorKnownDoorFact, ActorKnownItemFact, ActorKnownLocalActorFact, EpistemicProjection,
-    KnowledgeContext, SourceRef,
+    ActorKnownDoorFact, ActorKnownFoodSourceFact, ActorKnownItemFact, ActorKnownLocalActorFact,
+    EpistemicProjection, KnowledgeContext, SourceRef,
 };
 use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind};
@@ -223,17 +223,45 @@ impl<'a> EmbodiedProjectionSource<'a> {
 fn actor_known_food_sources_for_context(
     context: &KnowledgeContext,
 ) -> Vec<ActorKnownFoodSourceSurface> {
-    let mut food_sources = context
-        .actor_known_food_sources()
-        .iter()
+    // Collapse the knowledge channels for a single food source (e.g. a seeded
+    // starting belief with unknown servings plus a direct perception of the same
+    // supply) into one surface so the embodied menu offers each food exactly once.
+    // A concrete perceived serving count supersedes an unknown belief; otherwise
+    // the lexically-earliest source key wins for determinism.
+    let mut chosen: Vec<&ActorKnownFoodSourceFact> = Vec::new();
+    for fact in context.actor_known_food_sources() {
+        match chosen
+            .iter_mut()
+            .find(|existing| existing.food_supply_id() == fact.food_supply_id())
+        {
+            Some(existing) => {
+                if food_source_fact_supersedes(fact, existing) {
+                    *existing = fact;
+                }
+            }
+            None => chosen.push(fact),
+        }
+    }
+    let mut food_sources = chosen
+        .into_iter()
         .map(|fact| ActorKnownFoodSourceSurface {
             food_supply_id: fact.food_supply_id().clone(),
             believed_servings: fact.believed_servings(),
         })
         .collect::<Vec<_>>();
     food_sources.sort();
-    food_sources.dedup();
     food_sources
+}
+
+fn food_source_fact_supersedes(
+    candidate: &ActorKnownFoodSourceFact,
+    chosen: &ActorKnownFoodSourceFact,
+) -> bool {
+    match (candidate.believed_servings(), chosen.believed_servings()) {
+        (Some(_), None) => true,
+        (None, Some(_)) => false,
+        _ => candidate.source_key() < chosen.source_key(),
+    }
 }
 
 fn actor_known_sleep_affordances_for_context(context: &KnowledgeContext) -> Vec<SleepAffordanceId> {
@@ -604,6 +632,11 @@ pub fn build_embodied_view_model(
         .map(|item| item.item_id.clone())
         .collect::<Vec<_>>();
 
+    // An item has exactly one location: an item now carried must not also linger in
+    // the place's item list from a stale same-tick "item at place" perception (e.g.
+    // the tick an actor takes an item out of a container).
+    visible_items.retain(|item| !carried_item_ids.contains(&item.item_id));
+
     let mut local_actors = source
         .actor_known_local_actors
         .iter()
@@ -622,6 +655,7 @@ pub fn build_embodied_view_model(
     );
     let mut semantic_actions = semantic_actions(
         &preflight_context,
+        &source.current_place_id,
         &visible_exits,
         &visible_doors,
         &visible_containers,
@@ -1061,6 +1095,7 @@ struct SemanticActionPreflightContext<'a> {
 
 fn semantic_actions(
     preflight: &SemanticActionPreflightContext<'_>,
+    current_place_id: &PlaceId,
     visible_exits: &[VisibleExit],
     visible_doors: &[VisibleDoor],
     visible_containers: &[VisibleContainer],
@@ -1167,7 +1202,10 @@ fn semantic_actions(
         ));
         actions.push(with_validator_availability(
             SemanticActionEntry::new(
-                SemanticActionId::new(format!("inspect.item.{}", item.item_id.as_str())).unwrap(),
+                // Semantic token must dot-match its action id (inspect_entity) so the
+                // anti-forgery source check accepts it, mirroring inspect.place.* for
+                // inspect_place. `inspect.item.*` mismatched and was rejected forged.
+                SemanticActionId::new(format!("inspect.entity.{}", item.item_id.as_str())).unwrap(),
                 ActionId::new("inspect_entity").unwrap(),
                 vec![item.item_id.to_string()],
                 format!("Inspect {}", item.item_id.as_str()),
@@ -1183,7 +1221,7 @@ fn semantic_actions(
             SemanticActionEntry::new(
                 SemanticActionId::new(format!("place.item.{}.at.place", item_id.as_str())).unwrap(),
                 ActionId::new("place").unwrap(),
-                vec![item_id.to_string()],
+                vec![item_id.to_string(), current_place_id.to_string()],
                 format!("Place {}", item_id.as_str()),
                 true,
                 None,

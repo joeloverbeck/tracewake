@@ -250,43 +250,59 @@ fn adversarial_gates_stale_view_token_fails_after_state_change() {
     app.bind_actor(ActorId::new("actor_lina").unwrap()).unwrap();
     let old_view = app.current_view().unwrap();
     let stale_open = semantic_action_for_action_id(&app, "open");
+    assert!(
+        old_view
+            .semantic_actions
+            .iter()
+            .any(|entry| entry.semantic_action_id == stale_open),
+        "the open-door affordance must be present while the door is closed"
+    );
+
     let accepted = app.submit_semantic_action(&stale_open).unwrap();
     assert_eq!(accepted.report.status, ReportStatus::Accepted);
     let before_stale_retry = app.physical_checksum();
+    let events_before_stale_retry = app.event_count();
 
-    let stale_retry = app.submit_semantic_action(&stale_open).unwrap();
+    // Opening the door supersedes the same-tick closed perception, so the now
+    // satisfied open affordance correctly drops out of the current view. A stale
+    // token captured before the change is no longer a current action and must be
+    // rejected at the input boundary without reaching the pipeline or mutating
+    // physical state.
+    let stale_retry = app.submit_semantic_action(&stale_open).unwrap_err();
 
-    assert_eq!(stale_retry.report.status, ReportStatus::Rejected);
-    assert_eq!(
-        stale_retry.report.reason_codes,
-        vec![ReasonCode::AlreadyOpen]
-    );
+    assert!(matches!(stale_retry, AppError::SemanticActionNotFound(_)));
     assert_eq!(app.physical_checksum(), before_stale_retry);
-    assert!(app
-        .current_view()
-        .unwrap()
-        .semantic_actions
-        .iter()
-        .any(|entry| entry.semantic_action_id == stale_open));
+    assert_eq!(app.event_count(), events_before_stale_retry);
+    let current_view = app.current_view().unwrap();
+    assert!(
+        current_view
+            .semantic_actions
+            .iter()
+            .all(|entry| entry.semantic_action_id != stale_open),
+        "the satisfied open affordance must not linger after the door is opened"
+    );
+    assert!(
+        current_view
+            .semantic_actions
+            .iter()
+            .any(|entry| entry.semantic_action_id.as_str() == "close.door.door_market_store"),
+        "the current view must offer the state-appropriate inverse toggle"
+    );
     let artifact = AdversarialReviewArtifact {
-        responsible_layer: "proposal_construction",
+        responsible_layer: "tui_input_binding",
         scenario_id: "view_model_local_actions_001",
         actor_id: old_view.viewer_actor_id.as_str().to_string(),
         controller_id: Some("controller_human"),
         context_id: old_view.holder_known_context_id.as_str().to_string(),
         context_hash: old_view.holder_known_context_hash.as_str().to_string(),
         semantic_id: Some(stale_open.as_str().to_string()),
-        typed_reason_codes: vec!["already_open".to_string()],
+        typed_reason_codes: vec!["semantic_action_not_current".to_string()],
         provenance_refs: vec![old_view.holder_known_context_source_summary],
         debug_capability_present: old_view.debug_available,
-        actor_surfaces_checked: vec![
-            "old_view.semantic_actions",
-            "current_view.semantic_actions",
-            "validation_report.reason_codes",
-        ],
+        actor_surfaces_checked: vec!["old_view.semantic_actions", "current_view.semantic_actions"],
         debug_surfaces_checked: vec![],
-        expected_result: "known_action_rejected_by_validator_without_checksum_change",
-        contamination_failure_mode: "actor_known_action_bypasses_physical_precondition",
+        expected_result: "no_pipeline_submission_no_checksum_change",
+        contamination_failure_mode: "stale_satisfied_toggle_token_not_in_current_view",
     };
     artifact.assert_complete();
 }
@@ -316,19 +332,24 @@ fn tui_current_view_submission_rejects_stale_selection() {
         "accepted action must advance the current-view source context"
     );
     let before_stale_retry = app.physical_checksum();
+    let events_before_stale_retry = app.event_count();
 
-    let stale_retry = app.submit_semantic_action(&stale_open).unwrap();
+    // The accepted open advances the source context and supersedes the same-tick
+    // closed perception, so the stale selection is no longer a current action.
+    // Re-submitting it must be rejected at the input boundary with no pipeline
+    // submission and no checksum change.
+    let stale_retry = app.submit_semantic_action(&stale_open).unwrap_err();
 
-    assert_eq!(stale_retry.report.status, ReportStatus::Rejected);
-    assert_eq!(
-        stale_retry.report.reason_codes,
-        vec![ReasonCode::AlreadyOpen]
-    );
+    assert!(matches!(stale_retry, AppError::SemanticActionNotFound(_)));
     assert_eq!(app.physical_checksum(), before_stale_retry);
-    assert!(new_view
-        .semantic_actions
-        .iter()
-        .any(|entry| entry.semantic_action_id == stale_open));
+    assert_eq!(app.event_count(), events_before_stale_retry);
+    assert!(
+        new_view
+            .semantic_actions
+            .iter()
+            .all(|entry| entry.semantic_action_id != stale_open),
+        "the satisfied toggle selection must not remain current after the context advances"
+    );
     let artifact = AdversarialReviewArtifact {
         responsible_layer: "tui_input_binding",
         scenario_id: "view_model_local_actions_001",
@@ -337,19 +358,17 @@ fn tui_current_view_submission_rejects_stale_selection() {
         context_id: old_view.holder_known_context_id.as_str().to_string(),
         context_hash: old_view.holder_known_context_hash.as_str().to_string(),
         semantic_id: Some(stale_open.as_str().to_string()),
-        typed_reason_codes: vec!["already_open".to_string()],
+        typed_reason_codes: vec!["semantic_action_not_current".to_string()],
         provenance_refs: vec![old_view.holder_known_context_source_summary],
         debug_capability_present: old_view.debug_available,
         actor_surfaces_checked: vec![
             "old_view.holder_known_context",
             "new_view.holder_known_context",
             "current_view.semantic_actions",
-            "validation_report.reason_codes",
         ],
         debug_surfaces_checked: vec![],
-        expected_result: "current_actor_known_selection_validator_rejected_without_checksum_change",
-        contamination_failure_mode:
-            "actor_known_selection_mutates_after_physical_precondition_drift",
+        expected_result: "stale_selection_not_current_no_pipeline_submission_no_checksum_change",
+        contamination_failure_mode: "stale_actor_known_selection_lingers_after_precondition_drift",
     };
     artifact.assert_complete();
 }

@@ -351,10 +351,21 @@ impl EpistemicProjection {
         let observation_id = observation.observation_id().clone();
         let actor_id = observation.observer_actor_id().clone();
         for record in actor_known_records_from_observation(&observation) {
-            self.actor_known_records_by_actor
+            let records = self
+                .actor_known_records_by_actor
                 .entry(actor_id.clone())
-                .or_default()
-                .insert(record);
+                .or_default();
+            // A perception event id is deterministic per (actor, tick, target), so
+            // re-perceiving the same subject within a tick (e.g. a container observed
+            // closed, then opened, then re-perceived on the same tick) carries the same
+            // source event id but updated state. Observations apply in event order, so
+            // drop the stale same-subject record before inserting the newer one to keep
+            // an actor's knowledge of each entity to a single, latest-known state.
+            records.retain(|existing| {
+                existing.source_event_id() != record.source_event_id()
+                    || existing.embodied_subject_key() != record.embodied_subject_key()
+            });
+            records.insert(record);
         }
         self.observations_by_actor
             .entry(actor_id)
@@ -776,6 +787,41 @@ impl ActorKnownProjectionRecord {
             Self::LocalItem { .. } => "local_item",
             Self::SleepPlace { .. } => "sleep_place",
             Self::Workplace { .. } => "workplace",
+        }
+    }
+
+    /// Stable per-entity identity used to collapse multiple records of the same
+    /// subject that an actor perceived within a single tick (e.g. a container
+    /// observed both before and after opening it on the same tick). Only the
+    /// newest such record should surface in the embodied context.
+    fn embodied_subject_key(&self) -> String {
+        match self {
+            Self::CurrentPlace { .. } => "current_place".to_string(),
+            Self::CarriedItem { item_id, .. } => format!("carried_item:{}", item_id.as_str()),
+            Self::Route {
+                from_place_id,
+                to_place_id,
+                ..
+            } => format!("route:{}->{}", from_place_id.as_str(), to_place_id.as_str()),
+            Self::FoodSource { food_source_id, .. } => format!("food_source:{food_source_id}"),
+            Self::SleepPlace {
+                place_id,
+                sleep_affordance_id,
+                ..
+            } => format!(
+                "sleep_place:{}:{}",
+                place_id.as_str(),
+                sleep_affordance_id.as_deref().unwrap_or("")
+            ),
+            Self::Workplace { workplace_id, .. } => format!("workplace:{}", workplace_id.as_str()),
+            Self::LocalDoor { door_id, .. } => format!("local_door:{}", door_id.as_str()),
+            Self::LocalContainer { container_id, .. } => {
+                format!("local_container:{}", container_id.as_str())
+            }
+            Self::LocalItem { item_id, .. } => format!("local_item:{}", item_id.as_str()),
+            Self::LocalActor {
+                observed_actor_id, ..
+            } => format!("local_actor:{}", observed_actor_id.as_str()),
         }
     }
 

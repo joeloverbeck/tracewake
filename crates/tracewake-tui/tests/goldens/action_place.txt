@@ -1,6 +1,5 @@
 Actor: actor_lina | Tick: 0
 Place: Market stall (market_stall)
-Why-not: There is nowhere to place it. kind=ground_truth_validation_failure reasons=target_not_found
 Needs:
 - fatigue: band=comfortable cause=fixture_initial
 - hunger: band=comfortable cause=fixture_initial
@@ -15,5 +14,5 @@ Inventory:
 - sample_token_01 portable=true source=carried
 Actors:
 Actions:
-1. Place sample_token_01 [place.item.sample_token_01.at.place] disabled: There is nowhere to place it. reasons=target_not_found
+1. Place sample_token_01 [place.item.sample_token_01.at.place]
 2. Wait [wait.1_tick]

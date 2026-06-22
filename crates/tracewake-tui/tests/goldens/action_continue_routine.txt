@@ -15,6 +15,6 @@ Inventory:
 Actors:
 Actions:
 1. Continue routine [continue.routine.intention_mara_work]
-2. Place tool_roll_mara [place.item.tool_roll_mara.at.place] disabled: There is nowhere to place it. reasons=target_not_found
+2. Place tool_roll_mara [place.item.tool_roll_mara.at.place]
 3. Wait [wait.1_tick]
 4. Work at workplace_mara [work.block.workplace_mara]

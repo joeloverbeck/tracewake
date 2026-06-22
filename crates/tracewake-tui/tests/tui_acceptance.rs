@@ -42,6 +42,238 @@ impl PositiveProofArtifact {
 }
 
 #[test]
+fn embodied_view_lists_each_container_once_after_opening_in_same_tick() {
+    let mut app = TuiApp::load_default().unwrap();
+    app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+
+    let view = app.current_view().unwrap();
+    let open = view
+        .semantic_actions
+        .iter()
+        .find(|entry| entry.semantic_action_id.as_str() == "open.container.strongbox_tomas")
+        .expect("strongbox is openable from the initial view")
+        .semantic_action_id
+        .clone();
+
+    let result = app.submit_semantic_action(&open).unwrap();
+    assert_eq!(result.report.status, ReportStatus::Accepted);
+
+    let view = app.current_view().unwrap();
+    let strongbox_entries: Vec<_> = view
+        .visible_containers
+        .iter()
+        .filter(|container| container.container_id.as_str() == "strongbox_tomas")
+        .collect();
+    assert_eq!(
+        strongbox_entries.len(),
+        1,
+        "a container observed twice in one tick must collapse to its latest known state, got {:?}",
+        view.visible_containers
+    );
+    assert!(
+        strongbox_entries[0].is_open,
+        "the surviving container entry must reflect the latest perceived (open) state"
+    );
+
+    let check_actions = view
+        .semantic_actions
+        .iter()
+        .filter(|entry| entry.semantic_action_id.as_str() == "check.container.strongbox_tomas")
+        .count();
+    assert_eq!(
+        check_actions, 1,
+        "duplicated container facts must not produce duplicated affordances, got {} check actions",
+        check_actions
+    );
+}
+
+#[test]
+fn placing_a_carried_item_at_the_current_place_is_accepted_and_moves_the_item() {
+    // The place affordance must carry its destination (the current place) so the
+    // pipeline can bind a target; otherwise every place is rejected target_not_found.
+    let mut app = TuiApp::from_golden(fixtures::place_carried_item_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_lina").unwrap()).unwrap();
+
+    let view = app.current_view().unwrap();
+    let place = view
+        .semantic_actions
+        .iter()
+        .find(|entry| entry.semantic_action_id.as_str() == "place.item.sample_token_01.at.place")
+        .expect("a place affordance is offered for the carried item")
+        .semantic_action_id
+        .clone();
+
+    let result = app.submit_semantic_action(&place).unwrap();
+    assert_eq!(
+        result.report.status,
+        ReportStatus::Accepted,
+        "placing a carried item at the current place must succeed, got {:?}",
+        result.report
+    );
+
+    let view = app.current_view().unwrap();
+    assert!(
+        view.carried_items
+            .iter()
+            .all(|item| item.item_id.as_str() != "sample_token_01"),
+        "the placed item must leave the inventory"
+    );
+    assert!(
+        view.visible_items
+            .iter()
+            .any(|item| item.item_id.as_str() == "sample_token_01"),
+        "the placed item must appear among the place items, got {:?}",
+        view.visible_items
+    );
+}
+
+#[test]
+fn inspecting_a_visible_item_is_accepted_not_forged() {
+    // inspect_entity is a query-only affordance offered in the menu; selecting it
+    // must be accepted (the re-rendered view is the query result), not rejected as
+    // proposal_source_forged because its semantic token mismatches the action id.
+    let mut app = TuiApp::load_default().unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+    let open = SemanticActionId::new("open.container.strongbox_tomas").unwrap();
+    assert_eq!(
+        app.submit_semantic_action(&open).unwrap().report.status,
+        ReportStatus::Accepted
+    );
+
+    let view = app.current_view().unwrap();
+    let inspect = view
+        .semantic_actions
+        .iter()
+        .find(|entry| {
+            entry.action_id.as_str() == "inspect_entity"
+                && entry
+                    .target_ids
+                    .iter()
+                    .any(|target| target == "coin_stack_01")
+        })
+        .expect("an inspect affordance is offered for the now-visible coin")
+        .semantic_action_id
+        .clone();
+
+    let result = app.submit_semantic_action(&inspect).unwrap();
+    assert_eq!(
+        result.report.status,
+        ReportStatus::Accepted,
+        "inspecting a visible item must be accepted, got {:?}",
+        result.report
+    );
+}
+
+#[test]
+fn contradicted_belief_links_its_contradiction_in_the_notebook() {
+    // After tomas checks a strongbox he expected to hold a coin, the absence is a
+    // typed contradiction. The newly recorded "item missing" belief must carry that
+    // contradiction id so the notebook shows the link instead of contradictions=none.
+    let mut app = TuiApp::from_golden(fixtures::expectation_contradiction_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+
+    for semantic in [
+        "open.container.strongbox_tomas",
+        "check.container.strongbox_tomas",
+    ] {
+        let id = SemanticActionId::new(semantic).unwrap();
+        assert_eq!(
+            app.submit_semantic_action(&id).unwrap().report.status,
+            ReportStatus::Accepted,
+            "{semantic} must be accepted"
+        );
+    }
+
+    let notebook = app.notebook_view().unwrap();
+    assert!(
+        !notebook.known_contradictions.is_empty(),
+        "checking the empty strongbox must record a typed contradiction"
+    );
+    let contradiction_id = notebook.known_contradictions[0].contradiction_id.clone();
+    let missing_belief = notebook
+        .source_bound_beliefs
+        .iter()
+        .find(|belief| belief.belief_id.starts_with("belief.missing."))
+        .expect("an item-missing belief is recorded after the contradiction");
+    assert!(
+        missing_belief.contradiction_ids.contains(&contradiction_id),
+        "the contradicted belief must link its contradiction id, got {:?}",
+        missing_belief.contradiction_ids
+    );
+}
+
+#[test]
+fn carried_item_is_not_also_listed_among_place_items_in_same_tick() {
+    // Taking an item moves it from the container to the actor's inventory. Within
+    // the take tick the place still carries a stale "item in container" perception;
+    // the embodied view must not show the same item both in the place and in the
+    // inventory (an item has exactly one location).
+    let mut app = TuiApp::load_default().unwrap();
+    app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+
+    for semantic in [
+        "open.container.strongbox_tomas",
+        "take.item.coin_stack_01.from.strongbox_tomas",
+    ] {
+        let id = SemanticActionId::new(semantic).unwrap();
+        let result = app.submit_semantic_action(&id).unwrap();
+        assert_eq!(
+            result.report.status,
+            ReportStatus::Accepted,
+            "{semantic} must be accepted"
+        );
+    }
+
+    let view = app.current_view().unwrap();
+    assert!(
+        view.carried_items
+            .iter()
+            .any(|item| item.item_id.as_str() == "coin_stack_01"),
+        "the coin must be in the inventory after being taken"
+    );
+    assert!(
+        view.visible_items
+            .iter()
+            .all(|item| item.item_id.as_str() != "coin_stack_01"),
+        "a carried item must not also appear in the place item list, got {:?}",
+        view.visible_items
+    );
+}
+
+#[test]
+fn embodied_menu_offers_each_food_source_once_when_known_via_belief_and_perception() {
+    // actor_tomas both holds a seeded starting belief about food_breakfast_tomas
+    // (servings unknown) and directly perceives the same supply (servings known).
+    // The embodied menu must offer a single Eat affordance for that one food.
+    let mut app =
+        TuiApp::from_golden(fixtures::embodied_menu_lags_truth_change_without_perception_001())
+            .unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+
+    let view = app.current_view().unwrap();
+    let eat_entries = view
+        .semantic_actions
+        .iter()
+        .filter(|entry| entry.semantic_action_id.as_str() == "eat.food.food_breakfast_tomas")
+        .count();
+
+    assert_eq!(
+        eat_entries, 1,
+        "one food source known via belief and perception must surface a single Eat affordance, got {} in {:?}",
+        eat_entries,
+        view.semantic_actions
+            .iter()
+            .map(|entry| entry.semantic_action_id.as_str())
+            .collect::<Vec<_>>()
+    );
+}
+
+#[test]
 fn tui_selects_semantic_action_id_not_menu_index() {
     let mut app = TuiApp::load_default().unwrap();
     app.bind_actor(ActorId::new("actor_tomas").unwrap())
