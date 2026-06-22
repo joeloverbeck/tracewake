@@ -68,6 +68,14 @@ temporal terminology.
 | Institutions and procedural time | `11_INSTITUTIONS_RECORDS_WRONG_SUSPICION_AND_PHASE_4_ENTRY.md` |
 | Deferred LOD and time-acceleration proof | `12_DEFERRED_SECOND_PROOF_NOTICES_TRAVEL_REGIONAL_SCALE_AND_LOD.md` |
 
+Playable-capability parity is a standing acceptance dimension for Expansion
+work. Every future Expansion feature spec must declare its parity-impact
+surface, supply passing parity evidence before acceptance, and aggregate that
+evidence into any later phase or certification package that depends on the
+feature. The conformance suite runs in the ordinary CI evidence lane. This
+dimension routes proof mechanics to documents `07`, `09`, and `10`; it does
+not mint a new gate code, observation-obligation code, or passed-rung verdict.
+
 Concrete temporal values, day-part or lateness vocabulary, calendar/date
 syntax, duration units, stale-after thresholds, scheduler algorithms, fairness
 formulas, UI clock formats, status enums, fixture names, unit vocabularies,
@@ -94,6 +102,7 @@ Every future spec, audit, fixture, or code change must answer the following befo
 8. Which layer owns each failure diagnostic?
 9. Which archived specs or tickets are being treated only as historical evidence?
 10. Which gate prevents premature Phase 4 or second-proof expansion?
+11. For Expansion work, what is the parity-impact declaration and what passing evidence proves it?
 
 A document that cannot answer these questions is not ready to govern implementation.
 

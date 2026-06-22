@@ -59,6 +59,13 @@ the proof currently provided, the behavior intentionally abstracted, and the
 future feature or tier it must not certify by implication. This placement mints
 no gate label or observation-obligation code.
 
+Playable-capability parity review is also a standing acceptance dimension, not
+a new gate label. Every Expansion feature spec must carry a parity-impact
+declaration and passing evidence before the feature can be accepted. Future
+Phase-4 entry packages, second-proof packages, and certification artifacts must
+aggregate the parity evidence for the features they depend on, while leaving
+the existing sequence and any already recorded rung verdict unchanged.
+
 ## Historical phase mapping
 
 The repository history uses Phase 1, Phase 2A, Phase 3A, and planned Phase 4 language. That language is useful for historical location. It is not gate certification.

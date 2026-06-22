@@ -1,6 +1,6 @@
 # 0046TUISIMPLA-010: Execution-tier parity amendments + standing per-feature obligation (exec 00/03/07/09/10 + specs README)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — execution-tier doctrine docs (`docs/2-execution/00_*`, `03_*`, `07_*`, `09_*`, `10_*`) and the specs `README.md`; no code. Execution precondition: ordinary execution-tier owner approval before applying.
@@ -130,3 +130,36 @@ change to any passed rung's verdict.
 
 1. `grep -nE "parity-impact|parity|conformance|typed-before-rendered|debug-quarantine" docs/2-execution/00_EXECUTION_INDEX_AND_AUTHORITY.md docs/2-execution/03_PHASE_LADDER_GATE_ORDER_AND_CERTIFICATION_SEQUENCE.md docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md docs/2-execution/09_GOLDEN_FIXTURES_SCENARIOS_AND_REPLAY_ACCEPTANCE.md docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md docs/4-specs/README.md`
 2. `grep -nE "parity" docs/4-specs/README.md` (confirm the per-feature obligation landed)
+
+Completed: 2026-06-22
+
+## Outcome
+
+Applied the execution-tier parity amendments authorized by the explicit 0046 ticket-series
+implementation request. The amendment keeps parity as a standing acceptance dimension rather than a
+new gate code:
+
+1. `docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md` now owns actor-known
+   positive/negative proof shape and debug-quarantine separation for playable-capability parity.
+2. `docs/2-execution/09_GOLDEN_FIXTURES_SCENARIOS_AND_REPLAY_ACCEPTANCE.md` now owns fixture coverage,
+   focused golden scenarios, fixture-ID resolution, and hidden/stale counterpart coverage.
+3. `docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md` now owns
+   real-pipeline invocation, typed-before-rendered assertions, checked-in render references,
+   determinism-vs-golden clarification, ordinary CI command lane membership, and deterministic report
+   capture.
+4. `docs/2-execution/00_EXECUTION_INDEX_AND_AUTHORITY.md`,
+   `docs/2-execution/03_PHASE_LADDER_GATE_ORDER_AND_CERTIFICATION_SEQUENCE.md`, and
+   `docs/4-specs/README.md` now require Expansion feature specs to carry a parity-impact declaration
+   and passing parity evidence before acceptance, and to aggregate that evidence into later dependent
+   phase/certification packages.
+
+Verification:
+
+1. `grep -nE "parity-impact|parity|conformance|typed-before-rendered|debug-quarantine" docs/2-execution/00_EXECUTION_INDEX_AND_AUTHORITY.md docs/2-execution/03_PHASE_LADDER_GATE_ORDER_AND_CERTIFICATION_SEQUENCE.md docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md docs/2-execution/09_GOLDEN_FIXTURES_SCENARIOS_AND_REPLAY_ACCEPTANCE.md docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md docs/4-specs/README.md`
+   showed the execution 00/03/07/09/10 and specs README clauses.
+2. `grep -nE "parity" docs/4-specs/README.md` showed the per-feature parity-impact obligation.
+3. `git diff --unified=0 -- docs/2-execution/00_EXECUTION_INDEX_AND_AUTHORITY.md docs/2-execution/03_PHASE_LADDER_GATE_ORDER_AND_CERTIFICATION_SEQUENCE.md docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md docs/2-execution/09_GOLDEN_FIXTURES_SCENARIOS_AND_REPLAY_ACCEPTANCE.md docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md docs/4-specs/README.md`
+   confirmed the sequence table and passed-rung verdict entries were not edited; the added prose
+   explicitly says no new gate code, observation-obligation code, or passed-rung verdict is minted.
+4. `cargo test -p tracewake-core --test doc_invariant_references --locked` passed.
+5. `git diff --check` passed.
