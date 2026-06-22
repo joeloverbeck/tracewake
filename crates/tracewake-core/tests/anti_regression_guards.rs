@@ -1026,6 +1026,14 @@ fn source_has_field_consumer(source: &str, field_name: &str) -> bool {
         || source.contains(&format!("{field_name}()"))
         || source.contains(&format!("{field_name} = Some("))
         || source.contains(&format!("{field_name} = true"))
+        || identifier_occurrences(source, field_name) >= 2
+}
+
+fn identifier_occurrences(source: &str, needle: &str) -> usize {
+    source
+        .split(|character: char| !(character == '_' || character.is_ascii_alphanumeric()))
+        .filter(|token| *token == needle)
+        .count()
 }
 
 fn body_from_open_brace(after_name: &str) -> &str {

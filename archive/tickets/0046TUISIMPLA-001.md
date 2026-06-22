@@ -1,6 +1,6 @@
 # 0046TUISIMPLA-001: Hop-2 exhaustive `EmbodiedViewModel` destructure at the renderer boundary + source-conformance guard
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-tui` renderer (`crates/tracewake-tui/src/render.rs`) and seam-conformance guard (`crates/tracewake-tui/tests/tui_seam_conformance.rs`); no production-crate (`tracewake-core`/`tracewake-content`) change.
@@ -142,3 +142,44 @@ test while preserving output.
 
 1. `cargo test -p tracewake-tui --test tui_seam_conformance`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-22
+
+Implemented the Hop-2 renderer tripwire by adding a local `#[deny(unused_variables)]`
+and an exhaustive `EmbodiedViewModel` destructure at the start of
+`render_embodied_view`. The live struct has 22 public fields, not the 21-field
+count in the original ticket prose, so all 22 current fields were dispositioned
+from the live `crates/tracewake-core/src/view_models.rs` definition. Embodied
+rendered fields now read from the destructured bindings; internal identity,
+holder-known provenance, notebook, and debug-availability fields are named
+underscore bindings with comments routing them to the debug or notebook owners.
+
+Added `render_embodied_view_uses_exhaustive_view_model_destructure` to
+`crates/tracewake-tui/tests/tui_seam_conformance.rs`. The guard derives the
+current field list from `view_models.rs` and rejects a missing destructure, a
+rest pattern, bare wildcard field disposition, or removal of the local
+`unused_variables` deny. The existing core dead-surface source guard was also
+updated so destructured renderer bindings count as real consumers only when the
+field identifier is used outside the binding, preserving the dead-field sweep
+under the new renderer shape.
+
+Verification:
+
+- `cargo fmt --all --check` — passed
+- `cargo test -p tracewake-tui --test tui_seam_conformance` — passed
+- `cargo test -p tracewake-tui` — passed
+- `cargo test -p tracewake-core --test anti_regression_guards embodied_view_option_and_collection_fields_have_reachable_producers` — passed
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed
+- `cargo build --workspace --all-targets --locked` — passed
+- `cargo test --workspace` — passed
+
+Deviations:
+
+- The ticket's stale 21-field count was corrected against the live 22-field
+  `EmbodiedViewModel` definition.
+- No scratch deletion was committed. The source-conformance guard itself is the
+  durable failure surface for removal of the destructure or local deny; the
+  capstone ticket remains responsible for the broader controlled compile-break
+  transcript required by the spec.

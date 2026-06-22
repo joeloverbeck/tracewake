@@ -9,20 +9,46 @@ pub const DEBUG_TOKENS: &[&str] = &[
     "debug_diagnostics",
 ];
 
+#[deny(unused_variables)]
 pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
+    let EmbodiedViewModel {
+        // Internal identity metadata belongs to debug/provenance surfaces, not embodied text.
+        view_model_id: _view_model_id,
+        // The renderer is already the embodied renderer; mode is a contract discriminator.
+        mode: _mode,
+        viewer_actor_id,
+        sim_tick,
+        place_id,
+        place_label,
+        visible_exits,
+        visible_doors,
+        visible_containers,
+        visible_items,
+        carried_items,
+        local_actors,
+        semantic_actions,
+        phase3a_status,
+        last_rejection_summary,
+        last_rejection_why_not,
+        // Holder-known context provenance is rendered only in the debug overlay.
+        holder_known_context_id: _holder_known_context_id,
+        holder_known_context_hash: _holder_known_context_hash,
+        holder_known_context_frontier: _holder_known_context_frontier,
+        holder_known_context_source_summary: _holder_known_context_source_summary,
+        // Notebook content is owned by the notebook renderer.
+        notebook: _notebook,
+        // Debug availability is rendered only in the debug overlay.
+        debug_available: _debug_available,
+    } = view;
     let mut lines = Vec::new();
     lines.push(format!(
         "Actor: {} | Tick: {}",
-        view.viewer_actor_id.as_str(),
-        view.sim_tick.value()
+        viewer_actor_id.as_str(),
+        sim_tick.value()
     ));
-    lines.push(format!(
-        "Place: {} ({})",
-        view.place_label,
-        view.place_id.as_str()
-    ));
+    lines.push(format!("Place: {} ({})", place_label, place_id.as_str()));
 
-    if let Some(why_not) = &view.last_rejection_why_not {
+    if let Some(why_not) = last_rejection_why_not {
         lines.push(format!(
             "Why-not: {} kind={} reasons={}",
             why_not.actor_known_summary,
@@ -35,10 +61,10 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
                 why_not.actor_visible_facts.join(",")
             ));
         }
-    } else if let Some(summary) = &view.last_rejection_summary {
+    } else if let Some(summary) = last_rejection_summary {
         lines.push(format!("Why-not: {summary}"));
     }
-    if let Some(status) = &view.phase3a_status {
+    if let Some(status) = phase3a_status {
         lines.push("Needs:".to_string());
         if status.need_summaries.is_empty() {
             lines.push("- none known".to_string());
@@ -63,7 +89,7 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
     }
 
     lines.push("Exits:".to_string());
-    for exit in &view.visible_exits {
+    for exit in visible_exits {
         let blocker = exit
             .blocker_summary
             .as_ref()
@@ -77,7 +103,7 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
     }
 
     lines.push("Doors:".to_string());
-    for door in &view.visible_doors {
+    for door in visible_doors {
         lines.push(format!(
             "- {} open={} locked={} endpoints={}<->{}",
             door.door_id.as_str(),
@@ -89,7 +115,7 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
     }
 
     lines.push("Containers:".to_string());
-    for container in &view.visible_containers {
+    for container in visible_containers {
         lines.push(format!(
             "- {} open={} locked={}",
             container.container_id.as_str(),
@@ -99,7 +125,7 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
     }
 
     lines.push("Items:".to_string());
-    for item in &view.visible_items {
+    for item in visible_items {
         lines.push(format!(
             "- {} portable={} source={}",
             item.item_id.as_str(),
@@ -109,7 +135,7 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
     }
 
     lines.push("Inventory:".to_string());
-    for item in &view.carried_items {
+    for item in carried_items {
         lines.push(format!(
             "- {} portable={} source={}",
             item.item_id.as_str(),
@@ -119,12 +145,12 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
     }
 
     lines.push("Actors:".to_string());
-    for actor in &view.local_actors {
+    for actor in local_actors {
         lines.push(format!("- {}", actor.actor_id.as_str()));
     }
 
     lines.push("Actions:".to_string());
-    for (index, action) in view.semantic_actions.iter().enumerate() {
+    for (index, action) in semantic_actions.iter().enumerate() {
         let disabled = action
             .availability
             .actor_safe_summary()
