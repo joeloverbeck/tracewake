@@ -15,9 +15,9 @@ use tracewake_core::ids::{
 };
 use tracewake_core::replay::rebuild_projection;
 use tracewake_core::scheduler::{
-    AuthorizedSleepInterruption, BodyExclusiveDurationKind, DeterministicScheduler, OrderingKey,
-    ProposalSequence, SchedulePhase, SchedulerSourceId, WorldAdvanceError, WorldAdvanceOrigin,
-    WorldAdvanceRequest,
+    AdvanceUntilRequest, AdvanceUntilStopReason, AuthorizedSleepInterruption,
+    BodyExclusiveDurationKind, DeterministicScheduler, OrderingKey, ProposalSequence,
+    SchedulePhase, SchedulerSourceId, WorldAdvanceError, WorldAdvanceOrigin, WorldAdvanceRequest,
 };
 use tracewake_core::state::{
     ActorBody, AgentState, NeedModelState, PhysicalState, PlaceState, SleepAffordanceState,
@@ -63,6 +63,20 @@ fn world_advance_request(expected_tick: u64) -> WorldAdvanceRequest {
         origin: WorldAdvanceOrigin::Controller(ControllerId::new("controller_human").unwrap()),
         content_manifest_id: content_manifest_id(),
         authorized_sleep_interruptions: Vec::new(),
+    }
+}
+
+fn advance_until_request(
+    actor_id: &ActorId,
+    expected_tick: u64,
+    max_ticks: u64,
+) -> AdvanceUntilRequest {
+    AdvanceUntilRequest {
+        expected_tick: SimTick::new(expected_tick),
+        origin: WorldAdvanceOrigin::Controller(ControllerId::new("controller_human").unwrap()),
+        content_manifest_id: content_manifest_id(),
+        possessed_actor_id: actor_id.clone(),
+        max_ticks,
     }
 }
 
@@ -218,12 +232,25 @@ fn physical_state_for_with_need_model(
     place: &PlaceId,
     need_model: NeedModelState,
 ) -> PhysicalState {
+    physical_state_for_actors_with_need_model([actor.clone()], place, need_model)
+}
+
+fn physical_state_for_actors_with_need_model(
+    actor_ids: impl IntoIterator<Item = ActorId>,
+    place: &PlaceId,
+    need_model: NeedModelState,
+) -> PhysicalState {
     let sleep_affordance_id = SleepAffordanceId::new("sleep_mat_home").unwrap();
     let workplace_id = WorkplaceId::new("workplace_woodpile").unwrap();
     let mut actors = BTreeMap::new();
-    actors.insert(actor.clone(), ActorBody::new(actor.clone(), place.clone()));
     let mut local_actor_ids = BTreeSet::new();
-    local_actor_ids.insert(actor.clone());
+    for actor_id in actor_ids {
+        actors.insert(
+            actor_id.clone(),
+            ActorBody::new(actor_id.clone(), place.clone()),
+        );
+        local_actor_ids.insert(actor_id);
+    }
     let mut places = BTreeMap::new();
     places.insert(
         place.clone(),
@@ -271,6 +298,25 @@ fn physical_state_for_with_need_model(
 }
 
 fn agent_state_for(actor: &ActorId) -> AgentState {
+    agent_state_for_actors([actor.clone()])
+}
+
+fn agent_state_for_actors(actor_ids: impl IntoIterator<Item = ActorId>) -> AgentState {
+    let mut needs_by_actor = BTreeMap::new();
+    for actor_id in actor_ids {
+        needs_by_actor.insert(actor_id, initial_needs());
+    }
+    AgentState::from_seed_parts(
+        needs_by_actor,
+        BTreeMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
+    )
+}
+
+fn initial_needs() -> BTreeMap<NeedKind, NeedState> {
     let mut needs = BTreeMap::new();
     needs.insert(
         NeedKind::Fatigue,
@@ -280,16 +326,7 @@ fn agent_state_for(actor: &ActorId) -> AgentState {
         NeedKind::Hunger,
         NeedState::initial(NeedKind::Hunger, 100, NeedChangeCause::FixtureInitial),
     );
-    let mut needs_by_actor = BTreeMap::new();
-    needs_by_actor.insert(actor.clone(), needs);
-    AgentState::from_seed_parts(
-        needs_by_actor,
-        BTreeMap::new(),
-        BTreeMap::new(),
-        BTreeMap::new(),
-        BTreeMap::new(),
-        BTreeMap::new(),
-    )
+    needs
 }
 
 #[test]
@@ -501,6 +538,156 @@ fn coordinator_discovers_due_open_duration_from_prior_transaction() {
             .map(NeedState::value),
         Some(60)
     );
+}
+
+#[test]
+fn advance_until_zero_ticks_reports_user_pause_without_world_step() {
+    let actor = actor_id("actor_tomas");
+    let place = place_id("home_tomas");
+    let physical = physical_state_for(&actor, &place);
+    let mut agent = agent_state_for(&actor);
+    let mut log = EventLog::new();
+    let mut scheduler = DeterministicScheduler::new(SimTick::new(9));
+
+    let result = scheduler
+        .advance_until(
+            &physical,
+            &mut agent,
+            &mut log,
+            advance_until_request(&actor, 9, 0),
+        )
+        .unwrap();
+
+    assert_eq!(result.stop_tick, SimTick::new(9));
+    assert_eq!(result.ticks_advanced, 0);
+    assert_eq!(
+        result.stop_reason,
+        AdvanceUntilStopReason::UserPausedBeforeNextTick
+    );
+    assert!(result.appended_event_ids.is_empty());
+    assert!(log.events().is_empty());
+}
+
+#[test]
+fn advance_until_stops_at_controller_safety_bound() {
+    let actor = actor_id("actor_tomas");
+    let place = place_id("home_tomas");
+    let physical = physical_state_for(&actor, &place);
+    let mut agent = agent_state_for(&actor);
+    let mut log = EventLog::new();
+    let mut scheduler = DeterministicScheduler::new(SimTick::new(9));
+
+    let result = scheduler
+        .advance_until(
+            &physical,
+            &mut agent,
+            &mut log,
+            advance_until_request(&actor, 9, 2),
+        )
+        .unwrap();
+
+    assert_eq!(result.stop_tick, SimTick::new(11));
+    assert_eq!(result.ticks_advanced, 2);
+    assert_eq!(
+        result.stop_reason,
+        AdvanceUntilStopReason::ControllerSafetyBound
+    );
+    assert_eq!(
+        log.events()
+            .iter()
+            .filter(|event| event.event_type == EventKind::TimeAdvanced)
+            .count(),
+        2
+    );
+}
+
+#[test]
+fn advance_until_stops_at_possessed_duration_terminal() {
+    let actor = actor_id("actor_tomas");
+    let place = place_id("home_tomas");
+    let physical = physical_state_for(&actor, &place);
+    let mut agent = agent_state_for(&actor);
+    let sleep_affordance = SleepAffordanceId::new("sleep_mat_home").unwrap();
+    let mut log = EventLog::new();
+    log.append(sleep_start(
+        "event_sleep_started_prior",
+        &actor,
+        8,
+        10,
+        &sleep_affordance,
+    ))
+    .unwrap();
+    let mut scheduler = DeterministicScheduler::new(SimTick::new(9));
+
+    let result = scheduler
+        .advance_until(
+            &physical,
+            &mut agent,
+            &mut log,
+            advance_until_request(&actor, 9, 8),
+        )
+        .unwrap();
+
+    assert_eq!(result.stop_tick, SimTick::new(10));
+    assert_eq!(result.ticks_advanced, 1);
+    assert_eq!(
+        result.stop_reason,
+        AdvanceUntilStopReason::PossessedDurationTerminal
+    );
+    assert!(log
+        .events()
+        .iter()
+        .any(|event| event.event_type == EventKind::SleepCompleted
+            && event.actor_id.as_ref() == Some(&actor)));
+}
+
+#[test]
+fn advance_until_ignores_hidden_other_actor_duration_terminal() {
+    let actor = actor_id("actor_tomas");
+    let other_actor = actor_id("actor_mara");
+    let place = place_id("home_tomas");
+    let physical = physical_state_for_actors_with_need_model(
+        [actor.clone(), other_actor.clone()],
+        &place,
+        NeedModelState::new(0, 0),
+    );
+    let mut agent = agent_state_for_actors([actor.clone(), other_actor.clone()]);
+    let sleep_affordance = SleepAffordanceId::new("sleep_mat_home").unwrap();
+    let mut log = EventLog::new();
+    log.append(sleep_start(
+        "event_sleep_started_other",
+        &other_actor,
+        8,
+        10,
+        &sleep_affordance,
+    ))
+    .unwrap();
+    let mut scheduler = DeterministicScheduler::new(SimTick::new(9));
+
+    let result = scheduler
+        .advance_until(
+            &physical,
+            &mut agent,
+            &mut log,
+            advance_until_request(&actor, 9, 2),
+        )
+        .unwrap();
+
+    assert_eq!(result.stop_tick, SimTick::new(11));
+    assert_eq!(
+        result.stop_reason,
+        AdvanceUntilStopReason::ControllerSafetyBound
+    );
+    assert!(log
+        .events()
+        .iter()
+        .any(|event| event.event_type == EventKind::SleepCompleted
+            && event.actor_id.as_ref() == Some(&other_actor)));
+    assert!(!log
+        .events()
+        .iter()
+        .any(|event| event.event_type == EventKind::SleepCompleted
+            && event.actor_id.as_ref() == Some(&actor)));
 }
 
 #[test]

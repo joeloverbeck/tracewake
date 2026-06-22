@@ -1,6 +1,6 @@
 # 0047TUIAUTWOR-012: Duration continuation + advance-until controller
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `crates/tracewake-core` (advance-until controller loop), `crates/tracewake-tui` (typed continuation command + dispatch); core + TUI tests
@@ -78,3 +78,19 @@ Add a `UiCommand` continuation/advance-until variant distinct from `WaitOneTick`
 1. `cargo test -p tracewake-tui command_loop`
 2. `cargo test -p tracewake-core -p tracewake-tui && cargo clippy --workspace --all-targets -- -D warnings`
 3. The core+TUI boundary is correct: the controller is a core loop driven by a TUI command, so both surfaces are exercised.
+
+## Outcome
+
+Completed: 2026-06-22
+
+Added a typed core `advance_until` controller that repeats canonical `advance_world_one_tick` steps, returning typed stop reasons for possessed duration terminal, actor-known salient observation hook, user pause before the next tick, and controller safety bound. Added a distinct TUI `continue` / `continue <max_ticks>` command that dispatches through this core loop and reports the typed stop reason without emitting `ActorWaited` for sleeping continuation.
+
+Implemented and verified terminal stop, zero-tick user pause, safety-bound stop, and hidden other-actor duration no-leak. The actor-known salient observation stop is wired conservatively to actor-addressed `ObservationRecorded` events appended by a step; richer interval-summary policy remains with 0047TUIAUTWOR-013.
+
+Verification:
+
+- `cargo fmt --all --check`
+- `cargo test -p tracewake-core --test world_step_coordinator`
+- `cargo test -p tracewake-tui --test command_loop_session`
+- `cargo test -p tracewake-core -p tracewake-tui`
+- `cargo clippy --workspace --all-targets -- -D warnings`

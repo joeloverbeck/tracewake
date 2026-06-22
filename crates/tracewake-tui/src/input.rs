@@ -11,6 +11,7 @@ pub enum UiCommand {
     SelectSemanticAction(SemanticActionId),
     SelectByMenuIndex(usize),
     WaitOneTick,
+    ContinueUntil { max_ticks: u64 },
     Debug(DebugCommand),
     Quit,
 }
@@ -67,6 +68,15 @@ pub fn parse_command(input: &str) -> Result<UiCommand, InputError> {
     }
     if trimmed == "wait" || trimmed == "w" {
         return Ok(UiCommand::WaitOneTick);
+    }
+    if trimmed == "continue" || trimmed == "c" {
+        return Ok(UiCommand::ContinueUntil { max_ticks: 64 });
+    }
+    if let Some(max_ticks) = trimmed.strip_prefix("continue ") {
+        let max_ticks = max_ticks
+            .parse::<u64>()
+            .map_err(|_| InputError::BadMenuIndex(max_ticks.to_string()))?;
+        return Ok(UiCommand::ContinueUntil { max_ticks });
     }
     if trimmed.chars().all(|ch| ch.is_ascii_digit()) {
         let one_based_selection = trimmed
@@ -240,6 +250,22 @@ mod tests {
         );
         assert_eq!(parse_command("wait").unwrap(), UiCommand::WaitOneTick);
         assert_eq!(parse_command("w").unwrap(), UiCommand::WaitOneTick);
+        assert_eq!(
+            parse_command("continue").unwrap(),
+            UiCommand::ContinueUntil { max_ticks: 64 }
+        );
+        assert_eq!(
+            parse_command("c").unwrap(),
+            UiCommand::ContinueUntil { max_ticks: 64 }
+        );
+        assert_eq!(
+            parse_command("continue 0").unwrap(),
+            UiCommand::ContinueUntil { max_ticks: 0 }
+        );
+        assert_eq!(
+            parse_command("continue 5").unwrap(),
+            UiCommand::ContinueUntil { max_ticks: 5 }
+        );
         assert!(matches!(
             parse_command("run no-human-day"),
             Err(InputError::UnknownCommand(command)) if command == "run no-human-day"

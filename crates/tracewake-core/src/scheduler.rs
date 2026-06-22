@@ -207,6 +207,32 @@ pub enum WorldAdvanceError {
     InvalidMarkerEnvelope(EventEnvelopeBuildError),
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AdvanceUntilRequest {
+    pub expected_tick: SimTick,
+    pub origin: WorldAdvanceOrigin,
+    pub content_manifest_id: ContentManifestId,
+    pub possessed_actor_id: ActorId,
+    pub max_ticks: u64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AdvanceUntilStopReason {
+    PossessedDurationTerminal,
+    ActorKnownSalientObservation,
+    UserPausedBeforeNextTick,
+    ControllerSafetyBound,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AdvanceUntilResult {
+    pub start_tick: SimTick,
+    pub stop_tick: SimTick,
+    pub ticks_advanced: u64,
+    pub stop_reason: AdvanceUntilStopReason,
+    pub appended_event_ids: Vec<EventId>,
+}
+
 pub fn sort_scheduled<T>(scheduled: &mut [Scheduled<T>]) {
     scheduled.sort_by(|left, right| left.ordering_key.cmp(&right.ordering_key));
 }
@@ -386,6 +412,110 @@ impl DeterministicScheduler {
             },
         })
     }
+
+    pub fn advance_until(
+        &mut self,
+        state: &PhysicalState,
+        agent_state: &mut AgentState,
+        log: &mut EventLog,
+        request: AdvanceUntilRequest,
+    ) -> Result<AdvanceUntilResult, WorldAdvanceError> {
+        if request.expected_tick != self.current_tick {
+            return Err(WorldAdvanceError::FrontierMismatch {
+                expected: request.expected_tick,
+                actual: self.current_tick,
+            });
+        }
+
+        let start_tick = self.current_tick;
+        let mut appended_event_ids = Vec::new();
+        if request.max_ticks == 0 {
+            return Ok(AdvanceUntilResult {
+                start_tick,
+                stop_tick: self.current_tick,
+                ticks_advanced: 0,
+                stop_reason: AdvanceUntilStopReason::UserPausedBeforeNextTick,
+                appended_event_ids,
+            });
+        }
+
+        for _ in 0..request.max_ticks {
+            let step = self.advance_world_one_tick(
+                state,
+                agent_state,
+                log,
+                WorldAdvanceRequest {
+                    expected_tick: self.current_tick,
+                    origin: request.origin.clone(),
+                    content_manifest_id: request.content_manifest_id.clone(),
+                    authorized_sleep_interruptions: Vec::new(),
+                },
+            )?;
+            appended_event_ids.extend(step.appended_event_ids.iter().cloned());
+            if step_appended_possessed_duration_terminal(
+                log,
+                &step.appended_event_ids,
+                &request.possessed_actor_id,
+            ) {
+                return Ok(AdvanceUntilResult {
+                    start_tick,
+                    stop_tick: self.current_tick,
+                    ticks_advanced: self.current_tick.value() - start_tick.value(),
+                    stop_reason: AdvanceUntilStopReason::PossessedDurationTerminal,
+                    appended_event_ids,
+                });
+            }
+            if step_appended_actor_known_salient_observation(
+                log,
+                &step.appended_event_ids,
+                &request.possessed_actor_id,
+            ) {
+                return Ok(AdvanceUntilResult {
+                    start_tick,
+                    stop_tick: self.current_tick,
+                    ticks_advanced: self.current_tick.value() - start_tick.value(),
+                    stop_reason: AdvanceUntilStopReason::ActorKnownSalientObservation,
+                    appended_event_ids,
+                });
+            }
+        }
+
+        Ok(AdvanceUntilResult {
+            start_tick,
+            stop_tick: self.current_tick,
+            ticks_advanced: self.current_tick.value() - start_tick.value(),
+            stop_reason: AdvanceUntilStopReason::ControllerSafetyBound,
+            appended_event_ids,
+        })
+    }
+}
+
+fn step_appended_possessed_duration_terminal(
+    log: &EventLog,
+    appended_event_ids: &[EventId],
+    possessed_actor_id: &ActorId,
+) -> bool {
+    appended_event_ids.iter().any(|event_id| {
+        log.events().iter().any(|event| {
+            &event.event_id == event_id
+                && is_duration_terminal(event.event_type)
+                && event.actor_id.as_ref() == Some(possessed_actor_id)
+        })
+    })
+}
+
+fn step_appended_actor_known_salient_observation(
+    log: &EventLog,
+    appended_event_ids: &[EventId],
+    possessed_actor_id: &ActorId,
+) -> bool {
+    appended_event_ids.iter().any(|event_id| {
+        log.events().iter().any(|event| {
+            &event.event_id == event_id
+                && event.event_type == EventKind::ObservationRecorded
+                && event.actor_id.as_ref() == Some(possessed_actor_id)
+        })
+    })
 }
 
 struct BuiltDurationLifecycle {

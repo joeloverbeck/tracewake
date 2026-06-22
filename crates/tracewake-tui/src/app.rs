@@ -33,8 +33,8 @@ use tracewake_core::scheduler::no_human::{
     default_day_windows, run_no_human_day, NoHumanDayConfig, NoHumanDayReport,
 };
 use tracewake_core::scheduler::{
-    DeterministicScheduler, OrderingKey, SchedulePhase, SchedulerSourceId, WorldAdvanceError,
-    WorldAdvanceOrigin, WorldAdvanceRequest,
+    AdvanceUntilRequest, AdvanceUntilResult, DeterministicScheduler, OrderingKey, SchedulePhase,
+    SchedulerSourceId, WorldAdvanceError, WorldAdvanceOrigin, WorldAdvanceRequest,
 };
 use tracewake_core::state::{AgentState, ControllerMode, PhysicalState};
 use tracewake_core::time::SimTick;
@@ -333,6 +333,36 @@ impl TuiApp {
 
     pub fn event_count(&self) -> usize {
         self.log.events().len()
+    }
+
+    pub fn advance_until(&mut self, max_ticks: u64) -> Result<AdvanceUntilResult, AppError> {
+        let actor_id = self.bound_actor_id.clone().ok_or(AppError::ActorNotBound)?;
+        let result = self
+            .scheduler
+            .advance_until(
+                &self.state,
+                &mut self.agent_state,
+                &mut self.log,
+                AdvanceUntilRequest {
+                    expected_tick: self.scheduler.current_tick,
+                    origin: WorldAdvanceOrigin::Controller(self.controller_id.clone()),
+                    content_manifest_id: self.content_manifest_id.clone(),
+                    possessed_actor_id: actor_id.clone(),
+                    max_ticks,
+                },
+            )
+            .map_err(AppError::WorldAdvance)?;
+        record_current_place_perception_and_project(
+            &mut self.log,
+            &mut self.state,
+            &mut self.agent_state,
+            &mut self.epistemic_projection,
+            &actor_id,
+            self.scheduler.current_tick,
+            &self.content_manifest_id,
+        );
+        self.last_rejection = None;
+        Ok(result)
     }
 
     pub fn run_no_human_day(&mut self) -> Result<NoHumanDayReport, AppError> {
@@ -842,6 +872,9 @@ mod tests {
         pub const EXEMPT_WORLD_ADVANCING_METHODS: &[(&str, &str)] = &[(
             "submit_semantic_action",
             "ordinary embodied player command; authorization comes from current view source context",
+        ), (
+            "advance_until",
+            "typed gameplay time-control command; authority remains in the core coordinator loop",
         )];
         public_mut_methods(app_source)
             .into_iter()
