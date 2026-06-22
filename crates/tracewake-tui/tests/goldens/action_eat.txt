@@ -16,6 +16,5 @@ Actors:
 Actions:
 1. Continue routine [continue.routine.intention_tomas_go_work]
 2. Eat food_stew_home_tomas [eat.food.food_stew_home_tomas]
-3. Eat food_stew_home_tomas [eat.food.food_stew_home_tomas]
-4. Move to commons [move.to.commons]
-5. Wait [wait.1_tick]
+3. Move to commons [move.to.commons]
+4. Wait [wait.1_tick]

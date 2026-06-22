@@ -89,6 +89,35 @@ fn embodied_view_lists_each_container_once_after_opening_in_same_tick() {
 }
 
 #[test]
+fn embodied_menu_offers_each_food_source_once_when_known_via_belief_and_perception() {
+    // actor_tomas both holds a seeded starting belief about food_breakfast_tomas
+    // (servings unknown) and directly perceives the same supply (servings known).
+    // The embodied menu must offer a single Eat affordance for that one food.
+    let mut app =
+        TuiApp::from_golden(fixtures::embodied_menu_lags_truth_change_without_perception_001())
+            .unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+
+    let view = app.current_view().unwrap();
+    let eat_entries = view
+        .semantic_actions
+        .iter()
+        .filter(|entry| entry.semantic_action_id.as_str() == "eat.food.food_breakfast_tomas")
+        .count();
+
+    assert_eq!(
+        eat_entries, 1,
+        "one food source known via belief and perception must surface a single Eat affordance, got {} in {:?}",
+        eat_entries,
+        view.semantic_actions
+            .iter()
+            .map(|entry| entry.semantic_action_id.as_str())
+            .collect::<Vec<_>>()
+    );
+}
+
+#[test]
 fn tui_selects_semantic_action_id_not_menu_index() {
     let mut app = TuiApp::load_default().unwrap();
     app.bind_actor(ActorId::new("actor_tomas").unwrap())

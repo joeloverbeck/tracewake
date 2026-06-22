@@ -7,8 +7,8 @@ use crate::epistemics::contradiction::{Contradiction, ContradictionKind};
 use crate::epistemics::proposition::Proposition;
 use crate::epistemics::{
     ActorKnownCarriedItemFact, ActorKnownContainerFact, ActorKnownCurrentPlaceFact,
-    ActorKnownDoorFact, ActorKnownItemFact, ActorKnownLocalActorFact, EpistemicProjection,
-    KnowledgeContext, SourceRef,
+    ActorKnownDoorFact, ActorKnownFoodSourceFact, ActorKnownItemFact, ActorKnownLocalActorFact,
+    EpistemicProjection, KnowledgeContext, SourceRef,
 };
 use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind};
@@ -223,17 +223,45 @@ impl<'a> EmbodiedProjectionSource<'a> {
 fn actor_known_food_sources_for_context(
     context: &KnowledgeContext,
 ) -> Vec<ActorKnownFoodSourceSurface> {
-    let mut food_sources = context
-        .actor_known_food_sources()
-        .iter()
+    // Collapse the knowledge channels for a single food source (e.g. a seeded
+    // starting belief with unknown servings plus a direct perception of the same
+    // supply) into one surface so the embodied menu offers each food exactly once.
+    // A concrete perceived serving count supersedes an unknown belief; otherwise
+    // the lexically-earliest source key wins for determinism.
+    let mut chosen: Vec<&ActorKnownFoodSourceFact> = Vec::new();
+    for fact in context.actor_known_food_sources() {
+        match chosen
+            .iter_mut()
+            .find(|existing| existing.food_supply_id() == fact.food_supply_id())
+        {
+            Some(existing) => {
+                if food_source_fact_supersedes(fact, existing) {
+                    *existing = fact;
+                }
+            }
+            None => chosen.push(fact),
+        }
+    }
+    let mut food_sources = chosen
+        .into_iter()
         .map(|fact| ActorKnownFoodSourceSurface {
             food_supply_id: fact.food_supply_id().clone(),
             believed_servings: fact.believed_servings(),
         })
         .collect::<Vec<_>>();
     food_sources.sort();
-    food_sources.dedup();
     food_sources
+}
+
+fn food_source_fact_supersedes(
+    candidate: &ActorKnownFoodSourceFact,
+    chosen: &ActorKnownFoodSourceFact,
+) -> bool {
+    match (candidate.believed_servings(), chosen.believed_servings()) {
+        (Some(_), None) => true,
+        (None, Some(_)) => false,
+        _ => candidate.source_key() < chosen.source_key(),
+    }
 }
 
 fn actor_known_sleep_affordances_for_context(context: &KnowledgeContext) -> Vec<SleepAffordanceId> {

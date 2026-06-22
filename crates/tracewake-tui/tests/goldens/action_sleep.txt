@@ -16,7 +16,6 @@ Actors:
 Actions:
 1. Continue routine [continue.routine.intention_tomas_sleep]
 2. Eat food_breakfast_tomas [eat.food.food_breakfast_tomas]
-3. Eat food_breakfast_tomas [eat.food.food_breakfast_tomas]
-4. Move to workshop_tomas [move.to.workshop_tomas]
-5. Sleep here [sleep.here]
-6. Wait [wait.1_tick]
+3. Move to workshop_tomas [move.to.workshop_tomas]
+4. Sleep here [sleep.here]
+5. Wait [wait.1_tick]
