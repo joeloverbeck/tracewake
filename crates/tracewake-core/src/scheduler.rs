@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use crate::actions::defs::need_events::{
     build_need_delta_and_threshold_events, NeedDeltaEventSpec,
 };
@@ -7,6 +9,7 @@ use crate::events::{
     EventCause, EventEnvelope, EventEnvelopeBuildError, EventKind, PayloadField, EVENT_SCHEMA_V1,
 };
 use crate::ids::{ActionId, ActorId, ContentManifestId, ControllerId, EventId, IdError, ProcessId};
+use crate::need_accounting::{open_body_exclusive_starts, DuplicateDurationTerminal};
 use crate::state::NeedModelState;
 use crate::time::{passive_awake_need_deltas, SimTick};
 
@@ -142,16 +145,40 @@ pub struct WorldStepDueWorkSummary {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub enum BodyExclusiveDurationKind {
+    Sleep,
+    Work,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OpenDurationCandidate {
+    pub start_event_id: EventId,
+    pub actor_id: ActorId,
+    pub duration_kind: BodyExclusiveDurationKind,
+    pub start_tick: SimTick,
+    pub expected_completion_tick: SimTick,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct WorldAdvanceResult {
     pub prior_tick: SimTick,
     pub resulting_tick: SimTick,
     pub appended_event_ids: Vec<EventId>,
+    pub due_duration_candidates: Vec<OpenDurationCandidate>,
     pub due_work_summary: WorldStepDueWorkSummary,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum WorldAdvanceError {
-    FrontierMismatch { expected: SimTick, actual: SimTick },
+    FrontierMismatch {
+        expected: SimTick,
+        actual: SimTick,
+    },
+    OpenDurationDiscovery(DuplicateDurationTerminal),
+    MalformedDurationStart {
+        start_event_id: EventId,
+        reason: String,
+    },
     EventAppend(EventLogError),
     InvalidMarkerId(IdError),
     InvalidMarkerEnvelope(EventEnvelopeBuildError),
@@ -294,22 +321,125 @@ impl DeterministicScheduler {
 
         let prior_tick = self.current_tick;
         let resulting_tick = prior_tick.next();
+        let due_duration_candidates = discover_due_duration_candidates(log, resulting_tick)?;
         let marker = build_time_advanced_event(prior_tick, resulting_tick, &request)?;
         let appended = log.append(marker).map_err(WorldAdvanceError::EventAppend)?;
         self.current_tick = resulting_tick;
+        let open_duration_candidates = due_duration_candidates.len();
 
         Ok(WorldAdvanceResult {
             prior_tick,
             resulting_tick,
             appended_event_ids: vec![appended.event_id],
+            due_duration_candidates,
             due_work_summary: WorldStepDueWorkSummary {
-                open_duration_candidates: 0,
+                open_duration_candidates,
                 duration_terminals_appended: 0,
                 actor_transactions_attempted: 0,
                 world_processes_applied: 0,
             },
         })
     }
+}
+
+fn discover_due_duration_candidates(
+    log: &EventLog,
+    resulting_tick: SimTick,
+) -> Result<Vec<OpenDurationCandidate>, WorldAdvanceError> {
+    let mut actor_ids = BTreeSet::new();
+    for event in log.events().iter().filter(|event| {
+        matches!(
+            event.event_type,
+            EventKind::SleepStarted | EventKind::WorkBlockStarted
+        )
+    }) {
+        if let Some(actor_id) = event.actor_id.as_ref() {
+            actor_ids.insert(actor_id.clone());
+        }
+    }
+
+    let mut candidates = Vec::new();
+    for actor_id in actor_ids {
+        for start_event_id in open_body_exclusive_starts(log, &actor_id, resulting_tick)
+            .map_err(WorldAdvanceError::OpenDurationDiscovery)?
+        {
+            let Some(start_event) = log
+                .events()
+                .iter()
+                .find(|event| event.event_id == start_event_id)
+            else {
+                return Err(WorldAdvanceError::MalformedDurationStart {
+                    start_event_id,
+                    reason: "open duration start was not present in the event log".to_string(),
+                });
+            };
+            let Some(candidate) = due_duration_candidate(start_event, resulting_tick)? else {
+                continue;
+            };
+            candidates.push(candidate);
+        }
+    }
+    candidates.sort_by(|left, right| {
+        left.expected_completion_tick
+            .cmp(&right.expected_completion_tick)
+            .then_with(|| left.actor_id.cmp(&right.actor_id))
+            .then_with(|| left.start_event_id.cmp(&right.start_event_id))
+    });
+    Ok(candidates)
+}
+
+fn due_duration_candidate(
+    start_event: &EventEnvelope,
+    resulting_tick: SimTick,
+) -> Result<Option<OpenDurationCandidate>, WorldAdvanceError> {
+    let duration_kind = match start_event.event_type {
+        EventKind::SleepStarted => BodyExclusiveDurationKind::Sleep,
+        EventKind::WorkBlockStarted => BodyExclusiveDurationKind::Work,
+        _ => return Ok(None),
+    };
+    let expected_completion_tick = parse_duration_start_completion_tick(start_event)?;
+    if expected_completion_tick > resulting_tick {
+        return Ok(None);
+    }
+    let Some(actor_id) = start_event.actor_id.clone() else {
+        return Err(WorldAdvanceError::MalformedDurationStart {
+            start_event_id: start_event.event_id.clone(),
+            reason: "body-exclusive start was missing actor_id".to_string(),
+        });
+    };
+    Ok(Some(OpenDurationCandidate {
+        start_event_id: start_event.event_id.clone(),
+        actor_id,
+        duration_kind,
+        start_tick: start_event.sim_tick,
+        expected_completion_tick,
+    }))
+}
+
+fn parse_duration_start_completion_tick(
+    event: &EventEnvelope,
+) -> Result<SimTick, WorldAdvanceError> {
+    let Some(value) = payload_value(event, "expected_completion_tick") else {
+        return Err(WorldAdvanceError::MalformedDurationStart {
+            start_event_id: event.event_id.clone(),
+            reason: "missing expected_completion_tick".to_string(),
+        });
+    };
+    let tick = value
+        .parse::<u64>()
+        .map_err(|_| WorldAdvanceError::MalformedDurationStart {
+            start_event_id: event.event_id.clone(),
+            reason: format!("bad expected_completion_tick {value:?}"),
+        })?;
+    Ok(SimTick::new(tick))
+}
+
+fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
+    event
+        .payload
+        .iter()
+        .find(|field| field.key == key)
+        .map(|field| field.value.as_str())
 }
 
 fn build_time_advanced_event(

@@ -1,6 +1,6 @@
 # 0047TUIAUTWOR-006: Shared log-derived open-duration discovery
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `crates/tracewake-core` (`scheduler.rs` coordinator discovery phase, `need_accounting.rs` shared authority wiring); core test
@@ -75,3 +75,18 @@ Expose / adjust the open-duration query as needed for the coordinator's same-cra
 1. `cargo test -p tracewake-core --test world_step_coordinator`
 2. `cargo test -p tracewake-core && cargo clippy -p tracewake-core --all-targets -- -D warnings`
 3. The core-suite boundary is correct here: discovery is a kernel-internal phase with no TUI/no-human wiring change yet.
+
+## Outcome
+
+Completed: 2026-06-22
+
+Implemented the coordinator discovery phase in `crates/tracewake-core/src/scheduler.rs` by preflighting `open_body_exclusive_starts` against the authoritative log before appending the `TimeAdvanced` marker. The coordinator now returns ordered `OpenDurationCandidate` values with start id, actor, duration kind, start tick, and expected completion tick, and reports the due-candidate count in `WorldStepDueWorkSummary`. Duplicate terminal evidence is surfaced as `WorldAdvanceError::OpenDurationDiscovery`, preserving the atomic no-append/no-clock-advance behavior.
+
+Added `crates/tracewake-core/tests/world_step_coordinator.rs` coverage for discovering a prior independent sleep start at its due tick, deterministic candidate ordering, and duplicate terminal fail-closed behavior. `need_accounting.rs` required no code change because the existing `pub(crate)` query already provided the needed shared authority.
+
+Verification:
+
+1. `cargo fmt --all --check` — passed.
+2. `cargo test -p tracewake-core --test world_step_coordinator` — passed.
+3. `cargo test -p tracewake-core` — passed.
+4. `cargo clippy -p tracewake-core --all-targets -- -D warnings` — passed.
