@@ -199,8 +199,11 @@ recurs across a gate sequence (e.g. a `P0-CERT → SPINE-CERT → EPI-CERT → �
 so it is worth pinning explicitly rather than re-deriving each pass.
 
 **Analysis / recommendation report (not a numbered spec).** When the deliverable is a consolidated
-report of *recommended changes* to a doc tier rather than a ratified artifact — the recurring output
-of a **downward-cascade realignment** (§B) and of doc-overhaul passes generally — say so explicitly,
+report of *recommended changes* rather than a ratified artifact — the recurring output
+of a **downward-cascade realignment** (§B) and of doc-overhaul passes generally, **and also of a
+cross-cutting hardening / anti-contamination pass whose ask is "what to change + where" rather than an
+implementation spec** (the §B hardening row's reads still apply, but the deliverable is this report, not a
+spec — do not assume a hardening target produces a `specs/` artifact) — say so explicitly,
 and **do not** apply the numbered-spec numbering/ledger/epoch rules above (they are N/A; this is not a
 `docs/4-specs/` artifact). Specify the report(s) by filename, **new** (not a replacement): one
 consolidated `reports/<tier>-alignment-research-report.md`, **or** — when a single cascade pass spans
@@ -212,7 +215,13 @@ from an earlier cascade epoch — this campaign reuses per-tier slugs (e.g.
 `architecture-tier-alignment-research-report.md`) across epochs, disambiguated by `reports/` (live)
 vs. `archive/reports/` (prior epoch). An archived namesake is **expected**: it is neither a
 replacement nor a collision — confirm the live `reports/<slug>` path is absent (per the §2-completeness
-check) and proceed. **For a top-tier (`0-foundation`) pass** the report is an *amendment*
+check) and proceed. **A seed/source note may already occupy the bare `reports/<topic>.md` slug** — the
+in-repo note this pass triages, often untracked — distinct from both the brief and the commissioned
+report on the same stem (e.g. seed `reports/tui-parity.md` vs. brief `reports/tui-parity-research-brief.md`
+vs. report `reports/tui-parity-research-report.md`). When so, confirm the `-research-brief` /
+`-research-report` suffixes keep all three distinct, and have the brief name the seed explicitly (e.g.
+"the untracked `reports/<topic>.md` is the seed, a different file") so Session 2 does not conflate the
+report it writes with the seed it reads. **For a top-tier (`0-foundation`) pass** the report is an *amendment*
 recommendation, not a realignment to anything upstream; prior precedent named it
 `foundation-amendment-research-report.md`. Choosing `-alignment-` for cross-campaign per-tier symmetry
 vs. `-amendment-` for precision is a labeled decision — surface it as a bounded interview question or
@@ -227,7 +236,10 @@ report shape this campaign reuses: a **disposition table** (one row per finding 
 → one-line basis) → method/provenance ledger → per-finding sections (driver → current coverage →
 tier-fit verdict → recommendation) → a **forward-routing appendix** (findings belonging to tiers below
 the target, handed off to their later sessions — for a terminal lowest-tier pass this degenerates: say
-so, and route only to owner/reassess decisions and future implementation specs) → open questions →
+so, and route only to owner/reassess decisions and future implementation specs; a **cross-cutting
+hardening pass** spans *all* tiers rather than sitting at the bottom, so its appendix likewise routes only
+to owner/reassess decisions and future implementation specs — not to a lower tier — but state the reason
+as *cross-cutting*, not lowest-tier) → open questions →
 references. Carry a labeled
 `assumption:` line if the report's filename or placement is not pinned in the interview.
 
