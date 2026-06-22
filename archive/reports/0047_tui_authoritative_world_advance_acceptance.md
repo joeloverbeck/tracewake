@@ -224,7 +224,7 @@ Unrelated local worktree edits under `.claude/skills/spec-to-tickets/` are exclu
 
 ## Residual convention-only items
 
-- The final spec ledger row and spec archive move are deferred to spec acceptance/closeout per `docs/archival-workflow.md`.
+- The final spec ledger row and spec archive move were completed during spec acceptance/closeout per `docs/archival-workflow.md`.
 - Release/IP review is not performed by this artifact and remains maintainer-owned if needed.
 
 ## Scoped certification wording
