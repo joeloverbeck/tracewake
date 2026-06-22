@@ -57,6 +57,9 @@ For each ticket:
 1. Reassess assumptions against current code, docs, and crate ownership.
    If the ticket/spec diverges from current truth, correct the ticket/spec first
    and commit that correction separately when it is material.
+   If a ticket acceptance criterion cites a local guidance file, verifier
+   contract, or build/test/lint contract, read it before relying on it, or
+   record why `AGENTS.md` or another higher-priority authority supersedes it.
    Identify explicit preconditions, approvals, or "do not proceed until" clauses
    before editing. If the user's current request clearly satisfies a
    precondition, record that in the ticket/spec `Outcome`; otherwise ask before
@@ -197,6 +200,10 @@ deviations in the ticket and spec outcomes.
    docs, ledgers, and report links from the live `reports/` path to the archived
    path in the same change. If a ticket `Outcome` recorded the pre-archive
    report path as the final path, amend that outcome before closeout.
+   Before staging the report closeout, run a focused completed-deferral sweep
+   over current report/spec/ticket outcomes for terms such as `deferred to spec`,
+   `pending`, and `not run`; if the closeout completed a deferred item, update
+   the report/outcome wording before the first final response.
 4. Archive the spec to `archive/specs/`.
    - Create `archive/specs/` if absent.
    - Prefer `git mv` for tracked specs.
@@ -252,6 +259,9 @@ rg -n 'archive/specs/<spec filename>|archive/tickets/<ticket prefix>' docs repor
    Keep those labels consistent across the report, ticket outcome, spec outcome,
    ledger row, and final response. If any surface intentionally names a different
    role, say so instead of letting target-commit wording drift.
+   Before the spec archive/truthing commit, grep the current report/spec/ticket
+   outcomes for the role labels above and for broad `exact commit` claims; amend
+   ambiguous target-commit wording or record why one role intentionally differs.
    If the series commits verifier baselines or generated outputs, run the exact
    comparison command that will be used later, inspect the generated file
    format, and refresh the committed baseline when that file is the intended
@@ -357,6 +367,9 @@ rg -n 'pending|remaining|TODO|deferred|out of scope|not run|live path|archive bo
    - each required final gate from `AGENTS.md` or other repository guidance has
      a literal matching command in the run evidence, or any flag/command
      difference is recorded in the spec `Outcome` and final response.
+   - if implementation, evidence/report, and archive/truthing commits differ,
+     those roles are named consistently in the report, ticket outcome, spec
+     outcome, ledger row, and final response.
    - the final answer has been drafted using the `## Reporting` scaffold below
      with every field present and explicit `None` values where applicable.
    - the final response has been checked against the `## Reporting` bullets
@@ -388,6 +401,9 @@ Final responses must include:
 - `Unrelated pre-existing changes left untouched: <paths/summary, or None>.`
 - `Commits made: <list or None>.` Include this when the run created
   per-ticket or spec-closeout commits.
+- `Commit roles: <implementation baseline commit / evidence-report commit /
+  archive-truthing commit mapping, or N/A if all evidence genuinely refers to
+  one commit>.`
 
 These fields may be embedded in concise prose, but the final answer must make
 each answer explicit. Before calling the goal completion tool or sending the
@@ -411,6 +427,7 @@ Required AGENTS gate deviations: <command/flag differences and why, or None>.
 Enumerated-criterion members deferred/dropped: <recorded dispositions, or None>.
 Unrelated pre-existing changes left untouched: <paths/summary, or None>.
 Commits made: <list or None>.
+Commit roles: <implementation baseline commit / evidence-report commit / archive-truthing commit mapping, or N/A>.
 Goal usage: <goal-tool usage summary, or N/A>.
 ```
 
