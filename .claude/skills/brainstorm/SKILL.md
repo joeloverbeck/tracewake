@@ -231,6 +231,8 @@ A default design doc consolidates all approved sections into a clean document wi
 
 If working in a git worktree, resolve every output path against the **worktree root**, not the main repo root, and confirm the file landed there before the Step 6 menu.
 
+If the deliverable moves, archives, or deletes existing files, **read `docs/archival-workflow.md` — the repo's canonical archival policy — and follow its required steps** (status/outcome marking, destination, reference retargeting) before touching anything; don't reconstruct the convention empirically. See `references/triage-and-deliverables.md` §Deliverable classification (File-relocation sub-case) for the full flow.
+
 Do NOT commit the file. Leave it for user review.
 
 ## Step 6: Next-steps menu
