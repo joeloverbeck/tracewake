@@ -216,6 +216,7 @@ mod tests {
             holder_known_context_hash: context.holder_known_context_hash().clone(),
             holder_known_context_frontier: context.event_frontier(),
             holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
+            actor_known_interval_summary: None,
             notebook: None,
             debug_available: true,
         }

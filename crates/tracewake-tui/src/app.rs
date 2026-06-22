@@ -19,14 +19,15 @@ use tracewake_core::debug_reports::{
 use tracewake_core::epistemics::projection::EpistemicProjection;
 use tracewake_core::epistemics::KnowledgeContext;
 use tracewake_core::events::log::EventLog;
+use tracewake_core::events::EventKind;
 use tracewake_core::ids::{
-    ActorId, ContentManifestId, ContentVersion, ControllerId, DebugReportId, FixtureId, ItemId,
-    ProposalId, SemanticActionId,
+    ActorId, ContentManifestId, ContentVersion, ControllerId, DebugReportId, EventId, FixtureId,
+    ItemId, ProposalId, SemanticActionId,
 };
 use tracewake_core::projections::{
-    build_debug_event_log_view, build_embodied_view_model, build_notebook_view,
-    proposal_from_current_view_semantic_action, EmbodiedPreflightSource, EmbodiedProjectionSource,
-    EmbodiedTruthSnapshot, ProjectionError,
+    build_actor_known_interval_summary, build_debug_event_log_view, build_embodied_view_model,
+    build_notebook_view, proposal_from_current_view_semantic_action, ActorKnownIntervalSource,
+    EmbodiedPreflightSource, EmbodiedProjectionSource, EmbodiedTruthSnapshot, ProjectionError,
 };
 use tracewake_core::replay::{rebuild_projection, run_replay};
 use tracewake_core::scheduler::no_human::{
@@ -39,8 +40,8 @@ use tracewake_core::scheduler::{
 use tracewake_core::state::{AgentState, ControllerMode, PhysicalState};
 use tracewake_core::time::SimTick;
 use tracewake_core::view_models::{
-    DebugBeliefsView, DebugEpistemicsView, DebugObservationsView, EmbodiedViewModel, NotebookView,
-    SemanticActionEntry,
+    ActorKnownIntervalSummary, DebugBeliefsView, DebugEpistemicsView, DebugObservationsView,
+    EmbodiedViewModel, NotebookView, SemanticActionEntry,
 };
 
 use crate::debug_panels::{
@@ -89,6 +90,7 @@ pub struct TuiApp {
     scheduler: DeterministicScheduler,
     last_rejection: Option<ValidationReport>,
     epistemic_projection: EpistemicProjection,
+    last_interval_summary: Option<ActorKnownIntervalSummary>,
 }
 
 impl TuiApp {
@@ -129,6 +131,7 @@ impl TuiApp {
             scheduler: DeterministicScheduler::new(SimTick::ZERO),
             last_rejection: None,
             epistemic_projection,
+            last_interval_summary: None,
         })
     }
 
@@ -189,6 +192,7 @@ impl TuiApp {
                 .map_err(AppError::from)?;
         view.notebook = Some(build_notebook_view(&self.epistemic_projection, &context));
         view.debug_available = self.debug_available_for(actor_id);
+        view.actor_known_interval_summary = self.last_interval_summary.clone();
         Ok(view)
     }
 
@@ -352,6 +356,13 @@ impl TuiApp {
                 },
             )
             .map_err(AppError::WorldAdvance)?;
+        self.last_interval_summary = Some(build_actor_known_interval_summary(
+            &actor_id,
+            result.start_tick,
+            result.stop_tick,
+            describe_advance_until_stop(result.stop_reason),
+            actor_known_interval_sources(&self.log, &result.appended_event_ids),
+        ));
         record_current_place_perception_and_project(
             &mut self.log,
             &mut self.state,
@@ -524,6 +535,59 @@ impl TuiApp {
         Ok(self
             .epistemic_projection
             .debug_observations_view(actor_id.clone()))
+    }
+}
+
+fn actor_known_interval_sources(
+    log: &EventLog,
+    appended_event_ids: &[EventId],
+) -> Vec<ActorKnownIntervalSource> {
+    appended_event_ids
+        .iter()
+        .filter_map(|event_id| {
+            let event = log
+                .events()
+                .iter()
+                .find(|event| &event.event_id == event_id)?;
+            let actor_id = event.actor_id.clone()?;
+            actor_known_interval_summary_for_event(event.event_type).map(|summary| {
+                ActorKnownIntervalSource {
+                    actor_id,
+                    source_event_id: event.event_id.clone(),
+                    summary: summary.to_string(),
+                }
+            })
+        })
+        .collect()
+}
+
+fn actor_known_interval_summary_for_event(kind: EventKind) -> Option<&'static str> {
+    match kind {
+        EventKind::SleepCompleted => Some("sleep completed"),
+        EventKind::SleepInterrupted => Some("sleep interrupted"),
+        EventKind::WorkBlockCompleted => Some("work completed"),
+        EventKind::WorkBlockFailed => Some("work failed"),
+        EventKind::ObservationRecorded => Some("new observation recorded"),
+        _ => None,
+    }
+}
+
+fn describe_advance_until_stop(
+    reason: tracewake_core::scheduler::AdvanceUntilStopReason,
+) -> &'static str {
+    match reason {
+        tracewake_core::scheduler::AdvanceUntilStopReason::PossessedDurationTerminal => {
+            "possessed_duration_terminal"
+        }
+        tracewake_core::scheduler::AdvanceUntilStopReason::ActorKnownSalientObservation => {
+            "actor_known_salient_observation"
+        }
+        tracewake_core::scheduler::AdvanceUntilStopReason::UserPausedBeforeNextTick => {
+            "user_paused_before_next_tick"
+        }
+        tracewake_core::scheduler::AdvanceUntilStopReason::ControllerSafetyBound => {
+            "controller_safety_bound"
+        }
     }
 }
 

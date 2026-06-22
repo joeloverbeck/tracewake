@@ -1,6 +1,6 @@
 # 0047TUIAUTWOR-013: Actor-known interval projection + debug split
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `crates/tracewake-core` (`view_models.rs` new optional `EmbodiedViewModel` field, `projections.rs` interval-summary constructor), `crates/tracewake-tui` (`render.rs` Hop-2 disposition); core + TUI epistemic tests
@@ -83,3 +83,18 @@ Update the exhaustive `EmbodiedViewModel` destructure/render so the new field is
 1. `cargo test -p tracewake-core interval`
 2. `cargo test -p tracewake-core -p tracewake-tui && cargo clippy --workspace --all-targets -- -D warnings`
 3. The core+TUI boundary is correct: the projection is core (with epistemic tests) and the render disposition is TUI (with a golden) — both surfaces of the deliverable.
+
+## Outcome
+
+Completed: 2026-06-22
+
+Added an additive optional `actor_known_interval_summary` field to `EmbodiedViewModel`, a source-bearing `build_actor_known_interval_summary` constructor, and a TUI attachment path from completed `advance_until` results. The constructor accepts actor id, ticks, stop reason, and source records only; hidden other-actor records are filtered out before rendering. The embodied renderer now exhaustively dispositions the field, including a typed "no new actor-known notices or observations" state distinct from "nothing happened."
+
+Verification:
+
+- `cargo fmt --all --check`
+- `cargo test -p tracewake-core actor_known_interval`
+- `cargo test -p tracewake-tui renderer_prints_actor_known_interval_summary`
+- `cargo test -p tracewake-core --test anti_regression_guards embodied_view_option_and_collection_fields_have_reachable_producers`
+- `cargo test -p tracewake-core -p tracewake-tui`
+- `cargo clippy --workspace --all-targets -- -D warnings`

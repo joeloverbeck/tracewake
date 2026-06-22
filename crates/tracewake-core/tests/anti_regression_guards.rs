@@ -202,6 +202,14 @@ const EMBODIED_SURFACE_FIELD_PRODUCERS: &[EmbodiedSurfaceFieldProducer] =
             rationale: "Core leaves debug availability false; the TUI boundary derives it from the live controller binding for the viewed actor.",
         },
         EmbodiedSurfaceFieldProducer {
+            struct_name: "EmbodiedViewModel",
+            field_name: "actor_known_interval_summary",
+            source_path: "tracewake-tui/src/app.rs",
+            producer_snippet: "view.actor_known_interval_summary = self.last_interval_summary.clone();",
+            cite: "specs/0047_TUI_AUTHORITATIVE_WORLD_ADVANCE_DURATION_COMPLETION_AND_ACTOR_KNOWN_INTERVAL_SUMMARIES_SPEC.md",
+            rationale: "Core builds the sealed embodied shell; the TUI boundary attaches the last completed advance summary constructed from source-bearing interval inputs.",
+        },
+        EmbodiedSurfaceFieldProducer {
             struct_name: "ActionAvailability",
             field_name: "debug_only_diagnostics",
             source_path: "tracewake-tui/src/render.rs",
