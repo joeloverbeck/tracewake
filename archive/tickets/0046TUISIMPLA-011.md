@@ -1,6 +1,6 @@
 # 0046TUISIMPLA-011: Acceptance-template parity evidence block + reference-tier amendments (0003, ref 00/01)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — acceptance-artifact template (`docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md`) and reference-tier docs (`docs/3-reference/00_*`, `01_*`); no code. `docs/3-reference/02_GLOSSARY.md` is route-forward only (see Assumption 2). Execution precondition: ordinary reference/specs-tier owner approval.
@@ -129,3 +129,37 @@ is added to `02_GLOSSARY.md` in a follow-up.
 
 1. `grep -nE "parity|surface disposition|actor-filtered witness|projection blindness|renderer blindness" docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md docs/3-reference/00_REFERENCE_INDEX_AND_REVIEW_CHECKLIST.md docs/3-reference/01_DESIGN_RISK_REGISTER.md`
 2. `grep -cE "^### R-[0-9]+" docs/3-reference/01_DESIGN_RISK_REGISTER.md` (confirm risk-ID count unchanged; no new ID)
+
+Completed: 2026-06-22
+
+## Outcome
+
+Applied the acceptance-template and reference-tier amendments authorized by the explicit 0046
+ticket-series implementation request:
+
+1. `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md` now includes a parity evidence block covering
+   target implementation commit, fixture/content fingerprints, capability entries, generated coverage
+   report, typed causal witnesses, actor-known witnesses, rendered golden paths/digests, anti-leak and
+   debug-quarantine evidence, replay/no-human disposition, compiler/source-conformance evidence, exact
+   commands, and verdicts. The block explicitly rejects screenshots/display strings as standalone
+   parity acceptance.
+2. `docs/3-reference/00_REFERENCE_INDEX_AND_REVIEW_CHECKLIST.md` now asks where each added or changed
+   capability declares its surface disposition and real-pipeline actor-filtered witness.
+3. `docs/3-reference/01_DESIGN_RISK_REGISTER.md` updates existing `R-15` in place to name projection
+   blindness and renderer blindness, with Hop-1 golden and Hop-2 compile/source guard controls.
+4. `docs/3-reference/02_GLOSSARY.md` remains unchanged; the mechanism term remains deferred until
+   owner ratification.
+
+Verification:
+
+1. `grep -nE "parity|surface disposition|actor-filtered witness|projection blindness|renderer blindness|fingerprints|coverage report|typed causal|actor-known witnesses|rendered golden|anti-leak|debug-quarantine|replay/no-human|source-conformance|screenshots|display strings" docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md docs/3-reference/00_REFERENCE_INDEX_AND_REVIEW_CHECKLIST.md docs/3-reference/01_DESIGN_RISK_REGISTER.md`
+   showed the template block, checklist question, and R-15 relapse-mode/control updates.
+2. `sed -n '24,46p' docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md` showed the complete parity
+   evidence block.
+3. `grep -cE "^### R-[0-9]+" docs/3-reference/01_DESIGN_RISK_REGISTER.md` returned `30`, matching
+   the pre-edit risk-ID count.
+4. `git diff -- docs/3-reference/02_GLOSSARY.md` produced no output.
+5. `git diff --unified=0 -- docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md docs/3-reference/00_REFERENCE_INDEX_AND_REVIEW_CHECKLIST.md docs/3-reference/01_DESIGN_RISK_REGISTER.md | rg -n '^\+.*(### R-[0-9]+|02_GLOSSARY|new risk|risk ID)'`
+   produced no matches.
+6. `cargo test -p tracewake-core --test doc_invariant_references --locked` passed.
+7. `git diff --check` passed.

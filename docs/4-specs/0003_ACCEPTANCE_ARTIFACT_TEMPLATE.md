@@ -22,6 +22,27 @@ Record the command, result, and concise output summary for each gate:
 List each changed file that belongs to the implementation under review. Exclude
 unrelated local worktree changes.
 
+## Parity evidence block
+
+For any feature with TUI-facing simulation impact, record the playable-capability
+parity evidence. If the feature has no parity impact, state why.
+
+- Target implementation commit: `<full git sha>`
+- Fixture/content fingerprints: `<fixture ids, content fingerprints, or not applicable>`
+- Capability entries in scope: `<added/changed playable capabilities and non-playable classifications>`
+- Generated coverage report: `<report path, digest, or summary>`
+- Typed causal witnesses: `<event/proposal/validation/replay identifiers>`
+- Actor-known witnesses: `<holder, context/provenance ids, positive and negative evidence>`
+- Rendered golden paths/digests: `<checked-in render references and digests>`
+- Anti-leak and debug-quarantine evidence: `<negative evidence and debug/embodied separation>`
+- Replay/no-human disposition: `<required evidence, not applicable, or deferred with owner>`
+- Compiler/source-conformance evidence: `<compile/source guard evidence>`
+- Exact commands and verdicts: `<commands run and pass/fail result>`
+
+This block must not reduce parity acceptance to screenshots, display strings, or
+manual visual inspection. Rendered evidence is useful only when paired with
+typed causal and actor-filtered witnesses.
+
 ## Per-requirement acceptance evidence
 
 Each requirement row must cite one or more evidence item IDs from the evidence
