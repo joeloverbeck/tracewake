@@ -1,6 +1,6 @@
 # 0046TUISIMPLA-012: Adversarial closure + acceptance-artifact capstone
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adversarial-closure negatives added to the parity suite (`crates/tracewake-tui/tests/parity_adversarial.rs`) and the spec's acceptance artifact (`reports/0046-parity-acceptance-artifact.md`, per the 0003 template extended by ticket 011). No production-crate change.
@@ -131,3 +131,36 @@ from existing suites, content/fixture fingerprints, and the exact implementation
 1. `cargo test -p tracewake-tui --test parity_adversarial`
 2. `cargo test -p tracewake-tui --test playable_capability_parity` (baseline matrix zero-uncovered)
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+Completed: 2026-06-22
+
+## Outcome
+
+Added the adversarial closure target and assembled the spec 0046 acceptance artifact:
+
+1. `crates/tracewake-tui/tests/parity_adversarial.rs` executes four negative checks: dropped
+   actor-knowledge witness, uncovered registered action, debug/hidden truth injected into embodied
+   anti-leak assertion, and source-guard target/rest-pattern removal. Each violation fails the intended
+   guard.
+2. `reports/0046-parity-acceptance-artifact.md` records the 0003-template parity evidence block,
+   baseline capability matrix summary (`capability_count=21`, zero uncovered), action-definition
+   coverage, checked-in golden coverage, anti-leak/debug-quarantine evidence, replay/no-human/
+   determinism evidence, fixture fingerprints, CI/workspace lane evidence, and exact command verdicts.
+3. Controlled compile-break transcript was captured in the artifact: temporary `EmbodiedViewModel`
+   field produced constructor failure then `E0027` at the exhaustive render destructure after temporary
+   constructor disposition; temporary `VisibleItemSource` variant produced `E0004` in the upstream match
+   and then `E0004` in the TUI renderer after temporary upstream disposition. All temporary edits were
+   reverted and `git diff -- crates/tracewake-core/src/view_models.rs crates/tracewake-core/src/projections.rs`
+   produced no output.
+
+Verification:
+
+1. `cargo test -p tracewake-tui --test parity_adversarial` passed with 4 tests, 0 ignored.
+2. `cargo test -p tracewake-tui --test playable_capability_parity` passed with 8 tests, 0 ignored.
+3. `cargo fmt --all --check` passed.
+4. `cargo clippy --workspace --all-targets -- -D warnings` passed.
+5. `cargo build --workspace --all-targets --locked` passed.
+6. `cargo test --workspace` passed and included both parity targets.
+7. `grep -nE "parity_adversarial|playable_capability_parity|E0027|E0004|capability_count=21|registered action|screenshots|display strings|DEBUG NON-DIEGETIC|food_hidden_pantry|twf1-|cargo fmt|cargo clippy|cargo build|cargo test --workspace" reports/0046-parity-acceptance-artifact.md`
+   showed the required artifact evidence.
+8. `git diff --check` passed.
