@@ -35,6 +35,7 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
         holder_known_context_hash: _holder_known_context_hash,
         holder_known_context_frontier: _holder_known_context_frontier,
         holder_known_context_source_summary: _holder_known_context_source_summary,
+        actor_known_interval_summary,
         // Notebook content is owned by the notebook renderer.
         notebook: _notebook,
         // Debug availability is rendered only in the debug overlay.
@@ -85,6 +86,23 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
         ));
         if let Some(interruption) = &status.salient_interruption {
             lines.push(format!("Interruption: {interruption}"));
+        }
+    }
+    if let Some(summary) = actor_known_interval_summary {
+        lines.push(format!(
+            "Recent interval: ticks {}-{} stop={}",
+            summary.start_tick.value(),
+            summary.stop_tick.value(),
+            summary.stop_reason
+        ));
+        if summary.no_new_actor_known_information {
+            lines.push("- no new actor-known notices or observations".to_string());
+        }
+        for notice in &summary.notices {
+            lines.push(format!(
+                "- {} source={}",
+                notice.summary, notice.source_event_id
+            ));
         }
     }
 
@@ -321,13 +339,75 @@ mod tests {
     };
     use tracewake_core::time::SimTick;
     use tracewake_core::view_models::{
-        ActionAvailability, EmbodiedViewModel, NotebookLeadEntry, NotebookView,
-        Phase3AEmbodiedStatus, SemanticActionEntry, ViewMode, VisibleDoor, VisibleExit,
-        VisibleItem, VisibleItemSource, WhyNotFailureKind, WhyNotView,
+        ActionAvailability, ActorKnownIntervalNotice, ActorKnownIntervalSummary, EmbodiedViewModel,
+        NotebookLeadEntry, NotebookView, Phase3AEmbodiedStatus, SemanticActionEntry, ViewMode,
+        VisibleDoor, VisibleExit, VisibleItem, VisibleItemSource, WhyNotFailureKind, WhyNotView,
     };
 
     fn context() -> KnowledgeContext {
         KnowledgeContext::embodied(ActorId::new("actor_lina").unwrap(), SimTick::ZERO)
+    }
+
+    fn minimal_view_with_interval(
+        actor_known_interval_summary: Option<ActorKnownIntervalSummary>,
+    ) -> EmbodiedViewModel {
+        let context = context();
+        EmbodiedViewModel {
+            view_model_id: ViewModelId::new("view.actor_lina.0").unwrap(),
+            mode: ViewMode::Embodied,
+            viewer_actor_id: ActorId::new("actor_lina").unwrap(),
+            sim_tick: SimTick::new(4),
+            place_id: PlaceId::new("market_stall").unwrap(),
+            place_label: "Market stall".to_string(),
+            visible_exits: Vec::new(),
+            visible_doors: Vec::new(),
+            visible_containers: Vec::new(),
+            visible_items: Vec::new(),
+            carried_items: Vec::new(),
+            local_actors: Vec::new(),
+            semantic_actions: Vec::new(),
+            phase3a_status: None,
+            last_rejection_summary: None,
+            last_rejection_why_not: None,
+            holder_known_context_id: context.holder_known_context_id().clone(),
+            holder_known_context_hash: context.holder_known_context_hash().clone(),
+            holder_known_context_frontier: context.event_frontier(),
+            holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
+            actor_known_interval_summary,
+            notebook: None,
+            debug_available: false,
+        }
+    }
+
+    #[test]
+    fn renderer_prints_actor_known_interval_summary() {
+        let no_new = render_embodied_view(&minimal_view_with_interval(Some(
+            ActorKnownIntervalSummary {
+                start_tick: SimTick::ZERO,
+                stop_tick: SimTick::new(2),
+                stop_reason: "controller_safety_bound".to_string(),
+                notices: Vec::new(),
+                no_new_actor_known_information: true,
+            },
+        )));
+        assert!(no_new.contains("Recent interval: ticks 0-2 stop=controller_safety_bound"));
+        assert!(no_new.contains("- no new actor-known notices or observations"));
+        assert!(!no_new.contains("nothing happened"));
+
+        let with_notice = render_embodied_view(&minimal_view_with_interval(Some(
+            ActorKnownIntervalSummary {
+                start_tick: SimTick::ZERO,
+                stop_tick: SimTick::new(4),
+                stop_reason: "possessed_duration_terminal".to_string(),
+                notices: vec![ActorKnownIntervalNotice {
+                    summary: "sleep completed".to_string(),
+                    source_event_id: "event_sleep_completed_actor_lina".to_string(),
+                }],
+                no_new_actor_known_information: false,
+            },
+        )));
+        assert!(with_notice.contains("Recent interval: ticks 0-4 stop=possessed_duration_terminal"));
+        assert!(with_notice.contains("- sleep completed source=event_sleep_completed_actor_lina"));
     }
 
     #[test]
@@ -361,6 +441,7 @@ mod tests {
             holder_known_context_hash: context.holder_known_context_hash().clone(),
             holder_known_context_frontier: context.event_frontier(),
             holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
+            actor_known_interval_summary: None,
             notebook: None,
             debug_available: true,
         };
@@ -410,6 +491,7 @@ mod tests {
             holder_known_context_hash: context.holder_known_context_hash().clone(),
             holder_known_context_frontier: context.event_frontier(),
             holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
+            actor_known_interval_summary: None,
             notebook: None,
             debug_available: true,
         };
@@ -458,6 +540,7 @@ mod tests {
             holder_known_context_hash: context.holder_known_context_hash().clone(),
             holder_known_context_frontier: context.event_frontier(),
             holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
+            actor_known_interval_summary: None,
             notebook: None,
             debug_available: true,
         };
@@ -502,6 +585,7 @@ mod tests {
             holder_known_context_hash: context.holder_known_context_hash().clone(),
             holder_known_context_frontier: context.event_frontier(),
             holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
+            actor_known_interval_summary: None,
             notebook: None,
             debug_available: true,
         };
@@ -581,6 +665,7 @@ mod tests {
             holder_known_context_hash: context.holder_known_context_hash().clone(),
             holder_known_context_frontier: context.event_frontier(),
             holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
+            actor_known_interval_summary: None,
             notebook: None,
             debug_available: true,
         };
@@ -624,6 +709,7 @@ mod tests {
             holder_known_context_hash: context.holder_known_context_hash().clone(),
             holder_known_context_frontier: context.event_frontier(),
             holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
+            actor_known_interval_summary: None,
             notebook: None,
             debug_available: true,
         };
@@ -670,6 +756,7 @@ mod tests {
             holder_known_context_hash: context.holder_known_context_hash().clone(),
             holder_known_context_frontier: context.event_frontier(),
             holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
+            actor_known_interval_summary: None,
             notebook: None,
             debug_available: true,
         };
@@ -704,6 +791,7 @@ mod tests {
             holder_known_context_hash: context.holder_known_context_hash().clone(),
             holder_known_context_frontier: context.event_frontier(),
             holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
+            actor_known_interval_summary: None,
             notebook: None,
             debug_available: true,
         };
@@ -737,6 +825,7 @@ mod tests {
             holder_known_context_hash: context.holder_known_context_hash().clone(),
             holder_known_context_frontier: context.event_frontier(),
             holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
+            actor_known_interval_summary: None,
             notebook: None,
             debug_available: true,
         };
@@ -774,6 +863,7 @@ mod tests {
             holder_known_context_hash: context.holder_known_context_hash().clone(),
             holder_known_context_frontier: context.event_frontier(),
             holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
+            actor_known_interval_summary: None,
             notebook: None,
             debug_available: true,
         };

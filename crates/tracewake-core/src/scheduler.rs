@@ -1,10 +1,22 @@
+use std::collections::BTreeSet;
+
 use crate::actions::defs::need_events::{
     build_need_delta_and_threshold_events, NeedDeltaEventSpec,
 };
-use crate::agent::NeedKind;
-use crate::events::{EventCause, EventEnvelope};
-use crate::ids::{ActionId, ActorId, ContentManifestId, ControllerId, EventId, ProcessId};
-use crate::state::NeedModelState;
+use crate::actions::defs::sleep::{build_sleep_completion_events, build_sleep_interruption_events};
+use crate::actions::defs::work::build_work_completion_events;
+use crate::agent::{NeedKind, NeedState};
+use crate::events::apply::{apply_agent_event, ApplyError};
+use crate::events::log::{EventLog, EventLogError};
+use crate::events::{
+    is_duration_terminal, EventCause, EventEnvelope, EventEnvelopeBuildError, EventKind,
+    PayloadField, EVENT_SCHEMA_V1,
+};
+use crate::ids::{ActionId, ActorId, ContentManifestId, ControllerId, EventId, IdError, ProcessId};
+use crate::need_accounting::{
+    classify_actor_tick_regimes, open_body_exclusive_starts, DuplicateDurationTerminal,
+};
+use crate::state::{AgentState, NeedModelState, PhysicalState};
 use crate::time::{passive_awake_need_deltas, SimTick};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -89,6 +101,136 @@ impl OrderingKey {
 pub struct Scheduled<T> {
     pub ordering_key: OrderingKey,
     pub payload: T,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum WorldAdvanceOrigin {
+    Controller(ControllerId),
+    Process(ProcessId),
+    Replay,
+}
+
+impl WorldAdvanceOrigin {
+    fn stable_id(&self) -> String {
+        match self {
+            Self::Controller(controller_id) => {
+                format!("controller.{}", controller_id.as_str())
+            }
+            Self::Process(process_id) => format!("process.{}", process_id.as_str()),
+            Self::Replay => "replay".to_string(),
+        }
+    }
+
+    fn cause_process_id(&self) -> Result<ProcessId, IdError> {
+        let stable_id = match self {
+            Self::Controller(controller_id) => {
+                format!("world_step.controller.{}", controller_id.as_str())
+            }
+            Self::Process(process_id) => {
+                format!("world_step.process.{}", process_id.as_str())
+            }
+            Self::Replay => "world_step.replay".to_string(),
+        };
+        ProcessId::new(stable_id)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WorldAdvanceRequest {
+    pub expected_tick: SimTick,
+    pub origin: WorldAdvanceOrigin,
+    pub content_manifest_id: ContentManifestId,
+    pub authorized_sleep_interruptions: Vec<AuthorizedSleepInterruption>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AuthorizedSleepInterruption {
+    pub start_event_id: EventId,
+    pub terminal_tick: SimTick,
+    pub reason: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WorldStepDueWorkSummary {
+    pub open_duration_candidates: usize,
+    pub duration_terminals_appended: usize,
+    pub actor_transactions_attempted: usize,
+    pub world_processes_applied: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum BodyExclusiveDurationKind {
+    Sleep,
+    Work,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OpenDurationCandidate {
+    pub start_event_id: EventId,
+    pub actor_id: ActorId,
+    pub duration_kind: BodyExclusiveDurationKind,
+    pub start_tick: SimTick,
+    pub expected_completion_tick: SimTick,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WorldAdvanceResult {
+    pub prior_tick: SimTick,
+    pub resulting_tick: SimTick,
+    pub appended_event_ids: Vec<EventId>,
+    pub due_duration_candidates: Vec<OpenDurationCandidate>,
+    pub due_work_summary: WorldStepDueWorkSummary,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum WorldAdvanceError {
+    FrontierMismatch {
+        expected: SimTick,
+        actual: SimTick,
+    },
+    OpenDurationDiscovery(DuplicateDurationTerminal),
+    MalformedDurationStart {
+        start_event_id: EventId,
+        reason: String,
+    },
+    DurationLifecycleBuild {
+        start_event_id: EventId,
+        error: ApplyError,
+    },
+    DurationLifecycleApply {
+        event_id: EventId,
+        error: ApplyError,
+    },
+    EventAppend(EventLogError),
+    InvalidAccountingActionId(IdError),
+    InvalidMarkerId(IdError),
+    InvalidMarkerEnvelope(EventEnvelopeBuildError),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AdvanceUntilRequest {
+    pub expected_tick: SimTick,
+    pub origin: WorldAdvanceOrigin,
+    pub content_manifest_id: ContentManifestId,
+    pub possessed_actor_id: ActorId,
+    pub max_ticks: u64,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AdvanceUntilStopReason {
+    PossessedDurationTerminal,
+    ActorKnownSalientObservation,
+    UserPausedBeforeNextTick,
+    ControllerSafetyBound,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AdvanceUntilResult {
+    pub start_tick: SimTick,
+    pub stop_tick: SimTick,
+    pub ticks_advanced: u64,
+    pub stop_reason: AdvanceUntilStopReason,
+    pub appended_event_ids: Vec<EventId>,
 }
 
 pub fn sort_scheduled<T>(scheduled: &mut [Scheduled<T>]) {
@@ -209,30 +351,720 @@ impl DeterministicScheduler {
         self.proposal_sequences.assign_next()
     }
 
-    pub fn advance_one_tick(&mut self) -> SimTick {
+    #[cfg(test)]
+    fn increment_clock_one_tick(&mut self) -> SimTick {
         self.current_tick = self.current_tick.next();
         self.current_tick
     }
+
+    pub fn advance_world_one_tick(
+        &mut self,
+        state: &PhysicalState,
+        agent_state: &mut AgentState,
+        log: &mut EventLog,
+        request: WorldAdvanceRequest,
+    ) -> Result<WorldAdvanceResult, WorldAdvanceError> {
+        if request.expected_tick != self.current_tick {
+            return Err(WorldAdvanceError::FrontierMismatch {
+                expected: request.expected_tick,
+                actual: self.current_tick,
+            });
+        }
+
+        let prior_tick = self.current_tick;
+        let resulting_tick = prior_tick.next();
+        let due_duration_candidates = discover_due_duration_candidates(log, resulting_tick)?;
+        let marker = build_time_advanced_event(prior_tick, resulting_tick, &request)?;
+        let lifecycle = build_duration_lifecycle_events(
+            state,
+            agent_state,
+            log,
+            &request,
+            &due_duration_candidates,
+            resulting_tick,
+            &marker,
+        )?;
+        let appended_marker = log.append(marker).map_err(WorldAdvanceError::EventAppend)?;
+        let mut appended_event_ids = vec![appended_marker.event_id];
+        for event in lifecycle.events {
+            let appended = log.append(event).map_err(WorldAdvanceError::EventAppend)?;
+            apply_agent_event(agent_state, &appended).map_err(|error| {
+                WorldAdvanceError::DurationLifecycleApply {
+                    event_id: appended.event_id.clone(),
+                    error,
+                }
+            })?;
+            appended_event_ids.push(appended.event_id);
+        }
+        self.current_tick = resulting_tick;
+        let open_duration_candidates = due_duration_candidates.len();
+
+        Ok(WorldAdvanceResult {
+            prior_tick,
+            resulting_tick,
+            appended_event_ids,
+            due_duration_candidates,
+            due_work_summary: WorldStepDueWorkSummary {
+                open_duration_candidates,
+                duration_terminals_appended: lifecycle.duration_terminals_appended,
+                actor_transactions_attempted: 0,
+                world_processes_applied: 0,
+            },
+        })
+    }
+
+    pub fn advance_until(
+        &mut self,
+        state: &PhysicalState,
+        agent_state: &mut AgentState,
+        log: &mut EventLog,
+        request: AdvanceUntilRequest,
+    ) -> Result<AdvanceUntilResult, WorldAdvanceError> {
+        if request.expected_tick != self.current_tick {
+            return Err(WorldAdvanceError::FrontierMismatch {
+                expected: request.expected_tick,
+                actual: self.current_tick,
+            });
+        }
+
+        let start_tick = self.current_tick;
+        let mut appended_event_ids = Vec::new();
+        if request.max_ticks == 0 {
+            return Ok(AdvanceUntilResult {
+                start_tick,
+                stop_tick: self.current_tick,
+                ticks_advanced: 0,
+                stop_reason: AdvanceUntilStopReason::UserPausedBeforeNextTick,
+                appended_event_ids,
+            });
+        }
+
+        for _ in 0..request.max_ticks {
+            let step = self.advance_world_one_tick(
+                state,
+                agent_state,
+                log,
+                WorldAdvanceRequest {
+                    expected_tick: self.current_tick,
+                    origin: request.origin.clone(),
+                    content_manifest_id: request.content_manifest_id.clone(),
+                    authorized_sleep_interruptions: Vec::new(),
+                },
+            )?;
+            appended_event_ids.extend(step.appended_event_ids.iter().cloned());
+            if step_appended_possessed_duration_terminal(
+                log,
+                &step.appended_event_ids,
+                &request.possessed_actor_id,
+            ) {
+                return Ok(AdvanceUntilResult {
+                    start_tick,
+                    stop_tick: self.current_tick,
+                    ticks_advanced: ticks_advanced_between(start_tick, self.current_tick),
+                    stop_reason: AdvanceUntilStopReason::PossessedDurationTerminal,
+                    appended_event_ids,
+                });
+            }
+            if step_appended_actor_known_salient_observation(
+                log,
+                &step.appended_event_ids,
+                &request.possessed_actor_id,
+            ) {
+                return Ok(AdvanceUntilResult {
+                    start_tick,
+                    stop_tick: self.current_tick,
+                    ticks_advanced: ticks_advanced_between(start_tick, self.current_tick),
+                    stop_reason: AdvanceUntilStopReason::ActorKnownSalientObservation,
+                    appended_event_ids,
+                });
+            }
+        }
+
+        Ok(AdvanceUntilResult {
+            start_tick,
+            stop_tick: self.current_tick,
+            ticks_advanced: ticks_advanced_between(start_tick, self.current_tick),
+            stop_reason: AdvanceUntilStopReason::ControllerSafetyBound,
+            appended_event_ids,
+        })
+    }
+}
+
+/// Forward tick delta between an `advance_until` start frontier and its stop
+/// frontier. Centralizing the subtraction keeps it to a single mutation-covered
+/// site shared by every stop branch, including branches that are not yet
+/// reachable, so each return reuses the same verified arithmetic.
+fn ticks_advanced_between(start_tick: SimTick, current_tick: SimTick) -> u64 {
+    current_tick.value() - start_tick.value()
+}
+
+fn step_appended_possessed_duration_terminal(
+    log: &EventLog,
+    appended_event_ids: &[EventId],
+    possessed_actor_id: &ActorId,
+) -> bool {
+    appended_event_ids.iter().any(|event_id| {
+        log.events().iter().any(|event| {
+            &event.event_id == event_id
+                && is_duration_terminal(event.event_type)
+                && event.actor_id.as_ref() == Some(possessed_actor_id)
+        })
+    })
+}
+
+fn step_appended_actor_known_salient_observation(
+    log: &EventLog,
+    appended_event_ids: &[EventId],
+    possessed_actor_id: &ActorId,
+) -> bool {
+    appended_event_ids.iter().any(|event_id| {
+        log.events().iter().any(|event| {
+            &event.event_id == event_id
+                && event.event_type == EventKind::ObservationRecorded
+                && event.actor_id.as_ref() == Some(possessed_actor_id)
+        })
+    })
+}
+
+struct BuiltDurationLifecycle {
+    events: Vec<EventEnvelope>,
+    duration_terminals_appended: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum DurationLifecycleCandidate {
+    SleepCompletion {
+        start_event_id: EventId,
+        terminal_tick: SimTick,
+    },
+    WorkCompletion {
+        start_event_id: EventId,
+        terminal_tick: SimTick,
+    },
+    SleepInterruption {
+        start_event_id: EventId,
+        terminal_tick: SimTick,
+        reason: String,
+    },
+}
+
+impl DurationLifecycleCandidate {
+    fn start_event_id(&self) -> &EventId {
+        match self {
+            Self::SleepCompletion { start_event_id, .. }
+            | Self::WorkCompletion { start_event_id, .. }
+            | Self::SleepInterruption { start_event_id, .. } => start_event_id,
+        }
+    }
+
+    const fn terminal_tick(&self) -> SimTick {
+        match self {
+            Self::SleepCompletion { terminal_tick, .. }
+            | Self::WorkCompletion { terminal_tick, .. }
+            | Self::SleepInterruption { terminal_tick, .. } => *terminal_tick,
+        }
+    }
+
+    const fn ordering_priority(&self) -> u8 {
+        match self {
+            Self::SleepInterruption { .. } => 0,
+            Self::SleepCompletion { .. } | Self::WorkCompletion { .. } => 1,
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn build_duration_lifecycle_events(
+    state: &PhysicalState,
+    agent_state: &AgentState,
+    log: &EventLog,
+    request: &WorldAdvanceRequest,
+    due_duration_candidates: &[OpenDurationCandidate],
+    resulting_tick: SimTick,
+    marker: &EventEnvelope,
+) -> Result<BuiltDurationLifecycle, WorldAdvanceError> {
+    let mut candidates = due_duration_candidates
+        .iter()
+        .map(|candidate| match candidate.duration_kind {
+            BodyExclusiveDurationKind::Sleep => DurationLifecycleCandidate::SleepCompletion {
+                start_event_id: candidate.start_event_id.clone(),
+                terminal_tick: candidate.expected_completion_tick,
+            },
+            BodyExclusiveDurationKind::Work => DurationLifecycleCandidate::WorkCompletion {
+                start_event_id: candidate.start_event_id.clone(),
+                terminal_tick: candidate.expected_completion_tick,
+            },
+        })
+        .collect::<Vec<_>>();
+    candidates.extend(
+        request
+            .authorized_sleep_interruptions
+            .iter()
+            .map(
+                |interruption| DurationLifecycleCandidate::SleepInterruption {
+                    start_event_id: interruption.start_event_id.clone(),
+                    terminal_tick: interruption.terminal_tick,
+                    reason: interruption.reason.clone(),
+                },
+            ),
+    );
+    candidates.retain(|candidate| candidate.terminal_tick() <= resulting_tick);
+    candidates.sort_by(|left, right| {
+        left.terminal_tick()
+            .cmp(&right.terminal_tick())
+            .then_with(|| left.ordering_priority().cmp(&right.ordering_priority()))
+            .then_with(|| left.start_event_id().cmp(right.start_event_id()))
+    });
+
+    let mut scratch_log = log.clone();
+    let mut scratch_agent_state = agent_state.clone();
+    scratch_log
+        .append(marker.clone())
+        .map_err(WorldAdvanceError::EventAppend)?;
+    let process_id = request
+        .origin
+        .cause_process_id()
+        .map_err(WorldAdvanceError::InvalidMarkerId)?;
+    let mut events = Vec::new();
+    let mut duration_terminals_appended = 0;
+    for (sequence, candidate) in candidates.into_iter().enumerate() {
+        let start_event = scratch_log
+            .events()
+            .iter()
+            .find(|event| event.event_id == *candidate.start_event_id())
+            .cloned()
+            .ok_or_else(|| WorldAdvanceError::MalformedDurationStart {
+                start_event_id: candidate.start_event_id().clone(),
+                reason: "duration lifecycle start was not present in the event log".to_string(),
+            })?;
+        let ordering_key =
+            duration_lifecycle_ordering_key(&candidate, &start_event, &process_id, sequence)?;
+        let built_events = match &candidate {
+            DurationLifecycleCandidate::SleepCompletion { terminal_tick, .. } => {
+                build_sleep_completion_events(
+                    state,
+                    &scratch_agent_state,
+                    &scratch_log,
+                    &start_event,
+                    &ordering_key,
+                    &request.content_manifest_id,
+                    *terminal_tick,
+                )
+            }
+            DurationLifecycleCandidate::WorkCompletion { terminal_tick, .. } => {
+                build_work_completion_events(
+                    state,
+                    &scratch_agent_state,
+                    &scratch_log,
+                    &start_event,
+                    &ordering_key,
+                    &request.content_manifest_id,
+                    *terminal_tick,
+                )
+            }
+            DurationLifecycleCandidate::SleepInterruption {
+                terminal_tick,
+                reason,
+                ..
+            } => build_sleep_interruption_events(
+                &scratch_agent_state,
+                &start_event,
+                &scratch_log,
+                &ordering_key,
+                &request.content_manifest_id,
+                *terminal_tick,
+                reason,
+            ),
+        }
+        .map_err(|error| WorldAdvanceError::DurationLifecycleBuild {
+            start_event_id: candidate.start_event_id().clone(),
+            error,
+        })?;
+        for event in built_events {
+            let appended = scratch_log
+                .append(event.clone())
+                .map_err(WorldAdvanceError::EventAppend)?;
+            apply_agent_event(&mut scratch_agent_state, &appended).map_err(|error| {
+                WorldAdvanceError::DurationLifecycleApply {
+                    event_id: appended.event_id.clone(),
+                    error,
+                }
+            })?;
+            if is_duration_terminal(appended.event_type) {
+                duration_terminals_appended += 1;
+            }
+            events.push(event);
+        }
+    }
+    append_missing_accounting_events(
+        state,
+        &mut scratch_log,
+        &mut scratch_agent_state,
+        request,
+        resulting_tick,
+        &process_id,
+        &mut events,
+    )?;
+    Ok(BuiltDurationLifecycle {
+        events,
+        duration_terminals_appended,
+    })
+}
+
+fn append_missing_accounting_events(
+    state: &PhysicalState,
+    scratch_log: &mut EventLog,
+    scratch_agent_state: &mut AgentState,
+    request: &WorldAdvanceRequest,
+    resulting_tick: SimTick,
+    process_id: &ProcessId,
+    events: &mut Vec<EventEnvelope>,
+) -> Result<(), WorldAdvanceError> {
+    for actor_id in state.actors().keys() {
+        let regime_counts = classify_actor_tick_regimes(
+            scratch_log,
+            actor_id,
+            request.expected_tick,
+            resulting_tick,
+        );
+        if regime_counts.awake_ticks == 0 {
+            continue;
+        }
+        let deltas = passive_awake_need_deltas(state.need_model(), regime_counts.awake_ticks);
+        append_missing_accounting_need_events(
+            scratch_log,
+            scratch_agent_state,
+            request,
+            resulting_tick,
+            process_id,
+            actor_id,
+            NeedKind::Hunger,
+            deltas.hunger_delta,
+            regime_counts.awake_ticks,
+            events,
+        )?;
+        append_missing_accounting_need_events(
+            scratch_log,
+            scratch_agent_state,
+            request,
+            resulting_tick,
+            process_id,
+            actor_id,
+            NeedKind::Fatigue,
+            deltas.fatigue_delta,
+            regime_counts.awake_ticks,
+            events,
+        )?;
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn append_missing_accounting_need_events(
+    scratch_log: &mut EventLog,
+    scratch_agent_state: &mut AgentState,
+    request: &WorldAdvanceRequest,
+    resulting_tick: SimTick,
+    process_id: &ProcessId,
+    actor_id: &ActorId,
+    need_kind: NeedKind,
+    delta: i32,
+    elapsed_ticks: u64,
+    events: &mut Vec<EventEnvelope>,
+) -> Result<(), WorldAdvanceError> {
+    if delta == 0 || elapsed_ticks == 0 {
+        return Ok(());
+    }
+    let current = scratch_agent_state
+        .needs_by_actor()
+        .get(actor_id)
+        .and_then(|needs| needs.get(&need_kind))
+        .map(NeedState::value);
+    let action_id = ActionId::new("world_step_need_accounting")
+        .map_err(WorldAdvanceError::InvalidAccountingActionId)?;
+    let ordering_key = OrderingKey::new(
+        resulting_tick,
+        SchedulePhase::DeferredProcess,
+        SchedulerSourceId::Process(process_id.clone()),
+        ProposalSequence::new(10_000),
+        action_id,
+        vec![
+            actor_id.as_str().to_string(),
+            need_kind.stable_id().to_string(),
+        ],
+        format!(
+            "world_step_accounting:{}:{}:{}",
+            actor_id.as_str(),
+            need_kind.stable_id(),
+            resulting_tick.value()
+        ),
+    );
+    let built_events = build_need_delta_and_threshold_events(
+        NeedDeltaEventSpec {
+            event_id: EventId::new(format!(
+                "event.world_step_need_delta.{}.{}.{}",
+                actor_id.as_str(),
+                need_kind.stable_id(),
+                resulting_tick.value()
+            ))
+            .map_err(WorldAdvanceError::InvalidMarkerId)?,
+            threshold_event_id: EventId::new(format!(
+                "event.world_step_need_threshold.{}.{}.{}",
+                actor_id.as_str(),
+                need_kind.stable_id(),
+                resulting_tick.value()
+            ))
+            .map_err(WorldAdvanceError::InvalidMarkerId)?,
+            tick: resulting_tick,
+            ordering_key,
+            content_manifest_id: request.content_manifest_id.clone(),
+            causes: vec![EventCause::Process(process_id.clone())],
+            actor_id: actor_id.clone(),
+            proposal_id: None,
+            process_id: Some(process_id.clone()),
+            participants: vec![actor_id.to_string()],
+            need_kind,
+            delta,
+            elapsed_ticks,
+            cause_kind: "tick_delta".to_string(),
+            cause_action_id: None,
+            extra_payload: vec![PayloadField::new("accounting_phase", "world_step")],
+            delta_effects_summary: format!(
+                "{} changed by {} during world-step accounting",
+                need_kind.stable_id(),
+                delta
+            ),
+            threshold_effects_summary: format!(
+                "{} crossed threshold during world-step accounting",
+                need_kind.stable_id()
+            ),
+        },
+        current,
+    );
+    let mut trial_agent_state = scratch_agent_state.clone();
+    for event in &built_events {
+        if let Err(error) = apply_agent_event(&mut trial_agent_state, event) {
+            if matches!(error, ApplyError::DuplicateNeedTickCharge { .. }) {
+                return Ok(());
+            }
+            return Err(WorldAdvanceError::DurationLifecycleApply {
+                event_id: event.event_id.clone(),
+                error,
+            });
+        }
+    }
+    for event in built_events {
+        let appended = scratch_log
+            .append(event.clone())
+            .map_err(WorldAdvanceError::EventAppend)?;
+        events.push(event);
+        apply_agent_event(scratch_agent_state, &appended).map_err(|error| {
+            WorldAdvanceError::DurationLifecycleApply {
+                event_id: appended.event_id.clone(),
+                error,
+            }
+        })?;
+    }
+    Ok(())
+}
+
+fn duration_lifecycle_ordering_key(
+    candidate: &DurationLifecycleCandidate,
+    start_event: &EventEnvelope,
+    process_id: &ProcessId,
+    sequence: usize,
+) -> Result<OrderingKey, WorldAdvanceError> {
+    let action_id = match candidate {
+        DurationLifecycleCandidate::SleepCompletion { .. } => "sleep_completed",
+        DurationLifecycleCandidate::WorkCompletion { .. } => "work_block_completed",
+        DurationLifecycleCandidate::SleepInterruption { .. } => "sleep_interrupted",
+    };
+    let actor_target = start_event
+        .actor_id
+        .as_ref()
+        .map(|actor_id| actor_id.as_str().to_string())
+        .unwrap_or_default();
+    Ok(OrderingKey::new(
+        candidate.terminal_tick(),
+        SchedulePhase::DeferredProcess,
+        SchedulerSourceId::Process(process_id.clone()),
+        ProposalSequence::new(sequence as u64),
+        ActionId::new(action_id).map_err(WorldAdvanceError::InvalidMarkerId)?,
+        vec![actor_target],
+        format!("{}:{}", action_id, start_event.event_id.as_str()),
+    ))
+}
+
+fn discover_due_duration_candidates(
+    log: &EventLog,
+    resulting_tick: SimTick,
+) -> Result<Vec<OpenDurationCandidate>, WorldAdvanceError> {
+    let mut actor_ids = BTreeSet::new();
+    for event in log.events().iter().filter(|event| {
+        matches!(
+            event.event_type,
+            EventKind::SleepStarted | EventKind::WorkBlockStarted
+        )
+    }) {
+        if let Some(actor_id) = event.actor_id.as_ref() {
+            actor_ids.insert(actor_id.clone());
+        }
+    }
+
+    let mut candidates = Vec::new();
+    for actor_id in actor_ids {
+        for start_event_id in open_body_exclusive_starts(log, &actor_id, resulting_tick)
+            .map_err(WorldAdvanceError::OpenDurationDiscovery)?
+        {
+            let Some(start_event) = log
+                .events()
+                .iter()
+                .find(|event| event.event_id == start_event_id)
+            else {
+                return Err(WorldAdvanceError::MalformedDurationStart {
+                    start_event_id,
+                    reason: "open duration start was not present in the event log".to_string(),
+                });
+            };
+            let Some(candidate) = due_duration_candidate(start_event, resulting_tick)? else {
+                continue;
+            };
+            candidates.push(candidate);
+        }
+    }
+    candidates.sort_by(|left, right| {
+        left.expected_completion_tick
+            .cmp(&right.expected_completion_tick)
+            .then_with(|| left.actor_id.cmp(&right.actor_id))
+            .then_with(|| left.start_event_id.cmp(&right.start_event_id))
+    });
+    Ok(candidates)
+}
+
+fn due_duration_candidate(
+    start_event: &EventEnvelope,
+    resulting_tick: SimTick,
+) -> Result<Option<OpenDurationCandidate>, WorldAdvanceError> {
+    let duration_kind = match start_event.event_type {
+        EventKind::SleepStarted => BodyExclusiveDurationKind::Sleep,
+        EventKind::WorkBlockStarted => BodyExclusiveDurationKind::Work,
+        _ => return Ok(None),
+    };
+    let expected_completion_tick = parse_duration_start_completion_tick(start_event)?;
+    if expected_completion_tick > resulting_tick {
+        return Ok(None);
+    }
+    let Some(actor_id) = start_event.actor_id.clone() else {
+        return Err(WorldAdvanceError::MalformedDurationStart {
+            start_event_id: start_event.event_id.clone(),
+            reason: "body-exclusive start was missing actor_id".to_string(),
+        });
+    };
+    Ok(Some(OpenDurationCandidate {
+        start_event_id: start_event.event_id.clone(),
+        actor_id,
+        duration_kind,
+        start_tick: start_event.sim_tick,
+        expected_completion_tick,
+    }))
+}
+
+fn parse_duration_start_completion_tick(
+    event: &EventEnvelope,
+) -> Result<SimTick, WorldAdvanceError> {
+    let Some(value) = payload_value(event, "expected_completion_tick") else {
+        return Err(WorldAdvanceError::MalformedDurationStart {
+            start_event_id: event.event_id.clone(),
+            reason: "missing expected_completion_tick".to_string(),
+        });
+    };
+    let tick = value
+        .parse::<u64>()
+        .map_err(|_| WorldAdvanceError::MalformedDurationStart {
+            start_event_id: event.event_id.clone(),
+            reason: format!("bad expected_completion_tick {value:?}"),
+        })?;
+    Ok(SimTick::new(tick))
+}
+
+fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
+    event
+        .payload
+        .iter()
+        .find(|field| field.key == key)
+        .map(|field| field.value.as_str())
+}
+
+fn build_time_advanced_event(
+    prior_tick: SimTick,
+    resulting_tick: SimTick,
+    request: &WorldAdvanceRequest,
+) -> Result<EventEnvelope, WorldAdvanceError> {
+    let origin_id = request.origin.stable_id();
+    let event_id = EventId::new(format!(
+        "event.time_advanced.{}.{}.{}",
+        prior_tick.value(),
+        resulting_tick.value(),
+        origin_id
+    ))
+    .map_err(WorldAdvanceError::InvalidMarkerId)?;
+    let cause_process_id = request
+        .origin
+        .cause_process_id()
+        .map_err(WorldAdvanceError::InvalidMarkerId)?;
+    let ordering_key = OrderingKey::new(
+        resulting_tick,
+        SchedulePhase::DeferredProcess,
+        SchedulerSourceId::Process(cause_process_id.clone()),
+        ProposalSequence::new(0),
+        ActionId::new("world_step").map_err(WorldAdvanceError::InvalidMarkerId)?,
+        Vec::new(),
+        format!("time_advanced:{}", origin_id),
+    );
+    let mut event = EventEnvelope::new_caused_v1(
+        event_id,
+        EventKind::TimeAdvanced,
+        0,
+        0,
+        resulting_tick,
+        ordering_key,
+        request.content_manifest_id.clone(),
+        vec![EventCause::Process(cause_process_id)],
+    )
+    .map_err(WorldAdvanceError::InvalidMarkerEnvelope)?;
+    event.payload = vec![
+        PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+        PayloadField::new("prior_tick", prior_tick.value().to_string()),
+        PayloadField::new("resulting_tick", resulting_tick.value().to_string()),
+        PayloadField::new("origin", origin_id),
+        PayloadField::new("ordering_ancestry", "canonical_world_step_v1"),
+    ];
+    event.effects_summary = format!(
+        "authoritative world step advanced from tick {} to {}",
+        prior_tick.value(),
+        resulting_tick.value()
+    );
+    Ok(event)
 }
 
 pub mod no_human {
     use std::collections::{BTreeMap, BTreeSet};
 
+    #[cfg(test)]
     use crate::actions::defs::need_events::{
         build_need_delta_and_threshold_events, NeedDeltaEventSpec,
     };
-    use crate::actions::defs::sleep::build_sleep_completion_events;
-    use crate::actions::defs::work::build_work_completion_events;
     use crate::actions::pipeline::{run_pipeline, PipelineContext};
     use crate::actions::proposal::Proposal;
     use crate::actions::registry::ActionRegistry;
+    #[cfg(test)]
+    use crate::agent::NeedKind;
     use crate::agent::{
         record_current_place_perception, ActorDecisionTransaction, ActorDecisionTransactionInput,
         ActorDecisionTransactionOutcome, ActorKnownPlanningContext, BlockerCategory, BlockerCode,
-        DecisionTraceRecord, Intention, IntentionSource, NeedKind, NeedState,
-        NoHumanActorKnownSurfaceBuilder, NoHumanActorKnownSurfaceRequest, ResponsibleLayer,
-        RoutineFamily, RoutineStepStatus, StuckDiagnostic, StuckResultingStatus,
-        TypedDiagnosticFields,
+        DecisionTraceRecord, Intention, IntentionSource, NoHumanActorKnownSurfaceBuilder,
+        NoHumanActorKnownSurfaceRequest, ResponsibleLayer, RoutineFamily, RoutineStepStatus,
+        StuckDiagnostic, StuckResultingStatus, TypedDiagnosticFields,
     };
     use crate::epistemics::EpistemicProjection;
     use crate::events::apply::{apply_agent_event, apply_epistemic_event, ApplyError};
@@ -243,9 +1075,9 @@ pub mod no_human {
         ActionId, ActorId, CandidateGoalId, ContentManifestId, EventId, IntentionId, PlaceId,
         ProcessId, RoutineExecutionId, SemanticActionId, StuckDiagnosticId,
     };
-    use crate::need_accounting::classify_actor_tick_regimes;
     use crate::scheduler::{
         DeterministicScheduler, OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId,
+        WorldAdvanceError, WorldAdvanceOrigin, WorldAdvanceRequest,
     };
     use crate::state::{AgentState, PhysicalState};
     use crate::time::SimTick;
@@ -308,6 +1140,9 @@ pub mod no_human {
             start_event_id: EventId,
             error: ApplyError,
         },
+        WorldAdvance {
+            error: WorldAdvanceError,
+        },
         AgentApply {
             event_id: EventId,
             error: ApplyError,
@@ -365,11 +1200,7 @@ pub mod no_human {
         config.actor_ids.dedup();
 
         let process_id = ProcessId::new("no_human_day").unwrap();
-        let start_tick = config
-            .windows
-            .first()
-            .map(|window| window.start_tick)
-            .unwrap_or(SimTick::ZERO);
+        let start_tick = SimTick::ZERO;
         let final_tick = config
             .windows
             .last()
@@ -391,15 +1222,25 @@ pub mod no_human {
         let mut duration_skip_by_window_actor: BTreeSet<(String, ActorId)> = BTreeSet::new();
         let mut stuck_diagnostic_event_ids = Vec::new();
         let mut scheduler_errors = Vec::new();
-        let mut pending_sleep_starts = Vec::new();
-        let mut pending_work_starts = Vec::new();
-        let mut last_decision_tick_by_actor = config
-            .actor_ids
-            .iter()
-            .cloned()
-            .map(|actor_id| (actor_id, SimTick::ZERO))
-            .collect::<BTreeMap<_, _>>();
         for window in &config.windows {
+            let completed_durations = advance_no_human_scheduler_to_tick(
+                state,
+                agent_state,
+                log,
+                &process_id,
+                &mut scheduler,
+                &content_manifest_id,
+                window.start_tick,
+                &mut scheduler_errors,
+            );
+            for (completed_actor_id, completion_tick) in completed_durations {
+                credit_completion(
+                    &mut progress_by_window_actor,
+                    &config.windows,
+                    &completed_actor_id,
+                    completion_tick,
+                );
+            }
             for actor_id in &config.actor_ids {
                 if !state.actors.contains_key(actor_id) {
                     continue;
@@ -411,48 +1252,6 @@ pub mod no_human {
                 ) {
                     scheduler_errors.push(error.into());
                     continue;
-                }
-                let previous_decision_tick = last_decision_tick_by_actor
-                    .get(actor_id)
-                    .copied()
-                    .unwrap_or(start_tick);
-                let elapsed_ticks = window
-                    .start_tick
-                    .value()
-                    .saturating_sub(previous_decision_tick.value());
-                let passive_context = PassiveNeedDecisionContext {
-                    process_id: &process_id,
-                    actor_id,
-                    window,
-                    content_manifest_id: &content_manifest_id,
-                };
-                append_passive_need_events_before_decision(
-                    state,
-                    log,
-                    agent_state,
-                    &passive_context,
-                    elapsed_ticks,
-                );
-                last_decision_tick_by_actor.insert(actor_id.clone(), window.start_tick);
-                let completed_durations = append_due_completions(
-                    state,
-                    log,
-                    agent_state,
-                    &process_id,
-                    &mut scheduler,
-                    &content_manifest_id,
-                    &mut pending_sleep_starts,
-                    &mut pending_work_starts,
-                    window.start_tick,
-                    &mut scheduler_errors,
-                );
-                for (completed_actor_id, completion_tick) in completed_durations {
-                    credit_completion(
-                        &mut progress_by_window_actor,
-                        std::slice::from_ref(window),
-                        &completed_actor_id,
-                        completion_tick,
-                    );
                 }
                 record_current_place_perception(
                     log,
@@ -530,25 +1329,7 @@ pub mod no_human {
                     ordering_key,
                 };
                 let result = run_pipeline(&mut context, &proposal);
-                if let Some(latest_charged_tick) =
-                    latest_action_tick_delta_tick(&result.appended_events, actor_id)
-                {
-                    last_decision_tick_by_actor.insert(actor_id.clone(), latest_charged_tick);
-                }
-                pending_sleep_starts.extend(
-                    result
-                        .appended_events
-                        .iter()
-                        .filter(|event| is_due_sleep_start(event, final_tick))
-                        .cloned(),
-                );
-                pending_work_starts.extend(
-                    result
-                        .appended_events
-                        .iter()
-                        .filter(|event| is_due_work_start(event, final_tick))
-                        .cloned(),
-                );
+                sync_scheduler_frontier_to_appended_events(&mut scheduler, &result.appended_events);
                 let progress_events = no_human_progress_event_count(&result.appended_events);
                 ordinary_pipeline_events += progress_events;
                 record_window_progress(
@@ -603,15 +1384,13 @@ pub mod no_human {
             }
         }
 
-        let completed_durations = append_due_completions(
+        let completed_durations = advance_no_human_scheduler_to_tick(
             state,
-            log,
             agent_state,
+            log,
             &process_id,
             &mut scheduler,
             &content_manifest_id,
-            &mut pending_sleep_starts,
-            &mut pending_work_starts,
             final_tick,
             &mut scheduler_errors,
         );
@@ -681,16 +1460,6 @@ pub mod no_human {
             stuck_diagnostic_event_ids,
             scheduler_errors,
         }
-    }
-
-    fn is_due_sleep_start(event: &EventEnvelope, final_tick: SimTick) -> bool {
-        event.event_type == EventKind::SleepStarted
-            && scheduled_completion_tick(event).is_some_and(|tick| tick <= final_tick)
-    }
-
-    fn is_due_work_start(event: &EventEnvelope, final_tick: SimTick) -> bool {
-        event.event_type == EventKind::WorkBlockStarted
-            && scheduled_completion_tick(event).is_some_and(|tick| tick <= final_tick)
     }
 
     fn record_window_progress(
@@ -888,207 +1657,89 @@ pub mod no_human {
         agent_state.intentions.get(intention_id).cloned()
     }
 
-    enum PendingCompletion {
-        Sleep(EventEnvelope),
-        Work(EventEnvelope),
-    }
-
-    impl PendingCompletion {
-        fn tick(&self) -> Option<SimTick> {
-            match self {
-                Self::Sleep(event) | Self::Work(event) => scheduled_completion_tick(event),
-            }
-        }
-
-        fn event_id(&self) -> &EventId {
-            match self {
-                Self::Sleep(event) | Self::Work(event) => &event.event_id,
-            }
-        }
-    }
-
     #[allow(clippy::too_many_arguments)]
-    fn append_due_completions(
+    fn advance_no_human_scheduler_to_tick(
         state: &PhysicalState,
-        log: &mut EventLog,
         agent_state: &mut AgentState,
+        log: &mut EventLog,
         process_id: &ProcessId,
         scheduler: &mut DeterministicScheduler,
         content_manifest_id: &ContentManifestId,
-        pending_sleep_starts: &mut Vec<EventEnvelope>,
-        pending_work_starts: &mut Vec<EventEnvelope>,
-        due_tick: SimTick,
+        target_tick: SimTick,
         scheduler_errors: &mut Vec<NoHumanSchedulerError>,
     ) -> Vec<(ActorId, SimTick)> {
-        let mut due_completions = Vec::new();
-        let mut retained_sleep_starts = Vec::new();
-        for sleep_started in pending_sleep_starts.drain(..) {
-            if scheduled_completion_tick(&sleep_started).is_some_and(|tick| tick <= due_tick) {
-                due_completions.push(PendingCompletion::Sleep(sleep_started));
-            } else {
-                retained_sleep_starts.push(sleep_started);
-            }
-        }
-        *pending_sleep_starts = retained_sleep_starts;
-
-        let mut retained_work_starts = Vec::new();
-        for work_started in pending_work_starts.drain(..) {
-            if scheduled_completion_tick(&work_started).is_some_and(|tick| tick <= due_tick) {
-                due_completions.push(PendingCompletion::Work(work_started));
-            } else {
-                retained_work_starts.push(work_started);
-            }
-        }
-        *pending_work_starts = retained_work_starts;
-
-        due_completions.sort_by(|left, right| {
-            left.tick()
-                .cmp(&right.tick())
-                .then_with(|| left.event_id().cmp(right.event_id()))
-        });
         let mut completed_durations = Vec::new();
-        for completion in due_completions {
-            completed_durations.extend(append_scheduled_completion(
-                state,
+        while scheduler.current_tick < target_tick {
+            let request = WorldAdvanceRequest {
+                expected_tick: scheduler.current_tick,
+                origin: WorldAdvanceOrigin::Process(process_id.clone()),
+                content_manifest_id: content_manifest_id.clone(),
+                authorized_sleep_interruptions: Vec::new(),
+            };
+            let result = match scheduler.advance_world_one_tick(state, agent_state, log, request) {
+                Ok(result) => result,
+                Err(error) => {
+                    scheduler_errors.push(NoHumanSchedulerError::WorldAdvance { error });
+                    break;
+                }
+            };
+            completed_durations.extend(record_no_human_duration_completions(
                 log,
                 agent_state,
                 process_id,
-                scheduler,
                 content_manifest_id,
-                completion,
-                scheduler_errors,
+                &result.appended_event_ids,
             ));
         }
         completed_durations
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn append_scheduled_completion(
-        state: &PhysicalState,
+    fn record_no_human_duration_completions(
         log: &mut EventLog,
         agent_state: &mut AgentState,
         process_id: &ProcessId,
-        scheduler: &mut DeterministicScheduler,
         content_manifest_id: &ContentManifestId,
-        completion: PendingCompletion,
-        scheduler_errors: &mut Vec<NoHumanSchedulerError>,
+        appended_event_ids: &[EventId],
     ) -> Vec<(ActorId, SimTick)> {
+        let appended_events = appended_event_ids
+            .iter()
+            .filter_map(|event_id| {
+                log.events()
+                    .iter()
+                    .find(|event| &event.event_id == event_id)
+                    .cloned()
+            })
+            .collect::<Vec<_>>();
         let mut completed_durations = Vec::new();
-        match completion {
-            PendingCompletion::Sleep(sleep_started) => {
-                let Some(completion_tick) = scheduled_completion_tick(&sleep_started) else {
-                    return completed_durations;
-                };
-                let actor_id = sleep_started
-                    .actor_id
-                    .as_ref()
-                    .map(|actor_id| actor_id.as_str().to_string())
-                    .unwrap_or_default();
-                let ordering_key = OrderingKey::new(
-                    completion_tick,
-                    SchedulePhase::NoHumanProcess,
-                    SchedulerSourceId::Process(process_id.clone()),
-                    scheduler.assign_proposal_sequence(),
-                    ActionId::new("sleep_completed").unwrap(),
-                    vec![actor_id],
-                    format!("sleep_completed:{}", sleep_started.event_id.as_str()),
-                );
-                let events = match build_sleep_completion_events(
-                    state,
-                    agent_state,
-                    log,
-                    &sleep_started,
-                    &ordering_key,
-                    content_manifest_id,
-                    completion_tick,
-                ) {
-                    Ok(events) => events,
-                    Err(error) => {
-                        scheduler_errors.push(NoHumanSchedulerError::CompletionBuild {
-                            start_event_id: sleep_started.event_id,
-                            error,
-                        });
-                        return completed_durations;
-                    }
-                };
-                for event in events {
-                    let Ok(appended) =
-                        try_append_and_apply_agent_event(log, agent_state, event, scheduler_errors)
-                    else {
-                        continue;
-                    };
-                    if is_duration_terminal(appended.event_type) {
-                        if let Some(actor_id) = appended.actor_id.clone() {
-                            completed_durations.push((actor_id, appended.sim_tick));
-                        }
-                        append_routine_step_completed_after_duration_completion(
-                            log,
-                            agent_state,
-                            process_id,
-                            content_manifest_id,
-                            &appended,
-                        );
-                    }
+        for appended in appended_events {
+            if is_duration_terminal(appended.event_type) {
+                if let Some(actor_id) = appended.actor_id.clone() {
+                    completed_durations.push((actor_id, appended.sim_tick));
                 }
-            }
-            PendingCompletion::Work(work_started) => {
-                let Some(completion_tick) = scheduled_completion_tick(&work_started) else {
-                    return completed_durations;
-                };
-                let actor_id = work_started
-                    .actor_id
-                    .as_ref()
-                    .map(|actor_id| actor_id.as_str().to_string())
-                    .unwrap_or_default();
-                let ordering_key = OrderingKey::new(
-                    completion_tick,
-                    SchedulePhase::NoHumanProcess,
-                    SchedulerSourceId::Process(process_id.clone()),
-                    scheduler.assign_proposal_sequence(),
-                    ActionId::new("work_block_completed").unwrap(),
-                    vec![actor_id],
-                    format!("work_completed:{}", work_started.event_id.as_str()),
-                );
-                let events = match build_work_completion_events(
-                    state,
-                    agent_state,
+                append_routine_step_completed_after_duration_completion(
                     log,
-                    &work_started,
-                    &ordering_key,
+                    agent_state,
+                    process_id,
                     content_manifest_id,
-                    completion_tick,
-                ) {
-                    Ok(events) => events,
-                    Err(error) => {
-                        scheduler_errors.push(NoHumanSchedulerError::CompletionBuild {
-                            start_event_id: work_started.event_id,
-                            error,
-                        });
-                        return completed_durations;
-                    }
-                };
-                for event in events {
-                    let Ok(appended) =
-                        try_append_and_apply_agent_event(log, agent_state, event, scheduler_errors)
-                    else {
-                        continue;
-                    };
-                    if is_duration_terminal(appended.event_type) {
-                        if let Some(actor_id) = appended.actor_id.clone() {
-                            completed_durations.push((actor_id, appended.sim_tick));
-                        }
-                        append_routine_step_completed_after_duration_completion(
-                            log,
-                            agent_state,
-                            process_id,
-                            content_manifest_id,
-                            &appended,
-                        );
-                    }
-                }
+                    &appended,
+                );
             }
         }
         completed_durations
+    }
+
+    fn sync_scheduler_frontier_to_appended_events(
+        scheduler: &mut DeterministicScheduler,
+        appended_events: &[EventEnvelope],
+    ) {
+        if let Some(latest_tick) = appended_events.iter().map(|event| event.sim_tick).max() {
+            // Advance the frontier to the furthest appended tick, never backward.
+            // Taking the max instead of a `>` guard keeps the comparison fully
+            // mutation-covered: a `max -> min` mutant would drag the frontier
+            // backward and is caught by the frontier unit test, whereas the old
+            // `>` guard admitted an equivalent `>=` mutant (a no-op at equality).
+            scheduler.current_tick = scheduler.current_tick.max(latest_tick);
+        }
     }
 
     fn credit_completion(
@@ -1458,72 +2109,17 @@ pub mod no_human {
         event
     }
 
-    struct PassiveNeedDecisionContext<'a> {
-        process_id: &'a ProcessId,
-        actor_id: &'a ActorId,
-        window: &'a DayWindow,
-        content_manifest_id: &'a ContentManifestId,
-    }
-
-    fn append_passive_need_events_before_decision(
-        state: &PhysicalState,
+    fn append_and_apply_agent_event(
         log: &mut EventLog,
         agent_state: &mut AgentState,
-        context: &PassiveNeedDecisionContext<'_>,
-        elapsed_ticks: u64,
-    ) {
-        if elapsed_ticks == 0 {
-            return;
-        }
-        let previous_tick = SimTick::new(
-            context
-                .window
-                .start_tick
-                .value()
-                .saturating_sub(elapsed_ticks),
-        );
-        let regime_counts = classify_actor_tick_regimes(
-            log,
-            context.actor_id,
-            previous_tick,
-            context.window.start_tick,
-        );
-        if regime_counts.awake_ticks == 0 {
-            return;
-        }
-        let deltas =
-            crate::time::passive_awake_need_deltas(state.need_model(), regime_counts.awake_ticks);
-        for (need_kind, delta) in [
-            (NeedKind::Hunger, deltas.hunger_delta),
-            (NeedKind::Fatigue, deltas.fatigue_delta),
-        ] {
-            let Some(current_value) = agent_state
-                .needs_by_actor
-                .get(context.actor_id)
-                .and_then(|needs| needs.get(&need_kind))
-                .map(NeedState::value)
-            else {
-                continue;
-            };
-            let events = build_window_passive_need_events(
-                Some(current_value),
-                agent_state
-                    .active_intention_by_actor
-                    .contains_key(context.actor_id),
-                context.process_id,
-                context.actor_id,
-                context.window,
-                context.content_manifest_id,
-                need_kind,
-                delta,
-                regime_counts.awake_ticks,
-            );
-            for event in events {
-                append_and_apply_agent_event(log, agent_state, event);
-            }
-        }
+        event: EventEnvelope,
+    ) -> EventEnvelope {
+        let appended = log.append(event).expect("agent event is appendable");
+        apply_agent_event(agent_state, &appended).expect("agent event applies to live state");
+        appended
     }
 
+    #[cfg(test)]
     #[allow(clippy::too_many_arguments)]
     fn build_window_passive_need_events(
         current_value: Option<u16>,
@@ -1625,46 +2221,7 @@ pub mod no_human {
         events
     }
 
-    fn append_and_apply_agent_event(
-        log: &mut EventLog,
-        agent_state: &mut AgentState,
-        event: EventEnvelope,
-    ) -> EventEnvelope {
-        let appended = log.append(event).expect("agent event is appendable");
-        apply_agent_event(agent_state, &appended).expect("agent event applies to live state");
-        appended
-    }
-
-    fn try_append_and_apply_agent_event(
-        log: &mut EventLog,
-        agent_state: &mut AgentState,
-        event: EventEnvelope,
-        scheduler_errors: &mut Vec<NoHumanSchedulerError>,
-    ) -> Result<EventEnvelope, ()> {
-        let event_id = event.event_id.clone();
-        let appended = match log.append(event) {
-            Ok(appended) => appended,
-            Err(error) => {
-                scheduler_errors.push(NoHumanSchedulerError::AgentApply {
-                    event_id,
-                    error: ApplyError::BadPayload {
-                        key: "event_log_append",
-                        value: format!("{error:?}"),
-                    },
-                });
-                return Err(());
-            }
-        };
-        if let Err(error) = apply_agent_event(agent_state, &appended) {
-            scheduler_errors.push(NoHumanSchedulerError::AgentApply {
-                event_id: appended.event_id.clone(),
-                error,
-            });
-            return Err(());
-        }
-        Ok(appended)
-    }
-
+    #[cfg(test)]
     fn latest_action_tick_delta_tick(
         events: &[EventEnvelope],
         actor_id: &ActorId,
@@ -2168,8 +2725,6 @@ pub mod no_human {
         );
 
         let mut ordinary_pipeline_events = 0;
-        let mut pending_sleep_starts = Vec::new();
-        let mut pending_work_starts = Vec::new();
         let mut scheduler_errors = Vec::new();
         let mut sorted = scheduled_proposals
             .into_iter()
@@ -2189,24 +2744,16 @@ pub mod no_human {
         sorted.sort_by(|left, right| left.0.cmp(&right.0));
 
         for (ordering_key, proposal) in sorted {
-            for expected_tick in
-                scheduler.current_tick.value().saturating_add(1)..=proposal.requested_tick.value()
-            {
-                let due_tick = scheduler.advance_one_tick();
-                debug_assert_eq!(due_tick, SimTick::new(expected_tick));
-                append_due_completions(
-                    physical_state,
-                    log,
-                    agent_state,
-                    &process_id,
-                    &mut scheduler,
-                    &content_manifest_id,
-                    &mut pending_sleep_starts,
-                    &mut pending_work_starts,
-                    due_tick,
-                    &mut scheduler_errors,
-                );
-            }
+            advance_no_human_scheduler_to_tick(
+                physical_state,
+                agent_state,
+                log,
+                &process_id,
+                &mut scheduler,
+                &content_manifest_id,
+                proposal.requested_tick,
+                &mut scheduler_errors,
+            );
             let mut context = PipelineContext {
                 registry,
                 state: physical_state,
@@ -2218,40 +2765,21 @@ pub mod no_human {
                 ordering_key,
             };
             let result = run_pipeline(&mut context, &proposal);
-            pending_sleep_starts.extend(
-                result
-                    .appended_events
-                    .iter()
-                    .filter(|event| event.event_type == EventKind::SleepStarted)
-                    .cloned(),
-            );
-            pending_work_starts.extend(
-                result
-                    .appended_events
-                    .iter()
-                    .filter(|event| event.event_type == EventKind::WorkBlockStarted)
-                    .cloned(),
-            );
+            sync_scheduler_frontier_to_appended_events(&mut scheduler, &result.appended_events);
             ordinary_pipeline_events += no_human_progress_event_count(&result.appended_events);
         }
 
         let final_tick = start_tick.advance_by(tick_count);
-        for expected_tick in scheduler.current_tick.value().saturating_add(1)..=final_tick.value() {
-            let due_tick = scheduler.advance_one_tick();
-            debug_assert_eq!(due_tick, SimTick::new(expected_tick));
-            append_due_completions(
-                physical_state,
-                log,
-                agent_state,
-                &process_id,
-                &mut scheduler,
-                &content_manifest_id,
-                &mut pending_sleep_starts,
-                &mut pending_work_starts,
-                due_tick,
-                &mut scheduler_errors,
-            );
-        }
+        advance_no_human_scheduler_to_tick(
+            physical_state,
+            agent_state,
+            log,
+            &process_id,
+            &mut scheduler,
+            &content_manifest_id,
+            final_tick,
+            &mut scheduler_errors,
+        );
 
         let completed = append_marker(
             log,
@@ -2510,7 +3038,7 @@ pub mod no_human {
         use super::*;
         use crate::actions::proposal::{Proposal, ProposalOrigin};
         use crate::agent::{Intention, IntentionSource};
-        use crate::events::apply::{apply_agent_event, apply_event, ApplyError};
+        use crate::events::apply::{apply_agent_event, apply_event};
         use crate::events::{EventCause, EventKind, EventStream, PayloadField, EVENT_SCHEMA_V1};
         use crate::ids::{
             ActorId, CandidateGoalId, DecisionTraceId, FoodSupplyId, IntentionId, PlaceId,
@@ -3072,11 +3600,18 @@ pub mod no_human {
             );
 
             assert_eq!(report.final_tick, SimTick::new(2));
-            assert_eq!(log.events().len(), 2);
+            assert_eq!(log.events().len(), 4);
+            assert_eq!(
+                log.events()
+                    .iter()
+                    .filter(|event| event.stream == EventStream::Diagnostic)
+                    .count(),
+                2
+            );
             assert!(log
                 .events()
                 .iter()
-                .all(|event| event.stream == EventStream::Diagnostic));
+                .any(|event| event.event_type == EventKind::TimeAdvanced));
         }
 
         #[test]
@@ -3348,45 +3883,64 @@ pub mod no_human {
                 },
             );
 
-            assert!(matches!(
-                report.scheduler_errors.as_slice(),
-                [NoHumanSchedulerError::DuplicateDurationTerminal {
-                    start_event_id: reported_start,
-                    ..
-                }] if reported_start == &start_event_id
-            ));
+            assert!(report.scheduler_errors.iter().any(|error| matches!(
+                error,
+                NoHumanSchedulerError::WorldAdvance {
+                    error: WorldAdvanceError::OpenDurationDiscovery(error),
+                } if error.start_event_id == start_event_id
+            )));
         }
 
         #[test]
-        fn scheduler_completion_reports_malformed_start_without_panic() {
+        fn advance_completes_duration_started_before_runner_invocation() {
+            let actor_id = actor_id();
+            let bedroom = PlaceId::new("bedroom").unwrap();
+            let sleep_affordance_id = SleepAffordanceId::new("bed_tomas").unwrap();
             let state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
-            let mut agent_state = agent_state(&actor_id());
+            let mut state = state;
+            state
+                .places
+                .insert(bedroom.clone(), PlaceState::new(bedroom.clone(), "Bedroom"));
+            state.actors.insert(
+                actor_id.clone(),
+                ActorBody::new(actor_id.clone(), bedroom.clone()),
+            );
+            state.sleep_affordances.insert(
+                sleep_affordance_id.clone(),
+                SleepAffordanceState::new(sleep_affordance_id, bedroom, 2, 80, 1),
+            );
+            let mut agent_state = agent_state(&actor_id);
             let mut log = EventLog::new();
-            let mut scheduler = DeterministicScheduler::new(SimTick::ZERO);
-            let process_id = ProcessId::new("no_human_day").unwrap();
-            let malformed_start = open_sleep_start_event();
-            let start_event_id = malformed_start.event_id.clone();
-            let mut scheduler_errors = Vec::new();
+            let sleep_started = log.append(open_sleep_start_event()).unwrap();
+            apply_agent_event(&mut agent_state, &sleep_started).unwrap();
+            let registry = ActionRegistry::new();
 
-            let completed = append_scheduled_completion(
-                &state,
+            let report = advance_no_human(
+                NoHumanStateMut {
+                    physical: &mut state,
+                    agent: &mut agent_state,
+                },
                 &mut log,
-                &mut agent_state,
-                &process_id,
-                &mut scheduler,
-                &content_manifest_id(),
-                PendingCompletion::Sleep(malformed_start),
-                &mut scheduler_errors,
+                &registry,
+                content_manifest_id(),
+                SimTick::ZERO,
+                3,
+                Vec::new(),
             );
 
-            assert!(completed.is_empty());
-            assert!(matches!(
-                scheduler_errors.as_slice(),
-                [NoHumanSchedulerError::CompletionBuild {
-                    start_event_id: reported_start,
-                    error: ApplyError::MissingPayload(_),
-                }] if reported_start == &start_event_id
-            ));
+            assert_eq!(report.final_tick, SimTick::new(3));
+            assert!(log.events().iter().any(|event| {
+                event.event_type == EventKind::SleepCompleted
+                    && event.sim_tick == SimTick::new(2)
+                    && event.causes.iter().any(|cause| {
+                        matches!(
+                            cause,
+                            EventCause::Event(event_id)
+                                if event_id.as_str()
+                                    == "event.sleep_started.proposal_sleep_open"
+                        )
+                    })
+            }));
         }
 
         fn open_sleep_start_event() -> EventEnvelope {
@@ -3414,9 +3968,15 @@ pub mod no_human {
             sleep_started.actor_id = Some(actor_id());
             sleep_started.proposal_id = Some(ProposalId::new("proposal_sleep_open").unwrap());
             sleep_started.payload = vec![
+                PayloadField::new("payload_schema_version", "1"),
                 PayloadField::new("actor_id", actor_id().as_str()),
+                PayloadField::new("duration_ticks", "2"),
                 PayloadField::new("expected_completion_tick", "2"),
                 PayloadField::new("body_exclusive", "true"),
+                PayloadField::new("fatigue_delta_at_start", "0"),
+                PayloadField::new("sleep_affordance_id", "bed_tomas"),
+                PayloadField::new("fatigue_recovery_per_tick", "80"),
+                PayloadField::new("hunger_rise_per_tick", "1"),
             ];
             sleep_started
         }
@@ -3619,14 +4179,6 @@ pub mod no_human {
             let actor = actor_id();
             let mut log = EventLog::new();
             let sleep_start = open_sleep_start_event();
-            assert_eq!(
-                PendingCompletion::Sleep(sleep_start.clone()).tick(),
-                Some(SimTick::new(2))
-            );
-            assert_eq!(
-                PendingCompletion::Sleep(sleep_start.clone()).event_id(),
-                &sleep_start.event_id
-            );
             log.append(sleep_start.clone()).unwrap();
 
             assert!(actor_has_open_body_exclusive_duration(&log, &actor, SimTick::new(1)).unwrap());
@@ -3659,17 +4211,7 @@ pub mod no_human {
         }
 
         #[test]
-        fn no_human_day_due_start_filters_and_progress_recording_are_exact() {
-            let mut sleep_start = open_sleep_start_event();
-            assert!(is_due_sleep_start(&sleep_start, SimTick::new(2)));
-            assert!(!is_due_sleep_start(&sleep_start, SimTick::new(1)));
-            assert!(!is_due_work_start(&sleep_start, SimTick::new(2)));
-
-            sleep_start.event_type = EventKind::WorkBlockStarted;
-            assert!(is_due_work_start(&sleep_start, SimTick::new(2)));
-            assert!(!is_due_work_start(&sleep_start, SimTick::new(1)));
-            assert!(!is_due_sleep_start(&sleep_start, SimTick::new(2)));
-
+        fn no_human_day_progress_recording_is_exact() {
             let actor = actor_id();
             let mut progress = BTreeMap::new();
             record_window_progress(&mut progress, "morning", &actor, 0);
@@ -4629,24 +5171,25 @@ pub mod no_human {
                 .iter()
                 .any(|event| event.event_type == EventKind::ActorWaited
                     && event.sim_tick == SimTick::new(1)));
-            let second_window_passive =
-                log.events()
-                    .iter()
-                    .find(|event| {
-                        event.event_type == EventKind::NeedDeltaApplied
-                            && event.payload.iter().any(|field| {
-                                field.key == "window_id" && field.value == "second_idle"
-                            })
-                            && event
-                                .payload
-                                .iter()
-                                .any(|field| field.key == "need_kind" && field.value == "hunger")
-                    })
-                    .expect("second window emits passive hunger delta");
+            let second_window_passive = log
+                .events()
+                .iter()
+                .find(|event| {
+                    event.event_type == EventKind::NeedDeltaApplied
+                        && event.sim_tick == SimTick::new(4)
+                        && event.payload.iter().any(|field| {
+                            field.key == "accounting_phase" && field.value == "world_step"
+                        })
+                        && event
+                            .payload
+                            .iter()
+                            .any(|field| field.key == "need_kind" && field.value == "hunger")
+                })
+                .expect("coordinator emits passive hunger delta before second window");
             assert!(second_window_passive
                 .payload
                 .iter()
-                .any(|field| { field.key == "elapsed_ticks" && field.value == "3" }));
+                .any(|field| { field.key == "elapsed_ticks" && field.value == "1" }));
         }
 
         #[test]
@@ -5019,12 +5562,12 @@ pub mod no_human {
                 .iter()
                 .position(|event| {
                     event.event_type == EventKind::NeedDeltaApplied
-                        && event
-                            .payload
-                            .iter()
-                            .any(|field| field.key == "window_id" && field.value == "breakfast")
+                        && event.sim_tick <= SimTick::new(4)
+                        && event.payload.iter().any(|field| {
+                            field.key == "accounting_phase" && field.value == "world_step"
+                        })
                 })
-                .expect("passive need delta emitted before decision");
+                .expect("coordinator passive need delta emitted before decision");
             let consumed_index = log
                 .events()
                 .iter()
@@ -5150,10 +5693,7 @@ pub mod no_human {
                 })
                 .expect("severe threshold crossing emitted");
             assert!(threshold.payload.iter().any(|field| {
-                field.key == "severe_need_interrupts_active_intention" && field.value == "true"
-            }));
-            assert!(threshold.payload.iter().any(|field| {
-                field.key == "interruption_cause" && field.value == "severe_need_pressure"
+                field.key == "candidate_goal_reevaluation" && field.value == "true"
             }));
         }
 
@@ -5275,6 +5815,50 @@ pub mod no_human {
                 .iter()
                 .any(|field| field.key == "diagnostic_canonical"
                     && field.value.starts_with("stuck_diagnostic_v1|")));
+        }
+
+        #[test]
+        fn sync_scheduler_frontier_advances_only_to_a_strictly_greater_tick() {
+            let actor = ActorId::new("actor_tomas").unwrap();
+
+            // A strictly greater appended tick advances the frontier to that
+            // maximum. This kills the `> -> ==` mutant (which would refuse to
+            // advance because the max tick does not equal the current tick) and
+            // the `> -> <` mutant (which would refuse to advance because the max
+            // tick is not below the current tick).
+            let mut scheduler = DeterministicScheduler::new(SimTick::new(5));
+            let advancing_events = vec![
+                ordinary_event(
+                    "event_a",
+                    EventKind::ActorWaited,
+                    &actor,
+                    "wait",
+                    SimTick::new(7),
+                ),
+                ordinary_event(
+                    "event_b",
+                    EventKind::ActorWaited,
+                    &actor,
+                    "wait",
+                    SimTick::new(10),
+                ),
+            ];
+            sync_scheduler_frontier_to_appended_events(&mut scheduler, &advancing_events);
+            assert_eq!(scheduler.current_tick, SimTick::new(10));
+
+            // An appended tick below the current frontier must never drag it
+            // backward. This independently kills the `> -> <` mutant, which would
+            // move the frontier down to the smaller appended tick.
+            let mut scheduler = DeterministicScheduler::new(SimTick::new(10));
+            let stale_events = vec![ordinary_event(
+                "event_c",
+                EventKind::ActorWaited,
+                &actor,
+                "wait",
+                SimTick::new(4),
+            )];
+            sync_scheduler_frontier_to_appended_events(&mut scheduler, &stale_events);
+            assert_eq!(scheduler.current_tick, SimTick::new(10));
         }
     }
 }
@@ -5451,7 +6035,7 @@ mod tests {
             scheduler.assign_proposal_sequence(),
             ProposalSequence::new(0)
         );
-        assert_eq!(scheduler.advance_one_tick(), SimTick::new(5));
+        assert_eq!(scheduler.increment_clock_one_tick(), SimTick::new(5));
         assert_eq!(scheduler.current_tick, SimTick::new(5));
         assert_eq!(
             scheduler.assign_proposal_sequence(),
@@ -5562,11 +6146,18 @@ mod tests {
         assert_eq!(report.start_tick, SimTick::new(2));
         assert_eq!(report.final_tick, SimTick::new(5));
         assert_eq!(report.marker_event_ids.len(), 2);
-        assert_eq!(log.events().len(), 2);
+        assert_eq!(log.events().len(), 5);
+        assert_eq!(
+            log.events()
+                .iter()
+                .filter(|event| event.stream == EventStream::Diagnostic)
+                .count(),
+            2
+        );
         assert!(log
             .events()
             .iter()
-            .all(|event| event.stream == EventStream::Diagnostic));
+            .any(|event| event.event_type == EventKind::TimeAdvanced));
         assert_eq!(
             log.events()
                 .iter()
@@ -5574,6 +6165,9 @@ mod tests {
                 .collect::<Vec<_>>(),
             [
                 EventKind::NoHumanAdvanceStarted,
+                EventKind::TimeAdvanced,
+                EventKind::TimeAdvanced,
+                EventKind::TimeAdvanced,
                 EventKind::NoHumanAdvanceCompleted
             ]
         );
@@ -5696,5 +6290,207 @@ mod tests {
                 .count(),
             2
         );
+    }
+
+    fn event_for(
+        event_id: &str,
+        event_kind: EventKind,
+        actor: &ActorId,
+        tick: SimTick,
+    ) -> EventEnvelope {
+        let mut event = EventEnvelope::new_caused_v1(
+            EventId::new(event_id).unwrap(),
+            event_kind,
+            0,
+            0,
+            tick,
+            key(
+                tick.value(),
+                SchedulePhase::NoHumanProcess,
+                SchedulerSourceId::Actor(actor.clone()),
+                0,
+                "world_step",
+                &[actor.as_str()],
+                event_id,
+            ),
+            content_manifest_id(),
+            vec![EventCause::Proposal(
+                ProposalId::new(format!("proposal_{event_id}")).unwrap(),
+            )],
+        )
+        .unwrap();
+        event.actor_id = Some(actor.clone());
+        event
+    }
+
+    #[test]
+    fn step_appended_possessed_duration_terminal_matches_only_the_appended_terminal() {
+        let possessed = actor_id("actor_tomas");
+        let mut log = EventLog::new();
+
+        // The appended id IS the possessed actor's duration-terminal event, so
+        // the predicate must hold. This kills the `== -> !=` mutant on the
+        // event-id match, which would look for events with a *different* id and
+        // find none in a single-event log.
+        let terminal = event_for(
+            "event_sleep_completed_tomas",
+            EventKind::SleepCompleted,
+            &possessed,
+            SimTick::new(10),
+        );
+        let terminal_id = terminal.event_id.clone();
+        log.append(terminal).unwrap();
+        assert!(step_appended_possessed_duration_terminal(
+            &log,
+            std::slice::from_ref(&terminal_id),
+            &possessed,
+        ));
+
+        // A non-terminal appended event is not a duration terminal, even though
+        // the terminal event still sits in the log under a different id. This
+        // also kills the `== -> !=` mutant, which would match the *other*
+        // (terminal) event and wrongly report a terminal.
+        let waited = event_for(
+            "event_actor_waited_tomas",
+            EventKind::ActorWaited,
+            &possessed,
+            SimTick::new(11),
+        );
+        let waited_id = waited.event_id.clone();
+        log.append(waited).unwrap();
+        assert!(!step_appended_possessed_duration_terminal(
+            &log,
+            std::slice::from_ref(&waited_id),
+            &possessed,
+        ));
+    }
+
+    #[test]
+    fn step_appended_actor_known_salient_observation_requires_the_possessed_actor() {
+        let possessed = actor_id("actor_tomas");
+        let other = actor_id("actor_mara");
+        let mut log = EventLog::new();
+
+        // An observation recorded for the possessed actor is salient. This kills
+        // the `== -> !=` mutant on the actor-id match, which would require the
+        // observation to belong to a *different* actor.
+        let possessed_observation = event_for(
+            "event_observation_tomas",
+            EventKind::ObservationRecorded,
+            &possessed,
+            SimTick::new(5),
+        );
+        let possessed_observation_id = possessed_observation.event_id.clone();
+        log.append(possessed_observation).unwrap();
+        assert!(step_appended_actor_known_salient_observation(
+            &log,
+            std::slice::from_ref(&possessed_observation_id),
+            &possessed,
+        ));
+
+        // An observation recorded for a different actor is not the possessed
+        // actor's salient observation.
+        let other_observation = event_for(
+            "event_observation_mara",
+            EventKind::ObservationRecorded,
+            &other,
+            SimTick::new(6),
+        );
+        let other_observation_id = other_observation.event_id.clone();
+        log.append(other_observation).unwrap();
+        assert!(!step_appended_actor_known_salient_observation(
+            &log,
+            std::slice::from_ref(&other_observation_id),
+            &possessed,
+        ));
+    }
+
+    #[test]
+    fn duration_lifecycle_interruption_orders_ahead_of_completions() {
+        let start = EventId::new("event_duration_start").unwrap();
+        let interruption = DurationLifecycleCandidate::SleepInterruption {
+            start_event_id: start.clone(),
+            terminal_tick: SimTick::new(10),
+            reason: "external_noise".to_string(),
+        };
+        let sleep_completion = DurationLifecycleCandidate::SleepCompletion {
+            start_event_id: start.clone(),
+            terminal_tick: SimTick::new(10),
+        };
+        let work_completion = DurationLifecycleCandidate::WorkCompletion {
+            start_event_id: start,
+            terminal_tick: SimTick::new(10),
+        };
+
+        // Interruptions must sort strictly ahead of completions that share a
+        // terminal tick. This kills both `ordering_priority -> 0` and
+        // `ordering_priority -> 1` mutants, each of which collapses the two
+        // priority classes to a single constant and breaks the strict ordering.
+        assert!(interruption.ordering_priority() < sleep_completion.ordering_priority());
+        assert!(interruption.ordering_priority() < work_completion.ordering_priority());
+        assert_eq!(
+            sleep_completion.ordering_priority(),
+            work_completion.ordering_priority()
+        );
+    }
+
+    #[test]
+    fn append_missing_accounting_need_events_skips_when_either_input_is_zero() {
+        let process = process_id("ambient_tick");
+        let actor = actor_id("actor_tomas");
+        let mut scratch_log = EventLog::new();
+        let mut scratch_agent_state = seeded_agent_state(actor.clone());
+        let request = WorldAdvanceRequest {
+            expected_tick: SimTick::new(0),
+            origin: WorldAdvanceOrigin::Process(process.clone()),
+            content_manifest_id: content_manifest_id(),
+            authorized_sleep_interruptions: Vec::new(),
+        };
+        let mut events = Vec::new();
+
+        // A zero delta with elapsed ticks appends no accounting event. This
+        // kills the `|| -> &&` mutant, which would only short-circuit when both
+        // the delta and the elapsed ticks are zero and would otherwise build an
+        // accounting event for a zero-magnitude change.
+        append_missing_accounting_need_events(
+            &mut scratch_log,
+            &mut scratch_agent_state,
+            &request,
+            SimTick::new(5),
+            &process,
+            &actor,
+            NeedKind::Hunger,
+            0,
+            5,
+            &mut events,
+        )
+        .unwrap();
+        assert!(events.is_empty());
+
+        // A non-zero delta over zero elapsed ticks likewise appends nothing,
+        // independently killing the `|| -> &&` mutant (which would build a real
+        // need-delta event here).
+        append_missing_accounting_need_events(
+            &mut scratch_log,
+            &mut scratch_agent_state,
+            &request,
+            SimTick::new(5),
+            &process,
+            &actor,
+            NeedKind::Hunger,
+            7,
+            0,
+            &mut events,
+        )
+        .unwrap();
+        assert!(events.is_empty());
+    }
+
+    #[test]
+    fn ticks_advanced_between_is_the_forward_tick_delta() {
+        // A non-degenerate delta (start >= 1, span >= 2) pins the subtraction so
+        // every arithmetic mutant on the single shared site dies: `- -> +` gives
+        // 20, `- -> /` gives 1, and the constant-return mutants give 0 or 1.
+        assert_eq!(ticks_advanced_between(SimTick::new(9), SimTick::new(11)), 2);
     }
 }

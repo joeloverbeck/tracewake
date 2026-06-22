@@ -243,6 +243,10 @@ fn validate_entry(
             validate_query_action(entry, action_id, failures);
         }
         SetupOperation::BindViewer
+        | SetupOperation::HumanWaitOneTick
+        | SetupOperation::StartSleepThenAdvanceUntil { .. }
+        | SetupOperation::MoveWorkThenAdvanceUntil { .. }
+        | SetupOperation::StartSleepThenWaitConflict
         | SetupOperation::AdvanceNoHuman
         | SetupOperation::RenderNotebook
         | SetupOperation::RenderDebugOverlay

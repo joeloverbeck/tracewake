@@ -50,6 +50,10 @@ pub enum SurfaceDisposition {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SetupOperation {
     BindViewer,
+    HumanWaitOneTick,
+    StartSleepThenAdvanceUntil { max_ticks: u64 },
+    MoveWorkThenAdvanceUntil { max_ticks: u64 },
+    StartSleepThenWaitConflict,
     SubmitSemanticAction { semantic_action_id: &'static str },
     SubmitRegistryAction { action_id: &'static str },
     ObserveQueryOnly { action_id: &'static str },

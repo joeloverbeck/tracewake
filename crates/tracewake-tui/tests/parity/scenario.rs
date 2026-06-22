@@ -76,6 +76,37 @@ pub fn run_real_pipeline(entry: &CapabilityEntry) -> Result<ScenarioWitnesses, S
                 assert_actor_safe_why_not(entry, &rendered);
             }
         }
+        SetupOperation::HumanWaitOneTick => {
+            let semantic_action_id = semantic_action_for_action(&view, "wait")?;
+            assert_render_contains_action(entry, &rendered, semantic_action_id.as_str());
+            let result = app
+                .submit_semantic_action(&semantic_action_id)
+                .map_err(ScenarioError::App)?;
+            submitted_status = Some(result.report.status);
+            rendered = app.render_current_view().map_err(ScenarioError::App)?;
+        }
+        SetupOperation::StartSleepThenAdvanceUntil { max_ticks } => {
+            submit_semantic_action_by_id(&mut app, "sleep.here")?;
+            app.advance_until(max_ticks).map_err(ScenarioError::App)?;
+            rendered = app.render_current_view().map_err(ScenarioError::App)?;
+        }
+        SetupOperation::MoveWorkThenAdvanceUntil { max_ticks } => {
+            submit_semantic_action_by_id(&mut app, "move.to.workshop_tomas")?;
+            submit_semantic_action_by_id(&mut app, "work.block.workplace_tomas")?;
+            app.advance_until(max_ticks).map_err(ScenarioError::App)?;
+            rendered = app.render_current_view().map_err(ScenarioError::App)?;
+        }
+        SetupOperation::StartSleepThenWaitConflict => {
+            submit_semantic_action_by_id(&mut app, "sleep.here")?;
+            let view = app.current_view().map_err(ScenarioError::App)?;
+            let semantic_action_id = semantic_action_for_action(&view, "wait")?;
+            let result = app
+                .submit_semantic_action(&semantic_action_id)
+                .map_err(ScenarioError::App)?;
+            submitted_status = Some(result.report.status);
+            rendered = app.render_current_view().map_err(ScenarioError::App)?;
+            assert_actor_safe_why_not(entry, &rendered);
+        }
         SetupOperation::SubmitRegistryAction { action_id } => {
             let action_id = ActionId::new(action_id.to_string())
                 .map_err(|_| ScenarioError::BadRegistryAction(action_id.to_string()))?;
@@ -142,6 +173,31 @@ pub fn run_real_pipeline(entry: &CapabilityEntry) -> Result<ScenarioWitnesses, S
         submitted_status,
         rendered,
     })
+}
+
+fn submit_semantic_action_by_id(
+    app: &mut TuiApp,
+    semantic_action_id: &str,
+) -> Result<ReportStatus, ScenarioError> {
+    let semantic_action_id = SemanticActionId::new(semantic_action_id.to_string())
+        .map_err(|_| ScenarioError::BadSemanticAction(semantic_action_id.to_string()))?;
+    let result = app
+        .submit_semantic_action(&semantic_action_id)
+        .map_err(ScenarioError::App)?;
+    Ok(result.report.status)
+}
+
+fn semantic_action_for_action(
+    view: &tracewake_core::view_models::EmbodiedViewModel,
+    action_id: &str,
+) -> Result<SemanticActionId, ScenarioError> {
+    let action_id = ActionId::new(action_id.to_string())
+        .map_err(|_| ScenarioError::BadRegistryAction(action_id.to_string()))?;
+    view.semantic_actions
+        .iter()
+        .find(|action| action.action_id == action_id)
+        .map(|action| action.semantic_action_id.clone())
+        .ok_or_else(|| ScenarioError::MissingRegistryAction(action_id.as_str().to_string()))
 }
 
 pub fn assert_matches_checked_in_golden(entry: &CapabilityEntry, rendered: &str) {

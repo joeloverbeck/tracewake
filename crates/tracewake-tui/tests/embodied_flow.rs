@@ -5,6 +5,7 @@ use tracewake_core::events::EventKind;
 use tracewake_core::ids::{ActorId, SemanticActionId};
 use tracewake_core::view_models::ActionAvailabilityProvenanceKind;
 use tracewake_tui::app::TuiApp;
+use tracewake_tui::run::run_command_loop;
 
 #[test]
 fn bind_render_submit_rerender_and_show_why_not() {
@@ -74,6 +75,141 @@ fn phase3a_embodied_view_renders_needs_routine_affordances_without_hidden_truth(
     assert!(!rendered.contains("Work at workplace_tomas"));
     assert!(!rendered.contains("food_empty_pantry_mara"));
     assert!(!rendered.contains("actor_mara"));
+}
+
+#[test]
+fn wait_command_advances_authoritative_world_one_tick() {
+    let mut app = TuiApp::load_default().unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+    let before_events = app.event_count();
+    let mut output = Vec::new();
+
+    run_command_loop(&mut app, b"wait\nquit\n".as_slice(), &mut output).unwrap();
+
+    let rendered = String::from_utf8(output).unwrap();
+    assert!(rendered.contains("Accepted: wait.1_tick"));
+    assert!(rendered.contains("Actor: actor_tomas | Tick: 1"));
+    assert!(app.event_count() > before_events);
+    assert_eq!(
+        app.current_view().unwrap().holder_known_context_frontier,
+        app.event_count() as u64
+    );
+    let event_log = app.render_debug_event_log_panel();
+    assert!(event_log.contains("actor_waited"));
+    assert!(event_log.contains("time_advanced"));
+}
+
+#[test]
+fn wait_command_during_sleep_is_reservation_conflict_without_world_advance() {
+    let mut app = TuiApp::from_golden(fixtures::sleep_eat_work_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+
+    let sleep_started = app
+        .submit_semantic_action(&SemanticActionId::new("sleep.here").unwrap())
+        .unwrap();
+    assert_eq!(sleep_started.report.status, ReportStatus::Accepted);
+    let after_sleep_view = app.render_current_view().unwrap();
+
+    let rejected_wait = app
+        .submit_semantic_action(&SemanticActionId::new("wait.1_tick").unwrap())
+        .unwrap();
+
+    assert_eq!(rejected_wait.report.status, ReportStatus::Rejected);
+    assert!(rejected_wait
+        .report
+        .reason_codes
+        .contains(&ReasonCode::ReservationConflict));
+    assert!(app.render_current_view().unwrap().contains(
+        after_sleep_view
+            .lines()
+            .next()
+            .expect("rendered view starts with actor and tick")
+    ));
+    let event_log = app.render_debug_event_log_panel();
+    assert!(event_log.contains("sleep_started"));
+    assert!(!event_log.contains("actor_waited"));
+    assert!(!event_log.contains("time_advanced"));
+}
+
+#[test]
+fn human_sleep_completion_real_pipeline_witness() {
+    let mut app = TuiApp::from_golden(fixtures::sleep_eat_work_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+    let mut output = Vec::new();
+
+    run_command_loop(
+        &mut app,
+        b"do sleep.here\nwait\ncontinue\nbind-debug actor_tomas\ndebug replay\nquit\n".as_slice(),
+        &mut output,
+    )
+    .unwrap();
+
+    let rendered = String::from_utf8(output).unwrap();
+    assert!(rendered.contains("Accepted: sleep.here"));
+    assert!(rendered.contains("Why-not:"));
+    assert!(rendered.contains("reasons=reservation_conflict"));
+    assert!(
+        rendered.contains("Advanced until: reason=possessed_duration_terminal ticks=4 stop_tick=4")
+    );
+    assert!(rendered.contains("Recent interval: ticks 0-4 stop=possessed_duration_terminal"));
+    assert!(rendered.contains("- sleep completed source="));
+    assert!(rendered.contains("Bound debug actor: actor_tomas"));
+    assert!(rendered.contains("DEBUG NON-DIEGETIC: Replay"));
+    assert!(rendered.contains("matches_expected=true"));
+    assert!(rendered.contains("agent_checksum_matches=true"));
+    assert!(!rendered.contains("RunNoHumanDay"));
+    assert!(!rendered.contains("No Human Day"));
+
+    let needs = app.render_debug_needs_panel();
+    assert!(needs.contains("actor=actor_tomas need=fatigue"));
+    assert!(needs.contains("actor=actor_tomas need=hunger"));
+    assert!(needs.contains("cause=action_effect:sleep"));
+    let replay = app.render_debug_replay_panel();
+    assert!(replay.contains("matches_expected=true"));
+    assert!(replay.contains("agent_checksum_matches=true"));
+}
+
+#[test]
+fn human_work_completion_real_pipeline_witness() {
+    let mut app = TuiApp::from_golden(fixtures::ordinary_workday_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+    let mut output = Vec::new();
+
+    run_command_loop(
+        &mut app,
+        b"do move.to.workshop_tomas\ndo work.block.workplace_tomas\nwait\ncontinue\nbind-debug actor_tomas\ndebug replay\nquit\n".as_slice(),
+        &mut output,
+    )
+    .unwrap();
+
+    let rendered = String::from_utf8(output).unwrap();
+    assert!(rendered.contains("Accepted: move.to.workshop_tomas"));
+    assert!(rendered.contains("Accepted: work.block.workplace_tomas"));
+    assert!(rendered.contains("Why-not:"));
+    assert!(rendered.contains("reasons=reservation_conflict"));
+    assert!(
+        rendered.contains("Advanced until: reason=possessed_duration_terminal ticks=4 stop_tick=4")
+    );
+    assert!(rendered.contains("Recent interval: ticks 0-4 stop=possessed_duration_terminal"));
+    assert!(rendered.contains("- work completed source="));
+    assert!(rendered.contains("Bound debug actor: actor_tomas"));
+    assert!(rendered.contains("DEBUG NON-DIEGETIC: Replay"));
+    assert!(rendered.contains("matches_expected=true"));
+    assert!(rendered.contains("agent_checksum_matches=true"));
+    assert!(!rendered.contains("RunNoHumanDay"));
+    assert!(!rendered.contains("No Human Day"));
+
+    let needs = app.render_debug_needs_panel();
+    assert!(needs.contains("actor=actor_tomas need=fatigue"));
+    assert!(needs.contains("actor=actor_tomas need=hunger"));
+    assert!(needs.contains("cause=action_effect:work_block"));
+    let replay = app.render_debug_replay_panel();
+    assert!(replay.contains("matches_expected=true"));
+    assert!(replay.contains("agent_checksum_matches=true"));
 }
 
 #[test]

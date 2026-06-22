@@ -66,6 +66,19 @@ Any temporal input used by cognition, procedure selection, affordance selection,
 
 Temporal claims may concern asserted or inferred event timing, acquisition timing, last verification, record or procedure timing, validity or due windows, stale risk, contradiction status, or source lineage. The packet must preserve enough ancestry to replay why the holder may use the temporal premise now, and must fail closed when the premise is missing, forbidden-source, dangling, or only available as validator/debug truth.
 
+Actor-known interval summaries are positively constructed holder-known
+frontier deltas. Each included change must cite a modeled source available to
+the holder, such as perception, memory, testimony, record, public cue, modeled
+absence observation, or resumption perception. A summary may say what the
+holder experienced, learned, or can reasonably infer from those sources; it
+may not be produced by taking a raw world-event diff and redacting forbidden
+rows after the fact.
+
+Missing changes are not automatically actor-known. A sleeping, absent, or
+otherwise unaware holder receives no omniscient negative summary that hidden
+events did or did not happen. Debug may compare the omitted truth only through
+a separate non-diegetic artifact.
+
 ### Projection freshness
 
 Projection-backed holder knowledge uses one freshness rule across no-human

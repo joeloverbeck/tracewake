@@ -88,6 +88,15 @@ holder-known sources rather than raw clock or debug truth. LOD and replay
 artifacts must preserve temporal ancestry and information ancestry. Acceptance
 artifacts reject display-string-only proof of temporal correctness.
 
+World-step time-control acceptance requires typed evidence for the composed
+path, not only isolated unit behavior. Required proof includes one-tick
+human/no-human differential evidence over the same loaded-world progression,
+duration-terminal and accounting witnesses for sleep/work completion,
+replay-visible evidence for otherwise-empty ticks, actor-known interval-summary
+anti-leak evidence, body-exclusive reservation-conflict evidence, and the
+standing TUI capability parity extension for time controls and interval
+summaries.
+
 Fairness and starvation review artifacts record which holders or processes were
 deferred, skipped, summarized, degraded, or blocked; why; for how long or
 across what source interval; the responsible layer; and what replay ancestry

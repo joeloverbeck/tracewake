@@ -19,27 +19,29 @@ use tracewake_core::debug_reports::{
 use tracewake_core::epistemics::projection::EpistemicProjection;
 use tracewake_core::epistemics::KnowledgeContext;
 use tracewake_core::events::log::EventLog;
+use tracewake_core::events::EventKind;
 use tracewake_core::ids::{
-    ActorId, ContentManifestId, ContentVersion, ControllerId, DebugReportId, FixtureId, ItemId,
-    ProposalId, SemanticActionId,
+    ActorId, ContentManifestId, ContentVersion, ControllerId, DebugReportId, EventId, FixtureId,
+    ItemId, ProposalId, SemanticActionId,
 };
 use tracewake_core::projections::{
-    build_debug_event_log_view, build_embodied_view_model, build_notebook_view,
-    proposal_from_current_view_semantic_action, EmbodiedPreflightSource, EmbodiedProjectionSource,
-    EmbodiedTruthSnapshot, ProjectionError,
+    build_actor_known_interval_summary, build_debug_event_log_view, build_embodied_view_model,
+    build_notebook_view, proposal_from_current_view_semantic_action, ActorKnownIntervalSource,
+    EmbodiedPreflightSource, EmbodiedProjectionSource, EmbodiedTruthSnapshot, ProjectionError,
 };
 use tracewake_core::replay::{rebuild_projection, run_replay};
 use tracewake_core::scheduler::no_human::{
     default_day_windows, run_no_human_day, NoHumanDayConfig, NoHumanDayReport,
 };
 use tracewake_core::scheduler::{
-    DeterministicScheduler, OrderingKey, SchedulePhase, SchedulerSourceId,
+    AdvanceUntilRequest, AdvanceUntilResult, DeterministicScheduler, OrderingKey, SchedulePhase,
+    SchedulerSourceId, WorldAdvanceError, WorldAdvanceOrigin, WorldAdvanceRequest,
 };
 use tracewake_core::state::{AgentState, ControllerMode, PhysicalState};
 use tracewake_core::time::SimTick;
 use tracewake_core::view_models::{
-    DebugBeliefsView, DebugEpistemicsView, DebugObservationsView, EmbodiedViewModel, NotebookView,
-    SemanticActionEntry,
+    ActorKnownIntervalSummary, DebugBeliefsView, DebugEpistemicsView, DebugObservationsView,
+    EmbodiedViewModel, NotebookView, SemanticActionEntry,
 };
 
 use crate::debug_panels::{
@@ -57,6 +59,7 @@ pub enum AppError {
     DebugUnavailable,
     Projection(ProjectionError),
     SemanticActionNotFound(String),
+    WorldAdvance(WorldAdvanceError),
 }
 
 impl From<LoadError> for AppError {
@@ -87,6 +90,7 @@ pub struct TuiApp {
     scheduler: DeterministicScheduler,
     last_rejection: Option<ValidationReport>,
     epistemic_projection: EpistemicProjection,
+    last_interval_summary: Option<ActorKnownIntervalSummary>,
 }
 
 impl TuiApp {
@@ -127,6 +131,7 @@ impl TuiApp {
             scheduler: DeterministicScheduler::new(SimTick::ZERO),
             last_rejection: None,
             epistemic_projection,
+            last_interval_summary: None,
         })
     }
 
@@ -187,6 +192,7 @@ impl TuiApp {
                 .map_err(AppError::from)?;
         view.notebook = Some(build_notebook_view(&self.epistemic_projection, &context));
         view.debug_available = self.debug_available_for(actor_id);
+        view.actor_known_interval_summary = self.last_interval_summary.clone();
         Ok(view)
     }
 
@@ -248,19 +254,33 @@ impl TuiApp {
         entry: &SemanticActionEntry,
         source_view: &EmbodiedViewModel,
     ) -> Result<PipelineResult, AppError> {
+        self.submit_entry_with_world_advance(
+            entry,
+            source_view,
+            entry.semantic_action_id.as_str() == "wait.1_tick",
+        )
+    }
+
+    fn submit_entry_with_world_advance(
+        &mut self,
+        entry: &SemanticActionEntry,
+        source_view: &EmbodiedViewModel,
+        advance_world_after_acceptance: bool,
+    ) -> Result<PipelineResult, AppError> {
         let actor_id = self.bound_actor_id.clone().ok_or(AppError::ActorNotBound)?;
+        let expected_tick = self.scheduler.current_tick;
         let sequence = self.scheduler.assign_proposal_sequence();
         let proposal = proposal_from_current_view_semantic_action(
             ProposalId::new(format!("proposal_tui_{}", sequence.value())).unwrap(),
             actor_id.clone(),
-            self.scheduler.current_tick,
+            expected_tick,
             entry,
             source_view,
             &self.controller_id,
         );
 
         let ordering_key = OrderingKey::new(
-            self.scheduler.current_tick,
+            expected_tick,
             SchedulePhase::HumanCommand,
             SchedulerSourceId::Controller(self.controller_id.clone()),
             sequence,
@@ -283,7 +303,21 @@ impl TuiApp {
             self.last_rejection = Some(result.report.clone());
         } else {
             self.last_rejection = None;
-            if let Some(last_event) = result.appended_events.last() {
+            if advance_world_after_acceptance {
+                self.scheduler
+                    .advance_world_one_tick(
+                        &self.state,
+                        &mut self.agent_state,
+                        &mut self.log,
+                        WorldAdvanceRequest {
+                            expected_tick,
+                            origin: WorldAdvanceOrigin::Controller(self.controller_id.clone()),
+                            content_manifest_id: self.content_manifest_id.clone(),
+                            authorized_sleep_interruptions: Vec::new(),
+                        },
+                    )
+                    .map_err(AppError::WorldAdvance)?;
+            } else if let Some(last_event) = result.appended_events.last() {
                 self.scheduler.current_tick = last_event.sim_tick;
             }
             if let Some(actor_id) = self.bound_actor_id.clone() {
@@ -303,6 +337,43 @@ impl TuiApp {
 
     pub fn event_count(&self) -> usize {
         self.log.events().len()
+    }
+
+    pub fn advance_until(&mut self, max_ticks: u64) -> Result<AdvanceUntilResult, AppError> {
+        let actor_id = self.bound_actor_id.clone().ok_or(AppError::ActorNotBound)?;
+        let result = self
+            .scheduler
+            .advance_until(
+                &self.state,
+                &mut self.agent_state,
+                &mut self.log,
+                AdvanceUntilRequest {
+                    expected_tick: self.scheduler.current_tick,
+                    origin: WorldAdvanceOrigin::Controller(self.controller_id.clone()),
+                    content_manifest_id: self.content_manifest_id.clone(),
+                    possessed_actor_id: actor_id.clone(),
+                    max_ticks,
+                },
+            )
+            .map_err(AppError::WorldAdvance)?;
+        self.last_interval_summary = Some(build_actor_known_interval_summary(
+            &actor_id,
+            result.start_tick,
+            result.stop_tick,
+            describe_advance_until_stop(result.stop_reason),
+            actor_known_interval_sources(&self.log, &result.appended_event_ids),
+        ));
+        record_current_place_perception_and_project(
+            &mut self.log,
+            &mut self.state,
+            &mut self.agent_state,
+            &mut self.epistemic_projection,
+            &actor_id,
+            self.scheduler.current_tick,
+            &self.content_manifest_id,
+        );
+        self.last_rejection = None;
+        Ok(result)
     }
 
     pub fn run_no_human_day(&mut self) -> Result<NoHumanDayReport, AppError> {
@@ -464,6 +535,59 @@ impl TuiApp {
         Ok(self
             .epistemic_projection
             .debug_observations_view(actor_id.clone()))
+    }
+}
+
+fn actor_known_interval_sources(
+    log: &EventLog,
+    appended_event_ids: &[EventId],
+) -> Vec<ActorKnownIntervalSource> {
+    appended_event_ids
+        .iter()
+        .filter_map(|event_id| {
+            let event = log
+                .events()
+                .iter()
+                .find(|event| &event.event_id == event_id)?;
+            let actor_id = event.actor_id.clone()?;
+            actor_known_interval_summary_for_event(event.event_type).map(|summary| {
+                ActorKnownIntervalSource {
+                    actor_id,
+                    source_event_id: event.event_id.clone(),
+                    summary: summary.to_string(),
+                }
+            })
+        })
+        .collect()
+}
+
+fn actor_known_interval_summary_for_event(kind: EventKind) -> Option<&'static str> {
+    match kind {
+        EventKind::SleepCompleted => Some("sleep completed"),
+        EventKind::SleepInterrupted => Some("sleep interrupted"),
+        EventKind::WorkBlockCompleted => Some("work completed"),
+        EventKind::WorkBlockFailed => Some("work failed"),
+        EventKind::ObservationRecorded => Some("new observation recorded"),
+        _ => None,
+    }
+}
+
+fn describe_advance_until_stop(
+    reason: tracewake_core::scheduler::AdvanceUntilStopReason,
+) -> &'static str {
+    match reason {
+        tracewake_core::scheduler::AdvanceUntilStopReason::PossessedDurationTerminal => {
+            "possessed_duration_terminal"
+        }
+        tracewake_core::scheduler::AdvanceUntilStopReason::ActorKnownSalientObservation => {
+            "actor_known_salient_observation"
+        }
+        tracewake_core::scheduler::AdvanceUntilStopReason::UserPausedBeforeNextTick => {
+            "user_paused_before_next_tick"
+        }
+        tracewake_core::scheduler::AdvanceUntilStopReason::ControllerSafetyBound => {
+            "controller_safety_bound"
+        }
     }
 }
 
@@ -812,6 +936,9 @@ mod tests {
         pub const EXEMPT_WORLD_ADVANCING_METHODS: &[(&str, &str)] = &[(
             "submit_semantic_action",
             "ordinary embodied player command; authorization comes from current view source context",
+        ), (
+            "advance_until",
+            "typed gameplay time-control command; authority remains in the core coordinator loop",
         )];
         public_mut_methods(app_source)
             .into_iter()
@@ -910,5 +1037,40 @@ mod tests {
 
     fn production_source(source: &str) -> &str {
         source.split("\n#[cfg(test)]").next().unwrap_or(source)
+    }
+
+    #[test]
+    fn actor_known_interval_summary_covers_each_salient_event_kind() {
+        // Each salient duration/observation event maps to its actor-known
+        // interval-summary label. Asserting the exact label per kind kills the
+        // `delete match arm` mutants on the SleepInterrupted, WorkBlockFailed,
+        // and ObservationRecorded arms, each of which would otherwise fall
+        // through to the `_ => None` catch-all.
+        assert_eq!(
+            actor_known_interval_summary_for_event(EventKind::SleepCompleted),
+            Some("sleep completed")
+        );
+        assert_eq!(
+            actor_known_interval_summary_for_event(EventKind::SleepInterrupted),
+            Some("sleep interrupted")
+        );
+        assert_eq!(
+            actor_known_interval_summary_for_event(EventKind::WorkBlockCompleted),
+            Some("work completed")
+        );
+        assert_eq!(
+            actor_known_interval_summary_for_event(EventKind::WorkBlockFailed),
+            Some("work failed")
+        );
+        assert_eq!(
+            actor_known_interval_summary_for_event(EventKind::ObservationRecorded),
+            Some("new observation recorded")
+        );
+
+        // A non-salient kind has no interval summary, guarding the catch-all.
+        assert_eq!(
+            actor_known_interval_summary_for_event(EventKind::ActorWaited),
+            None
+        );
     }
 }

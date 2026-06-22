@@ -258,6 +258,11 @@ Embodied mode must not label a statement as a lie unless the current actor has m
 
 Waiting is not skipping causality. Waiting runs the simulation.
 
+An embodied wait or step advances the authoritative loaded world, not a private
+possessed-actor clock. Possession supplies one actor's input slot, but it does
+not pause other loaded actors, world processes, or due consequences. A one-tick
+actor wait advances the loaded world under one shared transition.
+
 The TUI should support staged versions of:
 
 - pause;
@@ -271,9 +276,25 @@ The TUI should support staged versions of:
 - actor-filtered missed-event summaries;
 - debug event streaming.
 
-A sleeping actor does not receive omniscient summaries. They learn what reached them through modeled channels or what they perceive later.
+One-tick actor wait and controller-level continuation or acceleration are
+distinct controls. Sleep and work remain causal durations. Acceleration is
+repeated authoritative progression, never a single multi-tick jump that skips
+intermediate causality.
 
-Time controls follow temporal authority: they may advance authoritative event/replay time, but embodied views may render temporal facts only when the possessed actor could know or infer them through modeled channels. Debug may show exact simulation time, event order, hidden due effects, or omitted truth, but must be visibly non-diegetic. Summaries such as slept until morning, office closed, payment late, or many events happened while away must be actor-known summaries, record-derived conclusions, or debug-only labels, not hidden-truth leakage.
+A sleeping or absent actor receives no global event diff or omniscient
+summaries, including an omniscient negative summary that "nothing happened."
+They learn what reached them through modeled channels or what they perceive
+later.
+
+Time controls follow temporal authority: they may advance authoritative
+event/replay time, but embodied views may render temporal facts only when the
+possessed actor could know or infer them through modeled channels. Stopping
+conditions and interval summaries in embodied play must be based on perceived or
+holder-known information. Debug may show exact simulation time, event order,
+hidden due effects, or omitted truth, but must be visibly non-diegetic.
+Summaries such as slept until morning, office closed, payment late, or many
+events happened while away must be actor-known summaries, record-derived
+conclusions, or debug-only labels, not hidden-truth leakage.
 
 ## Debug inspection surfaces
 

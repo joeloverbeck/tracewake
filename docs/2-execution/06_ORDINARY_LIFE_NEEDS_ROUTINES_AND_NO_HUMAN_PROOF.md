@@ -126,6 +126,19 @@ Accepted no-human proof evidence must include:
 - replay rebuild report;
 - debug summaries that are non-diegetic.
 
+Human-driven ticks are part of the same ordinary-life proof surface. A human
+one-tick wait, continuation through an open sleep/work duration, or
+advance-until control must preserve the same single charge per actor/need/tick,
+passive suppression, duration-regime classification, open-duration completion,
+and replay evidence required of no-human progression.
+
+Human/no-human equivalence evidence must compare the shared loaded-world step
+under held-equal authored state and inputs: the possessed actor's input slot
+may differ, but other actors, due durations, passive accounting, and world
+processes advance through the same owning seams. A proof that exercises only a
+private possessed-actor tick or only the debug no-human runner does not satisfy
+human-driven ordinary-life acceptance.
+
 ## Canonical recovery resolution
 
 The canonical `no_human_day_001` recovery resolution is intentionally recorded as

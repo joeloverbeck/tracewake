@@ -37,8 +37,24 @@ pub struct EmbodiedViewModel {
     pub holder_known_context_hash: HolderKnownContextHash,
     pub holder_known_context_frontier: u64,
     pub holder_known_context_source_summary: String,
+    pub actor_known_interval_summary: Option<ActorKnownIntervalSummary>,
     pub notebook: Option<NotebookView>,
     pub debug_available: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ActorKnownIntervalSummary {
+    pub start_tick: SimTick,
+    pub stop_tick: SimTick,
+    pub stop_reason: String,
+    pub notices: Vec<ActorKnownIntervalNotice>,
+    pub no_new_actor_known_information: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ActorKnownIntervalNotice {
+    pub summary: String,
+    pub source_event_id: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -80,6 +80,39 @@ fn wait_command_executes_current_view_wait_action() {
 }
 
 #[test]
+fn continue_zero_stops_before_next_tick() {
+    let output = run_session("continue 0\nquit\n");
+
+    assert!(
+        output.contains("Advanced until: reason=user_paused_before_next_tick ticks=0 stop_tick=0")
+    );
+    assert!(output.contains("Actor: actor_tomas | Tick: 0"));
+}
+
+#[test]
+fn continue_stops_at_controller_safety_bound() {
+    let output = run_session("continue 2\nquit\n");
+
+    assert!(output.contains("Advanced until: reason=controller_safety_bound ticks=2 stop_tick=2"));
+    assert!(output.contains("Actor: actor_tomas | Tick: 2"));
+}
+
+#[test]
+fn continue_sleep_stops_at_duration_terminal_without_actor_waited() {
+    let output = run_session_with_args(
+        &["sleep_eat_work_001", "actor_tomas"],
+        "do sleep.here\ncontinue\ndebug log\nquit\n",
+    );
+
+    assert!(output.contains("Accepted: sleep.here"));
+    assert!(
+        output.contains("Advanced until: reason=possessed_duration_terminal ticks=4 stop_tick=4")
+    );
+    assert!(output.contains("sleep_completed"));
+    assert!(!output.contains("actor_waited"));
+}
+
+#[test]
 fn debug_item_does_not_leak_to_following_view_or_change_checksum() {
     let output = run_session("debug item coin_stack_01\ndebug projection\nview\nquit\n");
 
@@ -119,7 +152,7 @@ fn no_human_day_command_loop_renders_phase3a_behavior_rows() {
     assert!(output.contains("status=Failed"));
     assert!(output.contains("routine_exec_tomas_work"));
     assert!(output.contains("status=Completed"));
-    assert!(output.contains("- hunger: band=rising cause=action_effect:work_block"));
+    assert!(output.contains("- hunger: band=rising cause=tick_delta"));
     assert!(!output.contains("value=410"));
     assert!(output.contains("DEBUG NON-DIEGETIC: Replay"));
     assert!(output.contains("fixture=no_human_day_001"));

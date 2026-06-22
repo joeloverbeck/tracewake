@@ -235,6 +235,16 @@ path or digest, capability entries, verdict, and any accepted non-playable
 classification. Report capture must be deterministic so reviewers can compare
 coverage changes without relying on display strings.
 
+Time-control and interval-summary acceptance artifacts must include a
+command/evidence matrix. The matrix records command transcripts, typed event
+ledgers, replay checksums, projection rebuild reports, stop reasons,
+hidden-truth negative witnesses, human/no-human differential evidence,
+duration-terminal/accounting witnesses, reservation-conflict evidence, and
+capability-parity dispositions. Each row must state whether the evidence is
+embodied, debug-only, replay, no-human, parity, or observer-only, and must
+identify the source event, proposal, projection, context, or transcript
+references that make it path-under-test evidence.
+
 ## General anti-vacuity and behavior witnesses
 
 Every lock, gate, and proof obligation must identify at least one live negative
@@ -347,7 +357,7 @@ Workflow-level posture:
 | `clippy` | Runs `cargo clippy --workspace --all-targets -- -D warnings`. |
 | `test` | Runs `cargo build --workspace --all-targets --locked` and `cargo test --workspace --locked`; the locked test invocation is the documented CI superset of the local `cargo test --workspace` completion gate. |
 | `lock-layer-gates` | Runs the named lock-layer integration targets with `--locked`, including anti-regression, hidden-truth, replay, content, and TUI seam gates. |
-| `mutants-in-diff` | Runs standing certification-perimeter mutation checks for pull requests and pushes when checked-in perimeter source paths changed, with accepted baseline misses normalized by file, mutation, and function. |
+| `mutants-in-diff` | Runs standing certification-perimeter mutation checks for pull requests and pushes when checked-in perimeter source paths changed, using two concurrent cargo-mutants jobs and an explicit 183 second per-mutant timeout, with accepted baseline misses normalized by file, mutation, and function. |
 | `mutants-lock-layer-baseline` | Runs the scheduled or manual unmutated baseline and canonical standing-perimeter mutation census through `.cargo/mutants.toml`, recording commit, config, and toolchain fingerprints for shard reconciliation. |
 | `mutants-lock-layer` | Runs the scheduled or manual standing-perimeter mutation matrix as eight supervised shards after the baseline job, using `--baseline=skip`, two cargo-mutants jobs per shard, a 7200 second supervisor wall, 120 second grace, explicit 183 second mutant timeout, 130 minute GitHub timeout, and always-uploaded per-shard transcripts and mutation output. |
 | `mutants-lock-layer-reconcile` | Downloads the scheduled or manual baseline and shard artifacts, invokes `tools/merge-mutation-shards.py`, and fails closed for missing shards, non-normal supervisor status, tool failure, survivor floor, overlap, fingerprint drift, or a shard union that does not equal the canonical denominator. |

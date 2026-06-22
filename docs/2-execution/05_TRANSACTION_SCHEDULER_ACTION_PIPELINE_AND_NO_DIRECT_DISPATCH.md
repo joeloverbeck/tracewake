@@ -82,6 +82,28 @@ document records the scheduler-side proof obligation and points there for
 starvation, repeated-deferral, actor-class, region-class, time-acceleration,
 and replay-determinism review.
 
+## Canonical world-step execution contract
+
+The canonical step for loaded-world advancement is owned by the core
+transaction/scheduler/pipeline boundary. It accepts a typed world-advance
+request, produces a typed result, and follows one deterministic phase contract:
+frontier validation, tick-boundary ancestry, due-duration discovery from the
+shared event log, duration lifecycle resolution, ordinary actor/process
+transactions, reservation enforcement, single-owner accounting, due world
+processes, and projection/replay completion.
+
+All accepted events from that step use the shared event append and application
+route. Human-origin wait, autonomous actor opportunities, no-human
+advancement, continuation, and future acceleration may choose different inputs
+or stop conditions, but they may not own alternate event routes or dispatch
+primitive behavior directly. Due-duration scans are log-derived from
+event-sourced starts and terminals, and actor transactions run only at their
+deterministic cadence or due opportunity.
+
+The no-direct-dispatch guard must prove that no TUI path, debug runner,
+scheduler shortcut, routine label, need threshold, or duration queue mutates
+world state outside this canonical step and shared pipeline.
+
 ## Proposal ancestry
 
 A proposal must carry enough ancestry to reconstruct why it exists:

@@ -82,12 +82,14 @@ reveal, or reinterpret temporal facts beyond what that actor would know.
 Possession, notebook display, transcript rendering, and embodied refreshes must
 not convert stale or unknown temporal claims into current knowledge.
 
-Future player-facing time control proof must show that advancing time produces
-events, observations, waits, interruptions, or missed-event summaries through
-modeled channels. Any missed-event summary must carry source and holder
-visibility. Debug exact time, raw queues, replay timestamps, and acceleration
-internals remain non-diegetic and excluded from actor-known context. Per-surface
-temporal rendering diagnostics are owned by
+Embodied time-control proof must show that one-tick wait and advance-until
+controls advance time through events, observations, waits, interruptions,
+duration terminals, or missed-event summaries produced by modeled channels. Any
+missed-event or interval summary must carry source and holder visibility, and
+any stop reason shown in embodied play must be actor-known or source-bearing.
+Debug exact time, raw queues, replay timestamps, and acceleration internals
+remain non-diegetic and excluded from actor-known context. Per-surface temporal
+rendering diagnostics are owned by
 `10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`.
 
 ## Observation-time snapshot proof
@@ -141,12 +143,14 @@ ControllerMode::Embodied possession is ordinary embodied play and does not grant
 debug availability; TUI callers that need operator debug surfaces must bind the
 actor explicitly in debug mode. ControllerMode::Detached grants neither embodied
 control nor debug.
-The `debug run no-human-day` command is an operator-proof command, not an embodied
-play verb: it may advance the loaded fixture through the no-human day scheduler only
-after the debug gate is available, and its output remains a non-diegetic debug
-panel. Player-facing time acceleration with interruption stops and missed-event
-summaries is staged for Phase 3B or later; until that feature exists, world-advancing
-time controls must not be exposed outside the gated debug/operator prefix.
+The `debug run no-human-day` command is an operator-proof command, not an
+embodied play verb: it may advance the loaded fixture through the no-human day
+scheduler only after the debug gate is available, and its output remains a
+non-diegetic debug panel. Embodied world-advancing controls use the ordinary
+TUI/core boundary and must not reuse the debug no-human-day command or its
+debug report as gameplay. Accepted embodied time controls require separate
+one-tick, advance-until, actor-known interval-summary, anti-leak, and debug
+quarantine evidence.
 
 Debug artifacts should include:
 
