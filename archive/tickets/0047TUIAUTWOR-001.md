@@ -1,6 +1,6 @@
 # 0047TUIAUTWOR-001: Foundation 08 Time-controls amendment
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — docs only: `docs/0-foundation/08_TUI_POSSESSION_VIEW_MODELS_AND_DEBUG.md` (Time controls section)
@@ -85,3 +85,33 @@ This is a foundation-tier amendment: it requires constitutional/foundation owner
 1. `grep -nE "## Time controls" docs/0-foundation/08_TUI_POSSESSION_VIEW_MODELS_AND_DEBUG.md`
 2. `grep -niE "loaded world|continuation|acceleration|holder-known|no global event diff" docs/0-foundation/08_TUI_POSSESSION_VIEW_MODELS_AND_DEBUG.md`
 3. Narrower command is correct here: a foundation doc amendment is verified by landing greps + a manual `INV-112`/`INV-045`/`INV-024` alignment read, not by `cargo` tests — no code changes in this ticket.
+
+## Outcome
+
+Completed: 2026-06-22
+
+Applied the foundation-tier `## Time controls` amendment in
+`docs/0-foundation/08_TUI_POSSESSION_VIEW_MODELS_AND_DEBUG.md`. The section now
+states that embodied wait/step advances the authoritative loaded world rather
+than a private possessed-actor clock, possession does not pause other loaded
+actors or due processes, one-tick actor wait is distinct from continuation or
+acceleration, sleep/work remain causal durations, acceleration is repeated
+authoritative progression, and embodied stop/interval summaries are perceived
+or holder-known rather than omniscient.
+
+The ticket's execution precondition was satisfied by the user's active
+instruction to implement the `0047TUIAUTWOR` series against the referenced spec.
+No Rust types, scheduler phases, event payloads, test names, code changes,
+ledger edits, glossary edits, or other foundation documents were changed for
+this ticket.
+
+Verification:
+
+- `grep -nE "## Time controls" docs/0-foundation/08_TUI_POSSESSION_VIEW_MODELS_AND_DEBUG.md`
+  returned the target heading at line 257.
+- `grep -niE "loaded world|continuation|acceleration|holder-known|no global event diff" docs/0-foundation/08_TUI_POSSESSION_VIEW_MODELS_AND_DEBUG.md`
+  returned the required landed phrases inside the Time controls section.
+- Manual `INV-112`/`INV-045`/`INV-024` alignment read: the amended section keeps
+  temporal authority in authoritative event/replay time, preserves causal
+  sleep/work survival effects, and forbids hidden-truth interval leakage in
+  embodied summaries.
