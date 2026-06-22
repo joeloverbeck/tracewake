@@ -3435,11 +3435,23 @@ fn mutation_perimeter_consistency_violations(mutants_toml: &str, ci_yml: &str) -
     }
     if !ci_yml.contains("\"$mutants_status\" -ne 0")
         || !ci_yml.contains("\"$mutants_status\" -ne 2")
+        || !ci_yml.contains("\"$mutants_status\" -ne 3")
     {
         violations.push(
-            "in-diff cargo-mutants status handling does not separate tool failure from misses"
+            "in-diff cargo-mutants status handling does not separate tool failure from misses/timeouts"
                 .to_string(),
         );
+    }
+    for required in [
+        "mutants.out/missed.txt",
+        "mutants.out/timeout.txt",
+        "new_survivors",
+    ] {
+        if !ci_yml.contains(required) {
+            violations.push(format!(
+                "in-diff cargo-mutants survivor reconciliation omits {required}"
+            ));
+        }
     }
     if !ci_yml.contains("[ ! -d mutants.out ]") {
         violations.push("in-diff mutation job does not require output artifacts".to_string());
@@ -4561,9 +4573,16 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
         "synthetic unsupported examine glob must fail closed"
     );
 
+    let in_diff_mutants_invocation = if CI_YML.contains(
+        "cargo mutants --in-diff \"$RUNNER_TEMP/guarded.diff\" --no-shuffle --timeout 183",
+    ) {
+        "cargo mutants --in-diff \"$RUNNER_TEMP/guarded.diff\" --no-shuffle --timeout 183"
+    } else {
+        "cargo mutants --in-diff \"$RUNNER_TEMP/guarded.diff\" --no-shuffle"
+    };
     let swallowed_failure = CI_YML.replace(
-        "cargo mutants --in-diff \"$RUNNER_TEMP/guarded.diff\" --no-shuffle",
-        "cargo mutants --in-diff \"$RUNNER_TEMP/guarded.diff\" --no-shuffle || echo ok",
+        in_diff_mutants_invocation,
+        &format!("{in_diff_mutants_invocation} || echo ok"),
     );
     assert!(
         mutation_perimeter_consistency_violations(MUTANTS_TOML, &swallowed_failure)
@@ -4592,6 +4611,23 @@ fn mutation_perimeter_matches_duration_action_rationale_and_ci_filters() {
             .iter()
             .any(|violation| violation.contains("same step block")),
         "synthetic comment-only status capture must fail the perimeter guard"
+    );
+
+    let missing_timeout_status = CI_YML.replace(" && [ \"$mutants_status\" -ne 3 ]", "");
+    assert!(
+        mutation_perimeter_consistency_violations(MUTANTS_TOML, &missing_timeout_status)
+            .iter()
+            .any(|violation| violation.contains("misses/timeouts")),
+        "synthetic timeout status removal must fail the perimeter guard"
+    );
+
+    let missing_timeout_artifact =
+        CI_YML.replace("mutants.out/timeout.txt", "mutants.out/timeout-removed.txt");
+    assert!(
+        mutation_perimeter_consistency_violations(MUTANTS_TOML, &missing_timeout_artifact)
+            .iter()
+            .any(|violation| violation.contains("timeout.txt")),
+        "synthetic timeout artifact removal must fail the perimeter guard"
     );
 
     let missing_scheduled_capture =

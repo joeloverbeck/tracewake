@@ -144,7 +144,7 @@ jobs:
           cargo mutants --in-diff "$RUNNER_TEMP/guarded.diff" --no-shuffle
           mutants_status=$?
           set -e
-          if [ "$mutants_status" -ne 0 ] && [ "$mutants_status" -ne 2 ]; then
+          if [ "$mutants_status" -ne 0 ] && [ "$mutants_status" -ne 2 ] && [ "$mutants_status" -ne 3 ]; then
             echo "cargo-mutants failed with status $mutants_status; this is a tool/run failure, not a passing mutation gate."
             find mutants.out -maxdepth 2 -type f -print || true
             exit "$mutants_status"
@@ -163,18 +163,34 @@ jobs:
             echo "cargo-mutants produced no output artifacts for a guarded diff."
             exit 1
           fi
-          if [ ! -f mutants.out/missed.txt ]; then
-            echo "No missed.txt produced and cargo-mutants exited 0; all in-diff mutants were caught."
-            exit 0
+          survivor_files=()
+          if [ -f mutants.out/missed.txt ]; then
+            survivor_files+=(mutants.out/missed.txt)
           fi
-          strip() { sed -E 's/:[0-9]+:[0-9]+:/:/' "$1" | sort -u; }
-          new_misses="$(comm -23 <(strip mutants.out/missed.txt) <(strip .cargo/mutants-baseline-misses.txt))"
-          if [ -n "$new_misses" ]; then
-            echo "New missed mutants on changed guarded-layer lines (not in accepted baseline):"
-            echo "$new_misses"
+          if [ -f mutants.out/timeout.txt ]; then
+            survivor_files+=(mutants.out/timeout.txt)
+          fi
+          if [ "${#survivor_files[@]}" -eq 0 ]; then
+            if [ "$mutants_status" -eq 0 ]; then
+              echo "No missed.txt or timeout.txt produced and cargo-mutants exited 0; all in-diff mutants were caught."
+              exit 0
+            fi
+            echo "cargo-mutants exited $mutants_status but produced no survivor artifacts (missed.txt or timeout.txt)."
+            find mutants.out -maxdepth 2 -type f -print || true
             exit 1
           fi
-          echo "All in-diff misses are accepted baseline entries; gate passes."
+          strip() { sed -E 's/:[0-9]+:[0-9]+:/:/' "$@" | sort -u; }
+          new_survivors="$(comm -23 <(strip "${survivor_files[@]}") <(strip .cargo/mutants-baseline-misses.txt))"
+          if [ -n "$new_survivors" ]; then
+            echo "New missed or timed-out mutants on changed guarded-layer lines (not in accepted baseline):"
+            echo "$new_survivors"
+            exit 1
+          fi
+          if [ "$mutants_status" -eq 3 ]; then
+            echo "All in-diff timeouts are accepted baseline entries; gate passes."
+            exit 0
+          fi
+          echo "All in-diff misses/timeouts are accepted baseline entries; gate passes."
 
   mutants-lock-layer-baseline:
     name: mutation baseline and census (lock layer)

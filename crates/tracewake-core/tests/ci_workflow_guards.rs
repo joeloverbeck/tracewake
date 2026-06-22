@@ -439,6 +439,7 @@ fn mutation_perimeter_errors(workflow: &str, mutants_config: &str) -> Vec<String
         "cargo mutants --workspace --no-shuffle",
         ".cargo/mutants-baseline-misses.txt",
         "comm -23",
+        "mutants.out/timeout.txt",
         "actions/upload-artifact@v4",
     ] {
         if !workflow.contains(required) {
