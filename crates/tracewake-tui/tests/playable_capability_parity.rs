@@ -4,6 +4,7 @@ use std::collections::BTreeSet;
 
 use parity::{
     census_actions::registered_action_ids,
+    census_families::FAMILY_KEYS,
     registry,
     runner::run_conformance_with_render_probe,
     runner::{registered_action_coverage_failures, run_conformance},
@@ -68,6 +69,9 @@ fn playable_capability_registry_smoke_test() {
                 | SetupOperation::SubmitRegistryAction { .. }
                 | SetupOperation::ObserveQueryOnly { .. }
                 | SetupOperation::AdvanceNoHuman
+                | SetupOperation::RenderNotebook
+                | SetupOperation::RenderDebugOverlay
+                | SetupOperation::RunNoHumanDay
         ));
         assert!(matches!(
             entry.typed_witness.kind,
@@ -163,8 +167,11 @@ fn playable_capability_registry_schema_exposes_all_closed_enum_variants() {
         SetupOperation::SubmitRegistryAction { action_id: "wait" },
         SetupOperation::ObserveQueryOnly { action_id: "look" },
         SetupOperation::AdvanceNoHuman,
+        SetupOperation::RenderNotebook,
+        SetupOperation::RenderDebugOverlay,
+        SetupOperation::RunNoHumanDay,
     ];
-    assert_eq!(operations.len(), 5);
+    assert_eq!(operations.len(), 8);
 
     let witness_kinds = [
         WitnessKind::TypedCausal,
@@ -211,6 +218,25 @@ fn playable_capability_registry_covers_every_registered_action_definition() {
         failures.is_empty(),
         "every registered action must have a capability disposition: {failures:#?}"
     );
+}
+
+#[test]
+fn playable_capability_registry_covers_baseline_non_action_families() {
+    let entries = registry();
+    for family_key in FAMILY_KEYS {
+        let entry = entries
+            .iter()
+            .find(|entry| entry.key == family_key)
+            .unwrap_or_else(|| panic!("missing family capability entry {family_key}"));
+        assert!(
+            entry.registry_action_id.is_none(),
+            "{family_key} must be a non-action family entry"
+        );
+        assert!(
+            entry.rendered_witness.is_some(),
+            "{family_key} must have a rendered/debug/notebook witness"
+        );
+    }
 }
 
 #[test]

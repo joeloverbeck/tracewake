@@ -1,0 +1,20 @@
+Actor: actor_mara | Tick: 0
+Place: Mara home (home_mara)
+Needs:
+- fatigue: band=comfortable cause=fixture_initial
+- hunger: band=severe cause=fixture_initial
+- safety: band=comfortable cause=fixture_initial
+Intention: active:routine_mara_hidden_truth_guard:eat
+Routine: routine:routine_mara_hidden_truth_guard
+Exits:
+Doors:
+Containers:
+- hidden_pantry open=false locked=false
+Items:
+Inventory:
+Actors:
+Actions:
+1. Check hidden_pantry [check.container.hidden_pantry] disabled: The container is closed. reasons=container_closed
+2. Continue routine [continue.routine.intention_mara_eat]
+3. open hidden_pantry [open.container.hidden_pantry]
+4. Wait [wait.1_tick]

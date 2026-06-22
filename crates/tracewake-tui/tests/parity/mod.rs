@@ -1,4 +1,5 @@
 pub mod census_actions;
+pub mod census_families;
 pub mod runner;
 pub mod scenario;
 
@@ -53,6 +54,9 @@ pub enum SetupOperation {
     SubmitRegistryAction { action_id: &'static str },
     ObserveQueryOnly { action_id: &'static str },
     AdvanceNoHuman,
+    RenderNotebook,
+    RenderDebugOverlay,
+    RunNoHumanDay,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -79,6 +83,7 @@ pub enum EvidenceFlag {
 
 pub fn registry() -> Vec<CapabilityEntry> {
     let mut entries = census_actions::entries();
+    entries.extend(census_families::entries());
     entries.sort_by_key(|entry| entry.key);
     entries
 }

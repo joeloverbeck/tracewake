@@ -1,6 +1,6 @@
 # 0046TUISIMPLA-007: Baseline census — 6 non-action capability families
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — new census module (`crates/tracewake-tui/tests/parity/census_families.rs`), registry-module registration, and focused goldens + any gap-filling fixtures in `tracewake-content`. No `tracewake-core` change.
@@ -126,3 +126,30 @@ Add a checked-in golden per family through the 005 harness; add focused `GoldenF
 1. `cargo test -p tracewake-tui --test playable_capability_parity`
 2. `cargo test -p tracewake-content`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-22
+
+- Added `parity::census_families` with baseline entries for all six non-action families named by
+  spec 0046: epistemic filtering, no-human autonomy, needs/routines, notebook/leads,
+  rejection/why-not, and debug quarantine.
+- Extended the test-side scenario harness with notebook rendering, debug-overlay rendering, and
+  debug-gated no-human-day execution so family witnesses come from the real `TuiApp` path rather than
+  hand-built view models.
+- Added checked-in family goldens for the six entries. The debug quarantine entry is explicitly
+  `DebugOnly`; notebook/leads renders through `render_notebook`; no-human autonomy renders
+  post-scheduler observable embodied consequences; anti-leak families assert hidden/debug/validator
+  truth does not satisfy embodied or notebook witnesses.
+- Added a parity test that fails if any of the six baseline non-action family entries is missing from
+  the combined registry. Together with 0046TUISIMPLA-006, the registry now covers the action and
+  non-action baseline matrix.
+
+Verification:
+
+- `cargo test -p tracewake-tui --test playable_capability_parity`
+- `cargo test -p tracewake-content`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

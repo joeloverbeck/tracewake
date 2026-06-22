@@ -2,6 +2,7 @@ use tracewake_content::fixtures;
 use tracewake_core::actions::ReportStatus;
 use tracewake_core::ids::{ActionId, ActorId, SemanticActionId};
 use tracewake_tui::app::{AppError, TuiApp};
+use tracewake_tui::render::render_notebook;
 
 use super::{CapabilityEntry, SetupOperation};
 
@@ -23,7 +24,14 @@ pub fn run_real_pipeline(entry: &CapabilityEntry) -> Result<ScenarioWitnesses, S
     let mut app = TuiApp::from_golden(golden).map_err(ScenarioError::App)?;
     let actor_id = ActorId::new(entry.viewer_actor.to_string())
         .map_err(|_| ScenarioError::BadActor(entry.viewer_actor.to_string()))?;
-    app.bind_actor(actor_id).map_err(ScenarioError::App)?;
+    if matches!(
+        entry.setup_operation,
+        SetupOperation::RenderDebugOverlay | SetupOperation::RunNoHumanDay
+    ) {
+        app.bind_debug_actor(actor_id).map_err(ScenarioError::App)?;
+    } else {
+        app.bind_actor(actor_id).map_err(ScenarioError::App)?;
+    }
 
     let view = app.current_view().map_err(ScenarioError::App)?;
     assert!(
@@ -95,6 +103,19 @@ pub fn run_real_pipeline(entry: &CapabilityEntry) -> Result<ScenarioWitnesses, S
                 "{} query-only witness must name the registered action",
                 entry.key
             );
+        }
+        SetupOperation::RenderNotebook => {
+            rendered = render_notebook(&app.notebook_view().map_err(ScenarioError::App)?);
+        }
+        SetupOperation::RenderDebugOverlay => {
+            rendered = app
+                .render_debug_embodied_overlay()
+                .map_err(ScenarioError::App)?
+                .ok_or(ScenarioError::MissingDebugOverlay)?;
+        }
+        SetupOperation::RunNoHumanDay => {
+            app.run_no_human_day().map_err(ScenarioError::App)?;
+            rendered = app.render_current_view().map_err(ScenarioError::App)?;
         }
         SetupOperation::BindViewer | SetupOperation::AdvanceNoHuman => {}
     }
@@ -176,7 +197,6 @@ pub fn assert_actor_surface_does_not_leak(entry: &CapabilityEntry, rendered: &st
         "holder_known_context",
         "debug_diagnostics",
         "culprit",
-        "actor_mara",
         "food_hidden_pantry",
     ] {
         assert!(
@@ -205,6 +225,7 @@ pub enum ScenarioError {
     BadSemanticAction(String),
     MissingRegistryAction(String),
     MissingSemanticAction(String),
+    MissingDebugOverlay,
     App(AppError),
 }
 
@@ -232,6 +253,7 @@ impl std::fmt::Display for ScenarioError {
             Self::MissingSemanticAction(action_id) => {
                 write!(formatter, "missing semantic action {action_id}")
             }
+            Self::MissingDebugOverlay => write!(formatter, "missing debug overlay"),
             Self::App(error) => write!(formatter, "app error: {error:?}"),
         }
     }

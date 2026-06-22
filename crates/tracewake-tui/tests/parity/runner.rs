@@ -242,7 +242,11 @@ fn validate_entry(
         SetupOperation::ObserveQueryOnly { action_id } => {
             validate_query_action(entry, action_id, failures);
         }
-        SetupOperation::BindViewer | SetupOperation::AdvanceNoHuman => {}
+        SetupOperation::BindViewer
+        | SetupOperation::AdvanceNoHuman
+        | SetupOperation::RenderNotebook
+        | SetupOperation::RenderDebugOverlay
+        | SetupOperation::RunNoHumanDay => {}
     }
     if matches!(entry.surface_disposition, SurfaceDisposition::Embodied) {
         validate_embodied_render(entry, failures, render_probe);
