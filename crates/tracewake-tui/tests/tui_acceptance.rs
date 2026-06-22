@@ -129,6 +129,45 @@ fn placing_a_carried_item_at_the_current_place_is_accepted_and_moves_the_item() 
 }
 
 #[test]
+fn contradicted_belief_links_its_contradiction_in_the_notebook() {
+    // After tomas checks a strongbox he expected to hold a coin, the absence is a
+    // typed contradiction. The newly recorded "item missing" belief must carry that
+    // contradiction id so the notebook shows the link instead of contradictions=none.
+    let mut app = TuiApp::from_golden(fixtures::expectation_contradiction_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+
+    for semantic in [
+        "open.container.strongbox_tomas",
+        "check.container.strongbox_tomas",
+    ] {
+        let id = SemanticActionId::new(semantic).unwrap();
+        assert_eq!(
+            app.submit_semantic_action(&id).unwrap().report.status,
+            ReportStatus::Accepted,
+            "{semantic} must be accepted"
+        );
+    }
+
+    let notebook = app.notebook_view().unwrap();
+    assert!(
+        !notebook.known_contradictions.is_empty(),
+        "checking the empty strongbox must record a typed contradiction"
+    );
+    let contradiction_id = notebook.known_contradictions[0].contradiction_id.clone();
+    let missing_belief = notebook
+        .source_bound_beliefs
+        .iter()
+        .find(|belief| belief.belief_id.starts_with("belief.missing."))
+        .expect("an item-missing belief is recorded after the contradiction");
+    assert!(
+        missing_belief.contradiction_ids.contains(&contradiction_id),
+        "the contradicted belief must link its contradiction id, got {:?}",
+        missing_belief.contradiction_ids
+    );
+}
+
+#[test]
 fn carried_item_is_not_also_listed_among_place_items_in_same_tick() {
     // Taking an item moves it from the container to the actor's inventory. Within
     // the take tick the place still carries a stale "item in container" perception;
