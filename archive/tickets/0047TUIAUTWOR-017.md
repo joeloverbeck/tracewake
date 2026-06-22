@@ -1,6 +1,6 @@
 # 0047TUIAUTWOR-017: spec-0046 parity registry + two-hop closure + CI
 
-**Status**: PENDING
+**Status**: DONE
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `crates/tracewake-tui/tests/parity/*` (capability registry + scenario runner extension); CI evidence lane
@@ -82,3 +82,17 @@ Wire the extended conformance suite + focused goldens into the ordinary workspac
 1. `cargo test -p tracewake-tui --test playable_capability_parity`
 2. `cargo test --workspace && cargo clippy --workspace --all-targets -- -D warnings`
 3. The `--test playable_capability_parity` target is the focused parity boundary; the full-workspace run is the CI evidence-lane boundary PAR-011 requires.
+
+## Outcome
+
+Completed: 2026-06-22
+
+Evidence:
+- Extended `SetupOperation` and the real-pipeline parity scenario runner with human wait/world-step, sleep advance-until, work advance-until, and open-duration wait-conflict operations.
+- Added six `spec0047_tui_authoritative_world_advance` future-pack capability entries while preserving the 21-entry spec-0046 baseline.
+- Added a registry test proving the 21 baseline entries plus exactly the six spec-0047 time-control entries are present.
+- Verified `.github/workflows/ci.yml` already runs `cargo test -p tracewake-tui --test playable_capability_parity --locked`, `cargo test --workspace --locked`, and warnings-denied clippy, so no workflow churn was needed.
+- Passed `cargo test -p tracewake-tui --test playable_capability_parity`.
+- Passed `cargo fmt --all --check`.
+- Passed `cargo test --workspace`.
+- Passed `cargo clippy --workspace --all-targets -- -D warnings`.

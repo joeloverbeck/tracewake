@@ -65,6 +65,10 @@ fn playable_capability_registry_smoke_test() {
         assert!(matches!(
             entry.setup_operation,
             SetupOperation::BindViewer
+                | SetupOperation::HumanWaitOneTick
+                | SetupOperation::StartSleepThenAdvanceUntil { .. }
+                | SetupOperation::MoveWorkThenAdvanceUntil { .. }
+                | SetupOperation::StartSleepThenWaitConflict
                 | SetupOperation::SubmitSemanticAction { .. }
                 | SetupOperation::SubmitRegistryAction { .. }
                 | SetupOperation::ObserveQueryOnly { .. }
@@ -110,6 +114,41 @@ fn playable_capability_registry_smoke_test() {
             );
         }
     }
+}
+
+#[test]
+fn playable_capability_registry_includes_spec0047_time_control_pack() {
+    let entries = registry();
+    let base_count = entries
+        .iter()
+        .filter(|entry| matches!(entry.ownership_scope, OwnershipScope::Base))
+        .count();
+    let spec0047_keys = entries
+        .iter()
+        .filter(|entry| {
+            matches!(
+                entry.ownership_scope,
+                OwnershipScope::FuturePack {
+                    namespace: "spec0047_tui_authoritative_world_advance"
+                }
+            )
+        })
+        .map(|entry| entry.key)
+        .collect::<Vec<_>>();
+
+    assert_eq!(base_count, 21, "spec-0046 baseline entries must remain");
+    assert_eq!(
+        spec0047_keys,
+        vec![
+            "spec0047.time.actor_known_interval_summary",
+            "spec0047.time.advance_until_stop_reason",
+            "spec0047.time.human_sleep_terminal",
+            "spec0047.time.human_wait_world_step",
+            "spec0047.time.human_work_terminal",
+            "spec0047.time.open_duration_wait_conflict",
+        ]
+    );
+    assert_eq!(entries.len(), base_count + spec0047_keys.len());
 }
 
 #[test]
@@ -161,6 +200,10 @@ fn playable_capability_registry_schema_exposes_all_closed_enum_variants() {
 
     let operations = [
         SetupOperation::BindViewer,
+        SetupOperation::HumanWaitOneTick,
+        SetupOperation::StartSleepThenAdvanceUntil { max_ticks: 4 },
+        SetupOperation::MoveWorkThenAdvanceUntil { max_ticks: 4 },
+        SetupOperation::StartSleepThenWaitConflict,
         SetupOperation::SubmitSemanticAction {
             semantic_action_id: "wait.1_tick",
         },
@@ -171,7 +214,7 @@ fn playable_capability_registry_schema_exposes_all_closed_enum_variants() {
         SetupOperation::RenderDebugOverlay,
         SetupOperation::RunNoHumanDay,
     ];
-    assert_eq!(operations.len(), 8);
+    assert_eq!(operations.len(), 12);
 
     let witness_kinds = [
         WitnessKind::TypedCausal,

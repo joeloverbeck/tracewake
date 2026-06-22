@@ -13,7 +13,7 @@ pub const FAMILY_KEYS: [&str; 6] = [
 ];
 
 pub fn entries() -> Vec<CapabilityEntry> {
-    vec![
+    let mut entries = vec![
         family_entry(FamilyEntrySpec {
             key: "base.family.debug_quarantine",
             class: CapabilityClass::DebugOnlyInfrastructure,
@@ -133,7 +133,145 @@ pub fn entries() -> Vec<CapabilityEntry> {
                 rationale: "why-not family is a human-submitted rejection surface",
             },
         }),
+    ];
+    entries.extend(time_control_entries());
+    entries
+}
+
+fn time_control_entries() -> Vec<CapabilityEntry> {
+    vec![
+        time_control_entry(TimeControlEntrySpec {
+            key: "spec0047.time.human_wait_world_step",
+            class: CapabilityClass::ActorObservableConsequence,
+            rationale: "human wait advances the authoritative world frontier through the TUI",
+            fixture_id: "strongbox_001",
+            viewer_actor: "actor_tomas",
+            setup_operation: SetupOperation::HumanWaitOneTick,
+            typed_assertion: "wait.1_tick appends ActorWaited and advances the world tick",
+            actor_knowledge_assertion:
+                "actor_tomas receives the post-wait embodied view from his holder-known context",
+            rendered_assertion: "rendered embodied view advances to Tick: 1",
+            anti_leak_fixtures: Vec::new(),
+            no_human_evidence: EvidenceFlag::Required,
+        }),
+        time_control_entry(TimeControlEntrySpec {
+            key: "spec0047.time.human_sleep_terminal",
+            class: CapabilityClass::ActorObservableConsequence,
+            rationale: "human-started sleep reaches its duration terminal through advance-until",
+            fixture_id: "sleep_eat_work_001",
+            viewer_actor: "actor_tomas",
+            setup_operation: SetupOperation::StartSleepThenAdvanceUntil { max_ticks: 4 },
+            typed_assertion: "sleep.here plus advance-until emits SleepCompleted",
+            actor_knowledge_assertion:
+                "actor_tomas receives a source-bearing sleep completion interval summary",
+            rendered_assertion: "rendered interval summary includes sleep completed",
+            anti_leak_fixtures: Vec::new(),
+            no_human_evidence: EvidenceFlag::Required,
+        }),
+        time_control_entry(TimeControlEntrySpec {
+            key: "spec0047.time.human_work_terminal",
+            class: CapabilityClass::ActorObservableConsequence,
+            rationale: "human-started work reaches its duration terminal through advance-until",
+            fixture_id: "ordinary_workday_001",
+            viewer_actor: "actor_tomas",
+            setup_operation: SetupOperation::MoveWorkThenAdvanceUntil { max_ticks: 4 },
+            typed_assertion: "work.block.workplace_tomas plus advance-until emits WorkBlockCompleted",
+            actor_knowledge_assertion:
+                "actor_tomas receives a source-bearing work completion interval summary",
+            rendered_assertion: "rendered interval summary includes work completed",
+            anti_leak_fixtures: Vec::new(),
+            no_human_evidence: EvidenceFlag::Required,
+        }),
+        time_control_entry(TimeControlEntrySpec {
+            key: "spec0047.time.open_duration_wait_conflict",
+            class: CapabilityClass::ActorObservableConsequence,
+            rationale: "open body-exclusive durations reject ordinary wait while continuation remains typed",
+            fixture_id: "sleep_eat_work_001",
+            viewer_actor: "actor_tomas",
+            setup_operation: SetupOperation::StartSleepThenWaitConflict,
+            typed_assertion: "ordinary wait during sleep returns ReservationConflict",
+            actor_knowledge_assertion:
+                "actor_tomas sees an actor-safe reservation why-not without hidden scheduler state",
+            rendered_assertion: "rendered why-not includes reservation_conflict",
+            anti_leak_fixtures: vec!["sleep_eat_work_001"],
+            no_human_evidence: EvidenceFlag::Required,
+        }),
+        time_control_entry(TimeControlEntrySpec {
+            key: "spec0047.time.actor_known_interval_summary",
+            class: CapabilityClass::ActorObservableState,
+            rationale:
+                "actor-known interval summaries are a view-model/render parity surface",
+            fixture_id: "sleep_eat_work_001",
+            viewer_actor: "actor_tomas",
+            setup_operation: SetupOperation::StartSleepThenAdvanceUntil { max_ticks: 4 },
+            typed_assertion: "advance-until builds ActorKnownIntervalSummary from source events",
+            actor_knowledge_assertion:
+                "hidden other-actor interval sources are filtered before rendering",
+            rendered_assertion: "rendered interval summary carries source-bearing actor-known text",
+            anti_leak_fixtures: vec!["hidden_food_unknown_route_001"],
+            no_human_evidence: EvidenceFlag::Required,
+        }),
+        time_control_entry(TimeControlEntrySpec {
+            key: "spec0047.time.advance_until_stop_reason",
+            class: CapabilityClass::ActorObservableConsequence,
+            rationale: "advance-until stop reasons are visible only through actor-known summaries",
+            fixture_id: "sleep_eat_work_001",
+            viewer_actor: "actor_tomas",
+            setup_operation: SetupOperation::StartSleepThenAdvanceUntil { max_ticks: 4 },
+            typed_assertion: "advance-until stops at possessed_duration_terminal",
+            actor_knowledge_assertion:
+                "the stop reason is paired with actor-known source-bearing interval data",
+            rendered_assertion: "rendered interval summary includes possessed_duration_terminal",
+            anti_leak_fixtures: vec!["hidden_food_unknown_route_001"],
+            no_human_evidence: EvidenceFlag::Required,
+        }),
     ]
+}
+
+struct TimeControlEntrySpec {
+    key: &'static str,
+    class: CapabilityClass,
+    rationale: &'static str,
+    fixture_id: &'static str,
+    viewer_actor: &'static str,
+    setup_operation: SetupOperation,
+    typed_assertion: &'static str,
+    actor_knowledge_assertion: &'static str,
+    rendered_assertion: &'static str,
+    anti_leak_fixtures: Vec<&'static str>,
+    no_human_evidence: EvidenceFlag,
+}
+
+fn time_control_entry(spec: TimeControlEntrySpec) -> CapabilityEntry {
+    CapabilityEntry {
+        key: spec.key,
+        ownership_scope: OwnershipScope::FuturePack {
+            namespace: "spec0047_tui_authoritative_world_advance",
+        },
+        capability_class: spec.class,
+        surface_disposition: SurfaceDisposition::Embodied,
+        disposition_rationale: spec.rationale,
+        fixture_ids: vec![spec.fixture_id],
+        viewer_actor: spec.viewer_actor,
+        setup_operation: spec.setup_operation,
+        registry_action_id: None,
+        typed_witness: Witness {
+            kind: WitnessKind::TypedCausal,
+            assertion: spec.typed_assertion,
+        },
+        actor_knowledge_witness: Witness {
+            kind: WitnessKind::ActorKnowledge,
+            assertion: spec.actor_knowledge_assertion,
+        },
+        rendered_witness: Some(Witness {
+            kind: WitnessKind::RenderedText,
+            assertion: spec.rendered_assertion,
+        }),
+        golden_path: None,
+        anti_leak_fixtures: spec.anti_leak_fixtures,
+        replay_evidence: EvidenceFlag::Required,
+        no_human_evidence: spec.no_human_evidence,
+    }
 }
 
 struct FamilyEntrySpec {
