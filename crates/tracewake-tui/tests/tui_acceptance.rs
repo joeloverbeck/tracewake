@@ -89,6 +89,46 @@ fn embodied_view_lists_each_container_once_after_opening_in_same_tick() {
 }
 
 #[test]
+fn placing_a_carried_item_at_the_current_place_is_accepted_and_moves_the_item() {
+    // The place affordance must carry its destination (the current place) so the
+    // pipeline can bind a target; otherwise every place is rejected target_not_found.
+    let mut app = TuiApp::from_golden(fixtures::place_carried_item_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_lina").unwrap()).unwrap();
+
+    let view = app.current_view().unwrap();
+    let place = view
+        .semantic_actions
+        .iter()
+        .find(|entry| entry.semantic_action_id.as_str() == "place.item.sample_token_01.at.place")
+        .expect("a place affordance is offered for the carried item")
+        .semantic_action_id
+        .clone();
+
+    let result = app.submit_semantic_action(&place).unwrap();
+    assert_eq!(
+        result.report.status,
+        ReportStatus::Accepted,
+        "placing a carried item at the current place must succeed, got {:?}",
+        result.report
+    );
+
+    let view = app.current_view().unwrap();
+    assert!(
+        view.carried_items
+            .iter()
+            .all(|item| item.item_id.as_str() != "sample_token_01"),
+        "the placed item must leave the inventory"
+    );
+    assert!(
+        view.visible_items
+            .iter()
+            .any(|item| item.item_id.as_str() == "sample_token_01"),
+        "the placed item must appear among the place items, got {:?}",
+        view.visible_items
+    );
+}
+
+#[test]
 fn carried_item_is_not_also_listed_among_place_items_in_same_tick() {
     // Taking an item moves it from the container to the actor's inventory. Within
     // the take tick the place still carries a stale "item in container" perception;

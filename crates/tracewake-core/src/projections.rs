@@ -655,6 +655,7 @@ pub fn build_embodied_view_model(
     );
     let mut semantic_actions = semantic_actions(
         &preflight_context,
+        &source.current_place_id,
         &visible_exits,
         &visible_doors,
         &visible_containers,
@@ -1094,6 +1095,7 @@ struct SemanticActionPreflightContext<'a> {
 
 fn semantic_actions(
     preflight: &SemanticActionPreflightContext<'_>,
+    current_place_id: &PlaceId,
     visible_exits: &[VisibleExit],
     visible_doors: &[VisibleDoor],
     visible_containers: &[VisibleContainer],
@@ -1216,7 +1218,7 @@ fn semantic_actions(
             SemanticActionEntry::new(
                 SemanticActionId::new(format!("place.item.{}.at.place", item_id.as_str())).unwrap(),
                 ActionId::new("place").unwrap(),
-                vec![item_id.to_string()],
+                vec![item_id.to_string(), current_place_id.to_string()],
                 format!("Place {}", item_id.as_str()),
                 true,
                 None,
