@@ -1038,4 +1038,39 @@ mod tests {
     fn production_source(source: &str) -> &str {
         source.split("\n#[cfg(test)]").next().unwrap_or(source)
     }
+
+    #[test]
+    fn actor_known_interval_summary_covers_each_salient_event_kind() {
+        // Each salient duration/observation event maps to its actor-known
+        // interval-summary label. Asserting the exact label per kind kills the
+        // `delete match arm` mutants on the SleepInterrupted, WorkBlockFailed,
+        // and ObservationRecorded arms, each of which would otherwise fall
+        // through to the `_ => None` catch-all.
+        assert_eq!(
+            actor_known_interval_summary_for_event(EventKind::SleepCompleted),
+            Some("sleep completed")
+        );
+        assert_eq!(
+            actor_known_interval_summary_for_event(EventKind::SleepInterrupted),
+            Some("sleep interrupted")
+        );
+        assert_eq!(
+            actor_known_interval_summary_for_event(EventKind::WorkBlockCompleted),
+            Some("work completed")
+        );
+        assert_eq!(
+            actor_known_interval_summary_for_event(EventKind::WorkBlockFailed),
+            Some("work failed")
+        );
+        assert_eq!(
+            actor_known_interval_summary_for_event(EventKind::ObservationRecorded),
+            Some("new observation recorded")
+        );
+
+        // A non-salient kind has no interval summary, guarding the catch-all.
+        assert_eq!(
+            actor_known_interval_summary_for_event(EventKind::ActorWaited),
+            None
+        );
+    }
 }

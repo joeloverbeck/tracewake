@@ -460,7 +460,7 @@ impl DeterministicScheduler {
                 return Ok(AdvanceUntilResult {
                     start_tick,
                     stop_tick: self.current_tick,
-                    ticks_advanced: self.current_tick.value() - start_tick.value(),
+                    ticks_advanced: ticks_advanced_between(start_tick, self.current_tick),
                     stop_reason: AdvanceUntilStopReason::PossessedDurationTerminal,
                     appended_event_ids,
                 });
@@ -473,7 +473,7 @@ impl DeterministicScheduler {
                 return Ok(AdvanceUntilResult {
                     start_tick,
                     stop_tick: self.current_tick,
-                    ticks_advanced: self.current_tick.value() - start_tick.value(),
+                    ticks_advanced: ticks_advanced_between(start_tick, self.current_tick),
                     stop_reason: AdvanceUntilStopReason::ActorKnownSalientObservation,
                     appended_event_ids,
                 });
@@ -483,11 +483,19 @@ impl DeterministicScheduler {
         Ok(AdvanceUntilResult {
             start_tick,
             stop_tick: self.current_tick,
-            ticks_advanced: self.current_tick.value() - start_tick.value(),
+            ticks_advanced: ticks_advanced_between(start_tick, self.current_tick),
             stop_reason: AdvanceUntilStopReason::ControllerSafetyBound,
             appended_event_ids,
         })
     }
+}
+
+/// Forward tick delta between an `advance_until` start frontier and its stop
+/// frontier. Centralizing the subtraction keeps it to a single mutation-covered
+/// site shared by every stop branch, including branches that are not yet
+/// reachable, so each return reuses the same verified arithmetic.
+fn ticks_advanced_between(start_tick: SimTick, current_tick: SimTick) -> u64 {
+    current_tick.value() - start_tick.value()
 }
 
 fn step_appended_possessed_duration_terminal(
@@ -1724,13 +1732,13 @@ pub mod no_human {
         scheduler: &mut DeterministicScheduler,
         appended_events: &[EventEnvelope],
     ) {
-        if let Some(latest_tick) = appended_events
-            .iter()
-            .map(|event| event.sim_tick)
-            .max()
-            .filter(|tick| *tick > scheduler.current_tick)
-        {
-            scheduler.current_tick = latest_tick;
+        if let Some(latest_tick) = appended_events.iter().map(|event| event.sim_tick).max() {
+            // Advance the frontier to the furthest appended tick, never backward.
+            // Taking the max instead of a `>` guard keeps the comparison fully
+            // mutation-covered: a `max -> min` mutant would drag the frontier
+            // backward and is caught by the frontier unit test, whereas the old
+            // `>` guard admitted an equivalent `>=` mutant (a no-op at equality).
+            scheduler.current_tick = scheduler.current_tick.max(latest_tick);
         }
     }
 
@@ -5808,6 +5816,50 @@ pub mod no_human {
                 .any(|field| field.key == "diagnostic_canonical"
                     && field.value.starts_with("stuck_diagnostic_v1|")));
         }
+
+        #[test]
+        fn sync_scheduler_frontier_advances_only_to_a_strictly_greater_tick() {
+            let actor = ActorId::new("actor_tomas").unwrap();
+
+            // A strictly greater appended tick advances the frontier to that
+            // maximum. This kills the `> -> ==` mutant (which would refuse to
+            // advance because the max tick does not equal the current tick) and
+            // the `> -> <` mutant (which would refuse to advance because the max
+            // tick is not below the current tick).
+            let mut scheduler = DeterministicScheduler::new(SimTick::new(5));
+            let advancing_events = vec![
+                ordinary_event(
+                    "event_a",
+                    EventKind::ActorWaited,
+                    &actor,
+                    "wait",
+                    SimTick::new(7),
+                ),
+                ordinary_event(
+                    "event_b",
+                    EventKind::ActorWaited,
+                    &actor,
+                    "wait",
+                    SimTick::new(10),
+                ),
+            ];
+            sync_scheduler_frontier_to_appended_events(&mut scheduler, &advancing_events);
+            assert_eq!(scheduler.current_tick, SimTick::new(10));
+
+            // An appended tick below the current frontier must never drag it
+            // backward. This independently kills the `> -> <` mutant, which would
+            // move the frontier down to the smaller appended tick.
+            let mut scheduler = DeterministicScheduler::new(SimTick::new(10));
+            let stale_events = vec![ordinary_event(
+                "event_c",
+                EventKind::ActorWaited,
+                &actor,
+                "wait",
+                SimTick::new(4),
+            )];
+            sync_scheduler_frontier_to_appended_events(&mut scheduler, &stale_events);
+            assert_eq!(scheduler.current_tick, SimTick::new(10));
+        }
     }
 }
 
@@ -6238,5 +6290,207 @@ mod tests {
                 .count(),
             2
         );
+    }
+
+    fn event_for(
+        event_id: &str,
+        event_kind: EventKind,
+        actor: &ActorId,
+        tick: SimTick,
+    ) -> EventEnvelope {
+        let mut event = EventEnvelope::new_caused_v1(
+            EventId::new(event_id).unwrap(),
+            event_kind,
+            0,
+            0,
+            tick,
+            key(
+                tick.value(),
+                SchedulePhase::NoHumanProcess,
+                SchedulerSourceId::Actor(actor.clone()),
+                0,
+                "world_step",
+                &[actor.as_str()],
+                event_id,
+            ),
+            content_manifest_id(),
+            vec![EventCause::Proposal(
+                ProposalId::new(format!("proposal_{event_id}")).unwrap(),
+            )],
+        )
+        .unwrap();
+        event.actor_id = Some(actor.clone());
+        event
+    }
+
+    #[test]
+    fn step_appended_possessed_duration_terminal_matches_only_the_appended_terminal() {
+        let possessed = actor_id("actor_tomas");
+        let mut log = EventLog::new();
+
+        // The appended id IS the possessed actor's duration-terminal event, so
+        // the predicate must hold. This kills the `== -> !=` mutant on the
+        // event-id match, which would look for events with a *different* id and
+        // find none in a single-event log.
+        let terminal = event_for(
+            "event_sleep_completed_tomas",
+            EventKind::SleepCompleted,
+            &possessed,
+            SimTick::new(10),
+        );
+        let terminal_id = terminal.event_id.clone();
+        log.append(terminal).unwrap();
+        assert!(step_appended_possessed_duration_terminal(
+            &log,
+            std::slice::from_ref(&terminal_id),
+            &possessed,
+        ));
+
+        // A non-terminal appended event is not a duration terminal, even though
+        // the terminal event still sits in the log under a different id. This
+        // also kills the `== -> !=` mutant, which would match the *other*
+        // (terminal) event and wrongly report a terminal.
+        let waited = event_for(
+            "event_actor_waited_tomas",
+            EventKind::ActorWaited,
+            &possessed,
+            SimTick::new(11),
+        );
+        let waited_id = waited.event_id.clone();
+        log.append(waited).unwrap();
+        assert!(!step_appended_possessed_duration_terminal(
+            &log,
+            std::slice::from_ref(&waited_id),
+            &possessed,
+        ));
+    }
+
+    #[test]
+    fn step_appended_actor_known_salient_observation_requires_the_possessed_actor() {
+        let possessed = actor_id("actor_tomas");
+        let other = actor_id("actor_mara");
+        let mut log = EventLog::new();
+
+        // An observation recorded for the possessed actor is salient. This kills
+        // the `== -> !=` mutant on the actor-id match, which would require the
+        // observation to belong to a *different* actor.
+        let possessed_observation = event_for(
+            "event_observation_tomas",
+            EventKind::ObservationRecorded,
+            &possessed,
+            SimTick::new(5),
+        );
+        let possessed_observation_id = possessed_observation.event_id.clone();
+        log.append(possessed_observation).unwrap();
+        assert!(step_appended_actor_known_salient_observation(
+            &log,
+            std::slice::from_ref(&possessed_observation_id),
+            &possessed,
+        ));
+
+        // An observation recorded for a different actor is not the possessed
+        // actor's salient observation.
+        let other_observation = event_for(
+            "event_observation_mara",
+            EventKind::ObservationRecorded,
+            &other,
+            SimTick::new(6),
+        );
+        let other_observation_id = other_observation.event_id.clone();
+        log.append(other_observation).unwrap();
+        assert!(!step_appended_actor_known_salient_observation(
+            &log,
+            std::slice::from_ref(&other_observation_id),
+            &possessed,
+        ));
+    }
+
+    #[test]
+    fn duration_lifecycle_interruption_orders_ahead_of_completions() {
+        let start = EventId::new("event_duration_start").unwrap();
+        let interruption = DurationLifecycleCandidate::SleepInterruption {
+            start_event_id: start.clone(),
+            terminal_tick: SimTick::new(10),
+            reason: "external_noise".to_string(),
+        };
+        let sleep_completion = DurationLifecycleCandidate::SleepCompletion {
+            start_event_id: start.clone(),
+            terminal_tick: SimTick::new(10),
+        };
+        let work_completion = DurationLifecycleCandidate::WorkCompletion {
+            start_event_id: start,
+            terminal_tick: SimTick::new(10),
+        };
+
+        // Interruptions must sort strictly ahead of completions that share a
+        // terminal tick. This kills both `ordering_priority -> 0` and
+        // `ordering_priority -> 1` mutants, each of which collapses the two
+        // priority classes to a single constant and breaks the strict ordering.
+        assert!(interruption.ordering_priority() < sleep_completion.ordering_priority());
+        assert!(interruption.ordering_priority() < work_completion.ordering_priority());
+        assert_eq!(
+            sleep_completion.ordering_priority(),
+            work_completion.ordering_priority()
+        );
+    }
+
+    #[test]
+    fn append_missing_accounting_need_events_skips_when_either_input_is_zero() {
+        let process = process_id("ambient_tick");
+        let actor = actor_id("actor_tomas");
+        let mut scratch_log = EventLog::new();
+        let mut scratch_agent_state = seeded_agent_state(actor.clone());
+        let request = WorldAdvanceRequest {
+            expected_tick: SimTick::new(0),
+            origin: WorldAdvanceOrigin::Process(process.clone()),
+            content_manifest_id: content_manifest_id(),
+            authorized_sleep_interruptions: Vec::new(),
+        };
+        let mut events = Vec::new();
+
+        // A zero delta with elapsed ticks appends no accounting event. This
+        // kills the `|| -> &&` mutant, which would only short-circuit when both
+        // the delta and the elapsed ticks are zero and would otherwise build an
+        // accounting event for a zero-magnitude change.
+        append_missing_accounting_need_events(
+            &mut scratch_log,
+            &mut scratch_agent_state,
+            &request,
+            SimTick::new(5),
+            &process,
+            &actor,
+            NeedKind::Hunger,
+            0,
+            5,
+            &mut events,
+        )
+        .unwrap();
+        assert!(events.is_empty());
+
+        // A non-zero delta over zero elapsed ticks likewise appends nothing,
+        // independently killing the `|| -> &&` mutant (which would build a real
+        // need-delta event here).
+        append_missing_accounting_need_events(
+            &mut scratch_log,
+            &mut scratch_agent_state,
+            &request,
+            SimTick::new(5),
+            &process,
+            &actor,
+            NeedKind::Hunger,
+            7,
+            0,
+            &mut events,
+        )
+        .unwrap();
+        assert!(events.is_empty());
+    }
+
+    #[test]
+    fn ticks_advanced_between_is_the_forward_tick_delta() {
+        // A non-degenerate delta (start >= 1, span >= 2) pins the subtraction so
+        // every arithmetic mutant on the single shared site dies: `- -> +` gives
+        // 20, `- -> /` gives 1, and the constant-return mutants give 0 or 1.
+        assert_eq!(ticks_advanced_between(SimTick::new(9), SimTick::new(11)), 2);
     }
 }

@@ -145,7 +145,10 @@ jobs:
           # shard job's 183s) instead of cargo-mutants' fragile auto-set window
           # (~20s for this workspace), which spuriously times out the growing
           # workspace test suite and makes cargo-mutants exit 3 (TIMEOUT).
-          cargo mutants --in-diff "$RUNNER_TEMP/guarded.diff" --no-shuffle --timeout 183
+          # Run two mutants concurrently (matching the scheduled shard job's
+          # MUTANTS_JOBS) so a large guarded diff does not serialize into a
+          # ~20-minute wall; --no-shuffle keeps the run deterministic.
+          cargo mutants --in-diff "$RUNNER_TEMP/guarded.diff" --no-shuffle --jobs 2 --timeout 183
           mutants_status=$?
           set -e
           if [ "$mutants_status" -ne 0 ] && [ "$mutants_status" -ne 2 ] && [ "$mutants_status" -ne 3 ]; then

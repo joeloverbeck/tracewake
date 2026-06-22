@@ -2661,4 +2661,77 @@ mod tests {
         }
         assert_eq!(replay_state, live_state);
     }
+
+    #[test]
+    fn lifecycle_control_action_is_exempt_from_body_exclusive_reservation_conflict() {
+        // Mutation guard for pipeline.rs body_exclusive_reservation_conflict:
+        // `is_lifecycle_control(action) || candidate_events.is_empty()`.
+        //
+        // Setup: a lifecycle-control action ("continue_routine") with a NON-empty
+        // candidate_events slice, while the log holds an OPEN body-exclusive sleep
+        // start for the actor at tick 9 (no terminal). With the ordering_key tick at
+        // 10 (>= 9), `open_body_exclusive_starts` would return Some(open start).
+        //
+        // - is_lifecycle_control("continue_routine") = true
+        // - candidate_events.is_empty() = false
+        // Correct `||`: true  -> early `return None` (lifecycle control is exempt).
+        // Mutant  `&&`: true && false = false -> falls through and returns
+        //               Some(event_sleep_started_open), a spurious ReservationConflict.
+        // Asserting `None` therefore kills the `&&` mutant.
+        let registry = phase2a_registry();
+        let mut state = sleep_state();
+        let mut agent_state = AgentState::default();
+        let mut log = EventLog::new();
+        log.append(open_sleep_start_event()).unwrap();
+
+        let proposal = Proposal::new(
+            ProposalId::new("proposal_continue_routine").unwrap(),
+            ProposalOrigin::Scheduler,
+            Some(actor_id("actor_tomas")),
+            action_id("continue_routine"),
+            SimTick::new(10),
+        );
+
+        let context = PipelineContext {
+            registry: &registry,
+            state: &mut state,
+            agent_state: &mut agent_state,
+            log: &mut log,
+            controller_bindings: None,
+            epistemic_projection: None,
+            content_manifest_id: content_manifest_id(),
+            ordering_key: OrderingKey::new(
+                SimTick::new(10),
+                SchedulePhase::HumanCommand,
+                SchedulerSourceId::Actor(actor_id("actor_tomas")),
+                ProposalSequence::new(1),
+                action_id("continue_routine"),
+                Vec::new(),
+                "lifecycle-exempt",
+            ),
+        };
+
+        // A non-empty candidate slice ensures the `candidate_events.is_empty()`
+        // disjunct is false, so only the lifecycle-control disjunct distinguishes
+        // correct (`||`) from mutant (`&&`).
+        let candidate_events = vec![open_sleep_start_event()];
+
+        // Sanity: with these inputs the actor truly has an open body-exclusive start,
+        // so the only reason the correct code returns None is the lifecycle exemption.
+        assert_eq!(
+            crate::need_accounting::open_body_exclusive_starts(
+                context.log,
+                proposal.actor_id.as_ref().unwrap(),
+                context.ordering_key.sim_tick,
+            )
+            .unwrap()
+            .len(),
+            1
+        );
+
+        assert_eq!(
+            body_exclusive_reservation_conflict(&context, &proposal, &candidate_events),
+            None,
+        );
+    }
 }
