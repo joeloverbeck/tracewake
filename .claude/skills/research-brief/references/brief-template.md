@@ -215,12 +215,15 @@ from an earlier cascade epoch — this campaign reuses per-tier slugs (e.g.
 `architecture-tier-alignment-research-report.md`) across epochs, disambiguated by `reports/` (live)
 vs. `archive/reports/` (prior epoch). An archived namesake is **expected**: it is neither a
 replacement nor a collision — confirm the live `reports/<slug>` path is absent (per the §2-completeness
-check) and proceed. **A seed/source note may already occupy the bare `reports/<topic>.md` slug** — the
+check) and proceed. **A seed/source note may already occupy a `reports/` slug close to the brief's** — the
 in-repo note this pass triages, often untracked — distinct from both the brief and the commissioned
-report on the same stem (e.g. seed `reports/tui-parity.md` vs. brief `reports/tui-parity-research-brief.md`
-vs. report `reports/tui-parity-research-report.md`). When so, confirm the `-research-brief` /
-`-research-report` suffixes keep all three distinct, and have the brief name the seed explicitly (e.g.
-"the untracked `reports/<topic>.md` is the seed, a different file") so Session 2 does not conflate the
+report. It may sit on the **bare** topic stem (e.g. seed `reports/tui-parity.md` vs. brief
+`reports/tui-parity-research-brief.md` vs. report `reports/tui-parity-research-report.md`), or carry its
+own **descriptive suffix** off the stem (e.g. seed `reports/tui-human-wait-...-issue.md` vs. brief
+`...-research-brief.md` vs. report `...-research-report.md` — the `-issue` / `-bug` / `-gap` seed need not
+even share the chosen `<topic>` stem). Either way, confirm the `-research-brief` / `-research-report`
+suffixes keep all three filenames distinct, and have the brief name the seed explicitly (e.g. "the
+untracked `reports/<topic>-issue.md` is the seed, a different file") so Session 2 does not conflate the
 report it writes with the seed it reads. **For a top-tier (`0-foundation`) pass** the report is an *amendment*
 recommendation, not a realignment to anything upstream; prior precedent named it
 `foundation-amendment-research-report.md`. Choosing `-alignment-` for cross-campaign per-tier symmetry
