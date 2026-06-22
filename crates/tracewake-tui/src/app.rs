@@ -33,7 +33,8 @@ use tracewake_core::scheduler::no_human::{
     default_day_windows, run_no_human_day, NoHumanDayConfig, NoHumanDayReport,
 };
 use tracewake_core::scheduler::{
-    DeterministicScheduler, OrderingKey, SchedulePhase, SchedulerSourceId,
+    DeterministicScheduler, OrderingKey, SchedulePhase, SchedulerSourceId, WorldAdvanceError,
+    WorldAdvanceOrigin, WorldAdvanceRequest,
 };
 use tracewake_core::state::{AgentState, ControllerMode, PhysicalState};
 use tracewake_core::time::SimTick;
@@ -57,6 +58,7 @@ pub enum AppError {
     DebugUnavailable,
     Projection(ProjectionError),
     SemanticActionNotFound(String),
+    WorldAdvance(WorldAdvanceError),
 }
 
 impl From<LoadError> for AppError {
@@ -248,19 +250,33 @@ impl TuiApp {
         entry: &SemanticActionEntry,
         source_view: &EmbodiedViewModel,
     ) -> Result<PipelineResult, AppError> {
+        self.submit_entry_with_world_advance(
+            entry,
+            source_view,
+            entry.semantic_action_id.as_str() == "wait.1_tick",
+        )
+    }
+
+    fn submit_entry_with_world_advance(
+        &mut self,
+        entry: &SemanticActionEntry,
+        source_view: &EmbodiedViewModel,
+        advance_world_after_acceptance: bool,
+    ) -> Result<PipelineResult, AppError> {
         let actor_id = self.bound_actor_id.clone().ok_or(AppError::ActorNotBound)?;
+        let expected_tick = self.scheduler.current_tick;
         let sequence = self.scheduler.assign_proposal_sequence();
         let proposal = proposal_from_current_view_semantic_action(
             ProposalId::new(format!("proposal_tui_{}", sequence.value())).unwrap(),
             actor_id.clone(),
-            self.scheduler.current_tick,
+            expected_tick,
             entry,
             source_view,
             &self.controller_id,
         );
 
         let ordering_key = OrderingKey::new(
-            self.scheduler.current_tick,
+            expected_tick,
             SchedulePhase::HumanCommand,
             SchedulerSourceId::Controller(self.controller_id.clone()),
             sequence,
@@ -283,7 +299,21 @@ impl TuiApp {
             self.last_rejection = Some(result.report.clone());
         } else {
             self.last_rejection = None;
-            if let Some(last_event) = result.appended_events.last() {
+            if advance_world_after_acceptance {
+                self.scheduler
+                    .advance_world_one_tick(
+                        &self.state,
+                        &mut self.agent_state,
+                        &mut self.log,
+                        WorldAdvanceRequest {
+                            expected_tick,
+                            origin: WorldAdvanceOrigin::Controller(self.controller_id.clone()),
+                            content_manifest_id: self.content_manifest_id.clone(),
+                            authorized_sleep_interruptions: Vec::new(),
+                        },
+                    )
+                    .map_err(AppError::WorldAdvance)?;
+            } else if let Some(last_event) = result.appended_events.last() {
                 self.scheduler.current_tick = last_event.sim_tick;
             }
             if let Some(actor_id) = self.bound_actor_id.clone() {

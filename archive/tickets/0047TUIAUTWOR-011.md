@@ -1,6 +1,6 @@
 # 0047TUIAUTWOR-011: TUI one-tick world advance; route `WaitOneTick`
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `crates/tracewake-tui` (`src/app.rs` typed world-step entry, `src/run.rs` dispatch, `src/input.rs` as needed); TUI tests
@@ -76,3 +76,18 @@ Route `WaitOneTick` so a free actor's accepted `wait` advances the full world vi
 1. `cargo test -p tracewake-tui embodied`
 2. `cargo test -p tracewake-tui && cargo clippy -p tracewake-tui --all-targets -- -D warnings`
 3. The TUI-suite boundary is correct: this ticket only wires the TUI to the coordinator; core behavior is proven by 0047TUIAUTWOR-005…009.
+
+## Outcome
+
+Completed: 2026-06-22
+
+Routed accepted `wait.1_tick` submissions through the core `WorldAdvanceRequest` coordinator from `TuiApp`, preserving ordinary pipeline validation while adopting the coordinator frontier after acceptance. The command-loop `wait` path now emits both `actor_waited` and `time_advanced` evidence at tick 1, while a mid-sleep ordinary wait rejects with `ReservationConflict` and appends no `ActorWaited` or `TimeAdvanced`.
+
+Verification:
+
+- `cargo fmt --all --check`
+- `cargo test -p tracewake-tui --test embodied_flow`
+- `cargo test -p tracewake-tui`
+- `rg -n "apply_event|mutate" crates/tracewake-tui/src/app.rs crates/tracewake-tui/src/run.rs` returned no matches.
+- `rg -n "run_no_human_day|RunNoHumanDay|apply_event|mutate" crates/tracewake-tui/src/app.rs crates/tracewake-tui/src/run.rs` only found the existing debug-gated no-human command path/tests, not the human gameplay wait path.
+- `cargo clippy -p tracewake-tui --all-targets -- -D warnings`
