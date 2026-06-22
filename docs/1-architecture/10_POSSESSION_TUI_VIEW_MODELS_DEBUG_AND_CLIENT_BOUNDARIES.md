@@ -97,7 +97,20 @@ whether a future possession boundary emits a modeled perception.
 
 World-advancing controls are commands that advance authoritative event/replay time through the ordinary proposal, validation, event, and projection pipeline. They are not actor cognition and do not grant temporal knowledge to the possessed actor.
 
+The TUI asks core to perform a typed world step; it never applies events,
+mutates state, owns duration terminals, or maintains a local possessed-actor
+clock. Human wait, continuation, and acceleration controls consume the same
+core world-step boundary used by other loaded-world progression. Acceleration
+is repeated one-tick progression, not a client-side jump over intermediate
+causality.
+
 Actor-facing time displays, missed-event summaries, time-to-work cues, waiting or sleeping summaries, closed-service messages, and lateness or expectation labels derive from the possessed actor's holder-known context or from modeled observations, records, public cues, or other source-bearing projections. Debug and operator panels may show exact event/replay time, due queues, and hidden temporal comparisons, but those fields are structurally non-diegetic and cannot feed embodied affordances or actor-visible reasons. Rejection and why-not output preserve the actor-visible/debug split.
+
+Actor-known interval summaries and debug step reports are separate products.
+The embodied interval summary reports only source-bearing holder-known deltas
+available to the possessed actor; the debug step report may expose hidden due
+work, exact event ordering, and validation internals only as non-diegetic
+review evidence.
 
 The embodied play loop is: form plans from actor-known view models, attempt semantic actions, receive actor-visible failure or why-not feedback, inspect source-bound notebook and lead surfaces, and use debug only as non-diegetic review. Transcript evidence demonstrates this loop through stable IDs and source references, not by treating display prose as authority.
 

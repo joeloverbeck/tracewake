@@ -99,6 +99,23 @@ Scheduler and replay time may not turn raw temporal truth into selected actions,
 
 Budget exhaustion is a typed scheduling or decision outcome. Scheduler budgets and ordering policies must be deterministic and diagnosed. When budget limits prevent full cognition or procedure execution, the outcome is typed as deferred, skipped, summarized, degraded, or blocked, with responsible layer and replay ancestry; the consolidated budget/fairness seam in D-R5 owns the cross-cutting fairness contract.
 
+### Authoritative world-step coordinator
+
+Loaded-world time progression uses one authoritative world-step coordinator.
+Human one-tick wait, explicit continuation controls, no-human progression, and
+future acceleration all loop that same one-tick contract. The coordinator owns
+deterministic due-work ordering, invokes ordinary proposal routing for human
+and autonomous actors, and appends due consequences through the shared
+validation/event seams rather than through client or scheduler shortcuts.
+
+Open body-exclusive duration discovery is log-derived from event-sourced start
+and terminal evidence. Batch-local queues, cached indexes, and pending vectors
+may optimize only when they rebuild from that log authority and fail closed on
+duplicate or orphan terminal evidence. Explicit continuation controls do not
+masquerade as ordinary actor actions; they authorize lifecycle progression or
+interruption through the duration seam and do not create a competing wait
+action.
+
 ### Affordances
 
 Objects, places, records, doors, containers, beds, tools, workplaces, notice boards, and people expose typed affordances. Affordances advertise possible proposals; they do not guarantee success.
@@ -158,6 +175,12 @@ Feedback becomes future knowledge only through events/projections:
 ### Reservations and durations
 
 Long actions such as sleeping, work blocks, travel, procedures, hearings, searches, and regional operations require event-sourced starts/completions/interruptions and resource reservation semantics. A body-exclusive action cannot be overlapped by a second body-exclusive action without an interruption/resolution event.
+
+While an actor has an unresolved body-exclusive duration, ordinary embodied
+actions for that actor are rejected through the shared validation feedback
+contract unless an explicit lifecycle control has authorized continuation,
+pause, or modeled interruption. The rule applies equally to human-origin and
+autonomous-origin proposals.
 
 Derived need-deltas, elapsed-time effects, duration completion/interruption,
 and body-exclusive open/close state flow through one authoritative accounting

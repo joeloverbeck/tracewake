@@ -1,6 +1,6 @@
 # 0047TUIAUTWOR-002: Architecture amendments (10/04/02/03/00/13)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — docs only: `docs/1-architecture/{10,04,02,03,00,13}_*.md`
@@ -100,3 +100,55 @@ Architecture-tier amendments require ordinary architecture-owner approval before
 1. `for d in 10 04 02 03 00 13; do echo "== $d =="; grep -ciE "world step|coordinator|ancestry|holder-known|0017|differential" docs/1-architecture/${d}_*.md; done`
 2. `grep -n "0017" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`
 3. Narrower command is correct: architecture doc amendments are verified by landing greps + a manual `INV-018`/`INV-103`/`INV-024` alignment read, not by `cargo` tests — no code changes in this ticket.
+
+## Outcome
+
+Completed: 2026-06-22
+
+Applied the architecture-tier amendments in the existing architecture homes:
+
+- `docs/1-architecture/10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md`
+  now makes the typed TUI world-control to core world-step boundary explicit,
+  keeps acceleration as repeated one-tick progression, and separates
+  actor-known interval summaries from debug step reports.
+- `docs/1-architecture/04_ACTION_PROPOSAL_VALIDATION_SCHEDULING_AND_FEEDBACK_PIPELINE.md`
+  now owns the single authoritative world-step coordinator, deterministic
+  due-work ordering, log-derived open-duration discovery, ordinary proposal
+  routing, continuation controls, and general body-exclusive conflict rule.
+- `docs/1-architecture/02_EVENT_LOG_REPLAY_PROJECTIONS_SAVE_AND_RANDOMNESS.md`
+  now requires replay-visible tick-boundary ancestry for otherwise-empty
+  steps, repeated-step acceleration, temporal-frontier rebuild, deterministic
+  interval projection, and replayable stop decisions.
+- `docs/1-architecture/03_HOLDER_KNOWN_CONTEXTS_TRUTH_FIREWALL_AND_PROVENANCE.md`
+  now defines interval summaries as positively constructed source-bearing
+  holder-known frontier deltas and rejects raw-world-diff redaction.
+- `docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md` extends the
+  existing `0017` tick-charge and shared open-duration rows to name human world
+  advance as a consumer, without minting a new conformance family.
+- `docs/1-architecture/13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md`
+  now requires the one-tick differential, duration terminal/accounting,
+  no-op-tick replay, actor-known summary anti-leak, reservation-conflict, and
+  spec-0046 parity-extension evidence.
+
+The ticket's architecture-owner precondition was satisfied by the user's active
+instruction to implement the `0047TUIAUTWOR` series against the referenced spec.
+No code changes, foundation/execution/reference amendments, new conformance
+family, new invariant, gate code, risk ID, Rust type, function signature, or
+scheduler phase numbering were introduced for this ticket.
+
+Verification:
+
+- `for d in 10 04 02 03 00 13; do echo "== $d =="; grep -ciE "world step|coordinator|ancestry|holder-known|0017|differential" docs/1-architecture/${d}_*.md; done`
+  returned nonzero counts for all six target document prefixes.
+- `grep -niE "world step|world-step|advance" docs/1-architecture/10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md`
+  showed the typed world-step boundary and acceleration language.
+- `grep -niE "coordinator|continuation" docs/1-architecture/04_ACTION_PROPOSAL_VALIDATION_SCHEDULING_AND_FEEDBACK_PIPELINE.md`
+  showed the coordinator and continuation language.
+- `grep -niE "tick.boundary|empty|ancestry" docs/1-architecture/02_EVENT_LOG_REPLAY_PROJECTIONS_SAVE_AND_RANDOMNESS.md`
+  showed the otherwise-empty tick-boundary ancestry language.
+- `grep -n "0017" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`
+  showed the existing `0017` rows with human world-advance consumer language.
+- Manual `INV-018`/`INV-103`/`INV-024` alignment read: the amendments preserve
+  deterministic replay, keep world authority in core/pipeline seams rather than
+  TUI/client shortcuts, and keep interval summaries source-bearing and
+  holder-known rather than hidden-truth redactions.

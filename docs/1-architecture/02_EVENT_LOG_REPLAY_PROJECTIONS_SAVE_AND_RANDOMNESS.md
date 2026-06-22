@@ -64,6 +64,13 @@ Projection rebuilds, snapshots, and compaction certificates must preserve tempor
 
 Replay diagnostics must distinguish temporal divergence classes, including wrong event ordering, missing duration terminals, due-effect drift, unrecorded wall-clock input, and unsupported temporal migration. Those diagnostics are replay/debug evidence unless a modeled channel separately makes a temporal fact holder-known.
 
+Every accepted world step, including an otherwise-empty step, needs
+replay-visible tick-boundary ancestry sufficient to rebuild the temporal
+frontier and explain why the frontier advanced. Acceleration is represented as
+repeated one-tick ancestry, never as a silent multi-tick skip. The boundary
+evidence is world/replay material; it does not become holder-known temporal
+knowledge without a modeled acquisition channel.
+
 ### Event streams
 
 Tracewake may have distinct streams such as world, agent, epistemic, institution, controller, diagnostic, debug, content-load, LOD, and save-manifest. Stream separation is for authority and replay discipline, not for hiding causality. Cross-stream causes must be explicit.
@@ -158,6 +165,12 @@ Projection rebuilds must be deterministic and separately testable. Important pro
 - metrics;
 - story-sifting summaries;
 - debug comparison views.
+
+Interval projections produced after world-step controls rebuild
+deterministically from source-bearing frontier deltas, not from client-local
+state or raw hidden-world diffs. Stop decisions for continuation and
+advance-until controls must replay from typed step evidence and holder-known
+salience inputs, or fail loudly as projection/replay divergence.
 
 Projection errors are reportable artifacts, not console messages.
 
