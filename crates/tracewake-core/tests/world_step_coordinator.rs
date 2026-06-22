@@ -1,7 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use tracewake_core::actions::defs::wait::build_wait_events;
+use tracewake_core::actions::{Proposal, ProposalOrigin};
 use tracewake_core::agent::{NeedChangeCause, NeedKind, NeedState};
 use tracewake_core::checksum::ChecksumContext;
+use tracewake_core::events::apply::apply_agent_event;
 use tracewake_core::events::log::EventLog;
 use tracewake_core::events::{
     EventCause, EventEnvelope, EventKind, EventStream, PayloadField, EVENT_SCHEMA_V1,
@@ -177,7 +180,44 @@ fn duration_terminal(
     event
 }
 
+fn wait_events(
+    physical: &PhysicalState,
+    agent: &AgentState,
+    actor: &ActorId,
+    requested_tick: u64,
+) -> Vec<EventEnvelope> {
+    let mut proposal = Proposal::new(
+        ProposalId::new("proposal_wait_once").unwrap(),
+        ProposalOrigin::Human,
+        Some(actor.clone()),
+        ActionId::new("wait").unwrap(),
+        SimTick::new(requested_tick),
+    );
+    proposal
+        .parameters
+        .insert("reason".to_string(), "waiting for the fire".to_string());
+    proposal
+        .parameters
+        .insert("ticks".to_string(), "1".to_string());
+    build_wait_events(
+        physical,
+        agent,
+        &proposal,
+        &ordering_key(requested_tick, "wait", actor),
+        &content_manifest_id(),
+    )
+    .unwrap()
+}
+
 fn physical_state_for(actor: &ActorId, place: &PlaceId) -> PhysicalState {
+    physical_state_for_with_need_model(actor, place, NeedModelState::new(0, 0))
+}
+
+fn physical_state_for_with_need_model(
+    actor: &ActorId,
+    place: &PlaceId,
+    need_model: NeedModelState,
+) -> PhysicalState {
     let sleep_affordance_id = SleepAffordanceId::new("sleep_mat_home").unwrap();
     let workplace_id = WorkplaceId::new("workplace_woodpile").unwrap();
     let mut actors = BTreeMap::new();
@@ -226,7 +266,7 @@ fn physical_state_for(actor: &ActorId, place: &PlaceId) -> PhysicalState {
         BTreeMap::new(),
         workplaces,
         sleep_affordances,
-        NeedModelState::new(0, 0),
+        need_model,
     )
 }
 
@@ -307,6 +347,101 @@ fn empty_world_step_appends_time_advanced_and_rebuilds_frontier() {
     assert!(rebuild.invariant_violations.is_empty());
     assert_eq!(rebuild.final_state, initial_physical);
     assert_eq!(rebuild.final_agent_state, empty_agent_state());
+}
+
+#[test]
+fn awake_world_step_emits_missing_passive_need_accounting_once() {
+    let actor = actor_id("actor_tomas");
+    let place = place_id("home_tomas");
+    let physical = physical_state_for_with_need_model(&actor, &place, NeedModelState::new(5, 7));
+    let mut agent = agent_state_for(&actor);
+    let mut log = EventLog::new();
+    let mut scheduler = DeterministicScheduler::new(SimTick::new(9));
+
+    let result = scheduler
+        .advance_world_one_tick(&physical, &mut agent, &mut log, world_advance_request(9))
+        .unwrap();
+
+    assert_eq!(result.resulting_tick, SimTick::new(10));
+    assert_eq!(
+        log.events()
+            .iter()
+            .filter(|event| event.event_type == EventKind::NeedDeltaApplied
+                && event.payload_value("accounting_phase") == Some("world_step"))
+            .count(),
+        2
+    );
+    assert_eq!(
+        agent
+            .needs_by_actor()
+            .get(&actor)
+            .and_then(|needs| needs.get(&NeedKind::Hunger))
+            .map(NeedState::value),
+        Some(105)
+    );
+    assert_eq!(
+        agent
+            .needs_by_actor()
+            .get(&actor)
+            .and_then(|needs| needs.get(&NeedKind::Fatigue))
+            .map(NeedState::value),
+        Some(107)
+    );
+}
+
+#[test]
+fn accepted_wait_tick_charge_is_not_replaced_or_double_charged_by_world_step() {
+    let actor = actor_id("actor_tomas");
+    let place = place_id("home_tomas");
+    let physical = physical_state_for_with_need_model(&actor, &place, NeedModelState::new(5, 7));
+    let mut agent = agent_state_for(&actor);
+    let mut log = EventLog::new();
+    for event in wait_events(&physical, &agent, &actor, 9) {
+        let appended = log.append(event).unwrap();
+        apply_agent_event(&mut agent, &appended).unwrap();
+    }
+    let waited_event_id = log
+        .events()
+        .iter()
+        .find(|event| event.event_type == EventKind::ActorWaited)
+        .map(|event| event.event_id.clone())
+        .expect("wait event exists");
+    let mut scheduler = DeterministicScheduler::new(SimTick::new(9));
+
+    let result = scheduler
+        .advance_world_one_tick(&physical, &mut agent, &mut log, world_advance_request(9))
+        .unwrap();
+
+    assert_eq!(result.resulting_tick, SimTick::new(10));
+    assert!(log.events().iter().any(|event| {
+        event.event_id == waited_event_id
+            && event.event_type == EventKind::ActorWaited
+            && event.payload_value("reason") == Some("waiting for the fire")
+    }));
+    assert_eq!(
+        log.events()
+            .iter()
+            .filter(|event| event.event_type == EventKind::NeedDeltaApplied
+                && event.payload_value("accounting_phase") == Some("world_step"))
+            .count(),
+        0
+    );
+    assert_eq!(
+        agent
+            .needs_by_actor()
+            .get(&actor)
+            .and_then(|needs| needs.get(&NeedKind::Hunger))
+            .map(NeedState::value),
+        Some(105)
+    );
+    assert_eq!(
+        agent
+            .needs_by_actor()
+            .get(&actor)
+            .and_then(|needs| needs.get(&NeedKind::Fatigue))
+            .map(NeedState::value),
+        Some(107)
+    );
 }
 
 #[test]

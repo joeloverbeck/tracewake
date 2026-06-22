@@ -5,7 +5,7 @@ use crate::actions::defs::need_events::{
 };
 use crate::actions::defs::sleep::{build_sleep_completion_events, build_sleep_interruption_events};
 use crate::actions::defs::work::build_work_completion_events;
-use crate::agent::NeedKind;
+use crate::agent::{NeedKind, NeedState};
 use crate::events::apply::{apply_agent_event, ApplyError};
 use crate::events::log::{EventLog, EventLogError};
 use crate::events::{
@@ -13,7 +13,9 @@ use crate::events::{
     PayloadField, EVENT_SCHEMA_V1,
 };
 use crate::ids::{ActionId, ActorId, ContentManifestId, ControllerId, EventId, IdError, ProcessId};
-use crate::need_accounting::{open_body_exclusive_starts, DuplicateDurationTerminal};
+use crate::need_accounting::{
+    classify_actor_tick_regimes, open_body_exclusive_starts, DuplicateDurationTerminal,
+};
 use crate::state::{AgentState, NeedModelState, PhysicalState};
 use crate::time::{passive_awake_need_deltas, SimTick};
 
@@ -200,6 +202,7 @@ pub enum WorldAdvanceError {
         error: ApplyError,
     },
     EventAppend(EventLogError),
+    InvalidAccountingActionId(IdError),
     InvalidMarkerId(IdError),
     InvalidMarkerEnvelope(EventEnvelopeBuildError),
 }
@@ -554,10 +557,176 @@ fn build_duration_lifecycle_events(
             events.push(event);
         }
     }
+    append_missing_accounting_events(
+        state,
+        &mut scratch_log,
+        &mut scratch_agent_state,
+        request,
+        resulting_tick,
+        &process_id,
+        &mut events,
+    )?;
     Ok(BuiltDurationLifecycle {
         events,
         duration_terminals_appended,
     })
+}
+
+fn append_missing_accounting_events(
+    state: &PhysicalState,
+    scratch_log: &mut EventLog,
+    scratch_agent_state: &mut AgentState,
+    request: &WorldAdvanceRequest,
+    resulting_tick: SimTick,
+    process_id: &ProcessId,
+    events: &mut Vec<EventEnvelope>,
+) -> Result<(), WorldAdvanceError> {
+    for actor_id in state.actors().keys() {
+        let regime_counts = classify_actor_tick_regimes(
+            scratch_log,
+            actor_id,
+            request.expected_tick,
+            resulting_tick,
+        );
+        if regime_counts.awake_ticks == 0 {
+            continue;
+        }
+        let deltas = passive_awake_need_deltas(state.need_model(), regime_counts.awake_ticks);
+        append_missing_accounting_need_events(
+            scratch_log,
+            scratch_agent_state,
+            request,
+            resulting_tick,
+            process_id,
+            actor_id,
+            NeedKind::Hunger,
+            deltas.hunger_delta,
+            regime_counts.awake_ticks,
+            events,
+        )?;
+        append_missing_accounting_need_events(
+            scratch_log,
+            scratch_agent_state,
+            request,
+            resulting_tick,
+            process_id,
+            actor_id,
+            NeedKind::Fatigue,
+            deltas.fatigue_delta,
+            regime_counts.awake_ticks,
+            events,
+        )?;
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn append_missing_accounting_need_events(
+    scratch_log: &mut EventLog,
+    scratch_agent_state: &mut AgentState,
+    request: &WorldAdvanceRequest,
+    resulting_tick: SimTick,
+    process_id: &ProcessId,
+    actor_id: &ActorId,
+    need_kind: NeedKind,
+    delta: i32,
+    elapsed_ticks: u64,
+    events: &mut Vec<EventEnvelope>,
+) -> Result<(), WorldAdvanceError> {
+    if delta == 0 || elapsed_ticks == 0 {
+        return Ok(());
+    }
+    let current = scratch_agent_state
+        .needs_by_actor()
+        .get(actor_id)
+        .and_then(|needs| needs.get(&need_kind))
+        .map(NeedState::value);
+    let action_id = ActionId::new("world_step_need_accounting")
+        .map_err(WorldAdvanceError::InvalidAccountingActionId)?;
+    let ordering_key = OrderingKey::new(
+        resulting_tick,
+        SchedulePhase::DeferredProcess,
+        SchedulerSourceId::Process(process_id.clone()),
+        ProposalSequence::new(10_000),
+        action_id,
+        vec![
+            actor_id.as_str().to_string(),
+            need_kind.stable_id().to_string(),
+        ],
+        format!(
+            "world_step_accounting:{}:{}:{}",
+            actor_id.as_str(),
+            need_kind.stable_id(),
+            resulting_tick.value()
+        ),
+    );
+    let built_events = build_need_delta_and_threshold_events(
+        NeedDeltaEventSpec {
+            event_id: EventId::new(format!(
+                "event.world_step_need_delta.{}.{}.{}",
+                actor_id.as_str(),
+                need_kind.stable_id(),
+                resulting_tick.value()
+            ))
+            .map_err(WorldAdvanceError::InvalidMarkerId)?,
+            threshold_event_id: EventId::new(format!(
+                "event.world_step_need_threshold.{}.{}.{}",
+                actor_id.as_str(),
+                need_kind.stable_id(),
+                resulting_tick.value()
+            ))
+            .map_err(WorldAdvanceError::InvalidMarkerId)?,
+            tick: resulting_tick,
+            ordering_key,
+            content_manifest_id: request.content_manifest_id.clone(),
+            causes: vec![EventCause::Process(process_id.clone())],
+            actor_id: actor_id.clone(),
+            proposal_id: None,
+            process_id: Some(process_id.clone()),
+            participants: vec![actor_id.to_string()],
+            need_kind,
+            delta,
+            elapsed_ticks,
+            cause_kind: "tick_delta".to_string(),
+            cause_action_id: None,
+            extra_payload: vec![PayloadField::new("accounting_phase", "world_step")],
+            delta_effects_summary: format!(
+                "{} changed by {} during world-step accounting",
+                need_kind.stable_id(),
+                delta
+            ),
+            threshold_effects_summary: format!(
+                "{} crossed threshold during world-step accounting",
+                need_kind.stable_id()
+            ),
+        },
+        current,
+    );
+    let mut trial_agent_state = scratch_agent_state.clone();
+    for event in &built_events {
+        if let Err(error) = apply_agent_event(&mut trial_agent_state, event) {
+            if matches!(error, ApplyError::DuplicateNeedTickCharge { .. }) {
+                return Ok(());
+            }
+            return Err(WorldAdvanceError::DurationLifecycleApply {
+                event_id: event.event_id.clone(),
+                error,
+            });
+        }
+    }
+    for event in built_events {
+        let appended = scratch_log
+            .append(event.clone())
+            .map_err(WorldAdvanceError::EventAppend)?;
+        events.push(event);
+        apply_agent_event(scratch_agent_state, &appended).map_err(|error| {
+            WorldAdvanceError::DurationLifecycleApply {
+                event_id: appended.event_id.clone(),
+                error,
+            }
+        })?;
+    }
+    Ok(())
 }
 
 fn duration_lifecycle_ordering_key(

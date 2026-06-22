@@ -1,6 +1,6 @@
 # 0047TUIAUTWOR-008: Unified per-tick need accounting
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `crates/tracewake-core` (`scheduler.rs` coordinator accounting phase, `need_accounting.rs`, `wait.rs`); adversarial content fixtures + core tests
@@ -78,3 +78,18 @@ Expose whatever the coordinator needs to recognize an existing wait charge vs a 
 1. `cargo test -p tracewake-core --test world_step_coordinator`
 2. `cargo test -p tracewake-core -p tracewake-content && cargo clippy -p tracewake-core --all-targets -- -D warnings`
 3. The core+content boundary is correct: accounting is kernel-internal and exercised by content fixtures; no TUI surface changes yet.
+
+## Outcome
+
+Completed: 2026-06-22
+
+Implemented the coordinator accounting phase in `crates/tracewake-core/src/scheduler.rs`. After duration lifecycle preflight, the coordinator now classifies each modeled actor's one-tick regime with `classify_actor_tick_regimes`, emits missing awake passive need deltas through the shared `build_need_delta_and_threshold_events` seam, and skips emission when applying the candidate delta would duplicate an already-charged `(actor, need, tick)` such as a prior accepted `wait`. Sleep/work ticks are not charged as awake passive ticks; duration lifecycle builders remain responsible for their elapsed effects.
+
+Updated `crates/tracewake-core/tests/world_step_coordinator.rs` with coordinator-level adversarial coverage for missing awake passive accounting and for a prior accepted `ActorWaited` tick retaining its sealed reason without receiving a second world-step passive charge. No new content fixture files were added: the existing content single-charge fixtures remained unchanged and green under `cargo test -p tracewake-content`, while the new coordinator tests directly exercise the newly implemented world-step seam.
+
+Verification:
+
+1. `cargo fmt --all --check` — passed.
+2. `cargo test -p tracewake-core --test world_step_coordinator` — passed.
+3. `cargo test -p tracewake-core -p tracewake-content` — passed.
+4. `cargo clippy -p tracewake-core --all-targets -- -D warnings` — passed.
