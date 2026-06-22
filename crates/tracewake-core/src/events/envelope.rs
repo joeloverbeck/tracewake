@@ -438,6 +438,7 @@ impl EventKind {
             | EventKind::ItemPlacedInContainer
             | EventKind::ItemPlacedInPlace
             | EventKind::ActorWaited
+            | EventKind::TimeAdvanced
             | EventKind::ObservationRecorded
             | EventKind::BeliefUpdated
             | EventKind::ContainerChecked
@@ -473,7 +474,6 @@ impl EventKind {
             | EventKind::NoHumanDayCompleted => true,
             EventKind::ControllerAttached
             | EventKind::ControllerDetached
-            | EventKind::TimeAdvanced
             | EventKind::ActionStarted
             | EventKind::ActionFailed
             | EventKind::ActionRejected

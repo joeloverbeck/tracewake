@@ -2,8 +2,11 @@ use crate::actions::defs::need_events::{
     build_need_delta_and_threshold_events, NeedDeltaEventSpec,
 };
 use crate::agent::NeedKind;
-use crate::events::{EventCause, EventEnvelope};
-use crate::ids::{ActionId, ActorId, ContentManifestId, ControllerId, EventId, ProcessId};
+use crate::events::log::{EventLog, EventLogError};
+use crate::events::{
+    EventCause, EventEnvelope, EventEnvelopeBuildError, EventKind, PayloadField, EVENT_SCHEMA_V1,
+};
+use crate::ids::{ActionId, ActorId, ContentManifestId, ControllerId, EventId, IdError, ProcessId};
 use crate::state::NeedModelState;
 use crate::time::{passive_awake_need_deltas, SimTick};
 
@@ -89,6 +92,69 @@ impl OrderingKey {
 pub struct Scheduled<T> {
     pub ordering_key: OrderingKey,
     pub payload: T,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum WorldAdvanceOrigin {
+    Controller(ControllerId),
+    Process(ProcessId),
+    Replay,
+}
+
+impl WorldAdvanceOrigin {
+    fn stable_id(&self) -> String {
+        match self {
+            Self::Controller(controller_id) => {
+                format!("controller.{}", controller_id.as_str())
+            }
+            Self::Process(process_id) => format!("process.{}", process_id.as_str()),
+            Self::Replay => "replay".to_string(),
+        }
+    }
+
+    fn cause_process_id(&self) -> Result<ProcessId, IdError> {
+        let stable_id = match self {
+            Self::Controller(controller_id) => {
+                format!("world_step.controller.{}", controller_id.as_str())
+            }
+            Self::Process(process_id) => {
+                format!("world_step.process.{}", process_id.as_str())
+            }
+            Self::Replay => "world_step.replay".to_string(),
+        };
+        ProcessId::new(stable_id)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WorldAdvanceRequest {
+    pub expected_tick: SimTick,
+    pub origin: WorldAdvanceOrigin,
+    pub content_manifest_id: ContentManifestId,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WorldStepDueWorkSummary {
+    pub open_duration_candidates: usize,
+    pub duration_terminals_appended: usize,
+    pub actor_transactions_attempted: usize,
+    pub world_processes_applied: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WorldAdvanceResult {
+    pub prior_tick: SimTick,
+    pub resulting_tick: SimTick,
+    pub appended_event_ids: Vec<EventId>,
+    pub due_work_summary: WorldStepDueWorkSummary,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum WorldAdvanceError {
+    FrontierMismatch { expected: SimTick, actual: SimTick },
+    EventAppend(EventLogError),
+    InvalidMarkerId(IdError),
+    InvalidMarkerEnvelope(EventEnvelopeBuildError),
 }
 
 pub fn sort_scheduled<T>(scheduled: &mut [Scheduled<T>]) {
@@ -209,10 +275,93 @@ impl DeterministicScheduler {
         self.proposal_sequences.assign_next()
     }
 
-    pub fn advance_one_tick(&mut self) -> SimTick {
+    fn increment_clock_one_tick(&mut self) -> SimTick {
         self.current_tick = self.current_tick.next();
         self.current_tick
     }
+
+    pub fn advance_world_one_tick(
+        &mut self,
+        log: &mut EventLog,
+        request: WorldAdvanceRequest,
+    ) -> Result<WorldAdvanceResult, WorldAdvanceError> {
+        if request.expected_tick != self.current_tick {
+            return Err(WorldAdvanceError::FrontierMismatch {
+                expected: request.expected_tick,
+                actual: self.current_tick,
+            });
+        }
+
+        let prior_tick = self.current_tick;
+        let resulting_tick = prior_tick.next();
+        let marker = build_time_advanced_event(prior_tick, resulting_tick, &request)?;
+        let appended = log.append(marker).map_err(WorldAdvanceError::EventAppend)?;
+        self.current_tick = resulting_tick;
+
+        Ok(WorldAdvanceResult {
+            prior_tick,
+            resulting_tick,
+            appended_event_ids: vec![appended.event_id],
+            due_work_summary: WorldStepDueWorkSummary {
+                open_duration_candidates: 0,
+                duration_terminals_appended: 0,
+                actor_transactions_attempted: 0,
+                world_processes_applied: 0,
+            },
+        })
+    }
+}
+
+fn build_time_advanced_event(
+    prior_tick: SimTick,
+    resulting_tick: SimTick,
+    request: &WorldAdvanceRequest,
+) -> Result<EventEnvelope, WorldAdvanceError> {
+    let origin_id = request.origin.stable_id();
+    let event_id = EventId::new(format!(
+        "event.time_advanced.{}.{}.{}",
+        prior_tick.value(),
+        resulting_tick.value(),
+        origin_id
+    ))
+    .map_err(WorldAdvanceError::InvalidMarkerId)?;
+    let cause_process_id = request
+        .origin
+        .cause_process_id()
+        .map_err(WorldAdvanceError::InvalidMarkerId)?;
+    let ordering_key = OrderingKey::new(
+        resulting_tick,
+        SchedulePhase::DeferredProcess,
+        SchedulerSourceId::Process(cause_process_id.clone()),
+        ProposalSequence::new(0),
+        ActionId::new("world_step").map_err(WorldAdvanceError::InvalidMarkerId)?,
+        Vec::new(),
+        format!("time_advanced:{}", origin_id),
+    );
+    let mut event = EventEnvelope::new_caused_v1(
+        event_id,
+        EventKind::TimeAdvanced,
+        0,
+        0,
+        resulting_tick,
+        ordering_key,
+        request.content_manifest_id.clone(),
+        vec![EventCause::Process(cause_process_id)],
+    )
+    .map_err(WorldAdvanceError::InvalidMarkerEnvelope)?;
+    event.payload = vec![
+        PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+        PayloadField::new("prior_tick", prior_tick.value().to_string()),
+        PayloadField::new("resulting_tick", resulting_tick.value().to_string()),
+        PayloadField::new("origin", origin_id),
+        PayloadField::new("ordering_ancestry", "canonical_world_step_v1"),
+    ];
+    event.effects_summary = format!(
+        "authoritative world step advanced from tick {} to {}",
+        prior_tick.value(),
+        resulting_tick.value()
+    );
+    Ok(event)
 }
 
 pub mod no_human {
@@ -2192,7 +2341,7 @@ pub mod no_human {
             for expected_tick in
                 scheduler.current_tick.value().saturating_add(1)..=proposal.requested_tick.value()
             {
-                let due_tick = scheduler.advance_one_tick();
+                let due_tick = scheduler.increment_clock_one_tick();
                 debug_assert_eq!(due_tick, SimTick::new(expected_tick));
                 append_due_completions(
                     physical_state,
@@ -2237,7 +2386,7 @@ pub mod no_human {
 
         let final_tick = start_tick.advance_by(tick_count);
         for expected_tick in scheduler.current_tick.value().saturating_add(1)..=final_tick.value() {
-            let due_tick = scheduler.advance_one_tick();
+            let due_tick = scheduler.increment_clock_one_tick();
             debug_assert_eq!(due_tick, SimTick::new(expected_tick));
             append_due_completions(
                 physical_state,
@@ -5451,7 +5600,7 @@ mod tests {
             scheduler.assign_proposal_sequence(),
             ProposalSequence::new(0)
         );
-        assert_eq!(scheduler.advance_one_tick(), SimTick::new(5));
+        assert_eq!(scheduler.increment_clock_one_tick(), SimTick::new(5));
         assert_eq!(scheduler.current_tick, SimTick::new(5));
         assert_eq!(
             scheduler.assign_proposal_sequence(),

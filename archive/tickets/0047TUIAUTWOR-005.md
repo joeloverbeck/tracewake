@@ -1,6 +1,6 @@
 # 0047TUIAUTWOR-005: Core one-tick coordinator + `TimeAdvanced` marker
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `crates/tracewake-core` (new world-step coordinator type boundary in `scheduler.rs`; `TimeAdvanced` emission + envelope classifier reconciliation in `events/envelope.rs`); new core test
@@ -87,3 +87,50 @@ Emit one `TimeAdvanced` marker per executed world step, carrying prior/resulting
 1. `cargo test -p tracewake-core --test world_step_coordinator`
 2. `cargo test -p tracewake-core && cargo clippy -p tracewake-core --all-targets -- -D warnings`
 3. `cargo test --workspace` is the full-pipeline boundary once downstream goldens are regenerated; for this ticket the core suite plus the new coordinator test is the correct narrower boundary since no TUI/no-human wiring changes yet.
+
+## Outcome
+
+Completed: 2026-06-22
+
+Implemented the core one-tick coordinator skeleton in
+`crates/tracewake-core/src/scheduler.rs`:
+
+- Added typed `WorldAdvanceRequest`, `WorldAdvanceOrigin`,
+  `WorldAdvanceResult`, `WorldStepDueWorkSummary`, and `WorldAdvanceError`.
+- Added `DeterministicScheduler::advance_world_one_tick`, which validates the
+  expected frontier, appends a caused `TimeAdvanced` marker, advances the
+  authoritative frontier by one tick, and returns a typed result. The
+  duration-discovery, duration-lifecycle, accounting, actor-transaction, and
+  world-process seams intentionally report zero work here for later tickets.
+- Renamed the counter-only `advance_one_tick` to private
+  `increment_clock_one_tick`; existing no-human paths still use that internal
+  counter path until 0047TUIAUTWOR-010 refactors them onto the coordinator.
+- Reconciled `TimeAdvanced` in `events/envelope.rs` by making it cause-required
+  while preserving its `World` stream and physical world-no-op replay behavior.
+  The marker carries prior/resulting tick, origin, and ordering ancestry
+  payload fields and is caused by a scheduler/process-origin cause.
+- Added `crates/tracewake-core/tests/world_step_coordinator.rs` for empty-tick
+  replay/frontier proof, stale-frontier fail-closed behavior, and marker
+  metadata classification.
+
+Cause-model decision: `TimeAdvanced` is now `cause_required = true`. Controller
+origin is represented as non-epistemic scheduler/process ancestry in the marker
+cause plus payload, rather than adding a new cause enum variant in this ticket.
+That keeps the marker replay/world evidence only and avoids treating controller
+metadata as actor knowledge.
+
+Verification:
+
+- `cargo fmt --all --check` passed.
+- `cargo test -p tracewake-core --test world_step_coordinator` passed: 3 tests.
+- `cargo test -p tracewake-core` passed, including the anti-regression guard
+  that rejects panic-capable scheduler/apply/completion paths.
+- `cargo clippy -p tracewake-core --all-targets -- -D warnings` passed.
+- `cargo build -p tracewake-core --all-targets --locked` passed.
+- `rg -n "TimeAdvanced|time_advanced" crates/tracewake-core/src/agent crates/tracewake-core/src/epistemics crates/tracewake-core/src/projections.rs crates/tracewake-core/src/view_models.rs crates/tracewake-core/src/debug_reports.rs`
+  printed no matches, confirming the marker is not consumed by holder-known
+  projection or view-model constructors.
+
+No broad golden/checksum regeneration was done in this ticket; the existing
+no-human paths remain on the internal counter path until 0047TUIAUTWOR-010, so
+there was no downstream golden update to review here.
