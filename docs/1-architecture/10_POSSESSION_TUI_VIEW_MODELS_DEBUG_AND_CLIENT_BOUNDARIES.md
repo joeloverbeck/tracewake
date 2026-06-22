@@ -60,6 +60,22 @@ embodied_view_model:
 
 Every semantic action entry must have a stable semantic action ID. Menu positions are presentation-only.
 
+Embodied parity is a two-hop contract. Core exposes typed, actor-filtered view
+models and closed presentation enums; clients render only those contracts into
+specific controls, labels, and flows. Growth in either hop is deliberately
+breaking: a new view-model field or closed presentation variant must receive an
+explicit presentation disposition instead of disappearing into a wildcard,
+default, or debug-only catchall. Each disposition records whether the value is
+embodied-playable, actor-legible feedback, notebook/lead material, debug-only,
+or architecture-justified non-playable.
+
+Every declared playable capability must have an actor-filtered surface contract
+or an architecture-justified non-playable classification. Debug truth, raw
+authoritative state, validator-only facts, and display prose cannot satisfy
+embodied parity. Semantic actions remain data-driven entries into the ordinary
+proposal and validation pipeline; the TUI may present and select them, but it
+does not own simulation rules or infer hidden affordances.
+
 Embodied view models and semantic action entries consume holder-known context
 plus permitted projection records whose visible-place, carried-item,
 container, current-place, and relevant attribute facts were captured at a

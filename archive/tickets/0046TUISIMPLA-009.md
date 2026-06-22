@@ -1,6 +1,6 @@
 # 0046TUISIMPLA-009: Architecture-tier parity amendments (arch 00 / 10 / 13)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — architecture-tier doctrine docs only (`docs/1-architecture/00_*`, `10_*`, `13_*`); no code. Execution precondition: ordinary architecture-tier owner approval before applying (doctrine amendment, not applied by convention).
@@ -128,3 +128,34 @@ client/view-model boundaries and 13 for evidence closure. Concise; no execution 
 
 1. `grep -nE "two-hop|deliberate|conformance set|parity" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md docs/1-architecture/10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md docs/1-architecture/13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md`
 2. `grep -rnE "INV-[0-9]{3}|gate code|risk id" docs/1-architecture/10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md` (confirm no new invariant/gate minted)
+
+Completed: 2026-06-22
+
+## Outcome
+
+Applied the architecture-tier parity doctrine amendments authorized by the explicit 0046 ticket-series
+implementation request. The amendment keeps the ownership split at architecture altitude:
+
+1. `docs/1-architecture/10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md` now owns the
+   two-hop embodied parity contract, deliberate breakage for growing closed core-to-client
+   presentation contracts, explicit surface disposition, actor-filtered playable-capability surface
+   contracts, debug/raw-truth exclusion, and data-driven semantic actions.
+2. `docs/1-architecture/13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md` now defines
+   playable capabilities as a conformance set with typed causal, actor-knowledge, surface, rendered,
+   negative, replay, and no-human evidence where applicable; it also requires deterministic reporting
+   and treats missing entries or witnesses as acceptance failures.
+3. `docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md` now registers the standing
+   parity-completeness obligation and points to architecture 10 for client/view-model boundaries and
+   architecture 13 for evidence closure.
+
+Verification:
+
+1. `grep -nE "two-hop|deliberate|conformance set|parity" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md docs/1-architecture/10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md docs/1-architecture/13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md`
+   showed the new architecture 00/10/13 parity clauses.
+2. `grep -rnE "INV-[0-9]{3}|gate code|risk id" docs/1-architecture/10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md`
+   produced no matches.
+3. `git diff --unified=0 -- docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md docs/1-architecture/10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md docs/1-architecture/13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md | rg -n '^\+.*(INV-[0-9]{3}|gate code|risk id|cargo |\.rs|playable_capability|snapshot)'`
+   produced no matches, confirming the new architecture prose did not add invariant IDs, gate/risk
+   labels, test filenames, snapshot references, or command lines.
+4. `cargo test -p tracewake-core --test doc_invariant_references --locked` passed.
+5. `git diff --check` passed.

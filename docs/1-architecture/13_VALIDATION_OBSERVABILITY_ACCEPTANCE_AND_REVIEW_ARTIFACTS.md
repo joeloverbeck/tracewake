@@ -56,6 +56,16 @@ or fixture-only shortcuts instead of path-under-test ancestry, if its review
 measurements are used to steer simulation behavior, or if any row is
 untraceable to modeled causes.
 
+For TUI-facing simulation work, a feature's declared playable capabilities form
+a conformance set. Each member must map to typed causal evidence,
+actor-knowledge evidence, a surface disposition, rendered evidence where the
+capability is playable, negative evidence where hidden or stale states matter,
+and replay or no-human evidence where the capability can affect autonomous or
+replayed behavior. The conformance report must be deterministic so reviewers
+can distinguish real coverage changes from ordering, rendering, or harness
+noise. A missing capability entry, missing witness, or non-playable
+classification without architecture rationale is an acceptance failure.
+
 For every validation, anti-contamination, replay, projection, or diagnostic
 guarantee, the architecture surface must expose typed, path-under-test
 observability: the responsible layer, source event/proposal/context IDs,
