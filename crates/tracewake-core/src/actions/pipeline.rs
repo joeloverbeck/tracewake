@@ -26,7 +26,7 @@ use crate::events::apply::{
 };
 use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
-use crate::ids::{ContainerId, ContentManifestId, EventId, ValidationReportId};
+use crate::ids::{ActionId, ContainerId, ContentManifestId, EventId, ValidationReportId};
 use crate::scheduler::OrderingKey;
 use crate::state::{AgentState, PhysicalState};
 
@@ -189,7 +189,9 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
         .get(&proposal.action_id)
         .expect("accepted decision must have an action definition");
 
-    if let Some(active_event_id) = body_exclusive_reservation_conflict(context, &candidate_events) {
+    if let Some(active_event_id) =
+        body_exclusive_reservation_conflict(context, proposal, &candidate_events)
+    {
         return reject_committed(
             context,
             proposal,
@@ -397,26 +399,28 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
 
 fn body_exclusive_reservation_conflict(
     context: &PipelineContext<'_>,
+    proposal: &Proposal,
     candidate_events: &[EventEnvelope],
 ) -> Option<EventId> {
-    let actor_id = candidate_events.iter().find_map(|event| {
-        is_body_exclusive_start(event)
-            .then(|| event.actor_id.clone())
-            .flatten()
-    })?;
-    if !candidate_events.iter().any(is_body_exclusive_start) {
+    if is_lifecycle_control(&proposal.action_id) || candidate_events.is_empty() {
         return None;
     }
+    let actor_id = proposal.actor_id.as_ref()?;
 
     let open_starts = crate::need_accounting::open_body_exclusive_starts(
         context.log,
-        &actor_id,
+        actor_id,
         context.ordering_key.sim_tick,
     )
     .expect("duplicate duration terminals are rejected before reservation checks");
     open_starts.into_iter().next()
 }
 
+fn is_lifecycle_control(action_id: &ActionId) -> bool {
+    matches!(action_id.as_str(), "continue_routine")
+}
+
+#[cfg(test)]
 fn is_body_exclusive_start(event: &EventEnvelope) -> bool {
     matches!(
         event.event_type,
@@ -1306,9 +1310,14 @@ mod tests {
     use crate::controller::ControllerBindings;
     use crate::epistemics::KnowledgeContext;
     use crate::events::apply::apply_event;
-    use crate::ids::{ActionId, ActorId, ProposalId, SemanticActionId, ViewModelId};
+    use crate::events::{EventCause, EventKind, PayloadField, EVENT_SCHEMA_V1};
+    use crate::ids::{
+        ActionId, ActorId, EventId, ProposalId, SemanticActionId, SleepAffordanceId, ViewModelId,
+    };
     use crate::scheduler::{ProposalSequence, SchedulePhase, SchedulerSourceId};
-    use crate::state::{ActorBody, AgentState, ContainerState, DoorState, PlaceState};
+    use crate::state::{
+        ActorBody, AgentState, ContainerState, DoorState, PlaceState, SleepAffordanceState,
+    };
     use crate::time::SimTick;
 
     fn action_id(value: &str) -> ActionId {
@@ -1377,6 +1386,91 @@ mod tests {
             ),
         );
         state
+    }
+
+    fn sleep_state() -> PhysicalState {
+        let mut state = state();
+        let place_id = crate::ids::PlaceId::new("shop_front").unwrap();
+        state.places.insert(
+            place_id.clone(),
+            PlaceState::new(place_id.clone(), "Shop front"),
+        );
+        let sleep_affordance_id = SleepAffordanceId::new("sleep_mat_shop").unwrap();
+        state.sleep_affordances.insert(
+            sleep_affordance_id.clone(),
+            SleepAffordanceState::new(sleep_affordance_id, place_id, 4, 20, 2),
+        );
+        state
+    }
+
+    fn open_sleep_start_event() -> EventEnvelope {
+        let actor = actor_id("actor_tomas");
+        let mut event = EventEnvelope::new_caused_v1(
+            EventId::new("event_sleep_started_open").unwrap(),
+            EventKind::SleepStarted,
+            0,
+            0,
+            SimTick::new(9),
+            OrderingKey::new(
+                SimTick::new(9),
+                SchedulePhase::HumanCommand,
+                SchedulerSourceId::Actor(actor.clone()),
+                ProposalSequence::new(0),
+                action_id("sleep"),
+                Vec::new(),
+                "sleep_open",
+            ),
+            content_manifest_id(),
+            vec![EventCause::Proposal(
+                ProposalId::new("proposal_sleep_open").unwrap(),
+            )],
+        )
+        .unwrap();
+        event.actor_id = Some(actor.clone());
+        event.proposal_id = Some(ProposalId::new("proposal_sleep_open").unwrap());
+        event.payload = vec![
+            PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+            PayloadField::new("actor_id", actor.as_str()),
+            PayloadField::new("expected_completion_tick", "13"),
+            PayloadField::new("body_exclusive", "true"),
+            PayloadField::new("sleep_affordance_id", "sleep_mat_shop"),
+            PayloadField::new("fatigue_recovery_per_tick", "20"),
+            PayloadField::new("hunger_rise_per_tick", "2"),
+        ];
+        event
+    }
+
+    fn run_pipeline_with_open_sleep(
+        registry: &ActionRegistry,
+        state: &mut PhysicalState,
+        agent_state: &mut AgentState,
+        proposal: &Proposal,
+    ) -> PipelineResult {
+        let mut log = EventLog::new();
+        log.append(open_sleep_start_event()).unwrap();
+        let controller_bindings =
+            matches!(proposal.origin, ProposalOrigin::Human).then(human_bindings);
+        run_pipeline(
+            &mut PipelineContext {
+                registry,
+                state,
+                agent_state,
+                log: &mut log,
+                controller_bindings: controller_bindings.as_ref(),
+                epistemic_projection: None,
+                content_manifest_id: content_manifest_id(),
+                ordering_key: OrderingKey::new(
+                    proposal.requested_tick,
+                    SchedulePhase::HumanCommand,
+                    SchedulerSourceId::Actor(actor_id("actor_tomas")),
+                    ProposalSequence::new(1),
+                    proposal.action_id.clone(),
+                    proposal.target_ids.clone(),
+                    proposal.proposal_id.as_str().to_string(),
+                ),
+            },
+            proposal,
+        )
     }
 
     fn check_state() -> PhysicalState {
@@ -1532,6 +1626,111 @@ mod tests {
             .iter()
             .find(|fact| fact.stable_key() == stable_key)
             .map(CheckedFact::value)
+    }
+
+    fn wait_proposal(origin: ProposalOrigin, proposal_id: &str) -> Proposal {
+        let is_human = origin == ProposalOrigin::Human;
+        let mut proposal = Proposal::new(
+            ProposalId::new(proposal_id).unwrap(),
+            origin,
+            Some(actor_id("actor_tomas")),
+            action_id("wait"),
+            SimTick::new(10),
+        );
+        proposal
+            .parameters
+            .insert("reason".to_string(), "wait during open sleep".to_string());
+        if is_human {
+            proposal
+                .parameters
+                .insert("controller_id".to_string(), "controller_human".to_string());
+            attach_tui_source(&mut proposal, "wait", 1);
+        }
+        proposal
+    }
+
+    #[test]
+    fn reservation_rejects_human_wait_during_open_body_exclusive_duration() {
+        let mut registry = ActionRegistry::new();
+        registry.register_phase1_inspect_wait();
+        let mut state = sleep_state();
+        let mut agent_state = AgentState::default();
+        let proposal = wait_proposal(ProposalOrigin::Human, "proposal_human_wait_asleep");
+
+        let result =
+            run_pipeline_with_open_sleep(&registry, &mut state, &mut agent_state, &proposal);
+
+        assert_eq!(result.report.status, ReportStatus::Rejected);
+        assert_eq!(
+            result.report.failed_stage,
+            Some(PipelineStage::ReservationConflictCheck)
+        );
+        assert_eq!(
+            result.report.reason_codes,
+            vec![ReasonCode::ReservationConflict]
+        );
+        assert!(result
+            .appended_events
+            .iter()
+            .all(|event| event.event_type != EventKind::ActorWaited));
+    }
+
+    #[test]
+    fn reservation_rejects_scheduler_wait_during_open_body_exclusive_duration() {
+        let mut registry = ActionRegistry::new();
+        registry.register_phase1_inspect_wait();
+        let mut state = sleep_state();
+        let mut agent_state = AgentState::default();
+        let proposal = wait_proposal(ProposalOrigin::Scheduler, "proposal_scheduler_wait_asleep");
+
+        let result =
+            run_pipeline_with_open_sleep(&registry, &mut state, &mut agent_state, &proposal);
+
+        assert_eq!(result.report.status, ReportStatus::Rejected);
+        assert_eq!(
+            result.report.failed_stage,
+            Some(PipelineStage::ReservationConflictCheck)
+        );
+        assert_eq!(
+            result.report.reason_codes,
+            vec![ReasonCode::ReservationConflict]
+        );
+        assert!(result
+            .appended_events
+            .iter()
+            .all(|event| event.event_type != EventKind::ActorWaited));
+    }
+
+    #[test]
+    fn reservation_still_rejects_second_sleep_during_open_body_exclusive_duration() {
+        let mut registry = ActionRegistry::new();
+        registry.register_phase3a_sleep();
+        let mut state = sleep_state();
+        let mut agent_state = AgentState::default();
+        let mut proposal = Proposal::new(
+            ProposalId::new("proposal_second_sleep_asleep").unwrap(),
+            ProposalOrigin::Scheduler,
+            Some(actor_id("actor_tomas")),
+            action_id("sleep"),
+            SimTick::new(10),
+        );
+        proposal.parameters.insert(
+            "sleep_affordance_id".to_string(),
+            "sleep_mat_shop".to_string(),
+        );
+
+        let result =
+            run_pipeline_with_open_sleep(&registry, &mut state, &mut agent_state, &proposal);
+
+        assert_eq!(result.report.status, ReportStatus::Rejected);
+        assert_eq!(
+            result.report.failed_stage,
+            Some(PipelineStage::ReservationConflictCheck)
+        );
+        assert_eq!(
+            result.report.reason_codes,
+            vec![ReasonCode::ReservationConflict]
+        );
     }
 
     #[test]

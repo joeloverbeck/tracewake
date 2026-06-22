@@ -1,6 +1,6 @@
 # 0047TUIAUTWOR-009: General body-exclusive reservation enforcement
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `crates/tracewake-core` (`actions/pipeline.rs` reservation predicate generalization + continuation exemption); core tests
@@ -74,3 +74,21 @@ Exempt typed lifecycle controls (continue time, pause, modeled interruption/canc
 1. `cargo test -p tracewake-core reservation`
 2. `cargo test -p tracewake-core && cargo clippy -p tracewake-core --all-targets -- -D warnings`
 3. The core-suite boundary is correct: the reservation predicate is a kernel pipeline gate; no TUI surface changes here. `cargo test -p tracewake-core reservation` is the single-positional-filter form (one filter; multiple filters would go after `--`).
+
+## Outcome
+
+Completed: 2026-06-22
+
+Generalized `body_exclusive_reservation_conflict` in `crates/tracewake-core/src/actions/pipeline.rs` so it now keys on the proposing actor's unresolved body-exclusive starts from `open_body_exclusive_starts` at the proposal tick, rather than only checking whether the candidate action itself starts a new body-exclusive duration. Ordinary `wait` and a second sleep now reject with `ReasonCode::ReservationConflict` while an actor has an open sleep/work duration. The predicate has no origin-specific branch; human and scheduler-origin proposals traverse the same reservation check after their normal origin/source gates.
+
+Added a typed lifecycle-control exemption for `continue_routine`. The full continuation command path is still owned by later 0047 tickets, so this ticket verifies the gate behavior and leaves end-to-end sleep-then-continuation wiring to that scope.
+
+Added pipeline tests for human sleep-then-wait rejection, scheduler sleep-then-wait rejection, and sleep-then-sleep regression. Updated the generative lock to expect a typed reservation-conflict rejection instead of a mid-work displacement movement/continuity terminal, matching the new generalized reservation rule.
+
+Verification:
+
+1. `cargo fmt --all --check` — passed.
+2. `cargo test -p tracewake-core reservation` — passed.
+3. `cargo test -p tracewake-core --test generative_lock` — passed during focused repair.
+4. `cargo test -p tracewake-core` — passed.
+5. `cargo clippy -p tracewake-core --all-targets -- -D warnings` — passed.

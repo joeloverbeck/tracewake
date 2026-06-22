@@ -185,8 +185,8 @@ fn generated_sequences_replay_and_satisfy_metamorphic_locks() {
         record_seed_contribution(
             &mut seed_contributors,
             *seed,
-            "continuity_failure",
-            has_continuity_failure_terminal(&run.log),
+            "reservation_conflict",
+            has_reservation_conflict_rejection(&run.log),
         );
         terminal_kinds.extend(
             run.log
@@ -293,10 +293,6 @@ fn generated_sequences_replay_and_satisfy_metamorphic_locks() {
             "work_block_failed",
         ]),
         "terminal-targeted tamper coverage missed a duration-terminal kind; terminals={terminal_kinds:?}; {corpus_summary}"
-    );
-    assert!(
-        terminal_counts.continuity_failure > 0,
-        "generated corpus never emitted continuity-reason duration terminal; terminals={terminal_kinds:?}; {corpus_summary}"
     );
     assert_multi_seed_contributors(&seed_contributors, &corpus_summary);
     assert_derived_seed_contributors(&seed_contributors, &corpus_summary);
@@ -481,7 +477,7 @@ fn assert_derived_seed_contributors(
     );
     assert_derived_contributor_set(
         contributors,
-        "continuity_failure",
+        "reservation_conflict",
         derived_seed_set(|case| case.mask.displace_during_work),
         corpus_summary,
     );
@@ -592,25 +588,24 @@ fn assert_in_block_displacement_ordering(
                 )
             })
             .expect("displacement mask emits work terminal caused by work start");
-    let movement = log
-        .events()
+    assert!(
+        !log.events()
+            .iter()
+            .any(|event| event.event_type == EventKind::ActorMoved
+                && event.sim_tick > work_started.sim_tick
+                && event.sim_tick < work_terminal.sim_tick),
+        "seed={} reservation must block mid-work movement",
+        case.seed
+    );
+    log.events()
         .iter()
-        .find(|event| event.event_type == EventKind::ActorMoved)
-        .expect("displacement mask emits movement");
-    assert!(
-        movement.sim_tick > work_started.sim_tick,
-        "seed={} displacement move tick {} must follow emitted work start tick {}",
-        case.seed,
-        movement.sim_tick.value(),
-        work_started.sim_tick.value()
-    );
-    assert!(
-        movement.sim_tick < work_terminal.sim_tick,
-        "seed={} displacement move tick {} must precede emitted work terminal tick {}",
-        case.seed,
-        movement.sim_tick.value(),
-        work_terminal.sim_tick.value()
-    );
+        .find(|event| {
+            event.event_type == EventKind::ActionRejected
+                && event.sim_tick > work_started.sim_tick
+                && event.sim_tick < work_terminal.sim_tick
+                && payload_value(event, "reason_code") == Some("reservation_conflict")
+        })
+        .expect("displacement mask records reservation-conflict rejection");
 }
 
 fn checksum_context(seed: u64, log: &EventLog, tick: SimTick) -> ChecksumContext {
@@ -851,15 +846,10 @@ fn has_event(log: &EventLog, kind: EventKind) -> bool {
     log.events().iter().any(|event| event.event_type == kind)
 }
 
-fn has_continuity_failure_terminal(log: &EventLog) -> bool {
-    log.events().iter().any(|event| match event.event_type {
-        EventKind::SleepInterrupted => {
-            matches!(payload_value(event, "reason"), Some("actor_displaced"))
-        }
-        EventKind::WorkBlockFailed => {
-            matches!(payload_value(event, "reason"), Some("actor_displaced"))
-        }
-        _ => false,
+fn has_reservation_conflict_rejection(log: &EventLog) -> bool {
+    log.events().iter().any(|event| {
+        event.event_type == EventKind::ActionRejected
+            && payload_value(event, "reason_code") == Some("reservation_conflict")
     })
 }
 
