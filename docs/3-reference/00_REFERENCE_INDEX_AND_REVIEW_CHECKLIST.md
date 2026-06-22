@@ -119,6 +119,10 @@ Use this block as a pointer to foundation `03` / `INV-112`, the architecture tem
 - Is validator, replay, and scheduler time separated from diegetic cognition, procedure conclusions, embodied surface wording, speech interpretation, lead urgency, and institution-known procedural time?
 - Are time acceleration and debug temporal panels quarantined from embodied surfaces and ordinary speech, records, leads, and procedure state?
 - When summaries, snapshots, projections, compaction, promotion, or demotion carry temporal claims forward, is temporal ancestry preserved with enough information ancestry to explain who could know what?
+- Do human time controls advance the same world step as no-human and autonomous progression, rather than a private possessed-actor clock or TUI-owned simulation path?
+- Does every `(actor, need, tick)` have one accounting classification, including human waits, passive deltas, sleep/work duration effects, and no-human progression?
+- Do open durations close through the shared authority for event-sourced starts and terminals, not through batch-local pending queues or client-side completion logic?
+- Is interval output positive actor-known evidence from modeled sources, not a redacted omniscient event diff or an omniscient "nothing happened" summary?
 
 ### Ordinary-life play
 

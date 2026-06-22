@@ -1,6 +1,6 @@
 # 0047TUIAUTWOR-004: Reference amendments (00/01)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — docs only: `docs/3-reference/00_REFERENCE_INDEX_AND_REVIEW_CHECKLIST.md`, `docs/3-reference/01_DESIGN_RISK_REGISTER.md`
@@ -78,3 +78,38 @@ Reference-tier amendments require ordinary reference-owner approval before appli
 1. `grep -ciE "world step|one accounting|actor-known|shared authority" docs/3-reference/00_REFERENCE_INDEX_AND_REVIEW_CHECKLIST.md`
 2. `grep -niE "relapse|temporal-control|leakage" docs/3-reference/01_DESIGN_RISK_REGISTER.md`
 3. Narrower command is correct: reference doc amendments are verified by landing greps + a manual alignment read confirming no new ID was minted — no code changes in this ticket.
+
+## Outcome
+
+Completed: 2026-06-22
+
+Applied the reference-tier amendments:
+
+- `docs/3-reference/00_REFERENCE_INDEX_AND_REVIEW_CHECKLIST.md` now asks
+  reviewers whether human time controls advance the same world step, preserve
+  one accounting classification per `(actor, need, tick)`, close open durations
+  through shared authority, and build interval output from positive
+  actor-known evidence rather than redacted omniscience.
+- `docs/3-reference/01_DESIGN_RISK_REGISTER.md` extends existing risk entries
+  for action-pipeline bypass, epistemic leakage, prose/presentation authority,
+  debug leakage, replay/projection erosion, TUI-playability erosion,
+  no-human ordinary-life failure, and temporal relapse. No new risk ID was
+  minted; the register still has the existing `R-00` through `R-29` headings.
+
+The ticket's reference-owner precondition was satisfied by the user's active
+instruction to implement the `0047TUIAUTWOR` series against the referenced spec.
+No code changes, glossary changes, foundation/architecture/execution
+amendments, new risk ID, new invariant, or new gate code were introduced for
+this ticket.
+
+Verification:
+
+- `grep -ciE "world step|one accounting|actor-known|shared authority" docs/3-reference/00_REFERENCE_INDEX_AND_REVIEW_CHECKLIST.md`
+  returned `5`.
+- `grep -niE "relapse|temporal-control|leakage" docs/3-reference/01_DESIGN_RISK_REGISTER.md`
+  showed the updated risk and temporal-relapse entries.
+- `rg -n '^### R-[0-9][0-9] ' docs/3-reference/01_DESIGN_RISK_REGISTER.md`
+  showed the existing `R-00` through `R-29` headings with no new risk ID.
+- Manual alignment read: the checklist and risk-register updates restate the
+  higher-tier world-step, single-accounting, shared-duration, and actor-known
+  interval-summary obligations without adding new doctrine.
