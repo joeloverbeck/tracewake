@@ -1,6 +1,6 @@
 # 0046TUISIMPLA-002: Hop-2 exhaustive no-wildcard matches at closed-enum presentation owners
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-tui` renderer (`crates/tracewake-tui/src/render.rs`) and seam-conformance guard (`crates/tracewake-tui/tests/tui_seam_conformance.rs`); a closed-enum actor-safe summary may be added in `tracewake-core` only if the presentation owner is core (see What to Change §3).
@@ -141,3 +141,42 @@ presentation matches over the named enums contain no bare `_` arm at the protect
 
 1. `cargo test -p tracewake-tui --test tui_seam_conformance`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-22
+
+Implemented the PAR-003 closed-presentation-enum guard by adding
+`debug_view_model_panel_key` in `crates/tracewake-tui/src/debug_panels.rs`.
+The helper matches every current `DebugViewModel` variant explicitly with no
+wildcard arm and keeps the routing debug-only by returning `Some(...)` only
+when the variant's debug capability and, for epistemic debug views, the
+non-diegetic marker are valid.
+
+Extended `crates/tracewake-tui/tests/tui_seam_conformance.rs` with
+`closed_presentation_enum_matches_are_exhaustive_without_wildcards`, covering
+the existing core-owned presentation owners for `WhyNotFailureKind`,
+`ActionAvailability::actor_safe_summary`, `ActionAvailabilityProvenanceKind`,
+the existing `VisibleItemSource` renderer owner, and the new debug-boundary
+`DebugViewModel` owner. The guard also verifies every current
+`DebugViewModel` variant is named and that no `ActionEffect` presentation was
+introduced.
+
+Verification:
+
+- `cargo fmt --all --check` — passed
+- `cargo test -p tracewake-tui --test tui_seam_conformance` — passed
+- `cargo test -p tracewake-tui` — passed
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed
+- `cargo build --workspace --all-targets --locked` — passed
+- `cargo test --workspace` — passed
+
+Deviations:
+
+- No actor-facing `ActionEffect` presentation was added; the spec's
+  `ActionEffect` obligation remains forward-conditional because there is still
+  no render-boundary presentation owner for that action-pipeline classifier.
+- No scratch wildcard reinstatement was committed. The source-conformance guard
+  is the durable failure surface for a wildcard arm at the protected owners; the
+  capstone ticket remains responsible for the broader controlled compile-break
+  transcript required by the spec.

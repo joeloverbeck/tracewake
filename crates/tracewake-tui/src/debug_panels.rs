@@ -2,12 +2,41 @@ use tracewake_core::debug_reports::{
     ActionRejectionDebugReport, ControllerBindingDebugReport, ItemLocationDebugReport,
     NoHumanDayDebugReport, Phase3ADebugReport, ProjectionRebuildDebugReport, ReplayDebugReport,
 };
-use tracewake_core::view_models::DebugEventLogView;
 use tracewake_core::view_models::{
     DebugBeliefsView, DebugEpistemicsView, DebugObservationsView, DEBUG_EPISTEMICS_MARKER,
 };
+use tracewake_core::view_models::{DebugEventLogView, DebugViewModel};
 
 const DEBUG_MARKER: &str = "DEBUG NON-DIEGETIC";
+
+pub fn debug_view_model_panel_key(view: &DebugViewModel) -> Option<&'static str> {
+    match view {
+        DebugViewModel::ControllerBinding(view) => {
+            view.debug_only().then_some("debug:controller_binding")
+        }
+        DebugViewModel::EventLog(view) => view.debug_only().then_some("debug:event_log"),
+        DebugViewModel::ItemLocation(view) => view.debug_only().then_some("debug:item_location"),
+        DebugViewModel::ActionRejection(view) => {
+            view.debug_only().then_some("debug:action_rejection")
+        }
+        DebugViewModel::ProjectionRebuild(view) => {
+            view.debug_only().then_some("debug:projection_rebuild")
+        }
+        DebugViewModel::ReplayReport(view) => view.debug_only().then_some("debug:replay_report"),
+        DebugViewModel::Epistemics(view) => (view.debug_only()
+            && view.non_diegetic_marker() == DEBUG_EPISTEMICS_MARKER)
+            .then_some("debug:epistemics"),
+        DebugViewModel::Beliefs(view) => (view.debug_only()
+            && view.non_diegetic_marker() == DEBUG_EPISTEMICS_MARKER)
+            .then_some("debug:beliefs"),
+        DebugViewModel::Observations(view) => (view.debug_only()
+            && view.non_diegetic_marker() == DEBUG_EPISTEMICS_MARKER)
+            .then_some("debug:observations"),
+        DebugViewModel::TruthBeliefMismatch(view) => (view.debug_only()
+            && view.non_diegetic_marker() == DEBUG_EPISTEMICS_MARKER)
+            .then_some("debug:truth_belief_mismatch"),
+    }
+}
 
 pub fn render_item_location_panel(report: &ItemLocationDebugReport) -> String {
     assert!(report.debug_only());
