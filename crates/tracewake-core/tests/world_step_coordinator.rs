@@ -1,5 +1,6 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
+use tracewake_core::agent::{NeedChangeCause, NeedKind, NeedState};
 use tracewake_core::checksum::ChecksumContext;
 use tracewake_core::events::log::EventLog;
 use tracewake_core::events::{
@@ -7,14 +8,18 @@ use tracewake_core::events::{
 };
 use tracewake_core::ids::{
     ActionId, ActorId, ContentManifestId, ContentVersion, ControllerId, EventId, FixtureId,
-    ProposalId,
+    PlaceId, ProposalId, SleepAffordanceId, WorkplaceId,
 };
 use tracewake_core::replay::rebuild_projection;
 use tracewake_core::scheduler::{
-    BodyExclusiveDurationKind, DeterministicScheduler, OrderingKey, ProposalSequence,
-    SchedulePhase, SchedulerSourceId, WorldAdvanceError, WorldAdvanceOrigin, WorldAdvanceRequest,
+    AuthorizedSleepInterruption, BodyExclusiveDurationKind, DeterministicScheduler, OrderingKey,
+    ProposalSequence, SchedulePhase, SchedulerSourceId, WorldAdvanceError, WorldAdvanceOrigin,
+    WorldAdvanceRequest,
 };
-use tracewake_core::state::{AgentState, NeedModelState, PhysicalState};
+use tracewake_core::state::{
+    ActorBody, AgentState, NeedModelState, PhysicalState, PlaceState, SleepAffordanceState,
+    VisibilityDefault, WorkplaceState,
+};
 use tracewake_core::time::SimTick;
 
 fn content_manifest_id() -> ContentManifestId {
@@ -41,8 +46,21 @@ fn empty_agent_state() -> AgentState {
     )
 }
 
+fn place_id(value: &str) -> PlaceId {
+    PlaceId::new(value).unwrap()
+}
+
 fn actor_id(value: &str) -> ActorId {
     ActorId::new(value).unwrap()
+}
+
+fn world_advance_request(expected_tick: u64) -> WorldAdvanceRequest {
+    WorldAdvanceRequest {
+        expected_tick: SimTick::new(expected_tick),
+        origin: WorldAdvanceOrigin::Controller(ControllerId::new("controller_human").unwrap()),
+        content_manifest_id: content_manifest_id(),
+        authorized_sleep_interruptions: Vec::new(),
+    }
 }
 
 fn ordering_key(tick: u64, action_id: &str, actor_id: &ActorId) -> OrderingKey {
@@ -89,6 +107,53 @@ fn duration_start(
     event
 }
 
+fn sleep_start(
+    id: &str,
+    actor_id: &ActorId,
+    start_tick: u64,
+    expected_completion_tick: u64,
+    sleep_affordance_id: &SleepAffordanceId,
+) -> EventEnvelope {
+    let mut event = duration_start(
+        EventKind::SleepStarted,
+        id,
+        actor_id,
+        start_tick,
+        expected_completion_tick,
+    );
+    event.payload.extend([
+        PayloadField::new("sleep_affordance_id", sleep_affordance_id.as_str()),
+        PayloadField::new("fatigue_recovery_per_tick", "20"),
+        PayloadField::new("hunger_rise_per_tick", "2"),
+    ]);
+    event
+}
+
+fn work_start(
+    id: &str,
+    actor_id: &ActorId,
+    start_tick: u64,
+    expected_completion_tick: u64,
+    workplace_id: &WorkplaceId,
+    place_id: &PlaceId,
+) -> EventEnvelope {
+    let mut event = duration_start(
+        EventKind::WorkBlockStarted,
+        id,
+        actor_id,
+        start_tick,
+        expected_completion_tick,
+    );
+    event.payload.extend([
+        PayloadField::new("workplace_id", workplace_id.as_str()),
+        PayloadField::new("place_id", place_id.as_str()),
+        PayloadField::new("fatigue_delta_per_tick", "3"),
+        PayloadField::new("hunger_delta_per_tick", "4"),
+        PayloadField::new("output_tag", "stacked_firewood"),
+    ]);
+    event
+}
+
 fn duration_terminal(
     kind: EventKind,
     id: &str,
@@ -112,23 +177,94 @@ fn duration_terminal(
     event
 }
 
+fn physical_state_for(actor: &ActorId, place: &PlaceId) -> PhysicalState {
+    let sleep_affordance_id = SleepAffordanceId::new("sleep_mat_home").unwrap();
+    let workplace_id = WorkplaceId::new("workplace_woodpile").unwrap();
+    let mut actors = BTreeMap::new();
+    actors.insert(actor.clone(), ActorBody::new(actor.clone(), place.clone()));
+    let mut local_actor_ids = BTreeSet::new();
+    local_actor_ids.insert(actor.clone());
+    let mut places = BTreeMap::new();
+    places.insert(
+        place.clone(),
+        PlaceState {
+            place_id: place.clone(),
+            display_label: "Home".to_string(),
+            adjacent_place_ids: BTreeSet::new(),
+            connected_door_ids: BTreeSet::new(),
+            local_container_ids: BTreeSet::new(),
+            local_item_ids: BTreeSet::new(),
+            local_actor_ids,
+            visibility_default: VisibilityDefault::Visible,
+        },
+    );
+    let mut sleep_affordances = BTreeMap::new();
+    sleep_affordances.insert(
+        sleep_affordance_id.clone(),
+        SleepAffordanceState::new(sleep_affordance_id, place.clone(), 2, 20, 2),
+    );
+    let mut workplaces = BTreeMap::new();
+    workplaces.insert(
+        workplace_id.clone(),
+        WorkplaceState::new(
+            workplace_id,
+            place.clone(),
+            2,
+            3,
+            4,
+            900,
+            900,
+            "stacked_firewood",
+        ),
+    );
+    PhysicalState::from_seed_parts(
+        actors,
+        places,
+        BTreeMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
+        workplaces,
+        sleep_affordances,
+        NeedModelState::new(0, 0),
+    )
+}
+
+fn agent_state_for(actor: &ActorId) -> AgentState {
+    let mut needs = BTreeMap::new();
+    needs.insert(
+        NeedKind::Fatigue,
+        NeedState::initial(NeedKind::Fatigue, 100, NeedChangeCause::FixtureInitial),
+    );
+    needs.insert(
+        NeedKind::Hunger,
+        NeedState::initial(NeedKind::Hunger, 100, NeedChangeCause::FixtureInitial),
+    );
+    let mut needs_by_actor = BTreeMap::new();
+    needs_by_actor.insert(actor.clone(), needs);
+    AgentState::from_seed_parts(
+        needs_by_actor,
+        BTreeMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
+    )
+}
+
 #[test]
 fn empty_world_step_appends_time_advanced_and_rebuilds_frontier() {
     let initial_physical = PhysicalState::empty(NeedModelState::new(0, 0));
-    let initial_agent = empty_agent_state();
+    let mut initial_agent = empty_agent_state();
     let mut log = EventLog::new();
     let mut scheduler = DeterministicScheduler::new(SimTick::new(41));
 
     let result = scheduler
         .advance_world_one_tick(
+            &initial_physical,
+            &mut initial_agent,
             &mut log,
-            WorldAdvanceRequest {
-                expected_tick: SimTick::new(41),
-                origin: WorldAdvanceOrigin::Controller(
-                    ControllerId::new("controller_human").unwrap(),
-                ),
-                content_manifest_id: content_manifest_id(),
-            },
+            world_advance_request(41),
         )
         .unwrap();
 
@@ -159,7 +295,7 @@ fn empty_world_step_appends_time_advanced_and_rebuilds_frontier() {
 
     let rebuild = rebuild_projection(
         &initial_physical,
-        &initial_agent,
+        &empty_agent_state(),
         &log,
         &checksum_context(SimTick::new(42), 1),
         Some(&initial_physical),
@@ -170,39 +306,34 @@ fn empty_world_step_appends_time_advanced_and_rebuilds_frontier() {
     assert_eq!(rebuild.last_stream_position, Some(0));
     assert!(rebuild.invariant_violations.is_empty());
     assert_eq!(rebuild.final_state, initial_physical);
-    assert_eq!(rebuild.final_agent_state, initial_agent);
+    assert_eq!(rebuild.final_agent_state, empty_agent_state());
 }
 
 #[test]
 fn coordinator_discovers_due_open_duration_from_prior_transaction() {
     let actor = actor_id("actor_tomas");
+    let place = place_id("home_tomas");
+    let physical = physical_state_for(&actor, &place);
+    let mut agent = agent_state_for(&actor);
+    let sleep_affordance = SleepAffordanceId::new("sleep_mat_home").unwrap();
     let mut log = EventLog::new();
-    log.append(duration_start(
-        EventKind::SleepStarted,
+    log.append(sleep_start(
         "event_sleep_started_prior",
         &actor,
         8,
         10,
+        &sleep_affordance,
     ))
     .unwrap();
     let mut scheduler = DeterministicScheduler::new(SimTick::new(9));
 
     let result = scheduler
-        .advance_world_one_tick(
-            &mut log,
-            WorldAdvanceRequest {
-                expected_tick: SimTick::new(9),
-                origin: WorldAdvanceOrigin::Controller(
-                    ControllerId::new("controller_human").unwrap(),
-                ),
-                content_manifest_id: content_manifest_id(),
-            },
-        )
+        .advance_world_one_tick(&physical, &mut agent, &mut log, world_advance_request(9))
         .unwrap();
 
     assert_eq!(result.resulting_tick, SimTick::new(10));
     assert_eq!(result.due_work_summary.open_duration_candidates, 1);
-    assert_eq!(result.due_work_summary.duration_terminals_appended, 0);
+    assert_eq!(result.due_work_summary.duration_terminals_appended, 1);
     assert_eq!(result.due_duration_candidates.len(), 1);
     assert_eq!(
         result.due_duration_candidates[0].start_event_id.as_str(),
@@ -217,19 +348,36 @@ fn coordinator_discovers_due_open_duration_from_prior_transaction() {
         result.due_duration_candidates[0].expected_completion_tick,
         SimTick::new(10)
     );
-    assert_eq!(log.events().len(), 2);
+    assert_eq!(log.events().len(), 5);
     assert_eq!(log.events()[1].event_type, EventKind::TimeAdvanced);
+    assert!(log
+        .events()
+        .iter()
+        .any(|event| event.event_type == EventKind::SleepCompleted
+            && event.causes
+                == vec![EventCause::Event(
+                    EventId::new("event_sleep_started_prior").unwrap()
+                )]));
+    assert_eq!(
+        agent
+            .needs_by_actor()
+            .get(&actor)
+            .and_then(|needs| needs.get(&NeedKind::Fatigue))
+            .map(NeedState::value),
+        Some(60)
+    );
 }
 
 #[test]
-fn coordinator_discovers_due_candidates_in_deterministic_order() {
-    let tomas = actor_id("actor_tomas");
-    let ada = actor_id("actor_ada");
+fn malformed_due_duration_start_rejects_without_appending_marker() {
+    let actor = actor_id("actor_tomas");
+    let physical = PhysicalState::empty(NeedModelState::new(0, 0));
+    let mut agent = empty_agent_state();
     let mut log = EventLog::new();
     log.append(duration_start(
         EventKind::WorkBlockStarted,
         "event_work_started_tomas",
-        &tomas,
+        &actor,
         6,
         10,
     ))
@@ -237,7 +385,7 @@ fn coordinator_discovers_due_candidates_in_deterministic_order() {
     log.append(duration_start(
         EventKind::SleepStarted,
         "event_sleep_started_ada",
-        &ada,
+        &actor,
         7,
         10,
     ))
@@ -245,31 +393,130 @@ fn coordinator_discovers_due_candidates_in_deterministic_order() {
     let mut scheduler = DeterministicScheduler::new(SimTick::new(9));
 
     let result = scheduler
-        .advance_world_one_tick(
-            &mut log,
-            WorldAdvanceRequest {
-                expected_tick: SimTick::new(9),
-                origin: WorldAdvanceOrigin::Controller(
-                    ControllerId::new("controller_human").unwrap(),
-                ),
-                content_manifest_id: content_manifest_id(),
-            },
-        )
+        .advance_world_one_tick(&physical, &mut agent, &mut log, world_advance_request(9))
+        .unwrap_err();
+
+    assert!(matches!(
+        result,
+        WorldAdvanceError::DurationLifecycleBuild { .. }
+    ));
+    assert_eq!(scheduler.current_tick, SimTick::new(9));
+    assert_eq!(log.events().len(), 2);
+}
+
+#[test]
+fn coordinator_closes_due_work_through_existing_completion_builder() {
+    let actor = actor_id("actor_tomas");
+    let place = place_id("home_tomas");
+    let physical = physical_state_for(&actor, &place);
+    let mut agent = agent_state_for(&actor);
+    let workplace = WorkplaceId::new("workplace_woodpile").unwrap();
+    let mut log = EventLog::new();
+    log.append(work_start(
+        "event_work_started_prior",
+        &actor,
+        8,
+        10,
+        &workplace,
+        &place,
+    ))
+    .unwrap();
+    let mut scheduler = DeterministicScheduler::new(SimTick::new(9));
+
+    let result = scheduler
+        .advance_world_one_tick(&physical, &mut agent, &mut log, world_advance_request(9))
         .unwrap();
 
+    assert_eq!(result.due_work_summary.open_duration_candidates, 1);
+    assert_eq!(result.due_work_summary.duration_terminals_appended, 1);
+    assert!(log
+        .events()
+        .iter()
+        .any(|event| event.event_type == EventKind::WorkBlockCompleted
+            && event.causes
+                == vec![EventCause::Event(
+                    EventId::new("event_work_started_prior").unwrap()
+                )]));
     assert_eq!(
-        result
-            .due_duration_candidates
-            .iter()
-            .map(|candidate| candidate.start_event_id.as_str())
-            .collect::<Vec<_>>(),
-        vec!["event_sleep_started_ada", "event_work_started_tomas"]
+        agent
+            .needs_by_actor()
+            .get(&actor)
+            .and_then(|needs| needs.get(&NeedKind::Fatigue))
+            .map(NeedState::value),
+        Some(106)
+    );
+    assert_eq!(
+        agent
+            .needs_by_actor()
+            .get(&actor)
+            .and_then(|needs| needs.get(&NeedKind::Hunger))
+            .map(NeedState::value),
+        Some(108)
+    );
+}
+
+#[test]
+fn authorized_sleep_interruption_closes_before_expected_completion_tick() {
+    let actor = actor_id("actor_tomas");
+    let place = place_id("home_tomas");
+    let physical = physical_state_for(&actor, &place);
+    let mut agent = agent_state_for(&actor);
+    let sleep_affordance = SleepAffordanceId::new("sleep_mat_home").unwrap();
+    let start_event_id = EventId::new("event_sleep_started_prior").unwrap();
+    let mut log = EventLog::new();
+    log.append(sleep_start(
+        start_event_id.as_str(),
+        &actor,
+        8,
+        12,
+        &sleep_affordance,
+    ))
+    .unwrap();
+    let mut request = world_advance_request(9);
+    request
+        .authorized_sleep_interruptions
+        .push(AuthorizedSleepInterruption {
+            start_event_id: start_event_id.clone(),
+            terminal_tick: SimTick::new(10),
+            reason: "controller_interrupt".to_string(),
+        });
+    let mut scheduler = DeterministicScheduler::new(SimTick::new(9));
+
+    let result = scheduler
+        .advance_world_one_tick(&physical, &mut agent, &mut log, request)
+        .unwrap();
+
+    assert!(result.due_duration_candidates.is_empty());
+    assert_eq!(result.due_work_summary.duration_terminals_appended, 1);
+    let interruption = log
+        .events()
+        .iter()
+        .find(|event| event.event_type == EventKind::SleepInterrupted)
+        .expect("sleep interruption is appended");
+    assert_eq!(
+        interruption.causes,
+        vec![EventCause::Event(start_event_id.clone())]
+    );
+    assert_eq!(
+        interruption.payload_value("reason"),
+        Some("controller_interrupt")
+    );
+    assert_eq!(interruption.payload_value("elapsed_ticks"), Some("2"));
+    assert_eq!(
+        agent
+            .needs_by_actor()
+            .get(&actor)
+            .and_then(|needs| needs.get(&NeedKind::Fatigue))
+            .map(NeedState::value),
+        Some(60)
     );
 }
 
 #[test]
 fn duplicate_duration_terminal_rejects_world_step_without_appending_marker() {
     let actor = actor_id("actor_tomas");
+    let physical = PhysicalState::empty(NeedModelState::new(0, 0));
+    let mut agent = empty_agent_state();
     let mut log = EventLog::new();
     log.append(duration_start(
         EventKind::WorkBlockStarted,
@@ -298,16 +545,7 @@ fn duplicate_duration_terminal_rejects_world_step_without_appending_marker() {
     let mut scheduler = DeterministicScheduler::new(SimTick::new(9));
 
     let error = scheduler
-        .advance_world_one_tick(
-            &mut log,
-            WorldAdvanceRequest {
-                expected_tick: SimTick::new(9),
-                origin: WorldAdvanceOrigin::Controller(
-                    ControllerId::new("controller_human").unwrap(),
-                ),
-                content_manifest_id: content_manifest_id(),
-            },
-        )
+        .advance_world_one_tick(&physical, &mut agent, &mut log, world_advance_request(9))
         .unwrap_err();
 
     let WorldAdvanceError::OpenDurationDiscovery(error) = error else {
@@ -329,19 +567,12 @@ fn duplicate_duration_terminal_rejects_world_step_without_appending_marker() {
 #[test]
 fn stale_expected_tick_rejects_without_appending_or_advancing() {
     let mut log = EventLog::new();
+    let physical = PhysicalState::empty(NeedModelState::new(0, 0));
+    let mut agent = empty_agent_state();
     let mut scheduler = DeterministicScheduler::new(SimTick::new(10));
 
     let error = scheduler
-        .advance_world_one_tick(
-            &mut log,
-            WorldAdvanceRequest {
-                expected_tick: SimTick::new(9),
-                origin: WorldAdvanceOrigin::Controller(
-                    ControllerId::new("controller_human").unwrap(),
-                ),
-                content_manifest_id: content_manifest_id(),
-            },
-        )
+        .advance_world_one_tick(&physical, &mut agent, &mut log, world_advance_request(9))
         .unwrap_err();
 
     assert_eq!(

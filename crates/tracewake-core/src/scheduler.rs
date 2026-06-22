@@ -3,14 +3,18 @@ use std::collections::BTreeSet;
 use crate::actions::defs::need_events::{
     build_need_delta_and_threshold_events, NeedDeltaEventSpec,
 };
+use crate::actions::defs::sleep::{build_sleep_completion_events, build_sleep_interruption_events};
+use crate::actions::defs::work::build_work_completion_events;
 use crate::agent::NeedKind;
+use crate::events::apply::{apply_agent_event, ApplyError};
 use crate::events::log::{EventLog, EventLogError};
 use crate::events::{
-    EventCause, EventEnvelope, EventEnvelopeBuildError, EventKind, PayloadField, EVENT_SCHEMA_V1,
+    is_duration_terminal, EventCause, EventEnvelope, EventEnvelopeBuildError, EventKind,
+    PayloadField, EVENT_SCHEMA_V1,
 };
 use crate::ids::{ActionId, ActorId, ContentManifestId, ControllerId, EventId, IdError, ProcessId};
 use crate::need_accounting::{open_body_exclusive_starts, DuplicateDurationTerminal};
-use crate::state::NeedModelState;
+use crate::state::{AgentState, NeedModelState, PhysicalState};
 use crate::time::{passive_awake_need_deltas, SimTick};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -134,6 +138,14 @@ pub struct WorldAdvanceRequest {
     pub expected_tick: SimTick,
     pub origin: WorldAdvanceOrigin,
     pub content_manifest_id: ContentManifestId,
+    pub authorized_sleep_interruptions: Vec<AuthorizedSleepInterruption>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AuthorizedSleepInterruption {
+    pub start_event_id: EventId,
+    pub terminal_tick: SimTick,
+    pub reason: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -178,6 +190,14 @@ pub enum WorldAdvanceError {
     MalformedDurationStart {
         start_event_id: EventId,
         reason: String,
+    },
+    DurationLifecycleBuild {
+        start_event_id: EventId,
+        error: ApplyError,
+    },
+    DurationLifecycleApply {
+        event_id: EventId,
+        error: ApplyError,
     },
     EventAppend(EventLogError),
     InvalidMarkerId(IdError),
@@ -309,6 +329,8 @@ impl DeterministicScheduler {
 
     pub fn advance_world_one_tick(
         &mut self,
+        state: &PhysicalState,
+        agent_state: &mut AgentState,
         log: &mut EventLog,
         request: WorldAdvanceRequest,
     ) -> Result<WorldAdvanceResult, WorldAdvanceError> {
@@ -323,23 +345,246 @@ impl DeterministicScheduler {
         let resulting_tick = prior_tick.next();
         let due_duration_candidates = discover_due_duration_candidates(log, resulting_tick)?;
         let marker = build_time_advanced_event(prior_tick, resulting_tick, &request)?;
-        let appended = log.append(marker).map_err(WorldAdvanceError::EventAppend)?;
+        let lifecycle = build_duration_lifecycle_events(
+            state,
+            agent_state,
+            log,
+            &request,
+            &due_duration_candidates,
+            resulting_tick,
+            &marker,
+        )?;
+        let appended_marker = log.append(marker).map_err(WorldAdvanceError::EventAppend)?;
+        let mut appended_event_ids = vec![appended_marker.event_id];
+        for event in lifecycle.events {
+            let appended = log.append(event).map_err(WorldAdvanceError::EventAppend)?;
+            apply_agent_event(agent_state, &appended).map_err(|error| {
+                WorldAdvanceError::DurationLifecycleApply {
+                    event_id: appended.event_id.clone(),
+                    error,
+                }
+            })?;
+            appended_event_ids.push(appended.event_id);
+        }
         self.current_tick = resulting_tick;
         let open_duration_candidates = due_duration_candidates.len();
 
         Ok(WorldAdvanceResult {
             prior_tick,
             resulting_tick,
-            appended_event_ids: vec![appended.event_id],
+            appended_event_ids,
             due_duration_candidates,
             due_work_summary: WorldStepDueWorkSummary {
                 open_duration_candidates,
-                duration_terminals_appended: 0,
+                duration_terminals_appended: lifecycle.duration_terminals_appended,
                 actor_transactions_attempted: 0,
                 world_processes_applied: 0,
             },
         })
     }
+}
+
+struct BuiltDurationLifecycle {
+    events: Vec<EventEnvelope>,
+    duration_terminals_appended: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum DurationLifecycleCandidate {
+    SleepCompletion {
+        start_event_id: EventId,
+        terminal_tick: SimTick,
+    },
+    WorkCompletion {
+        start_event_id: EventId,
+        terminal_tick: SimTick,
+    },
+    SleepInterruption {
+        start_event_id: EventId,
+        terminal_tick: SimTick,
+        reason: String,
+    },
+}
+
+impl DurationLifecycleCandidate {
+    fn start_event_id(&self) -> &EventId {
+        match self {
+            Self::SleepCompletion { start_event_id, .. }
+            | Self::WorkCompletion { start_event_id, .. }
+            | Self::SleepInterruption { start_event_id, .. } => start_event_id,
+        }
+    }
+
+    const fn terminal_tick(&self) -> SimTick {
+        match self {
+            Self::SleepCompletion { terminal_tick, .. }
+            | Self::WorkCompletion { terminal_tick, .. }
+            | Self::SleepInterruption { terminal_tick, .. } => *terminal_tick,
+        }
+    }
+
+    const fn ordering_priority(&self) -> u8 {
+        match self {
+            Self::SleepInterruption { .. } => 0,
+            Self::SleepCompletion { .. } | Self::WorkCompletion { .. } => 1,
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn build_duration_lifecycle_events(
+    state: &PhysicalState,
+    agent_state: &AgentState,
+    log: &EventLog,
+    request: &WorldAdvanceRequest,
+    due_duration_candidates: &[OpenDurationCandidate],
+    resulting_tick: SimTick,
+    marker: &EventEnvelope,
+) -> Result<BuiltDurationLifecycle, WorldAdvanceError> {
+    let mut candidates = due_duration_candidates
+        .iter()
+        .map(|candidate| match candidate.duration_kind {
+            BodyExclusiveDurationKind::Sleep => DurationLifecycleCandidate::SleepCompletion {
+                start_event_id: candidate.start_event_id.clone(),
+                terminal_tick: candidate.expected_completion_tick,
+            },
+            BodyExclusiveDurationKind::Work => DurationLifecycleCandidate::WorkCompletion {
+                start_event_id: candidate.start_event_id.clone(),
+                terminal_tick: candidate.expected_completion_tick,
+            },
+        })
+        .collect::<Vec<_>>();
+    candidates.extend(
+        request
+            .authorized_sleep_interruptions
+            .iter()
+            .map(
+                |interruption| DurationLifecycleCandidate::SleepInterruption {
+                    start_event_id: interruption.start_event_id.clone(),
+                    terminal_tick: interruption.terminal_tick,
+                    reason: interruption.reason.clone(),
+                },
+            ),
+    );
+    candidates.retain(|candidate| candidate.terminal_tick() <= resulting_tick);
+    candidates.sort_by(|left, right| {
+        left.terminal_tick()
+            .cmp(&right.terminal_tick())
+            .then_with(|| left.ordering_priority().cmp(&right.ordering_priority()))
+            .then_with(|| left.start_event_id().cmp(right.start_event_id()))
+    });
+
+    let mut scratch_log = log.clone();
+    let mut scratch_agent_state = agent_state.clone();
+    scratch_log
+        .append(marker.clone())
+        .map_err(WorldAdvanceError::EventAppend)?;
+    let process_id = request
+        .origin
+        .cause_process_id()
+        .map_err(WorldAdvanceError::InvalidMarkerId)?;
+    let mut events = Vec::new();
+    let mut duration_terminals_appended = 0;
+    for (sequence, candidate) in candidates.into_iter().enumerate() {
+        let start_event = scratch_log
+            .events()
+            .iter()
+            .find(|event| event.event_id == *candidate.start_event_id())
+            .cloned()
+            .ok_or_else(|| WorldAdvanceError::MalformedDurationStart {
+                start_event_id: candidate.start_event_id().clone(),
+                reason: "duration lifecycle start was not present in the event log".to_string(),
+            })?;
+        let ordering_key =
+            duration_lifecycle_ordering_key(&candidate, &start_event, &process_id, sequence)?;
+        let built_events = match &candidate {
+            DurationLifecycleCandidate::SleepCompletion { terminal_tick, .. } => {
+                build_sleep_completion_events(
+                    state,
+                    &scratch_agent_state,
+                    &scratch_log,
+                    &start_event,
+                    &ordering_key,
+                    &request.content_manifest_id,
+                    *terminal_tick,
+                )
+            }
+            DurationLifecycleCandidate::WorkCompletion { terminal_tick, .. } => {
+                build_work_completion_events(
+                    state,
+                    &scratch_agent_state,
+                    &scratch_log,
+                    &start_event,
+                    &ordering_key,
+                    &request.content_manifest_id,
+                    *terminal_tick,
+                )
+            }
+            DurationLifecycleCandidate::SleepInterruption {
+                terminal_tick,
+                reason,
+                ..
+            } => build_sleep_interruption_events(
+                &scratch_agent_state,
+                &start_event,
+                &scratch_log,
+                &ordering_key,
+                &request.content_manifest_id,
+                *terminal_tick,
+                reason,
+            ),
+        }
+        .map_err(|error| WorldAdvanceError::DurationLifecycleBuild {
+            start_event_id: candidate.start_event_id().clone(),
+            error,
+        })?;
+        for event in built_events {
+            let appended = scratch_log
+                .append(event.clone())
+                .map_err(WorldAdvanceError::EventAppend)?;
+            apply_agent_event(&mut scratch_agent_state, &appended).map_err(|error| {
+                WorldAdvanceError::DurationLifecycleApply {
+                    event_id: appended.event_id.clone(),
+                    error,
+                }
+            })?;
+            if is_duration_terminal(appended.event_type) {
+                duration_terminals_appended += 1;
+            }
+            events.push(event);
+        }
+    }
+    Ok(BuiltDurationLifecycle {
+        events,
+        duration_terminals_appended,
+    })
+}
+
+fn duration_lifecycle_ordering_key(
+    candidate: &DurationLifecycleCandidate,
+    start_event: &EventEnvelope,
+    process_id: &ProcessId,
+    sequence: usize,
+) -> Result<OrderingKey, WorldAdvanceError> {
+    let action_id = match candidate {
+        DurationLifecycleCandidate::SleepCompletion { .. } => "sleep_completed",
+        DurationLifecycleCandidate::WorkCompletion { .. } => "work_block_completed",
+        DurationLifecycleCandidate::SleepInterruption { .. } => "sleep_interrupted",
+    };
+    let actor_target = start_event
+        .actor_id
+        .as_ref()
+        .map(|actor_id| actor_id.as_str().to_string())
+        .unwrap_or_default();
+    Ok(OrderingKey::new(
+        candidate.terminal_tick(),
+        SchedulePhase::DeferredProcess,
+        SchedulerSourceId::Process(process_id.clone()),
+        ProposalSequence::new(sequence as u64),
+        ActionId::new(action_id).map_err(WorldAdvanceError::InvalidMarkerId)?,
+        vec![actor_target],
+        format!("{}:{}", action_id, start_event.event_id.as_str()),
+    ))
 }
 
 fn discover_due_duration_candidates(
