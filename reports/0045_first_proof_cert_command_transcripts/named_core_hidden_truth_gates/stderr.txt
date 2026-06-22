@@ -1,2 +1,0 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
-     Running tests/hidden_truth_gates.rs (target/debug/deps/hidden_truth_gates-499dcae7fdb8d686)

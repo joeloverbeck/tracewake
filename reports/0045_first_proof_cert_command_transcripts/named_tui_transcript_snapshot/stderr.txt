@@ -1,2 +1,0 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
-     Running tests/transcript_snapshot.rs (target/debug/deps/transcript_snapshot-abc605adb6846784)

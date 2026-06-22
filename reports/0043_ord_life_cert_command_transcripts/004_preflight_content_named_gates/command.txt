@@ -1,2 +1,0 @@
-cwd=/home/joeloverbeck/projects/tracewake
-command=cargo test --locked -p tracewake-content --test fixtures_load --test forbidden_content --test golden_fixtures_run --test schema_conformance

@@ -1,2 +1,0 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
-     Running tests/fixtures_load.rs (target/debug/deps/fixtures_load-a629c9da8c17ae87)

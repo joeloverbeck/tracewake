@@ -1,2 +1,0 @@
-cwd=/home/joeloverbeck/projects/tracewake
-command=cargo fmt --all --check

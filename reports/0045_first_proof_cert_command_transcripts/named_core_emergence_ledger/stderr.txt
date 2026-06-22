@@ -1,2 +1,0 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
-     Running tests/emergence_ledger.rs (target/debug/deps/emergence_ledger-7b04c550ecb5f37e)

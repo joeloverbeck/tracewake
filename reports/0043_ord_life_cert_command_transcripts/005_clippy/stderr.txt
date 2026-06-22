@@ -1,4 +1,0 @@
-    Checking tracewake-core v0.1.0 (/home/joeloverbeck/projects/tracewake/crates/tracewake-core)
-    Checking tracewake-content v0.1.0 (/home/joeloverbeck/projects/tracewake/crates/tracewake-content)
-    Checking tracewake-tui v0.1.0 (/home/joeloverbeck/projects/tracewake/crates/tracewake-tui)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.98s

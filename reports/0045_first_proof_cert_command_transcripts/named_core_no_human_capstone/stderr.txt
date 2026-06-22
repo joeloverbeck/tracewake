@@ -1,2 +1,0 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
-     Running tests/no_human_capstone.rs (target/debug/deps/no_human_capstone-e6eae427d2e31f2d)

@@ -1,2 +1,0 @@
-cwd=/home/joeloverbeck/projects/tracewake
-command=cargo mutants --workspace --no-shuffle -o reports/0044_first_proof_cert_mutation_full.out

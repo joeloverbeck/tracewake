@@ -1,2 +1,0 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
-     Running tests/spine_conformance.rs (target/debug/deps/spine_conformance-4cb87ac0a2518b90)

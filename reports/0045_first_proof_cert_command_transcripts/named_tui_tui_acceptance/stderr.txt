@@ -1,2 +1,0 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
-     Running tests/tui_acceptance.rs (target/debug/deps/tui_acceptance-e59d79fb3ad76767)

@@ -1,4 +1,0 @@
-cwd=/tmp/tracewake-0045-005-evidence-9a
-requested_output_dir=reports/0045_first_proof_cert_command_transcripts/named_core_hidden_truth_gates
-actual_output_dir=reports/0045_first_proof_cert_command_transcripts/named_core_hidden_truth_gates
-command=cargo test --locked -p tracewake-core --test hidden_truth_gates
