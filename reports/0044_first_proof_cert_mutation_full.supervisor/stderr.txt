@@ -1,4 +1,0 @@
- INFO Auto-set test timeout to 183s
-ERROR interrupted
-ERROR scenario execution internal error err=interrupted phase=Build
-Error: interrupted

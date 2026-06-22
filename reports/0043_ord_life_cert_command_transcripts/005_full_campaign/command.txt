@@ -1,2 +1,0 @@
-cwd=/home/joeloverbeck/projects/tracewake
-command=cargo mutants --workspace --no-shuffle -o reports/0043_ord_life_cert_mutation_005_full.out

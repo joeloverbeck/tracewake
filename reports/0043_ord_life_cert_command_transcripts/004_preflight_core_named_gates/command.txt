@@ -1,2 +1,0 @@
-cwd=/home/joeloverbeck/projects/tracewake
-command=cargo test --locked -p tracewake-core --test acceptance_artifact_wording --test acceptance_gates --test anti_regression_guards --test ci_workflow_guards --test doc_invariant_references --test emergence_ledger --test event_schema_replay_gates --test generative_lock --test golden_scenarios --test hidden_truth_gates --test negative_fixture_runner --test no_human_capstone --test spine_conformance

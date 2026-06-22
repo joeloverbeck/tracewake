@@ -1,4 +1,0 @@
-    Checking tracewake-core v0.1.0 (/tmp/tracewake-0045-005-evidence-9a/crates/tracewake-core)
-    Checking tracewake-content v0.1.0 (/tmp/tracewake-0045-005-evidence-9a/crates/tracewake-content)
-    Checking tracewake-tui v0.1.0 (/tmp/tracewake-0045-005-evidence-9a/crates/tracewake-tui)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.53s

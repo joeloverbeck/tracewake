@@ -1,2 +1,0 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
-     Running tests/ci_workflow_guards.rs (target/debug/deps/ci_workflow_guards-097f54ed9b79fe8b)

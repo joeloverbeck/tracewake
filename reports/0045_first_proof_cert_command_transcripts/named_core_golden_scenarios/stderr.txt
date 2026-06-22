@@ -1,2 +1,0 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
-     Running tests/golden_scenarios.rs (target/debug/deps/golden_scenarios-36c2e7809f5f038e)

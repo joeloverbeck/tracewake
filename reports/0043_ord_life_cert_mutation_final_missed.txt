@@ -1,5 +1,0 @@
-crates/tracewake-core/src/actions/defs/movement.rs:77:43: replace && with || in build_move_event
-crates/tracewake-core/src/actions/defs/movement.rs:78:50: replace && with || in build_move_event
-crates/tracewake-core/src/actions/defs/movement.rs:78:33: replace == with != in build_move_event
-crates/tracewake-core/src/actions/defs/movement.rs:78:69: replace == with != in build_move_event
-crates/tracewake-core/src/actions/defs/wait.rs:169:5: replace is_autonomous_wait -> bool with true

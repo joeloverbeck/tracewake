@@ -1,2 +1,0 @@
-Found 2901 mutants to test
-ok       Unmutated baseline in 10s build + 31s test

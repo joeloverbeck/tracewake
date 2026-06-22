@@ -1,6 +1,0 @@
-
-running 2 tests
-test no_human_capstone_debug_and_replay_perturbation_are_non_interfering ... ok
-test no_human_capstone_proves_typed_ancestry_and_replay ... ok
-
-test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s

@@ -1,2 +1,0 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
-     Running tests/acceptance_gates.rs (target/debug/deps/acceptance_gates-1229b30ca365b07c)

@@ -1,4 +1,0 @@
-cwd=/tmp/tracewake-0045-005-evidence-9a
-requested_output_dir=reports/0045_first_proof_cert_command_transcripts/mutation_shard_1_of_8
-actual_output_dir=reports/0045_first_proof_cert_command_transcripts/mutation_shard_1_of_8
-command=cargo mutants --workspace --no-shuffle --shard 1/8 --jobs 2 --baseline=skip --timeout 183 -o reports/0045_first_proof_cert_mutation_shard_1_of_8.out

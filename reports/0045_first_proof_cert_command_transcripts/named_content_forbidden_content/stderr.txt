@@ -1,2 +1,0 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
-     Running tests/forbidden_content.rs (target/debug/deps/forbidden_content-bb0da50e2fe87939)
