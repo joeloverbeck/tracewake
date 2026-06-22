@@ -6,6 +6,9 @@ use parity::{
     registry,
     runner::run_conformance_with_render_probe,
     runner::{registered_action_coverage_failures, run_conformance},
+    scenario::{
+        assert_actor_surface_does_not_leak, assert_matches_checked_in_golden, run_real_pipeline,
+    },
     CapabilityClass, EvidenceFlag, OwnershipScope, SetupOperation, SurfaceDisposition, WitnessKind,
 };
 use tracewake_content::fixtures;
@@ -33,6 +36,7 @@ fn playable_capability_registry_smoke_test() {
         assert!(!entry.fixture_ids.is_empty());
         assert!(!entry.viewer_actor.trim().is_empty());
         assert!(!entry.typed_witness.assertion.trim().is_empty());
+        assert!(!entry.actor_knowledge_witness.assertion.trim().is_empty());
         assert!(matches!(
             entry.ownership_scope,
             OwnershipScope::Base | OwnershipScope::FuturePack { .. }
@@ -67,6 +71,10 @@ fn playable_capability_registry_smoke_test() {
                 | WitnessKind::GoldenReference
                 | WitnessKind::AntiLeakNegative
                 | WitnessKind::DebugQuarantine
+        ));
+        assert!(matches!(
+            entry.actor_knowledge_witness.kind,
+            WitnessKind::ActorKnowledge
         ));
         assert!(matches!(
             entry.replay_evidence,
@@ -162,6 +170,35 @@ fn playable_capability_registry_schema_exposes_all_closed_enum_variants() {
 }
 
 #[test]
+fn playable_capability_scenarios_match_checked_in_real_pipeline_goldens() {
+    let entries = registry();
+
+    for entry in &entries {
+        let witnesses = run_real_pipeline(entry)
+            .unwrap_or_else(|error| panic!("{} scenario failed: {error:#?}", entry.key));
+        assert_eq!(
+            witnesses.ordered_witnesses.len(),
+            3,
+            "{} must assert typed -> actor-knowledge -> rendered witnesses",
+            entry.key
+        );
+        assert_eq!(
+            witnesses.ordered_witnesses[0],
+            entry.typed_witness.assertion
+        );
+        assert_eq!(
+            witnesses.ordered_witnesses[1],
+            entry.actor_knowledge_witness.assertion
+        );
+        if let Some(rendered_witness) = &entry.rendered_witness {
+            assert_eq!(witnesses.ordered_witnesses[2], rendered_witness.assertion);
+        }
+        assert_matches_checked_in_golden(entry, &witnesses.rendered);
+        assert_actor_surface_does_not_leak(entry, &witnesses.rendered);
+    }
+}
+
+#[test]
 fn playable_capability_runner_passes_live_registry_and_reports_deterministically() {
     let entries = registry();
     let first = run_conformance(&entries);
@@ -201,6 +238,14 @@ fn playable_capability_runner_fails_closed_for_synthetic_gaps() {
     missing_rendered.key = "synthetic.missing_rendered";
     missing_rendered.rendered_witness = None;
     assert_has_failure(&[missing_rendered], "missing_rendered_witness");
+
+    let mut missing_actor_knowledge = complete[0].clone();
+    missing_actor_knowledge.key = "synthetic.missing_actor_knowledge";
+    missing_actor_knowledge.actor_knowledge_witness.assertion = "";
+    assert_has_failure(
+        &[missing_actor_knowledge],
+        "missing_actor_knowledge_witness",
+    );
 
     let mut missing_anti_leak = complete[0].clone();
     missing_anti_leak.key = "synthetic.notebook.epistemic";

@@ -1,6 +1,6 @@
 # 0046TUISIMPLA-005: Real-pipeline capability-golden harness — typed→rendered witnesses, anti-leak pairing, checked-in renderings
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — new `tracewake-tui` scenario harness (`crates/tracewake-tui/tests/parity/scenario.rs`) + checked-in golden directory (`crates/tracewake-tui/tests/goldens/`); extends the registry test target; preserves `transcript_snapshot.rs`. No production-crate change.
@@ -139,3 +139,27 @@ completeness evidence.
 1. `cargo test -p tracewake-tui --test playable_capability_parity`
 2. `cargo test -p tracewake-tui --test transcript_snapshot`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-22
+
+- Added `parity::scenario`, a test-side real-pipeline harness that loads registry fixtures through
+  `TuiApp`, binds the declared viewer, asserts typed then actor-knowledge then rendered witnesses,
+  submits declared semantic actions, and compares rendered output to checked-in goldens.
+- Added checked-in golden renderings for the positive `base.semantic_action.wait` exemplar and the
+  paired `base.epistemic.why_not.door_closed` anti-leak exemplar. The epistemic exemplar proves the
+  disabled/rejected action renders an actor-safe why-not while excluding debug, holder-known-context,
+  culprit, cross-actor, and hidden-food tokens from the embodied surface.
+- Extended the parity registry and runner schema with actor-knowledge witness and golden-path
+  metadata. Full all-action/all-family census remains intentionally deferred to 0046TUISIMPLA-006 and
+  0046TUISIMPLA-007 per scope.
+
+Verification:
+
+- `cargo test -p tracewake-tui --test playable_capability_parity`
+- `cargo test -p tracewake-tui --test transcript_snapshot`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

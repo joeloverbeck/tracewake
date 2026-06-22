@@ -208,6 +208,13 @@ fn validate_entry(
             "missing typed witness",
         ));
     }
+    if entry.actor_knowledge_witness.assertion.trim().is_empty() {
+        failures.push(entry_failure(
+            &key,
+            "missing_actor_knowledge_witness",
+            "missing actor-knowledge witness",
+        ));
+    }
     if rendered_surface_requires_witness(&entry.surface_disposition)
         && entry
             .rendered_witness
