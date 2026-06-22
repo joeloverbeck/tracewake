@@ -1,6 +1,6 @@
 # 0047TUIAUTWOR-016: Full-world / possession / anti-leak differential suite
 
-**Status**: PENDING
+**Status**: DONE
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — test-only: human/no-human one-tick differential + possession-parity + anti-leak suite
@@ -75,3 +75,18 @@ Assert unpossessed actors/processes advance identically under both controllers; 
 1. `cargo test -p tracewake-core differential`
 2. `cargo test --workspace && cargo clippy --workspace --all-targets -- -D warnings`
 3. The full-workspace boundary is correct: the differential compares core checksums and TUI render dispositions of the same initial log, so both crates are exercised.
+
+## Outcome
+
+Completed: 2026-06-22
+
+Evidence:
+- Added `differential_human_wait_and_no_human_wait_match_authoritative_outcome` in `crates/tracewake-core/tests/world_step_coordinator.rs`.
+- The differential starts from matched physical/agent state and matched unpossessed sleep-start log, advances a human wait plus controller world step against `advance_no_human`, and asserts matching authoritative physical state, physical checksum, need values, unpossessed duration completion, and distinct controller/process `TimeAdvanced` origin metadata; the human-only `ActorWaited` command report is explicitly allowed to differ.
+- Added `parity_adversarial_hidden_other_actor_interval_source_does_not_render` in `crates/tracewake-tui/tests/parity_adversarial.rs`.
+- The anti-leak test renders a real fixture-backed embodied view with an interval source for another actor and asserts the possessed actor sees only the no-new-information summary, not the other actor or source event.
+- Passed `cargo test -p tracewake-core differential`.
+- Passed `cargo test -p tracewake-tui parity_adversarial_hidden_other_actor_interval_source_does_not_render`.
+- Passed `cargo test --workspace`.
+- Passed `cargo fmt --all --check`.
+- Passed `cargo clippy --workspace --all-targets -- -D warnings`.

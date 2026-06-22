@@ -1,9 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use tracewake_core::actions::defs::wait::build_wait_events;
-use tracewake_core::actions::{Proposal, ProposalOrigin};
+use tracewake_core::actions::{ActionRegistry, Proposal, ProposalOrigin};
 use tracewake_core::agent::{NeedChangeCause, NeedKind, NeedState};
-use tracewake_core::checksum::ChecksumContext;
+use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext, PhysicalChecksum};
 use tracewake_core::events::apply::apply_agent_event;
 use tracewake_core::events::log::EventLog;
 use tracewake_core::events::{
@@ -14,6 +14,7 @@ use tracewake_core::ids::{
     PlaceId, ProposalId, SleepAffordanceId, WorkplaceId,
 };
 use tracewake_core::replay::rebuild_projection;
+use tracewake_core::scheduler::no_human::{advance_no_human, NoHumanStateMut};
 use tracewake_core::scheduler::{
     AdvanceUntilRequest, AdvanceUntilStopReason, AuthorizedSleepInterruption,
     BodyExclusiveDurationKind, DeterministicScheduler, OrderingKey, ProposalSequence,
@@ -329,6 +330,33 @@ fn initial_needs() -> BTreeMap<NeedKind, NeedState> {
     needs
 }
 
+fn state_checksum_pair(
+    physical: &PhysicalState,
+    tick: SimTick,
+    stream_position: u64,
+) -> PhysicalChecksum {
+    let context = checksum_context(tick, stream_position);
+    compute_physical_checksum(physical, &context).checksum
+}
+
+fn need_values(agent: &AgentState) -> BTreeMap<(ActorId, NeedKind), u16> {
+    let mut values = BTreeMap::new();
+    for (actor_id, needs) in agent.needs_by_actor() {
+        for (need_kind, need_state) in needs {
+            values.insert((actor_id.clone(), *need_kind), need_state.value());
+        }
+    }
+    values
+}
+
+fn event_kind_counts(log: &EventLog) -> BTreeMap<EventKind, usize> {
+    let mut counts = BTreeMap::new();
+    for event in log.events() {
+        *counts.entry(event.event_type).or_insert(0) += 1;
+    }
+    counts
+}
+
 #[test]
 fn empty_world_step_appends_time_advanced_and_rebuilds_frontier() {
     let initial_physical = PhysicalState::empty(NeedModelState::new(0, 0));
@@ -384,6 +412,125 @@ fn empty_world_step_appends_time_advanced_and_rebuilds_frontier() {
     assert!(rebuild.invariant_violations.is_empty());
     assert_eq!(rebuild.final_state, initial_physical);
     assert_eq!(rebuild.final_agent_state, empty_agent_state());
+}
+
+#[test]
+fn differential_human_wait_and_no_human_wait_match_authoritative_outcome() {
+    let possessed = actor_id("actor_tomas");
+    let unpossessed = actor_id("actor_mara");
+    let place = place_id("home_tomas");
+    let sleep_affordance = SleepAffordanceId::new("sleep_mat_home").unwrap();
+    let initial_physical = physical_state_for_actors_with_need_model(
+        [possessed.clone(), unpossessed.clone()],
+        &place,
+        NeedModelState::new(0, 0),
+    );
+    let initial_agent = agent_state_for_actors([possessed.clone(), unpossessed.clone()]);
+
+    let human_physical = initial_physical.clone();
+    let mut human_agent = initial_agent.clone();
+    let mut human_log = EventLog::new();
+    human_log
+        .append(sleep_start(
+            "event_sleep_started_unpossessed",
+            &unpossessed,
+            0,
+            1,
+            &sleep_affordance,
+        ))
+        .unwrap();
+    for event in wait_events(&human_physical, &human_agent, &possessed, 0) {
+        let appended = human_log.append(event).unwrap();
+        apply_agent_event(&mut human_agent, &appended).unwrap();
+    }
+    let mut human_scheduler = DeterministicScheduler::new(SimTick::ZERO);
+    let human_result = human_scheduler
+        .advance_world_one_tick(
+            &human_physical,
+            &mut human_agent,
+            &mut human_log,
+            world_advance_request(0),
+        )
+        .unwrap();
+
+    let mut no_human_physical = initial_physical;
+    let mut no_human_agent = initial_agent;
+    let mut no_human_log = EventLog::new();
+    no_human_log
+        .append(sleep_start(
+            "event_sleep_started_unpossessed",
+            &unpossessed,
+            0,
+            1,
+            &sleep_affordance,
+        ))
+        .unwrap();
+    let registry = ActionRegistry::new();
+    let no_human_report = advance_no_human(
+        NoHumanStateMut {
+            physical: &mut no_human_physical,
+            agent: &mut no_human_agent,
+        },
+        &mut no_human_log,
+        &registry,
+        content_manifest_id(),
+        SimTick::ZERO,
+        1,
+        Vec::new(),
+    );
+
+    assert_eq!(human_result.resulting_tick, SimTick::new(1));
+    assert_eq!(no_human_report.final_tick, SimTick::new(1));
+    assert_eq!(human_result.due_duration_candidates.len(), 1);
+    assert_eq!(
+        human_result.due_duration_candidates[0].actor_id,
+        unpossessed
+    );
+    assert_eq!(
+        human_result.due_duration_candidates[0].duration_kind,
+        BodyExclusiveDurationKind::Sleep
+    );
+    assert_eq!(human_result.due_work_summary.duration_terminals_appended, 1);
+    assert_eq!(
+        event_kind_counts(&human_log).get(&EventKind::SleepCompleted),
+        Some(&1)
+    );
+    assert_eq!(
+        event_kind_counts(&no_human_log).get(&EventKind::SleepCompleted),
+        Some(&1)
+    );
+    assert_eq!(
+        event_kind_counts(&human_log).get(&EventKind::ActorWaited),
+        Some(&1)
+    );
+    assert_eq!(
+        event_kind_counts(&no_human_log).get(&EventKind::ActorWaited),
+        None
+    );
+    assert_eq!(human_physical, no_human_physical);
+    assert_eq!(need_values(&human_agent), need_values(&no_human_agent));
+    assert_eq!(
+        state_checksum_pair(&human_physical, SimTick::new(1), 0),
+        state_checksum_pair(&no_human_physical, SimTick::new(1), 0)
+    );
+
+    let human_time_origin = human_log
+        .events()
+        .iter()
+        .find(|event| event.event_type == EventKind::TimeAdvanced)
+        .and_then(|event| event.payload_value("origin"))
+        .expect("human path records time origin");
+    let no_human_time_origin = no_human_log
+        .events()
+        .iter()
+        .find(|event| event.event_type == EventKind::TimeAdvanced)
+        .and_then(|event| event.payload_value("origin"))
+        .expect("no-human path records time origin");
+    assert_eq!(human_time_origin, "controller.controller_human");
+    assert_eq!(no_human_time_origin, "process.no_human_advance");
+    assert_ne!(human_time_origin, no_human_time_origin);
+    assert_eq!(no_human_report.marker_event_ids.len(), 2);
+    assert_eq!(no_human_report.ordinary_pipeline_events, 0);
 }
 
 #[test]
