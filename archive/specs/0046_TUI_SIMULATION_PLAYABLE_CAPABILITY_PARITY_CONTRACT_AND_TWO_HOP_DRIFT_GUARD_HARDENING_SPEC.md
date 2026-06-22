@@ -1,5 +1,7 @@
 # 0046 TUI/Simulation Playable-Capability Parity Contract and Two-Hop Drift-Guard Hardening Spec
 
+**Status**: COMPLETED
+
 This is a staged hardening spec in the parallel `specs/NNNN` series. It is staged in
 `specs/` and is promoted to `archive/specs/` on acceptance; it is never promoted to the
 live `docs/4-specs/` tier, and it does not amend constitutional invariants, define gate
@@ -401,9 +403,25 @@ and amends no invariant.
 
 ## Outcome
 
-On acceptance, this spec lands the standing two-hop playable-capability parity contract — compiler
-enforcement of Hop 2, real-pipeline goldens for Hop 1, a test-side capability registry/conformance
-runner, the per-feature obligation, and the supporting doctrine amendments — as a change-coupled
-prerequisite before the next Expansion feature. It is then promoted to `archive/specs/` and receives
-its `SPEC_LEDGER.md` archived-row entry per the sibling-spec convention, naming its own exact
-implementation commit and claiming no certification beyond its scope.
+Completed: 2026-06-22.
+
+This spec landed the standing two-hop playable-capability parity contract as scoped hardening:
+compiler/source guards for the core-to-TUI presentation hop, a test-side playable-capability registry,
+a deterministic conformance runner, real-pipeline checked-in goldens, baseline coverage for all 15
+current registered actions and 6 non-action capability families, an ordinary CI parity lane,
+architecture/execution/reference/template doctrine amendments, adversarial closure tests, and the
+acceptance artifact at `reports/0046-parity-acceptance-artifact.md`.
+
+The capstone implementation/evidence commit is `29b7da593b22ab146afe022b2fce531124f4889f`.
+Verification recorded in the acceptance artifact:
+
+1. `cargo test -p tracewake-tui --test parity_adversarial` passed.
+2. `cargo test -p tracewake-tui --test playable_capability_parity` passed.
+3. `cargo fmt --all --check` passed.
+4. `cargo clippy --workspace --all-targets -- -D warnings` passed.
+5. `cargo build --workspace --all-targets --locked` passed.
+6. `cargo test --workspace` passed.
+
+Scope limits: this accepts spec 0046 only. It does not certify latest main beyond the named
+implementation/evidence commit, does not certify Phase-4 entry or second-proof entry, does not amend
+constitutional invariants, and does not mint a new gate, invariant, risk ID, or glossary term.
