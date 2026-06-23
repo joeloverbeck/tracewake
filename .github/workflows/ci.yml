@@ -27,7 +27,7 @@ jobs:
     name: rustfmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Check formatting
         run: cargo fmt --all --check
 
@@ -35,9 +35,9 @@ jobs:
     name: clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Cache cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -52,9 +52,9 @@ jobs:
     name: build & test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Cache cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -73,9 +73,9 @@ jobs:
     name: lock-layer gates
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Cache cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -103,7 +103,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Check guarded-layer diff
@@ -122,7 +122,7 @@ jobs:
           fi
       - name: Cache cargo
         if: steps.guarded_diff.outputs.run_mutants == 'true'
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -205,9 +205,9 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Cache cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -230,7 +230,7 @@ jobs:
           cargo mutants --workspace --no-shuffle --list > mutation-input/canonical-list.txt
       - name: Upload mutation baseline input
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: cargo-mutants-lock-layer-baseline
           path: mutation-input
@@ -252,9 +252,9 @@ jobs:
       MUTANTS_GRACE_SECONDS: "120"
       MUTANTS_TEST_TIMEOUT: "183"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Cache cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -308,7 +308,7 @@ jobs:
           exit "$supervisor_status"
       - name: Upload mutation shard output
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: cargo-mutants-lock-layer-shard-${{ matrix.shard }}-of-8
           path: |
@@ -323,9 +323,9 @@ jobs:
       - mutants-lock-layer-baseline
       - mutants-lock-layer
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Download mutation artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: mutation-artifacts
           pattern: cargo-mutants-lock-layer-*
@@ -360,7 +360,7 @@ jobs:
             "${args[@]}"
       - name: Upload mutation reconciliation output
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: cargo-mutants-lock-layer-reconciliation
           path: |
