@@ -402,10 +402,12 @@ fn empty_world_step_appends_time_advanced_and_rebuilds_frontier() {
         &initial_physical,
         &empty_agent_state(),
         &log,
-        &checksum_context(SimTick::new(42), 1),
+        &checksum_context(SimTick::new(41), 0),
         Some(&initial_physical),
     );
 
+    assert_eq!(rebuild.reconstructed_final_frontier, SimTick::new(42));
+    assert!(rebuild.temporal_violations.is_empty());
     assert_eq!(rebuild.event_count_applied, 1);
     assert_eq!(rebuild.last_event_id, Some(marker.event_id.clone()));
     assert_eq!(rebuild.last_stream_position, Some(0));

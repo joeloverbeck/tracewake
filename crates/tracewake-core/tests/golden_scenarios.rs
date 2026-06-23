@@ -943,8 +943,13 @@ fn phase3a_no_human_metrics_are_byte_identical_after_log_replay() {
     let replayed = EventLog::deserialize_canonical(&canonical).unwrap();
     let first_metrics = no_human_day_metrics(&log).serialize_canonical();
     let replayed_metrics = no_human_day_metrics(&replayed).serialize_canonical();
-    let live_physical_checksum = compute_physical_checksum(&live, &context(&log)).checksum;
-    let live_agent_checksum = compute_agent_state_checksum(&live_agent, &context(&log)).checksum;
+    let rebuild = rebuild_projection(&initial, &initial_agent, &log, &context(&log), Some(&live));
+    let derived_context = ChecksumContext {
+        sim_tick: rebuild.reconstructed_final_frontier,
+        ..context(&log)
+    };
+    let live_physical_checksum = compute_physical_checksum(&live, &derived_context).checksum;
+    let live_agent_checksum = compute_agent_state_checksum(&live_agent, &derived_context).checksum;
     let replay = run_replay(
         &initial,
         &initial_agent,

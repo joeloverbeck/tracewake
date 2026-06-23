@@ -1,6 +1,6 @@
 # 0048FOUCONHAR-001: Replay-owned temporal-frontier projection and corruption suite
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — adds a replay-owned temporal projection (`crates/tracewake-core/src/replay/temporal.rs`); extends `ProjectionRebuildReport` and `ReplayReport` with a reconstructed temporal frontier and typed temporal violations; splits the replay-derived final tick from caller-supplied checksum-identity inputs. No new event kinds, content, or fixtures.
@@ -88,3 +88,44 @@ In `crates/tracewake-core/tests/world_step_coordinator.rs`, rewrite `empty_world
 1. `cargo test -p tracewake-core --test replay_temporal_frontier`
 2. `cargo test -p tracewake-core --test world_step_coordinator`
 3. `cargo test -p tracewake-core` (full-crate, confirms the `rebuild_projection` signature split compiles across every in-workspace caller).
+
+## Outcome
+
+Completed: 2026-06-23
+
+Implemented a replay-owned temporal frontier projection in
+`crates/tracewake-core/src/replay/temporal.rs` and registered it through the
+replay module. `rebuild_projection` now folds ordered `TimeAdvanced` markers,
+surfaces `reconstructed_final_frontier` plus typed `TemporalDivergence` values
+on both `ProjectionRebuildReport` and `ReplayReport`, and uses the derived
+frontier for final physical/agent checksums when a temporal marker chain exists.
+
+Added `crates/tracewake-core/tests/replay_temporal_frontier.rs` for chained
+frontier reconstruction and the malformed-chain matrix: missing future marker,
+duplicate marker, prior mismatch, multi-tick jump, backward marker,
+envelope/payload disagreement, missing cause, and missing ordering ancestry.
+Updated `empty_world_step_appends_time_advanced_and_rebuilds_frontier` so tick 42
+is withheld from replay input and asserted only after reconstruction. Updated
+the no-human golden replay checksum witness to compute expected checksums from
+the replay-derived frontier, and classified the new replay source in the
+workspace source census.
+
+Deviation from the original ticket plan: `rebuild_projection` kept its existing
+`ChecksumContext` parameter for workspace compatibility, but now treats
+`context.sim_tick` as the replay starting frontier for temporal reconstruction
+and derives the final checksum frontier from the log when `TimeAdvanced` markers
+are present. Temporal violations are exposed as explicit typed report fields;
+the existing `ReplayReport::matches_expected` remains the physical/agent
+state-and-checksum comparison for legacy markerless logs.
+
+Verification:
+
+- `cargo fmt --all --check` initially requested a reflow after the final golden
+  test edit; `cargo fmt --all` was applied.
+- `cargo test -p tracewake-core --test replay_temporal_frontier` passed.
+- `cargo test -p tracewake-core --test world_step_coordinator` passed.
+- `cargo test -p tracewake-core --test event_schema_replay_gates` passed after
+  preserving `matches_expected` as the legacy physical/agent comparison.
+- `cargo test -p tracewake-core --test golden_scenarios` passed after updating
+  the no-human checksum witness to use the derived frontier.
+- `cargo test -p tracewake-core` passed.

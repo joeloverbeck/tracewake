@@ -11,6 +11,7 @@ use crate::events::apply::{apply_event_stream, EventApplicationContext, EventApp
 use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind, EventStream};
 use crate::ids::{ActorId, ContentManifestId, EventId, PlaceId};
+use crate::replay::temporal::{project_temporal_frontier, TemporalDivergence};
 use crate::state::{AgentState, PhysicalState};
 use crate::time::SimTick;
 
@@ -27,6 +28,8 @@ pub struct ProjectionRebuildReport {
     pub final_agent_state: AgentState,
     pub final_agent_checksum: AgentStateChecksum,
     pub final_agent_checksum_report: AgentStateChecksumReport,
+    pub reconstructed_final_frontier: SimTick,
+    pub temporal_violations: Vec<TemporalDivergence>,
     pub unsupported_versions: Vec<String>,
     pub unsupported_epistemic_versions: Vec<String>,
     pub unsupported_agent_versions: Vec<Phase3AReplayFailure>,
@@ -75,6 +78,7 @@ pub fn rebuild_projection(
     for issue in crate::need_accounting::duplicate_duration_terminal_violations(log) {
         invariant_violations.push(issue);
     }
+    let temporal_projection = project_temporal_frontier(context.sim_tick, log.events());
 
     for event in log.events() {
         if !invariant_violations.is_empty() {
@@ -142,9 +146,21 @@ pub fn rebuild_projection(
         }
     }
 
-    let final_checksum = compute_physical_checksum(&rebuilt, context).checksum;
+    let has_time_advanced_marker = log
+        .events()
+        .iter()
+        .any(|event| event.event_type == EventKind::TimeAdvanced);
+    let final_context = ChecksumContext {
+        sim_tick: if has_time_advanced_marker {
+            temporal_projection.reconstructed_final_frontier
+        } else {
+            context.sim_tick
+        },
+        ..context.clone()
+    };
+    let final_checksum = compute_physical_checksum(&rebuilt, &final_context).checksum;
     let final_epistemic_checksum = epistemic_projection.compute_checksum().checksum;
-    let final_agent_checksum_report = compute_agent_state_checksum(&rebuilt_agent, context);
+    let final_agent_checksum_report = compute_agent_state_checksum(&rebuilt_agent, &final_context);
     let final_agent_checksum = final_agent_checksum_report.checksum.clone();
     let decision_context_hash_failures =
         rebuild_decision_context_hashes(initial_state, initial_agent_state, log);
@@ -164,6 +180,8 @@ pub fn rebuild_projection(
         final_agent_state: rebuilt_agent,
         final_agent_checksum,
         final_agent_checksum_report,
+        reconstructed_final_frontier: temporal_projection.reconstructed_final_frontier,
+        temporal_violations: temporal_projection.violations,
         unsupported_versions,
         unsupported_epistemic_versions,
         unsupported_agent_versions,

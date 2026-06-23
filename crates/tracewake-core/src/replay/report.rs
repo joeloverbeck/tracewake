@@ -6,7 +6,9 @@ use crate::events::log::EventLog;
 use crate::events::EventStream;
 use crate::ids::{ContentManifestId, FixtureId};
 use crate::replay::rebuild::{diff_physical_state, rebuild_projection, Phase3AReplayFailure};
+use crate::replay::temporal::TemporalDivergence;
 use crate::state::{AgentState, PhysicalState};
+use crate::time::SimTick;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ReplayDivergenceFieldFamily {
@@ -47,6 +49,8 @@ pub struct ReplayReport {
     pub epistemic_projection_version: String,
     pub final_agent_checksum: AgentStateChecksum,
     pub agent_projection_version: String,
+    pub reconstructed_final_frontier: SimTick,
+    pub temporal_violations: Vec<TemporalDivergence>,
     pub expected_agent_checksum: Option<AgentStateChecksum>,
     pub agent_checksum_matches: bool,
     pub expected_checksum: Option<PhysicalChecksum>,
@@ -132,6 +136,8 @@ pub fn run_replay(
             .projection_version
             .as_str()
             .to_string(),
+        reconstructed_final_frontier: rebuild.reconstructed_final_frontier,
+        temporal_violations: rebuild.temporal_violations,
         expected_agent_checksum,
         agent_checksum_matches,
         expected_checksum,
