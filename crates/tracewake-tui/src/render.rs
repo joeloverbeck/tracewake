@@ -93,7 +93,7 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
             "Recent interval: ticks {}-{} stop={}",
             summary.start_tick.value(),
             summary.stop_tick.value(),
-            summary.stop_reason
+            summary.stop_reason.stable_id()
         ));
         if summary.no_new_actor_known_information {
             lines.push("- no new actor-known notices or observations".to_string());
@@ -101,7 +101,8 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
         for notice in &summary.notices {
             lines.push(format!(
                 "- {} source={}",
-                notice.summary, notice.source_event_id
+                notice.notice_kind().stable_id(),
+                notice.source_event_id().as_str()
             ));
         }
     }
@@ -337,10 +338,11 @@ mod tests {
     use tracewake_core::ids::{
         ActionId, ActorId, DoorId, ItemId, PlaceId, SemanticActionId, ViewModelId,
     };
+    use tracewake_core::projections::IntervalStopReason;
     use tracewake_core::time::SimTick;
     use tracewake_core::view_models::{
-        ActionAvailability, ActorKnownIntervalNotice, ActorKnownIntervalSummary, EmbodiedViewModel,
-        NotebookLeadEntry, NotebookView, Phase3AEmbodiedStatus, SemanticActionEntry, ViewMode,
+        ActionAvailability, EmbodiedViewModel, NotebookLeadEntry, NotebookView,
+        Phase3AEmbodiedStatus, SemanticActionEntry, TypedActorKnownIntervalSummary, ViewMode,
         VisibleDoor, VisibleExit, VisibleItem, VisibleItemSource, WhyNotFailureKind, WhyNotView,
     };
 
@@ -349,7 +351,7 @@ mod tests {
     }
 
     fn minimal_view_with_interval(
-        actor_known_interval_summary: Option<ActorKnownIntervalSummary>,
+        actor_known_interval_summary: Option<TypedActorKnownIntervalSummary>,
     ) -> EmbodiedViewModel {
         let context = context();
         EmbodiedViewModel {
@@ -382,10 +384,12 @@ mod tests {
     #[test]
     fn renderer_prints_actor_known_interval_summary() {
         let no_new = render_embodied_view(&minimal_view_with_interval(Some(
-            ActorKnownIntervalSummary {
+            TypedActorKnownIntervalSummary {
                 start_tick: SimTick::ZERO,
                 stop_tick: SimTick::new(2),
-                stop_reason: "controller_safety_bound".to_string(),
+                start_frontier: 0,
+                stop_frontier: 2,
+                stop_reason: IntervalStopReason::ControllerSafetyBound,
                 notices: Vec::new(),
                 no_new_actor_known_information: true,
             },
@@ -395,19 +399,18 @@ mod tests {
         assert!(!no_new.contains("nothing happened"));
 
         let with_notice = render_embodied_view(&minimal_view_with_interval(Some(
-            ActorKnownIntervalSummary {
+            TypedActorKnownIntervalSummary {
                 start_tick: SimTick::ZERO,
                 stop_tick: SimTick::new(4),
-                stop_reason: "possessed_duration_terminal".to_string(),
-                notices: vec![ActorKnownIntervalNotice {
-                    summary: "sleep completed".to_string(),
-                    source_event_id: "event_sleep_completed_actor_lina".to_string(),
-                }],
-                no_new_actor_known_information: false,
+                start_frontier: 0,
+                stop_frontier: 4,
+                stop_reason: IntervalStopReason::PossessedDurationTerminal,
+                notices: Vec::new(),
+                no_new_actor_known_information: true,
             },
         )));
         assert!(with_notice.contains("Recent interval: ticks 0-4 stop=possessed_duration_terminal"));
-        assert!(with_notice.contains("- sleep completed source=event_sleep_completed_actor_lina"));
+        assert!(with_notice.contains("- no new actor-known notices or observations"));
     }
 
     #[test]

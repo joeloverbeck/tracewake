@@ -24,11 +24,10 @@ use crate::state::PhysicalState;
 use crate::time::SimTick;
 use crate::view_models::{
     ActionAvailability, ActionAvailabilityProvenance, ActionAvailabilityProvenanceKind,
-    ActorKnownIntervalNotice, ActorKnownIntervalSummary, DebugEventLogView, DebugEventSummary,
-    EmbodiedViewModel, NeedStatusEntry, NotebookBeliefEntry, NotebookContradictionEntry,
-    NotebookLeadEntry, NotebookObservationEntry, NotebookView, Phase3AEmbodiedStatus,
-    SemanticActionEntry, ViewMode, VisibleActor, VisibleContainer, VisibleDoor, VisibleExit,
-    VisibleItem, VisibleItemSource, WhyNotView,
+    DebugEventLogView, DebugEventSummary, EmbodiedViewModel, NeedStatusEntry, NotebookBeliefEntry,
+    NotebookContradictionEntry, NotebookLeadEntry, NotebookObservationEntry, NotebookView,
+    Phase3AEmbodiedStatus, SemanticActionEntry, ViewMode, VisibleActor, VisibleContainer,
+    VisibleDoor, VisibleExit, VisibleItem, VisibleItemSource, WhyNotView,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -707,35 +706,142 @@ pub fn build_embodied_view_model(
     })
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ActorKnownIntervalSource {
-    pub actor_id: ActorId,
-    pub source_event_id: EventId,
-    pub summary: String,
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum IntervalNoticeKind {
+    Perception,
+    Observation,
+    Record,
+    Belief,
 }
 
-pub fn build_actor_known_interval_summary(
-    viewer_actor_id: &ActorId,
+impl IntervalNoticeKind {
+    pub const fn stable_id(self) -> &'static str {
+        match self {
+            Self::Perception => "perception",
+            Self::Observation => "observation",
+            Self::Record => "record",
+            Self::Belief => "belief",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum IntervalStopReason {
+    PossessedDurationTerminal,
+    ActorKnownSalientObservation,
+    UserPausedBeforeNextTick,
+    ControllerSafetyBound,
+}
+
+impl IntervalStopReason {
+    pub const fn stable_id(self) -> &'static str {
+        match self {
+            Self::PossessedDurationTerminal => "possessed_duration_terminal",
+            Self::ActorKnownSalientObservation => "actor_known_salient_observation",
+            Self::UserPausedBeforeNextTick => "user_paused_before_next_tick",
+            Self::ControllerSafetyBound => "controller_safety_bound",
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct VerifiedActorKnownIntervalNotice {
+    notice_kind: IntervalNoticeKind,
+    source_event_id: EventId,
+    source_key: String,
+}
+
+impl VerifiedActorKnownIntervalNotice {
+    pub(crate) fn from_verified(
+        notice_kind: IntervalNoticeKind,
+        source_event_id: EventId,
+        source_key: impl Into<String>,
+    ) -> Self {
+        Self {
+            notice_kind,
+            source_event_id,
+            source_key: source_key.into(),
+        }
+    }
+
+    pub fn notice_kind(&self) -> IntervalNoticeKind {
+        self.notice_kind
+    }
+
+    pub fn source_event_id(&self) -> &EventId {
+        &self.source_event_id
+    }
+
+    pub fn source_key(&self) -> &str {
+        &self.source_key
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ActorKnownIntervalDelta {
+    viewer_actor_id: ActorId,
     start_tick: SimTick,
     stop_tick: SimTick,
-    stop_reason: impl Into<String>,
-    sources: impl IntoIterator<Item = ActorKnownIntervalSource>,
-) -> ActorKnownIntervalSummary {
-    let mut notices: Vec<_> = sources
-        .into_iter()
-        .filter(|source| &source.actor_id == viewer_actor_id)
-        .map(|source| ActorKnownIntervalNotice {
-            summary: source.summary,
-            source_event_id: source.source_event_id.as_str().to_string(),
-        })
-        .collect();
-    notices.sort();
-    ActorKnownIntervalSummary {
-        start_tick,
-        stop_tick,
-        stop_reason: stop_reason.into(),
-        no_new_actor_known_information: notices.is_empty(),
-        notices,
+    start_frontier: u64,
+    stop_frontier: u64,
+    stop_reason: IntervalStopReason,
+    notices: Vec<VerifiedActorKnownIntervalNotice>,
+}
+
+impl ActorKnownIntervalDelta {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn from_verified(
+        viewer_actor_id: ActorId,
+        start_tick: SimTick,
+        stop_tick: SimTick,
+        start_frontier: u64,
+        stop_frontier: u64,
+        stop_reason: IntervalStopReason,
+        mut notices: Vec<VerifiedActorKnownIntervalNotice>,
+    ) -> Self {
+        notices.sort();
+        notices.dedup();
+        Self {
+            viewer_actor_id,
+            start_tick,
+            stop_tick,
+            start_frontier,
+            stop_frontier,
+            stop_reason,
+            notices,
+        }
+    }
+
+    pub fn viewer_actor_id(&self) -> &ActorId {
+        &self.viewer_actor_id
+    }
+
+    pub fn start_tick(&self) -> SimTick {
+        self.start_tick
+    }
+
+    pub fn stop_tick(&self) -> SimTick {
+        self.stop_tick
+    }
+
+    pub fn start_frontier(&self) -> u64 {
+        self.start_frontier
+    }
+
+    pub fn stop_frontier(&self) -> u64 {
+        self.stop_frontier
+    }
+
+    pub fn stop_reason(&self) -> IntervalStopReason {
+        self.stop_reason
+    }
+
+    pub fn notices(&self) -> &[VerifiedActorKnownIntervalNotice] {
+        &self.notices
+    }
+
+    pub fn no_new_actor_known_information(&self) -> bool {
+        self.notices.is_empty()
     }
 }
 
@@ -1473,56 +1579,6 @@ mod tests {
         ActorId::new(value).unwrap()
     }
 
-    #[test]
-    fn actor_known_interval_summary_filters_to_source_bearing_viewer_inputs() {
-        let viewer = actor_id("actor_tomas");
-        let other = actor_id("actor_mara");
-
-        let summary = build_actor_known_interval_summary(
-            &viewer,
-            SimTick::new(4),
-            SimTick::new(8),
-            "possessed_duration_terminal",
-            [
-                ActorKnownIntervalSource {
-                    actor_id: viewer.clone(),
-                    source_event_id: EventId::new("event_sleep_completed_tomas").unwrap(),
-                    summary: "sleep completed".to_string(),
-                },
-                ActorKnownIntervalSource {
-                    actor_id: other,
-                    source_event_id: EventId::new("event_sleep_completed_mara").unwrap(),
-                    summary: "sleep completed".to_string(),
-                },
-            ],
-        );
-
-        assert_eq!(summary.start_tick, SimTick::new(4));
-        assert_eq!(summary.stop_tick, SimTick::new(8));
-        assert_eq!(summary.stop_reason, "possessed_duration_terminal");
-        assert!(!summary.no_new_actor_known_information);
-        assert_eq!(summary.notices.len(), 1);
-        assert_eq!(
-            summary.notices[0].source_event_id,
-            "event_sleep_completed_tomas"
-        );
-    }
-
-    #[test]
-    fn actor_known_interval_summary_distinguishes_no_new_information() {
-        let summary = build_actor_known_interval_summary(
-            &actor_id("actor_tomas"),
-            SimTick::ZERO,
-            SimTick::new(2),
-            "controller_safety_bound",
-            Vec::<ActorKnownIntervalSource>::new(),
-        );
-
-        assert!(summary.no_new_actor_known_information);
-        assert!(summary.notices.is_empty());
-        assert_eq!(summary.stop_reason, "controller_safety_bound");
-    }
-
     fn place_id(value: &str) -> PlaceId {
         PlaceId::new(value).unwrap()
     }
@@ -1541,6 +1597,20 @@ mod tests {
 
     fn content_manifest_id() -> ContentManifestId {
         ContentManifestId::new("phase2a_manifest").unwrap()
+    }
+
+    #[test]
+    fn verified_actor_known_interval_notice_source_key_preserves_constructed_key() {
+        let notice = VerifiedActorKnownIntervalNotice::from_verified(
+            IntervalNoticeKind::Record,
+            event_id("event.interval.source"),
+            "role_assignment_notice:event.interval.source",
+        );
+
+        assert_eq!(
+            notice.source_key(),
+            "role_assignment_notice:event.interval.source"
+        );
     }
 
     fn metric_event(kind: EventKind, sequence: u64, tick: u64) -> EventEnvelope {

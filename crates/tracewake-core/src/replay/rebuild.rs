@@ -11,6 +11,7 @@ use crate::events::apply::{apply_event_stream, EventApplicationContext, EventApp
 use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind, EventStream};
 use crate::ids::{ActorId, ContentManifestId, EventId, PlaceId};
+use crate::replay::temporal::{project_temporal_frontier, TemporalDivergence};
 use crate::state::{AgentState, PhysicalState};
 use crate::time::SimTick;
 
@@ -27,6 +28,8 @@ pub struct ProjectionRebuildReport {
     pub final_agent_state: AgentState,
     pub final_agent_checksum: AgentStateChecksum,
     pub final_agent_checksum_report: AgentStateChecksumReport,
+    pub reconstructed_final_frontier: SimTick,
+    pub temporal_violations: Vec<TemporalDivergence>,
     pub unsupported_versions: Vec<String>,
     pub unsupported_epistemic_versions: Vec<String>,
     pub unsupported_agent_versions: Vec<Phase3AReplayFailure>,
@@ -75,6 +78,7 @@ pub fn rebuild_projection(
     for issue in crate::need_accounting::duplicate_duration_terminal_violations(log) {
         invariant_violations.push(issue);
     }
+    let temporal_projection = project_temporal_frontier(context.sim_tick, log.events());
 
     for event in log.events() {
         if !invariant_violations.is_empty() {
@@ -142,9 +146,21 @@ pub fn rebuild_projection(
         }
     }
 
-    let final_checksum = compute_physical_checksum(&rebuilt, context).checksum;
+    let has_time_advanced_marker = log
+        .events()
+        .iter()
+        .any(|event| event.event_type == EventKind::TimeAdvanced);
+    let final_context = ChecksumContext {
+        sim_tick: if has_time_advanced_marker {
+            temporal_projection.reconstructed_final_frontier
+        } else {
+            context.sim_tick
+        },
+        ..context.clone()
+    };
+    let final_checksum = compute_physical_checksum(&rebuilt, &final_context).checksum;
     let final_epistemic_checksum = epistemic_projection.compute_checksum().checksum;
-    let final_agent_checksum_report = compute_agent_state_checksum(&rebuilt_agent, context);
+    let final_agent_checksum_report = compute_agent_state_checksum(&rebuilt_agent, &final_context);
     let final_agent_checksum = final_agent_checksum_report.checksum.clone();
     let decision_context_hash_failures =
         rebuild_decision_context_hashes(initial_state, initial_agent_state, log);
@@ -164,6 +180,8 @@ pub fn rebuild_projection(
         final_agent_state: rebuilt_agent,
         final_agent_checksum,
         final_agent_checksum_report,
+        reconstructed_final_frontier: temporal_projection.reconstructed_final_frontier,
+        temporal_violations: temporal_projection.violations,
         unsupported_versions,
         unsupported_epistemic_versions,
         unsupported_agent_versions,
@@ -646,6 +664,38 @@ mod tests {
         }
     }
 
+    fn time_advanced_event(prior_tick: u64, resulting_tick: u64) -> EventEnvelope {
+        let mut event = EventEnvelope::new_caused_v1(
+            EventId::new(format!("event_time_advanced_{prior_tick}_{resulting_tick}")).unwrap(),
+            EventKind::TimeAdvanced,
+            0,
+            0,
+            SimTick::new(resulting_tick),
+            OrderingKey::new(
+                SimTick::new(resulting_tick),
+                SchedulePhase::DeferredProcess,
+                SchedulerSourceId::Process(ProcessId::new("process_world_step").unwrap()),
+                ProposalSequence::new(0),
+                ActionId::new("time_advanced").unwrap(),
+                vec![resulting_tick.to_string()],
+                "time_advanced",
+            ),
+            ContentManifestId::new("phase1_manifest").unwrap(),
+            vec![EventCause::Process(
+                ProcessId::new("process_world_step").unwrap(),
+            )],
+        )
+        .unwrap();
+        event.payload = vec![
+            PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+            PayloadField::new("prior_tick", prior_tick.to_string()),
+            PayloadField::new("resulting_tick", resulting_tick.to_string()),
+            PayloadField::new("origin", "process.process_world_step"),
+            PayloadField::new("ordering_ancestry", "canonical_world_step_v1"),
+        ];
+        event
+    }
+
     fn ordered_test_log(mut events: Vec<EventEnvelope>) -> EventLog {
         let mut stream_positions = std::collections::BTreeMap::<EventStream, u64>::new();
         for (index, event) in events.iter_mut().enumerate() {
@@ -705,6 +755,51 @@ mod tests {
         run_pipeline(&mut move_context, &move_proposal);
 
         (initial, log, live)
+    }
+
+    #[test]
+    fn rebuild_final_checksum_uses_reconstructed_frontier_only_when_marker_exists() {
+        let initial = initial_state();
+        let base_context = context();
+        let empty_log = ordered_test_log(Vec::new());
+        let marker_log = ordered_test_log(vec![time_advanced_event(0, 1)]);
+        let tick_zero_context = ChecksumContext {
+            sim_tick: SimTick::ZERO,
+            ..base_context.clone()
+        };
+        let tick_one_context = ChecksumContext {
+            sim_tick: SimTick::new(1),
+            ..base_context.clone()
+        };
+
+        let no_marker_report = rebuild_projection(
+            &initial,
+            &crate::state::AgentState::default(),
+            &empty_log,
+            &base_context,
+            None,
+        );
+        let marker_report = rebuild_projection(
+            &initial,
+            &crate::state::AgentState::default(),
+            &marker_log,
+            &base_context,
+            None,
+        );
+
+        assert_eq!(
+            no_marker_report.final_checksum,
+            compute_physical_checksum(&initial, &tick_zero_context).checksum
+        );
+        assert_eq!(
+            marker_report.final_checksum,
+            compute_physical_checksum(&initial, &tick_one_context).checksum
+        );
+        assert_ne!(
+            marker_report.final_checksum,
+            no_marker_report.final_checksum
+        );
+        assert_eq!(marker_report.reconstructed_final_frontier, SimTick::new(1));
     }
 
     #[test]

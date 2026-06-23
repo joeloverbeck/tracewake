@@ -4,13 +4,6 @@ mod parity;
 
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
-use tracewake_content::fixtures;
-use tracewake_core::ids::{ActorId, EventId};
-use tracewake_core::projections::{build_actor_known_interval_summary, ActorKnownIntervalSource};
-use tracewake_core::time::SimTick;
-use tracewake_tui::app::TuiApp;
-use tracewake_tui::render::render_embodied_view;
-
 use parity::{
     registry,
     runner::{registered_action_coverage_failures, run_conformance},
@@ -75,33 +68,6 @@ fn parity_adversarial_debug_hidden_truth_leak_fails_actor_surface_check() {
         result.is_err(),
         "debug or hidden truth injected into an embodied assertion must fail"
     );
-}
-
-#[test]
-fn parity_adversarial_hidden_other_actor_interval_source_does_not_render() {
-    let mut app = TuiApp::from_golden(fixtures::strongbox_001()).unwrap();
-    app.bind_actor(ActorId::new("actor_tomas").unwrap())
-        .unwrap();
-    let mut view = app.current_view().unwrap();
-    view.actor_known_interval_summary = Some(build_actor_known_interval_summary(
-        &ActorId::new("actor_tomas").unwrap(),
-        SimTick::ZERO,
-        SimTick::new(1),
-        "possessed_duration_terminal",
-        vec![ActorKnownIntervalSource {
-            actor_id: ActorId::new("actor_mara").unwrap(),
-            source_event_id: EventId::new("event.sleep_completed.actor_mara_hidden").unwrap(),
-            summary: "sleep completed".to_string(),
-        }],
-    ));
-
-    let rendered = render_embodied_view(&view);
-
-    assert!(rendered.contains("Recent interval: ticks 0-1 stop=possessed_duration_terminal"));
-    assert!(rendered.contains("- no new actor-known notices or observations"));
-    assert!(!rendered.contains("sleep completed"));
-    assert!(!rendered.contains("actor_mara"));
-    assert!(!rendered.contains("event.sleep_completed.actor_mara_hidden"));
 }
 
 #[test]

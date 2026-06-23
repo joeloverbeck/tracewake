@@ -863,6 +863,52 @@ impl KnowledgeContext {
     }
 
     #[allow(clippy::too_many_arguments)]
+    pub fn embodied_at_frontier_with_all_facts_observations_and_provenance(
+        viewer_actor_id: ActorId,
+        current_tick: SimTick,
+        event_frontier: u64,
+        actor_known_workplaces: Vec<ActorKnownWorkplaceFact>,
+        actor_known_current_places: Vec<ActorKnownCurrentPlaceFact>,
+        actor_known_carried_items: Vec<ActorKnownCarriedItemFact>,
+        actor_known_food_sources: Vec<ActorKnownFoodSourceFact>,
+        actor_known_sleep_affordances: Vec<ActorKnownSleepAffordanceFact>,
+        actor_known_routes: Vec<ActorKnownRouteFact>,
+        actor_known_doors: Vec<ActorKnownDoorFact>,
+        actor_known_containers: Vec<ActorKnownContainerFact>,
+        actor_known_items: Vec<ActorKnownItemFact>,
+        actor_known_local_actors: Vec<ActorKnownLocalActorFact>,
+        provenance_entries: Vec<KnowledgeProvenanceEntry>,
+    ) -> Self {
+        let actor_scope = ScopeFilter::ActorPrivate(viewer_actor_id.clone());
+        let mut provenance = baseline_embodied_provenance();
+        provenance.extend(provenance_entries);
+        Self::seal(
+            viewer_actor_id.clone(),
+            viewer_actor_id,
+            ViewMode::Embodied,
+            current_tick,
+            event_frontier,
+            embodied_allowed_sources(),
+            forbidden_sources(),
+            actor_scope.clone(),
+            actor_scope.clone(),
+            actor_scope,
+            false,
+            provenance,
+            actor_known_workplaces,
+            actor_known_current_places,
+            actor_known_carried_items,
+            actor_known_food_sources,
+            actor_known_sleep_affordances,
+            actor_known_routes,
+            actor_known_doors,
+            actor_known_containers,
+            actor_known_items,
+            actor_known_local_actors,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
     fn seal(
         viewer_actor_id: ActorId,
         bound_actor_id: ActorId,
@@ -1312,10 +1358,111 @@ fn location_key(location: &Location) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ids::EventId;
+    use crate::epistemics::{ActorKnownIntervalDeltaError, EpistemicProjection};
+    use crate::ids::{ContentManifestId, EventId};
+    use crate::projections::IntervalStopReason;
 
     fn actor_id(value: &str) -> ActorId {
         ActorId::new(value).unwrap()
+    }
+
+    fn sealed_embodied_context(
+        viewer_actor_id: ActorId,
+        bound_actor_id: ActorId,
+        event_frontier: u64,
+    ) -> KnowledgeContext {
+        let actor_scope = ScopeFilter::ActorPrivate(viewer_actor_id.clone());
+        KnowledgeContext::seal(
+            viewer_actor_id,
+            bound_actor_id,
+            ViewMode::Embodied,
+            SimTick::new(5),
+            event_frontier,
+            embodied_allowed_sources(),
+            forbidden_sources(),
+            actor_scope.clone(),
+            actor_scope.clone(),
+            actor_scope,
+            false,
+            baseline_embodied_provenance(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        )
+    }
+
+    #[test]
+    fn interval_delta_rejects_each_holder_axis_and_only_regressing_frontiers() {
+        let actor = actor_id("actor_tomas");
+        let other_actor = actor_id("actor_mara");
+        let capability = DebugCapability::mint();
+        let projection =
+            EpistemicProjection::new(ContentManifestId::new("interval_delta_test").unwrap());
+        let before = sealed_embodied_context(actor.clone(), actor.clone(), 10);
+        let equal_frontier_after = sealed_embodied_context(actor.clone(), actor.clone(), 10);
+        let regressing_after = sealed_embodied_context(actor.clone(), actor.clone(), 9);
+        let viewer_mismatch_after = sealed_embodied_context(other_actor.clone(), actor.clone(), 11);
+        let bound_mismatch_after = sealed_embodied_context(actor.clone(), other_actor, 11);
+        let debug_before = KnowledgeContext::debug(actor.clone(), SimTick::new(5), &capability);
+        let debug_after = KnowledgeContext::debug(actor.clone(), SimTick::new(5), &capability);
+
+        assert!(projection
+            .actor_known_interval_delta(
+                &before,
+                &equal_frontier_after,
+                IntervalStopReason::ControllerSafetyBound,
+            )
+            .is_ok());
+        assert_eq!(
+            projection.actor_known_interval_delta(
+                &before,
+                &viewer_mismatch_after,
+                IntervalStopReason::ControllerSafetyBound,
+            ),
+            Err(ActorKnownIntervalDeltaError::ContextHolderMismatch)
+        );
+        assert_eq!(
+            projection.actor_known_interval_delta(
+                &before,
+                &bound_mismatch_after,
+                IntervalStopReason::ControllerSafetyBound,
+            ),
+            Err(ActorKnownIntervalDeltaError::ContextHolderMismatch)
+        );
+        assert_eq!(
+            projection.actor_known_interval_delta(
+                &debug_before,
+                &equal_frontier_after,
+                IntervalStopReason::ControllerSafetyBound,
+            ),
+            Err(ActorKnownIntervalDeltaError::NonEmbodiedContext)
+        );
+        assert_eq!(
+            projection.actor_known_interval_delta(
+                &before,
+                &debug_after,
+                IntervalStopReason::ControllerSafetyBound,
+            ),
+            Err(ActorKnownIntervalDeltaError::NonEmbodiedContext)
+        );
+        assert_eq!(
+            projection.actor_known_interval_delta(
+                &before,
+                &regressing_after,
+                IntervalStopReason::ControllerSafetyBound,
+            ),
+            Err(ActorKnownIntervalDeltaError::FrontierRegression {
+                before: 10,
+                after: 9,
+            })
+        );
     }
 
     #[test]

@@ -85,12 +85,18 @@ For each ticket:
    For acceptance-artifact or report tickets, run the checks the artifact claims
    after composing or amending it, unless intentionally combining that ticket
    with the spec archive/truthing commit and recording that choice.
-   Before archiving or committing a report ticket, ask whether any tracked report,
-   ticket, spec, ledger, or evidence file changed after the commands the report
-   claims. If yes, either rerun the exact claimed commands against the new tree or
-   record the earlier run as preliminary and state the skipped rerun plus reason
-   in the ticket `Outcome`, affected report, spec `Outcome` when applicable, and
-   final response.
+   Before archiving or committing a report ticket, audit whether any tracked
+   report, ticket, spec, ledger, or evidence file changed after the commands the
+   report claims. If yes, either rerun the exact claimed commands against the new
+   tree or record the earlier run as preliminary and state the skipped rerun plus
+   reason in the ticket `Outcome`, affected report, spec `Outcome` when
+   applicable, and final response. Ask the user only when local evidence cannot
+   answer the timing or scope question.
+   For a capstone report that will be followed immediately by final spec
+   archival, treat pre-report gates as implementation-baseline evidence unless
+   they were run after all report/doc/spec edits. Run the final full gates after
+   the last spec/ledger/report closeout edit, then reconcile the report, ticket,
+   spec, ledger, and final response so the command timing is explicit.
    For required long-running evidence commands such as mutation, soak, or
    generator runs, preserve enough evidence to classify the result honestly:
    capture a transcript when practical, check process liveness before
@@ -99,6 +105,10 @@ For each ticket:
    incomplete run into a pass. Deterministic reruns or narrower variants may be
    useful supplemental evidence, but they do not replace the exact required
    command unless the ticket/spec explicitly allows that substitution.
+   When reports cite ignored or generated evidence paths such as `target/...`,
+   make the cited evidence durable: inline the relevant summary/list content in
+   a tracked report, commit a small tracked summary artifact, or label the
+   generated path as local transient evidence.
    Capture source/config/test/fixture cleanliness before creating transcript or
    output directories when the evidence package needs a clean-start claim. If
    transcript or output directories already exist, record generated-evidence
@@ -109,13 +119,10 @@ For each ticket:
    run the corresponding `--list` or `--list-files` command with the same
    selection flags, record the expected count/scope in the ticket or report,
    and make any deliberate `--no-config` or config override explicit.
-   For controlled temporary-break evidence, such as compile-break transcripts,
-   keep the mutation bounded and reversible: capture the pre-break diff/status
-   for the files to be edited, apply the temporary change, run the expected
-   failing command, preserve the relevant error lines, revert the temporary
-   change, and verify the touched files have no remaining diff before recording
-   the transcript as evidence. Mark the transcript manual or non-CI when it
-   intentionally breaks the tree.
+   For controlled temporary-break evidence, generated baselines, or bulky
+   long-running tool outputs, follow
+   `references/closeout-edge-cases.md` and keep the stable evidence package
+   tracked while leaving scratch output untracked unless explicitly required.
 5. Update the ticket with final status and an `Outcome` section following
    `docs/archival-workflow.md`.
    The archived ticket outcome must use the canonical heading and completion
@@ -262,18 +269,10 @@ rg -n 'archive/specs/<spec filename>|archive/tickets/<ticket prefix>' docs repor
    Before the spec archive/truthing commit, grep the current report/spec/ticket
    outcomes for the role labels above and for broad `exact commit` claims; amend
    ambiguous target-commit wording or record why one role intentionally differs.
-   If the series commits verifier baselines or generated outputs, run the exact
-   comparison command that will be used later, inspect the generated file
-   format, and refresh the committed baseline when that file is the intended
-   truth source. Leave transient output directories untracked unless the
-   ticket/spec explicitly requires archiving them.
-   When long-running evidence tools write ignored or very large output
-   directories, commit the stable evidence package rather than the whole
-   transient tree: command transcripts, summary outcome files, list/denominator
-   files, manifests or locks, and any report-cited hashes. Force-add ignored
-   files only when they are required summary evidence. Leave bulky per-case
-   logs, diffs, caches, and scratch outputs untracked unless the ticket/spec
-   explicitly requires archiving them.
+   For verifier baselines, generated outputs, ignored evidence paths, and bulky
+   tool output directories, follow `references/closeout-edge-cases.md`: refresh
+   intended truth-source baselines, commit stable summaries or manifests, and
+   leave scratch output untracked unless the ticket/spec explicitly requires it.
 6. Run the relevant final gates after the last tracked closeout edit. The gate
    evidence must cover the exact closeout tree that will be claimed complete.
    Either:
@@ -374,6 +373,17 @@ rg -n 'pending|remaining|TODO|deferred|out of scope|not run|live path|archive bo
      with every field present and explicit `None` values where applicable.
    - the final response has been checked against the `## Reporting` bullets
      below.
+   A compact post-commit audit should include, at minimum:
+
+```sh
+git status --short
+rg --files tickets | rg '<ticket-prefix>'
+test ! -e specs/<spec filename> && test -e archive/specs/<spec filename>
+rg -P -n '(?<!archive/)specs/<spec filename>|(?<!archive/)tickets/<ticket-prefix>' docs reports specs tickets archive/reports archive/tickets archive/specs
+```
+
+   Inspect command output rather than treating nonzero `rg` exits as failure by
+   themselves; for absence checks, no output is usually the expected result.
 10. If a `/goal` is active, mark it complete only after implementation,
    verification, ticket archives, spec archive, reference repair, required final
    checks, and required commits are done. On a resumed `/goal` turn, re-run the
@@ -436,3 +446,9 @@ Goal usage: <goal-tool usage summary, or N/A>.
 Launcher metadata for this skill lives in
 `.agents/skills/ticket-series/agents/openai.yaml`. Keep its default prompt
 aligned with this skill's trigger wording and closeout expectations.
+
+## Support Assets
+
+- `references/closeout-edge-cases.md`: optional progressive-disclosure guidance
+  for controlled temporary-break evidence, generated baselines, ignored
+  evidence paths, and bulky long-running tool outputs.

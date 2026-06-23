@@ -23,6 +23,7 @@ pub struct GeneratedCase {
     pub sequence: Vec<GeneratedStep>,
     pub start_tick: SimTick,
     pub end_tick: SimTick,
+    pub world_step_schedule: GeneratedWorldStepSchedule,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -33,6 +34,13 @@ pub struct GeneratedStep {
     pub end_tick: SimTick,
     pub scheduled_wait_reason: String,
     pub duration_ticks: u64,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct GeneratedWorldStepSchedule {
+    pub actor_opportunity_ticks: Vec<SimTick>,
+    pub duration_boundary_ticks: Vec<SimTick>,
+    pub process_due_ticks: Vec<SimTick>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -211,12 +219,36 @@ pub fn generate_case(seed: u64) -> GeneratedCase {
         .last()
         .map(|step| step.end_tick)
         .unwrap_or(SimTick::ZERO);
+    let world_step_schedule = GeneratedWorldStepSchedule {
+        actor_opportunity_ticks: sequence.iter().map(|step| step.start_tick).collect(),
+        duration_boundary_ticks: sequence
+            .iter()
+            .filter(|step| {
+                matches!(
+                    step.kind,
+                    GeneratedActionKind::Sleep | GeneratedActionKind::Work
+                )
+            })
+            .map(|step| step.end_tick)
+            .collect(),
+        process_due_ticks: sequence
+            .iter()
+            .filter(|step| {
+                matches!(
+                    step.kind,
+                    GeneratedActionKind::Wait | GeneratedActionKind::Move
+                )
+            })
+            .map(|step| step.end_tick)
+            .collect(),
+    };
     GeneratedCase {
         seed,
         mask,
         sequence,
         start_tick,
         end_tick,
+        world_step_schedule,
     }
 }
 

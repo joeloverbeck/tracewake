@@ -1,3 +1,3 @@
 DEBUG NON-DIEGETIC: Embodied Overlay
-Knowledge context: id=hkc.actor_iris.0.5 hash=hkc1-6433c47e6107c39b tick=0 frontier=5 sources=allowed=5 provenance=5
+Knowledge context: id=hkc.actor_iris.0.5 hash=hkc1-83a10d6b00c01dba tick=0 frontier=5 sources=allowed=5 provenance=9
 Debug: available=true

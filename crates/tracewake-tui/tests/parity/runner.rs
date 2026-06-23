@@ -3,7 +3,9 @@ use tracewake_core::ids::{ActionId, ActorId, SemanticActionId};
 use tracewake_tui::app::TuiApp;
 
 use super::{
-    CapabilityClass, CapabilityEntry, EvidenceFlag, SetupOperation, SurfaceDisposition, WitnessKind,
+    scenario::{run_real_pipeline, ScenarioMeasuredEvidence},
+    CapabilityClass, CapabilityEntry, EvidenceFlag, SetupOperation, SurfaceDisposition,
+    WitnessKind,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -66,12 +68,27 @@ pub struct ConformanceFailure {
 }
 
 pub fn run_conformance(entries: &[CapabilityEntry]) -> CoverageReport {
-    run_conformance_with_render_probe(entries, real_embodied_render)
+    run_conformance_with_probes(entries, &real_embodied_render, &|_| None)
 }
 
 pub fn run_conformance_with_render_probe(
     entries: &[CapabilityEntry],
     render_probe: impl Fn(&CapabilityEntry) -> Option<String>,
+) -> CoverageReport {
+    run_conformance_with_probes(entries, &render_probe, &|_| None)
+}
+
+pub fn run_conformance_with_measurement_probe(
+    entries: &[CapabilityEntry],
+    measurement_probe: impl Fn(&CapabilityEntry) -> Option<ScenarioMeasuredEvidence>,
+) -> CoverageReport {
+    run_conformance_with_probes(entries, &real_embodied_render, &measurement_probe)
+}
+
+fn run_conformance_with_probes(
+    entries: &[CapabilityEntry],
+    render_probe: &impl Fn(&CapabilityEntry) -> Option<String>,
+    measurement_probe: &impl Fn(&CapabilityEntry) -> Option<ScenarioMeasuredEvidence>,
 ) -> CoverageReport {
     let mut sorted_entries = entries.iter().collect::<Vec<_>>();
     sorted_entries.sort_by_key(|entry| entry.key);
@@ -81,7 +98,9 @@ pub fn run_conformance_with_render_probe(
 
     let mut rows = Vec::new();
     for entry in sorted_entries {
-        validate_entry(entry, &mut failures, &render_probe);
+        let measured =
+            measurement_probe(entry).unwrap_or_else(|| measure_entry(entry, &mut failures));
+        validate_entry(entry, &measured, &mut failures, render_probe);
         rows.push(CoverageRow {
             key: entry.key.to_string(),
             class: class_label(&entry.capability_class),
@@ -90,11 +109,8 @@ pub fn run_conformance_with_render_probe(
                 .iter()
                 .map(|fixture_id| (*fixture_id).to_string())
                 .collect(),
-            typed_witness: !entry.typed_witness.assertion.trim().is_empty(),
-            rendered_witness: entry
-                .rendered_witness
-                .as_ref()
-                .is_some_and(|witness| !witness.assertion.trim().is_empty()),
+            typed_witness: measured.typed,
+            rendered_witness: measured.rendered,
             negative_witness: !entry.anti_leak_fixtures.is_empty(),
             replay_status: evidence_label(&entry.replay_evidence),
             no_human_status: evidence_label(&entry.no_human_evidence),
@@ -112,6 +128,23 @@ pub fn run_conformance_with_render_probe(
     }
 
     CoverageReport { rows, failures }
+}
+
+fn measure_entry(
+    entry: &CapabilityEntry,
+    failures: &mut Vec<ConformanceFailure>,
+) -> ScenarioMeasuredEvidence {
+    match run_real_pipeline(entry) {
+        Ok(witnesses) => witnesses.measured_evidence,
+        Err(error) => {
+            failures.push(entry_failure(
+                &Some(entry.key.to_string()),
+                "scenario_measurement_failed",
+                format!("scenario measurement failed: {error}"),
+            ));
+            ScenarioMeasuredEvidence::default()
+        }
+    }
 }
 
 pub fn registered_action_coverage_failures(
@@ -167,6 +200,7 @@ fn validate_keys(entries: &[CapabilityEntry], failures: &mut Vec<ConformanceFail
 
 fn validate_entry(
     entry: &CapabilityEntry,
+    measured: &ScenarioMeasuredEvidence,
     failures: &mut Vec<ConformanceFailure>,
     render_probe: &impl Fn(&CapabilityEntry) -> Option<String>,
 ) {
@@ -206,11 +240,25 @@ fn validate_entry(
             "missing typed witness",
         ));
     }
+    if !measured.typed {
+        failures.push(entry_failure(
+            &key,
+            "missing_measured_typed_evidence",
+            "typed witness did not have measured scenario evidence",
+        ));
+    }
     if entry.actor_knowledge_witness.assertion.trim().is_empty() {
         failures.push(entry_failure(
             &key,
             "missing_actor_knowledge_witness",
             "missing actor-knowledge witness",
+        ));
+    }
+    if !measured.actor_knowledge {
+        failures.push(entry_failure(
+            &key,
+            "missing_measured_actor_knowledge",
+            "actor-knowledge witness did not resolve to the bound holder context",
         ));
     }
     if rendered_surface_requires_witness(&entry.surface_disposition)
@@ -223,6 +271,20 @@ fn validate_entry(
             &key,
             "missing_rendered_witness",
             "missing rendered witness",
+        ));
+    }
+    if rendered_surface_requires_witness(&entry.surface_disposition) && !measured.rendered {
+        failures.push(entry_failure(
+            &key,
+            "missing_measured_rendered_evidence",
+            "rendered witness did not have measured scenario output",
+        ));
+    }
+    if matches!(entry.replay_evidence, EvidenceFlag::Required) && !measured.replay_match {
+        failures.push(entry_failure(
+            &key,
+            "missing_measured_replay",
+            "replay-required witness did not measure a matching replay/debug rebuild",
         ));
     }
     if anti_leak_required(entry) && entry.anti_leak_fixtures.is_empty() {
@@ -254,6 +316,79 @@ fn validate_entry(
     }
     if matches!(entry.surface_disposition, SurfaceDisposition::Embodied) {
         validate_embodied_render(entry, failures, render_probe);
+    }
+    validate_load_bearing_measurements(entry, measured, failures);
+}
+
+fn validate_load_bearing_measurements(
+    entry: &CapabilityEntry,
+    measured: &ScenarioMeasuredEvidence,
+    failures: &mut Vec<ConformanceFailure>,
+) {
+    let key = Some(entry.key.to_string());
+    match entry.key {
+        "spec0047.time.human_wait_world_step" => {
+            require_measured(
+                &key,
+                failures,
+                measured.frontier_advanced && measured.marker_counted,
+                "missing_measured_frontier_marker",
+                "human wait witness must measure a world-step frontier marker",
+            );
+        }
+        "spec0047.time.human_sleep_terminal" | "spec0047.time.human_work_terminal" => {
+            require_measured(
+                &key,
+                failures,
+                measured.frontier_advanced
+                    && measured.marker_counted
+                    && measured.duration_terminal
+                    && measured.holder_known_sources
+                    && measured.typed_stop_reason,
+                "missing_measured_duration_terminal",
+                "advance-until terminal witness must measure terminal, stop reason, and holder-known sources",
+            );
+        }
+        "spec0047.time.actor_known_interval_summary" => {
+            require_measured(
+                &key,
+                failures,
+                measured.holder_known_sources,
+                "missing_measured_holder_known_sources",
+                "actor-known interval witness must measure source-bearing interval data",
+            );
+        }
+        "spec0047.time.advance_until_stop_reason" => {
+            require_measured(
+                &key,
+                failures,
+                measured.typed_stop_reason && measured.holder_known_sources,
+                "missing_measured_stop_reason",
+                "advance-until stop reason witness must measure typed stop reason and interval sources",
+            );
+        }
+        "base.family.no_human_autonomy" => {
+            require_measured(
+                &key,
+                failures,
+                measured.autonomous_work && measured.marker_counted,
+                "missing_measured_no_human_work",
+                "no-human autonomy witness must measure autonomous work and markers",
+            );
+        }
+        _ => {}
+    }
+}
+
+fn require_measured(
+    key: &Option<String>,
+    failures: &mut Vec<ConformanceFailure>,
+    condition: bool,
+    code: &'static str,
+    message: &'static str,
+) {
+    if !condition {
+        failures.push(entry_failure(key, code, message));
     }
 }
 

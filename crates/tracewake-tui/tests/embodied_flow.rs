@@ -155,7 +155,7 @@ fn human_sleep_completion_real_pipeline_witness() {
         rendered.contains("Advanced until: reason=possessed_duration_terminal ticks=4 stop_tick=4")
     );
     assert!(rendered.contains("Recent interval: ticks 0-4 stop=possessed_duration_terminal"));
-    assert!(rendered.contains("- sleep completed source="));
+    assert!(rendered.contains("- perception source=event.perception.actor_tomas.4."));
     assert!(rendered.contains("Bound debug actor: actor_tomas"));
     assert!(rendered.contains("DEBUG NON-DIEGETIC: Replay"));
     assert!(rendered.contains("matches_expected=true"));
@@ -195,7 +195,7 @@ fn human_work_completion_real_pipeline_witness() {
         rendered.contains("Advanced until: reason=possessed_duration_terminal ticks=4 stop_tick=4")
     );
     assert!(rendered.contains("Recent interval: ticks 0-4 stop=possessed_duration_terminal"));
-    assert!(rendered.contains("- work completed source="));
+    assert!(rendered.contains("- perception source=event.perception.actor_tomas.4."));
     assert!(rendered.contains("Bound debug actor: actor_tomas"));
     assert!(rendered.contains("DEBUG NON-DIEGETIC: Replay"));
     assert!(rendered.contains("matches_expected=true"));

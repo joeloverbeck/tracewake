@@ -37,24 +37,34 @@ pub struct EmbodiedViewModel {
     pub holder_known_context_hash: HolderKnownContextHash,
     pub holder_known_context_frontier: u64,
     pub holder_known_context_source_summary: String,
-    pub actor_known_interval_summary: Option<ActorKnownIntervalSummary>,
+    pub actor_known_interval_summary: Option<TypedActorKnownIntervalSummary>,
     pub notebook: Option<NotebookView>,
     pub debug_available: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ActorKnownIntervalSummary {
+pub struct TypedActorKnownIntervalSummary {
     pub start_tick: SimTick,
     pub stop_tick: SimTick,
-    pub stop_reason: String,
-    pub notices: Vec<ActorKnownIntervalNotice>,
+    pub start_frontier: u64,
+    pub stop_frontier: u64,
+    pub stop_reason: crate::projections::IntervalStopReason,
+    pub notices: Vec<crate::projections::VerifiedActorKnownIntervalNotice>,
     pub no_new_actor_known_information: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ActorKnownIntervalNotice {
-    pub summary: String,
-    pub source_event_id: String,
+impl From<crate::projections::ActorKnownIntervalDelta> for TypedActorKnownIntervalSummary {
+    fn from(delta: crate::projections::ActorKnownIntervalDelta) -> Self {
+        Self {
+            start_tick: delta.start_tick(),
+            stop_tick: delta.stop_tick(),
+            start_frontier: delta.start_frontier(),
+            stop_frontier: delta.stop_frontier(),
+            stop_reason: delta.stop_reason(),
+            notices: delta.notices().to_vec(),
+            no_new_actor_known_information: delta.no_new_actor_known_information(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

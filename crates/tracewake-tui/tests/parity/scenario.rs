@@ -1,6 +1,7 @@
 use tracewake_content::fixtures;
-use tracewake_core::actions::ReportStatus;
+use tracewake_core::actions::{ReasonCode, ReportStatus};
 use tracewake_core::ids::{ActionId, ActorId, SemanticActionId};
+use tracewake_core::scheduler::AdvanceUntilStopReason;
 use tracewake_tui::app::{AppError, TuiApp};
 use tracewake_tui::render::render_notebook;
 
@@ -9,9 +10,25 @@ use super::{CapabilityEntry, SetupOperation};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ScenarioWitnesses {
     pub key: String,
-    pub ordered_witnesses: Vec<&'static str>,
+    pub ordered_witnesses: Vec<String>,
+    pub measured_evidence: ScenarioMeasuredEvidence,
     pub submitted_status: Option<ReportStatus>,
     pub rendered: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ScenarioMeasuredEvidence {
+    pub typed: bool,
+    pub actor_knowledge: bool,
+    pub rendered: bool,
+    pub replay_match: bool,
+    pub frontier_advanced: bool,
+    pub marker_counted: bool,
+    pub autonomous_work: bool,
+    pub duration_terminal: bool,
+    pub holder_known_sources: bool,
+    pub typed_stop_reason: bool,
+    pub debug_or_embodied_disposition: bool,
 }
 
 pub fn run_real_pipeline(entry: &CapabilityEntry) -> Result<ScenarioWitnesses, ScenarioError> {
@@ -34,25 +51,24 @@ pub fn run_real_pipeline(entry: &CapabilityEntry) -> Result<ScenarioWitnesses, S
     }
 
     let view = app.current_view().map_err(ScenarioError::App)?;
-    assert!(
-        view.holder_known_context_id
+    let mut measured = ScenarioMeasuredEvidence {
+        actor_knowledge: view
+            .holder_known_context_id
             .as_str()
-            .starts_with(&format!("hkc.{}.", entry.viewer_actor)),
-        "{} actor-knowledge witness must come from the bound actor context",
-        entry.key
-    );
-    assert!(
-        !entry.typed_witness.assertion.trim().is_empty(),
-        "{} typed witness must be declared",
-        entry.key
-    );
-    assert!(
-        !entry.actor_knowledge_witness.assertion.trim().is_empty(),
-        "{} actor-knowledge witness must be declared",
-        entry.key
-    );
+            .starts_with(&format!("hkc.{}.", entry.viewer_actor))
+            && !view.holder_known_context_hash.as_str().is_empty(),
+        rendered: false,
+        debug_or_embodied_disposition: true,
+        ..ScenarioMeasuredEvidence::default()
+    };
+    measured.frontier_advanced = view.holder_known_context_frontier as usize <= app.event_count();
+    measured.actor_knowledge &= view
+        .holder_known_context_id
+        .as_str()
+        .starts_with(&format!("hkc.{}.", entry.viewer_actor));
 
     let mut submitted_status = None;
+    let initial_event_count = app.event_count();
     let mut rendered = app.render_current_view().map_err(ScenarioError::App)?;
     match entry.setup_operation {
         SetupOperation::SubmitSemanticAction { semantic_action_id } => {
@@ -70,7 +86,8 @@ pub fn run_real_pipeline(entry: &CapabilityEntry) -> Result<ScenarioWitnesses, S
             let result = app
                 .submit_semantic_action(&semantic_action_id)
                 .map_err(ScenarioError::App)?;
-            submitted_status = Some(result.report.status);
+            submitted_status = Some(result.report.status.clone());
+            measured.typed = result.report.action_id == action.action_id;
             if !action.availability.is_available() {
                 rendered = app.render_current_view().map_err(ScenarioError::App)?;
                 assert_actor_safe_why_not(entry, &rendered);
@@ -82,19 +99,24 @@ pub fn run_real_pipeline(entry: &CapabilityEntry) -> Result<ScenarioWitnesses, S
             let result = app
                 .submit_semantic_action(&semantic_action_id)
                 .map_err(ScenarioError::App)?;
-            submitted_status = Some(result.report.status);
+            submitted_status = Some(result.report.status.clone());
             rendered = app.render_current_view().map_err(ScenarioError::App)?;
+            measured.typed = result.report.status == ReportStatus::Accepted;
+            measured.frontier_advanced = rendered.contains("Tick: 1");
+            measured.marker_counted = app.event_count() > initial_event_count;
         }
         SetupOperation::StartSleepThenAdvanceUntil { max_ticks } => {
             submit_semantic_action_by_id(&mut app, "sleep.here")?;
-            app.advance_until(max_ticks).map_err(ScenarioError::App)?;
+            let result = app.advance_until(max_ticks).map_err(ScenarioError::App)?;
             rendered = app.render_current_view().map_err(ScenarioError::App)?;
+            measure_advance_until(&mut measured, &app, &result);
         }
         SetupOperation::MoveWorkThenAdvanceUntil { max_ticks } => {
             submit_semantic_action_by_id(&mut app, "move.to.workshop_tomas")?;
             submit_semantic_action_by_id(&mut app, "work.block.workplace_tomas")?;
-            app.advance_until(max_ticks).map_err(ScenarioError::App)?;
+            let result = app.advance_until(max_ticks).map_err(ScenarioError::App)?;
             rendered = app.render_current_view().map_err(ScenarioError::App)?;
+            measure_advance_until(&mut measured, &app, &result);
         }
         SetupOperation::StartSleepThenWaitConflict => {
             submit_semantic_action_by_id(&mut app, "sleep.here")?;
@@ -103,8 +125,13 @@ pub fn run_real_pipeline(entry: &CapabilityEntry) -> Result<ScenarioWitnesses, S
             let result = app
                 .submit_semantic_action(&semantic_action_id)
                 .map_err(ScenarioError::App)?;
-            submitted_status = Some(result.report.status);
+            submitted_status = Some(result.report.status.clone());
             rendered = app.render_current_view().map_err(ScenarioError::App)?;
+            measured.typed = result.report.status == ReportStatus::Rejected
+                && result
+                    .report
+                    .reason_codes
+                    .contains(&ReasonCode::ReservationConflict);
             assert_actor_safe_why_not(entry, &rendered);
         }
         SetupOperation::SubmitRegistryAction { action_id } => {
@@ -121,7 +148,8 @@ pub fn run_real_pipeline(entry: &CapabilityEntry) -> Result<ScenarioWitnesses, S
             let result = app
                 .submit_semantic_action(&semantic_action_id)
                 .map_err(ScenarioError::App)?;
-            submitted_status = Some(result.report.status);
+            submitted_status = Some(result.report.status.clone());
+            measured.typed = result.report.action_id == action.action_id;
             if !action.availability.is_available() {
                 rendered = app.render_current_view().map_err(ScenarioError::App)?;
                 assert_actor_safe_why_not(entry, &rendered);
@@ -134,21 +162,32 @@ pub fn run_real_pipeline(entry: &CapabilityEntry) -> Result<ScenarioWitnesses, S
                 "{} query-only witness must name the registered action",
                 entry.key
             );
+            measured.typed = true;
         }
         SetupOperation::RenderNotebook => {
             rendered = render_notebook(&app.notebook_view().map_err(ScenarioError::App)?);
+            measured.typed = true;
         }
         SetupOperation::RenderDebugOverlay => {
             rendered = app
                 .render_debug_embodied_overlay()
                 .map_err(ScenarioError::App)?
                 .ok_or(ScenarioError::MissingDebugOverlay)?;
+            measured.typed = rendered.contains("DEBUG NON-DIEGETIC");
+            measured.debug_or_embodied_disposition = measured.typed;
         }
         SetupOperation::RunNoHumanDay => {
-            app.run_no_human_day().map_err(ScenarioError::App)?;
+            let report = app.run_no_human_day().map_err(ScenarioError::App)?;
+            measured.typed =
+                report.final_tick > report.start_tick && report.scheduler_errors.is_empty();
+            measured.marker_counted = !report.marker_event_ids.is_empty();
+            measured.autonomous_work =
+                !report.actor_decision_order.is_empty() || report.ordinary_pipeline_events > 0;
             rendered = app.render_current_view().map_err(ScenarioError::App)?;
         }
-        SetupOperation::BindViewer | SetupOperation::AdvanceNoHuman => {}
+        SetupOperation::BindViewer | SetupOperation::AdvanceNoHuman => {
+            measured.typed = true;
+        }
     }
 
     if let Some(rendered_witness) = &entry.rendered_witness {
@@ -159,20 +198,64 @@ pub fn run_real_pipeline(entry: &CapabilityEntry) -> Result<ScenarioWitnesses, S
         );
     }
 
+    measured.rendered = !rendered.trim().is_empty();
+    measured.replay_match = app
+        .render_debug_projection_rebuild_panel()
+        .contains("diffs=0");
+
     Ok(ScenarioWitnesses {
         key: entry.key.to_string(),
         ordered_witnesses: vec![
-            entry.typed_witness.assertion,
-            entry.actor_knowledge_witness.assertion,
+            format!("typed_measured={}", measured.typed),
+            format!("actor_knowledge_measured={}", measured.actor_knowledge),
             entry
                 .rendered_witness
                 .as_ref()
-                .map(|witness| witness.assertion)
-                .unwrap_or("no rendered witness required"),
+                .map(|_| format!("rendered_measured={}", measured.rendered))
+                .unwrap_or_else(|| "rendered_measured=not_required".to_string()),
         ],
+        measured_evidence: measured,
         submitted_status,
         rendered,
     })
+}
+
+fn measure_advance_until(
+    measured: &mut ScenarioMeasuredEvidence,
+    app: &TuiApp,
+    result: &tracewake_core::scheduler::AdvanceUntilResult,
+) {
+    measured.typed = result.ticks_advanced > 0 && !result.appended_event_ids.is_empty();
+    measured.frontier_advanced = result.stop_tick > result.start_tick;
+    measured.marker_counted = !result.appended_event_ids.is_empty();
+    measured.duration_terminal =
+        result.stop_reason == AdvanceUntilStopReason::PossessedDurationTerminal;
+    measured.typed_stop_reason = matches!(
+        result.stop_reason,
+        AdvanceUntilStopReason::PossessedDurationTerminal
+            | AdvanceUntilStopReason::ActorKnownSalientObservation
+            | AdvanceUntilStopReason::UserPausedBeforeNextTick
+            | AdvanceUntilStopReason::ControllerSafetyBound
+    );
+    if let Ok(view) = app.current_view() {
+        if let Some(summary) = view.actor_known_interval_summary {
+            measured.holder_known_sources = summary.stop_frontier >= summary.start_frontier
+                && (!summary.no_new_actor_known_information || !summary.notices.is_empty());
+            measured.typed_stop_reason &= summary.stop_reason.stable_id()
+                == match result.stop_reason {
+                    AdvanceUntilStopReason::PossessedDurationTerminal => {
+                        "possessed_duration_terminal"
+                    }
+                    AdvanceUntilStopReason::ActorKnownSalientObservation => {
+                        "actor_known_salient_observation"
+                    }
+                    AdvanceUntilStopReason::UserPausedBeforeNextTick => {
+                        "user_paused_before_next_tick"
+                    }
+                    AdvanceUntilStopReason::ControllerSafetyBound => "controller_safety_bound",
+                };
+        }
+    }
 }
 
 fn submit_semantic_action_by_id(

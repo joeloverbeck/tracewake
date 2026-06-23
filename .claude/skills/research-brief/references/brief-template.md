@@ -179,7 +179,12 @@ still warrants a substantial evidence-complete document but in a *different form
 §(a) determination/verdict is returned **regardless of mode** — under (ii), "nothing authored on a negative
 verdict" refers to the spec/artifact *file* only; the reasoned verdict is still surfaced as Session 2's
 response on a clean outcome (so the brief should instruct: produce the spec iff positive, otherwise return
-the evidence-complete determination and author no file). For
+the evidence-complete determination and author no file). **The conditional artifact need not be a
+spec** — a hardening / anti-contamination pass commonly produces a *recommendation report* under
+exactly this mode: always render the verdict, write the downloadable report iff the verdict is
+positive, and on a clean verdict surface the determination inline with no file. That "inline on a
+clean verdict" shape **is** mode (ii)'s "author no file," not a separate mode — do not mislabel it
+(iii). For
 mode (iii), the brief's deliverable spec (§7) must define **both** artifact shapes (a Branch A / Branch B
 specification) so Session 2 commits to one without asking.
 
@@ -203,7 +208,11 @@ report of *recommended changes* rather than a ratified artifact — the recurrin
 of a **downward-cascade realignment** (§B) and of doc-overhaul passes generally, **and also of a
 cross-cutting hardening / anti-contamination pass whose ask is "what to change + where" rather than an
 implementation spec** (the §B hardening row's reads still apply, but the deliverable is this report, not a
-spec — do not assume a hardening target produces a `specs/` artifact) — say so explicitly,
+spec — do not assume a hardening target produces a `specs/` artifact; and when the pass audits
+*recently-completed* work, the spec/acceptance's pinned implementation commit frequently lags HEAD —
+a feature-branch tip versus merged `main` — so set the analysis baseline to verified HEAD, run the
+Step 6 equivalence check, and elevate any material post-acceptance code delta to first-class audit
+context in the brief rather than a provenance footnote) — say so explicitly,
 and **do not** apply the numbered-spec numbering/ledger/epoch rules above (they are N/A; this is not a
 `docs/4-specs/` artifact). Specify the report(s) by filename, **new** (not a replacement): one
 consolidated `reports/<tier>-alignment-research-report.md`, **or** — when a single cascade pass spans

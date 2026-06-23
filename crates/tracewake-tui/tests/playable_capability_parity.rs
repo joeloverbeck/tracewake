@@ -6,10 +6,12 @@ use parity::{
     census_actions::registered_action_ids,
     census_families::FAMILY_KEYS,
     registry,
+    runner::run_conformance_with_measurement_probe,
     runner::run_conformance_with_render_probe,
     runner::{registered_action_coverage_failures, run_conformance},
     scenario::{
         assert_actor_surface_does_not_leak, assert_matches_checked_in_golden, run_real_pipeline,
+        ScenarioMeasuredEvidence,
     },
     CapabilityClass, EvidenceFlag, OwnershipScope, SetupOperation, SurfaceDisposition, WitnessKind,
 };
@@ -295,17 +297,19 @@ fn playable_capability_scenarios_match_checked_in_real_pipeline_goldens() {
             "{} must assert typed -> actor-knowledge -> rendered witnesses",
             entry.key
         );
-        assert_eq!(
-            witnesses.ordered_witnesses[0],
-            entry.typed_witness.assertion
-        );
+        assert_eq!(witnesses.ordered_witnesses[0], "typed_measured=true");
         assert_eq!(
             witnesses.ordered_witnesses[1],
-            entry.actor_knowledge_witness.assertion
+            "actor_knowledge_measured=true"
         );
-        if let Some(rendered_witness) = &entry.rendered_witness {
-            assert_eq!(witnesses.ordered_witnesses[2], rendered_witness.assertion);
+        if entry.rendered_witness.is_some() {
+            assert_eq!(witnesses.ordered_witnesses[2], "rendered_measured=true");
         }
+        assert!(
+            witnesses.measured_evidence.typed,
+            "{} must return measured typed evidence",
+            entry.key
+        );
         assert_matches_checked_in_golden(entry, &witnesses.rendered);
         assert_actor_surface_does_not_leak(entry, &witnesses.rendered);
     }
@@ -392,6 +396,53 @@ fn playable_capability_runner_fails_closed_for_synthetic_gaps() {
                 && failure.key.as_deref() == Some("synthetic_missing_action")),
         "missing registered action coverage must fail: {uncovered_actions:#?}"
     );
+
+    let human_wait = complete
+        .iter()
+        .find(|entry| entry.key == "spec0047.time.human_wait_world_step")
+        .unwrap()
+        .clone();
+    let no_human = complete
+        .iter()
+        .find(|entry| entry.key == "base.family.no_human_autonomy")
+        .unwrap()
+        .clone();
+
+    assert_has_failure_with_measurement(
+        std::slice::from_ref(&human_wait),
+        measured_evidence_with(|evidence| {
+            evidence.typed = false;
+        }),
+        "missing_measured_typed_evidence",
+    );
+    assert_has_failure_with_measurement(
+        std::slice::from_ref(&no_human),
+        measured_evidence_with(|evidence| {
+            evidence.autonomous_work = false;
+        }),
+        "missing_measured_no_human_work",
+    );
+    assert_has_failure_with_measurement(
+        &[no_human],
+        measured_evidence_with(|evidence| {
+            evidence.marker_counted = false;
+        }),
+        "missing_measured_no_human_work",
+    );
+    assert_has_failure_with_measurement(
+        std::slice::from_ref(&human_wait),
+        measured_evidence_with(|evidence| {
+            evidence.actor_knowledge = false;
+        }),
+        "missing_measured_actor_knowledge",
+    );
+    assert_has_failure_with_measurement(
+        &[human_wait],
+        measured_evidence_with(|evidence| {
+            evidence.marker_counted = false;
+        }),
+        "missing_measured_frontier_marker",
+    );
 }
 
 fn assert_has_failure(entries: &[parity::CapabilityEntry], code: &str) {
@@ -401,4 +452,37 @@ fn assert_has_failure(entries: &[parity::CapabilityEntry], code: &str) {
         "expected failure {code}; got {:#?}",
         report.failures
     );
+}
+
+fn assert_has_failure_with_measurement(
+    entries: &[parity::CapabilityEntry],
+    measured: ScenarioMeasuredEvidence,
+    code: &str,
+) {
+    let report = run_conformance_with_measurement_probe(entries, |_entry| Some(measured.clone()));
+    assert!(
+        report.failures.iter().any(|failure| failure.code == code),
+        "expected failure {code}; got {:#?}",
+        report.failures
+    );
+}
+
+fn measured_evidence_with(
+    mutate: impl FnOnce(&mut ScenarioMeasuredEvidence),
+) -> ScenarioMeasuredEvidence {
+    let mut evidence = ScenarioMeasuredEvidence {
+        typed: true,
+        actor_knowledge: true,
+        rendered: true,
+        replay_match: true,
+        frontier_advanced: true,
+        marker_counted: true,
+        autonomous_work: true,
+        duration_terminal: true,
+        holder_known_sources: true,
+        typed_stop_reason: true,
+        debug_or_embodied_disposition: true,
+    };
+    mutate(&mut evidence);
+    evidence
 }
