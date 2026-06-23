@@ -1,6 +1,6 @@
 # 0048 Foundational Conformance Hardening: Loaded-World Tick, Temporal Authority, Holder-Known Intervals, and Replay-Frontier Reconstruction Hardening Spec
 
-**Status**: PROPOSED
+**Status**: COMPLETED
 
 This is a staged hardening spec in the parallel `specs/NNNN` series. It is staged in
 `specs/` and is promoted to `archive/specs/` on acceptance; it is never promoted to the
@@ -546,3 +546,30 @@ These are implementation choices inside settled doctrine, not reasons to defer t
 
 No invariant is tensioned; this spec enforces existing invariants against below-doctrine code and amends
 none (§5).
+
+## Outcome
+
+Completed: 2026-06-23
+
+Accepted as scoped foundational conformance hardening for loaded-world tick
+authority, temporal frontier reconstruction, holder-known interval summaries,
+and measured parity evidence. Implementation baseline commits were
+`31889e8`, `3b76142`, `7610ed5`, `50d26d4`, `28e9fd2`, `dbd6ee6`, and
+`3964f24`. Evidence/report commit `f46fe32` added
+`reports/0048_foundational_conformance_hardening_acceptance.md`, archived
+`0048FOUCONHAR-008`, updated the architecture conformance row, and updated the
+existing risk rows R-08, R-09, R-10, R-11, R-13, R-15, R-16, R-27, R-28, and
+R-29 without minting a risk id.
+
+All tickets `0048FOUCONHAR-001` through `0048FOUCONHAR-008` are archived under
+`archive/tickets/`. The acceptance report records the full pre-report
+workspace gates, focused mutation campaign result (61 tested, 40 caught, 8
+missed, 13 unviable), survivor triage, and the gate-to-witness map. The eight
+surviving focused mutants remain recorded as accepted capstone limitations and
+future witness gaps where applicable; this closeout does not claim a
+mutation-perfect result or a full configured mutation campaign.
+
+Final archive/truthing is owned by the commit that moves this spec to
+`archive/specs/`, adds the `docs/4-specs/SPEC_LEDGER.md` archived row, and
+runs the required post-closeout gates. This spec mints no invariant, doctrine
+change, gate, glossary term, or risk id.

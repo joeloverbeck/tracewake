@@ -18,10 +18,10 @@ change.
   - `28e9fd2` `0048FOUCONHAR-005` typed interval stop
   - `dbd6ee6` `0048FOUCONHAR-006` behavioral locks
   - `3964f24` `0048FOUCONHAR-007` parity evidence
-- Evidence/report commit: the commit adding this report and archiving
+- Evidence/report commit: `f46fe32`, adding this report and archiving
   `0048FOUCONHAR-008`.
-- Archive/truthing commit: the later spec-closeout commit, if any, owns the
-  final spec move and ledger repair.
+- Archive/truthing commit: the final closeout commit that archives spec `0048`
+  and repairs the spec ledger.
 
 ## Gate Evidence
 
