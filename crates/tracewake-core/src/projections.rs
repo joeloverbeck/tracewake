@@ -1599,6 +1599,20 @@ mod tests {
         ContentManifestId::new("phase2a_manifest").unwrap()
     }
 
+    #[test]
+    fn verified_actor_known_interval_notice_source_key_preserves_constructed_key() {
+        let notice = VerifiedActorKnownIntervalNotice::from_verified(
+            IntervalNoticeKind::Record,
+            event_id("event.interval.source"),
+            "role_assignment_notice:event.interval.source",
+        );
+
+        assert_eq!(
+            notice.source_key(),
+            "role_assignment_notice:event.interval.source"
+        );
+    }
+
     fn metric_event(kind: EventKind, sequence: u64, tick: u64) -> EventEnvelope {
         EventEnvelope::new_v1(
             event_id(&format!("event_metrics_{sequence}")),
