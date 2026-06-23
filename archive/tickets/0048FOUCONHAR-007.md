@@ -1,6 +1,6 @@
 # 0048FOUCONHAR-007: Parity-runner measured outputs and adversarial variants
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — test-harness only: replaces the parity runner's declaration-as-proof fields with measured structured evidence returned by the real path, and adds adversarial scenario variants that must fail the conformance runner. No production code.
@@ -78,3 +78,27 @@ In `crates/tracewake-tui/tests/playable_capability_parity.rs`, add variants that
 
 1. `cargo test -p tracewake-tui --test playable_capability_parity`
 2. `cargo test -p tracewake-tui` (full-crate parity-runner build).
+
+## Outcome
+
+Completed: 2026-06-23
+
+Implemented the parity-runner hardening as test-harness only:
+
+1. `ScenarioWitnesses` now returns measured evidence booleans and measured witness strings from the real TUI/app path instead of echoing registry assertion text.
+2. `CoverageRow::typed_witness` and rendered status now derive from measured scenario evidence. The runner fails if typed, actor-knowledge, rendered, or replay-required measurements are absent.
+3. Load-bearing time-control rows now require measured world-step frontier/marker evidence, duration terminal evidence, source-bearing holder-known interval evidence, typed stop reason evidence, and the no-human autonomy row requires measured autonomous work plus markers.
+4. Added adversarial measurement-probe variants for populated witness text with empty typed evidence, omitted autonomous work, omitted no-human marker/process evidence, non-holder-known actor context, and external frontier without marker evidence.
+
+Deviations from original plan:
+
+- The runner reads measured replay-state match through the existing public projection rebuild debug panel (`diffs=0`) rather than adding production accessors for raw replay reports; this keeps the change test-side as scoped.
+- The ticket-006 authoritative differential remains the non-vacuous human/no-human actor/process witness; ticket 007 references that closure by making the parity runner fail closed on missing measured no-human/autonomous-work evidence rather than duplicating the full differential.
+
+Verification:
+
+1. `cargo test -p tracewake-tui --test playable_capability_parity` — passed.
+2. `cargo test -p tracewake-tui` — passed.
+3. `cargo clippy -p tracewake-tui --all-targets -- -D warnings` — passed.
+4. `cargo fmt --all --check` — passed.
+5. `git diff --check` — passed.
