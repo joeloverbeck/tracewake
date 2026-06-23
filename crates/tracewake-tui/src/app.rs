@@ -15,17 +15,17 @@ use tracewake_core::debug_reports::{
     replay_debug_report,
 };
 use tracewake_core::epistemics::projection::EpistemicProjection;
+use tracewake_core::epistemics::ActorKnownIntervalDeltaError;
 use tracewake_core::epistemics::KnowledgeContext;
 use tracewake_core::events::log::EventLog;
-use tracewake_core::events::EventKind;
 use tracewake_core::ids::{
-    ActorId, ContentManifestId, ContentVersion, ControllerId, DebugReportId, EventId, FixtureId,
-    ItemId, ProposalId, SemanticActionId,
+    ActorId, ContentManifestId, ContentVersion, ControllerId, DebugReportId, FixtureId, ItemId,
+    ProposalId, SemanticActionId,
 };
 use tracewake_core::projections::{
-    build_actor_known_interval_summary, build_debug_event_log_view, build_embodied_view_model,
-    build_notebook_view, proposal_from_current_view_semantic_action, ActorKnownIntervalSource,
-    EmbodiedPreflightSource, EmbodiedProjectionSource, EmbodiedTruthSnapshot, ProjectionError,
+    build_debug_event_log_view, build_embodied_view_model, build_notebook_view,
+    proposal_from_current_view_semantic_action, EmbodiedPreflightSource, EmbodiedProjectionSource,
+    EmbodiedTruthSnapshot, IntervalStopReason, ProjectionError,
 };
 use tracewake_core::replay::{rebuild_projection, run_replay};
 use tracewake_core::scheduler::no_human::{
@@ -39,8 +39,8 @@ use tracewake_core::scheduler::{
 use tracewake_core::state::{AgentState, ControllerMode, PhysicalState};
 use tracewake_core::time::SimTick;
 use tracewake_core::view_models::{
-    ActorKnownIntervalSummary, DebugBeliefsView, DebugEpistemicsView, DebugObservationsView,
-    EmbodiedViewModel, NotebookView, SemanticActionEntry,
+    DebugBeliefsView, DebugEpistemicsView, DebugObservationsView, EmbodiedViewModel, NotebookView,
+    SemanticActionEntry, TypedActorKnownIntervalSummary,
 };
 
 use crate::debug_panels::{
@@ -56,6 +56,7 @@ pub enum AppError {
     ActorNotFound(ActorId),
     ActorNotBound,
     DebugUnavailable,
+    ActorKnownIntervalDelta(ActorKnownIntervalDeltaError),
     Projection(ProjectionError),
     SchedulerRestoreFailed,
     SemanticActionNotFound(String),
@@ -90,7 +91,7 @@ pub struct TuiApp {
     scheduler: DeterministicScheduler,
     last_rejection: Option<ValidationReport>,
     epistemic_projection: EpistemicProjection,
-    last_interval_summary: Option<ActorKnownIntervalSummary>,
+    last_interval_summary: Option<TypedActorKnownIntervalSummary>,
 }
 
 impl TuiApp {
@@ -298,6 +299,7 @@ impl TuiApp {
                         },
                         controlled_proposals: vec![proposal],
                         due_actor_ids: Vec::new(),
+                        actor_known_interval_actor_id: None,
                         world_process_events: Vec::new(),
                     },
                 )
@@ -353,6 +355,7 @@ impl TuiApp {
 
     pub fn advance_until(&mut self, max_ticks: u64) -> Result<AdvanceUntilResult, AppError> {
         let actor_id = self.bound_actor_id.clone().ok_or(AppError::ActorNotBound)?;
+        let before_context = self.current_view_context(&actor_id);
         let result = self
             .scheduler
             .advance_until(
@@ -370,13 +373,6 @@ impl TuiApp {
                 },
             )
             .map_err(AppError::WorldAdvance)?;
-        self.last_interval_summary = Some(build_actor_known_interval_summary(
-            &actor_id,
-            result.start_tick,
-            result.stop_tick,
-            describe_advance_until_stop(result.stop_reason),
-            actor_known_interval_sources(&self.log, &result.appended_event_ids),
-        ));
         record_current_place_perception_and_project(
             &mut self.log,
             &mut self.state,
@@ -385,6 +381,17 @@ impl TuiApp {
             &actor_id,
             self.scheduler.current_tick(),
             &self.content_manifest_id,
+        );
+        let after_context = self.current_view_context(&actor_id);
+        self.last_interval_summary = Some(
+            self.epistemic_projection
+                .actor_known_interval_delta(
+                    &before_context,
+                    &after_context,
+                    interval_stop_reason(result.stop_reason),
+                )
+                .map(TypedActorKnownIntervalSummary::from)
+                .map_err(AppError::ActorKnownIntervalDelta)?,
         );
         self.last_rejection = None;
         Ok(result)
@@ -568,55 +575,21 @@ impl TuiApp {
     }
 }
 
-fn actor_known_interval_sources(
-    log: &EventLog,
-    appended_event_ids: &[EventId],
-) -> Vec<ActorKnownIntervalSource> {
-    appended_event_ids
-        .iter()
-        .filter_map(|event_id| {
-            let event = log
-                .events()
-                .iter()
-                .find(|event| &event.event_id == event_id)?;
-            let actor_id = event.actor_id.clone()?;
-            actor_known_interval_summary_for_event(event.event_type).map(|summary| {
-                ActorKnownIntervalSource {
-                    actor_id,
-                    source_event_id: event.event_id.clone(),
-                    summary: summary.to_string(),
-                }
-            })
-        })
-        .collect()
-}
-
-fn actor_known_interval_summary_for_event(kind: EventKind) -> Option<&'static str> {
-    match kind {
-        EventKind::SleepCompleted => Some("sleep completed"),
-        EventKind::SleepInterrupted => Some("sleep interrupted"),
-        EventKind::WorkBlockCompleted => Some("work completed"),
-        EventKind::WorkBlockFailed => Some("work failed"),
-        EventKind::ObservationRecorded => Some("new observation recorded"),
-        _ => None,
-    }
-}
-
-fn describe_advance_until_stop(
+fn interval_stop_reason(
     reason: tracewake_core::scheduler::AdvanceUntilStopReason,
-) -> &'static str {
+) -> IntervalStopReason {
     match reason {
         tracewake_core::scheduler::AdvanceUntilStopReason::PossessedDurationTerminal => {
-            "possessed_duration_terminal"
+            IntervalStopReason::PossessedDurationTerminal
         }
         tracewake_core::scheduler::AdvanceUntilStopReason::ActorKnownSalientObservation => {
-            "actor_known_salient_observation"
+            IntervalStopReason::ActorKnownSalientObservation
         }
         tracewake_core::scheduler::AdvanceUntilStopReason::UserPausedBeforeNextTick => {
-            "user_paused_before_next_tick"
+            IntervalStopReason::UserPausedBeforeNextTick
         }
         tracewake_core::scheduler::AdvanceUntilStopReason::ControllerSafetyBound => {
-            "controller_safety_bound"
+            IntervalStopReason::ControllerSafetyBound
         }
     }
 }
@@ -1067,40 +1040,5 @@ mod tests {
 
     fn production_source(source: &str) -> &str {
         source.split("\n#[cfg(test)]").next().unwrap_or(source)
-    }
-
-    #[test]
-    fn actor_known_interval_summary_covers_each_salient_event_kind() {
-        // Each salient duration/observation event maps to its actor-known
-        // interval-summary label. Asserting the exact label per kind kills the
-        // `delete match arm` mutants on the SleepInterrupted, WorkBlockFailed,
-        // and ObservationRecorded arms, each of which would otherwise fall
-        // through to the `_ => None` catch-all.
-        assert_eq!(
-            actor_known_interval_summary_for_event(EventKind::SleepCompleted),
-            Some("sleep completed")
-        );
-        assert_eq!(
-            actor_known_interval_summary_for_event(EventKind::SleepInterrupted),
-            Some("sleep interrupted")
-        );
-        assert_eq!(
-            actor_known_interval_summary_for_event(EventKind::WorkBlockCompleted),
-            Some("work completed")
-        );
-        assert_eq!(
-            actor_known_interval_summary_for_event(EventKind::WorkBlockFailed),
-            Some("work failed")
-        );
-        assert_eq!(
-            actor_known_interval_summary_for_event(EventKind::ObservationRecorded),
-            Some("new observation recorded")
-        );
-
-        // A non-salient kind has no interval summary, guarding the catch-all.
-        assert_eq!(
-            actor_known_interval_summary_for_event(EventKind::ActorWaited),
-            None
-        );
     }
 }

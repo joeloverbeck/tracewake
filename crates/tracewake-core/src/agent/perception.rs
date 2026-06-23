@@ -2,8 +2,9 @@ use crate::epistemics::{
     ActorKnownCarriedItemFact, ActorKnownContainerFact, ActorKnownCurrentPlaceFact,
     ActorKnownDoorFact, ActorKnownFoodSourceFact, ActorKnownItemFact, ActorKnownLocalActorFact,
     ActorKnownProjectionRecord, ActorKnownRouteFact, ActorKnownSleepAffordanceFact,
-    ActorKnownWorkplaceFact, Channel, Confidence, EpistemicProjection, KnowledgeContext,
-    Observation, ObservationSubject, ObservationTarget, SourceRef,
+    ActorKnownWorkplaceFact, AllowedKnowledgeSource, Channel, Confidence, EpistemicProjection,
+    KnowledgeContext, KnowledgeProvenanceEntry, KnowledgeProvenanceKind, Observation,
+    ObservationSubject, ObservationTarget, SourceRef,
 };
 use crate::events::log::EventLog;
 use crate::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
@@ -244,6 +245,7 @@ pub fn current_place_knowledge_context(
     let mut containers = Vec::new();
     let mut items = Vec::new();
     let mut local_actors = Vec::new();
+    let mut provenance = Vec::new();
 
     let Some(actor) = state.actors().get(actor_id) else {
         return KnowledgeContext::embodied_at_frontier_with_all_facts(
@@ -284,6 +286,7 @@ pub fn current_place_knowledge_context(
             "epistemic_projection:{}",
             classified.record().source_event_id().as_str()
         );
+        let source_event_key = classified.record().source_event_id().as_str().to_string();
         let included_by_policy = classified.record().policy().includes_in_embodied_context(
             classified.is_current_place_record(),
             classified.is_latest_current_place_record(),
@@ -297,6 +300,10 @@ pub fn current_place_knowledge_context(
                 if !included_by_policy {
                     continue;
                 }
+                provenance.push(provenance_for_projection_record(
+                    classified.record(),
+                    source_event_key,
+                ));
                 routes.push(ActorKnownRouteFact::new(
                     from_place_id.clone(),
                     to_place_id.clone(),
@@ -309,6 +316,10 @@ pub fn current_place_knowledge_context(
                 ..
             } => {
                 if included_by_policy {
+                    provenance.push(provenance_for_projection_record(
+                        classified.record(),
+                        source_event_key,
+                    ));
                     current_places.push(ActorKnownCurrentPlaceFact::new(
                         place_id.clone(),
                         display_label.clone(),
@@ -323,6 +334,10 @@ pub fn current_place_knowledge_context(
                 ..
             } => {
                 if included_by_policy {
+                    provenance.push(provenance_for_projection_record(
+                        classified.record(),
+                        source_event_key,
+                    ));
                     carried_items.push(ActorKnownCarriedItemFact::new(
                         item_id.clone(),
                         source_location.clone(),
@@ -342,6 +357,10 @@ pub fn current_place_knowledge_context(
                 let Some(food_supply_id) = FoodSupplyId::new(food_source_id).ok() else {
                     continue;
                 };
+                provenance.push(provenance_for_projection_record(
+                    classified.record(),
+                    source_event_key,
+                ));
                 food_sources.push(ActorKnownFoodSourceFact::with_believed_servings(
                     food_supply_id,
                     *believed_servings,
@@ -362,6 +381,10 @@ pub fn current_place_knowledge_context(
                 else {
                     continue;
                 };
+                provenance.push(provenance_for_projection_record(
+                    classified.record(),
+                    source_event_key,
+                ));
                 sleep_affordances.push(ActorKnownSleepAffordanceFact::new(
                     sleep_affordance_id,
                     place_id.clone(),
@@ -375,6 +398,10 @@ pub fn current_place_knowledge_context(
                 ..
             } => {
                 if included_by_policy {
+                    provenance.push(provenance_for_projection_record(
+                        classified.record(),
+                        source_event_key,
+                    ));
                     workplaces.push(ActorKnownWorkplaceFact::new(
                         workplace_id.clone(),
                         place_id.clone(),
@@ -399,6 +426,10 @@ pub fn current_place_knowledge_context(
                 ..
             } => {
                 if included_by_policy {
+                    provenance.push(provenance_for_projection_record(
+                        classified.record(),
+                        source_event_key,
+                    ));
                     doors.push(ActorKnownDoorFact::new(
                         door_id.clone(),
                         endpoint_a.clone(),
@@ -417,6 +448,10 @@ pub fn current_place_knowledge_context(
                 ..
             } => {
                 if included_by_policy {
+                    provenance.push(provenance_for_projection_record(
+                        classified.record(),
+                        source_event_key,
+                    ));
                     containers.push(ActorKnownContainerFact::new(
                         container_id.clone(),
                         *is_open,
@@ -432,6 +467,10 @@ pub fn current_place_knowledge_context(
                 ..
             } => {
                 if included_by_policy {
+                    provenance.push(provenance_for_projection_record(
+                        classified.record(),
+                        source_event_key,
+                    ));
                     items.push(ActorKnownItemFact::new(
                         item_id.clone(),
                         source_location.clone(),
@@ -444,6 +483,10 @@ pub fn current_place_knowledge_context(
                 observed_actor_id, ..
             } => {
                 if included_by_policy {
+                    provenance.push(provenance_for_projection_record(
+                        classified.record(),
+                        source_event_key,
+                    ));
                     local_actors.push(ActorKnownLocalActorFact::new(
                         observed_actor_id.clone(),
                         source_key,
@@ -453,7 +496,7 @@ pub fn current_place_knowledge_context(
         }
     }
 
-    KnowledgeContext::embodied_at_frontier_with_all_facts_and_observations(
+    KnowledgeContext::embodied_at_frontier_with_all_facts_observations_and_provenance(
         actor_id.clone(),
         decision_tick,
         event_frontier,
@@ -467,7 +510,44 @@ pub fn current_place_knowledge_context(
         containers,
         items,
         local_actors,
+        provenance,
     )
+}
+
+fn provenance_for_projection_record(
+    record: &ActorKnownProjectionRecord,
+    source_event_key: String,
+) -> KnowledgeProvenanceEntry {
+    match record {
+        ActorKnownProjectionRecord::Workplace { .. } => {
+            KnowledgeProvenanceEntry::actor_known_source(
+                KnowledgeProvenanceKind::Record,
+                AllowedKnowledgeSource::OwnSourceBackedBelief,
+                source_event_key,
+            )
+        }
+        ActorKnownProjectionRecord::LocalActor { .. } => {
+            KnowledgeProvenanceEntry::actor_known_source(
+                KnowledgeProvenanceKind::Observation,
+                AllowedKnowledgeSource::OwnDirectObservation,
+                source_event_key,
+            )
+        }
+        ActorKnownProjectionRecord::CurrentPlace { .. }
+        | ActorKnownProjectionRecord::CarriedItem { .. }
+        | ActorKnownProjectionRecord::Route { .. }
+        | ActorKnownProjectionRecord::FoodSource { .. }
+        | ActorKnownProjectionRecord::SleepPlace { .. }
+        | ActorKnownProjectionRecord::LocalDoor { .. }
+        | ActorKnownProjectionRecord::LocalContainer { .. }
+        | ActorKnownProjectionRecord::LocalItem { .. } => {
+            KnowledgeProvenanceEntry::actor_known_source(
+                KnowledgeProvenanceKind::Perception,
+                AllowedKnowledgeSource::OwnDirectObservation,
+                source_event_key,
+            )
+        }
+    }
 }
 
 fn project_perception_event(projection: &mut EpistemicProjection, event: &EventEnvelope) {

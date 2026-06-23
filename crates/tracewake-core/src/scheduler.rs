@@ -12,12 +12,12 @@ use crate::actions::proposal::{Proposal, ProposalOrigin};
 use crate::actions::registry::ActionRegistry;
 use crate::actions::report::ReportStatus;
 use crate::agent::{
-    record_current_place_perception_and_project, ActorDecisionTransaction,
-    ActorDecisionTransactionInput, ActorDecisionTransactionOutcome, NeedKind, NeedState,
-    NoHumanActorKnownSurfaceBuilder, NoHumanActorKnownSurfaceRequest,
+    current_place_knowledge_context, record_current_place_perception_and_project,
+    ActorDecisionTransaction, ActorDecisionTransactionInput, ActorDecisionTransactionOutcome,
+    NeedKind, NeedState, NoHumanActorKnownSurfaceBuilder, NoHumanActorKnownSurfaceRequest,
 };
 use crate::controller::ControllerBindings;
-use crate::epistemics::EpistemicProjection;
+use crate::epistemics::{ActorKnownIntervalDeltaError, EpistemicProjection};
 use crate::events::apply::{
     apply_agent_event, apply_epistemic_event, apply_event_stream, ApplyError,
     EventApplicationContext, EventApplicationError,
@@ -31,6 +31,7 @@ use crate::ids::{ActionId, ActorId, ContentManifestId, ControllerId, EventId, Id
 use crate::need_accounting::{
     classify_actor_tick_regimes, open_body_exclusive_starts, DuplicateDurationTerminal,
 };
+use crate::projections::{ActorKnownIntervalDelta, IntervalNoticeKind, IntervalStopReason};
 use crate::state::{AgentState, NeedModelState, PhysicalState};
 use crate::time::{passive_awake_need_deltas, SimTick};
 
@@ -193,6 +194,7 @@ pub struct WorldAdvanceResult {
     pub prior_tick: SimTick,
     pub resulting_tick: SimTick,
     pub appended_event_ids: Vec<EventId>,
+    pub actor_known_interval_delta: Option<ActorKnownIntervalDelta>,
     pub due_duration_candidates: Vec<OpenDurationCandidate>,
     pub due_work_summary: WorldStepDueWorkSummary,
     pub controlled_pipeline_results: Vec<PipelineResult>,
@@ -207,6 +209,7 @@ fn rolled_back_controlled_result(
         prior_tick,
         resulting_tick: prior_tick,
         appended_event_ids: Vec::new(),
+        actor_known_interval_delta: None,
         due_duration_candidates: Vec::new(),
         due_work_summary: WorldStepDueWorkSummary {
             open_duration_candidates: 0,
@@ -223,6 +226,7 @@ pub struct WorldStepTransactionRequest {
     pub advance: WorldAdvanceRequest,
     pub controlled_proposals: Vec<Proposal>,
     pub due_actor_ids: Vec<ActorId>,
+    pub actor_known_interval_actor_id: Option<ActorId>,
     pub world_process_events: Vec<EventEnvelope>,
 }
 
@@ -250,6 +254,7 @@ pub enum WorldAdvanceError {
         event_id: EventId,
         error: EventApplicationError,
     },
+    ActorKnownIntervalDelta(ActorKnownIntervalDeltaError),
     ActorPipelineApply {
         actor_id: ActorId,
         event_id: EventId,
@@ -457,6 +462,20 @@ impl DeterministicScheduler {
             epistemic_projection.as_deref().cloned().unwrap_or_else(|| {
                 epistemic_projection_from_log(&scratch_log, &request.advance.content_manifest_id)
             });
+        let actor_known_interval_before =
+            request
+                .actor_known_interval_actor_id
+                .as_ref()
+                .map(|actor_id| {
+                    current_place_knowledge_context(
+                        &scratch_state,
+                        Some(&scratch_projection),
+                        actor_id,
+                        prior_tick,
+                        &request.advance.content_manifest_id,
+                        controlled_source_frontier,
+                    )
+                });
         let mut controlled_pipeline_results = Vec::new();
         let mut post_marker_controlled_proposals = Vec::new();
         for proposal in request.controlled_proposals {
@@ -740,6 +759,37 @@ impl DeterministicScheduler {
             run_pipeline(&mut context, &proposal);
         }
 
+        let actor_known_interval_delta = request
+            .actor_known_interval_actor_id
+            .as_ref()
+            .zip(actor_known_interval_before.as_ref())
+            .map(|(actor_id, before)| {
+                record_current_place_perception_and_project(
+                    &mut scratch_log,
+                    &mut scratch_state,
+                    &mut scratch_agent_state,
+                    &mut scratch_projection,
+                    actor_id,
+                    resulting_tick,
+                    &request.advance.content_manifest_id,
+                );
+                let after = current_place_knowledge_context(
+                    &scratch_state,
+                    Some(&scratch_projection),
+                    actor_id,
+                    resulting_tick,
+                    &request.advance.content_manifest_id,
+                    scratch_log.events().len() as u64,
+                );
+                scratch_projection.actor_known_interval_delta(
+                    before,
+                    &after,
+                    IntervalStopReason::ActorKnownSalientObservation,
+                )
+            })
+            .transpose()
+            .map_err(WorldAdvanceError::ActorKnownIntervalDelta)?;
+
         let appended_event_ids = scratch_log.events()[initial_log_len..]
             .iter()
             .map(|event| event.event_id.clone())
@@ -757,6 +807,7 @@ impl DeterministicScheduler {
             prior_tick,
             resulting_tick,
             appended_event_ids,
+            actor_known_interval_delta,
             due_duration_candidates,
             due_work_summary: WorldStepDueWorkSummary {
                 open_duration_candidates,
@@ -813,6 +864,7 @@ impl DeterministicScheduler {
                     },
                     controlled_proposals: Vec::new(),
                     due_actor_ids: Vec::new(),
+                    actor_known_interval_actor_id: Some(request.possessed_actor_id.clone()),
                     world_process_events: Vec::new(),
                 },
             )?;
@@ -830,11 +882,11 @@ impl DeterministicScheduler {
                     appended_event_ids,
                 });
             }
-            if step_appended_actor_known_salient_observation(
-                log,
-                &step.appended_event_ids,
-                &request.possessed_actor_id,
-            ) {
+            if step
+                .actor_known_interval_delta
+                .as_ref()
+                .is_some_and(actor_known_interval_delta_is_salient)
+            {
                 return Ok(AdvanceUntilResult {
                     start_tick,
                     stop_tick: self.current_tick,
@@ -877,17 +929,14 @@ fn step_appended_possessed_duration_terminal(
     })
 }
 
-fn step_appended_actor_known_salient_observation(
-    log: &EventLog,
-    appended_event_ids: &[EventId],
-    possessed_actor_id: &ActorId,
-) -> bool {
-    appended_event_ids.iter().any(|event_id| {
-        log.events().iter().any(|event| {
-            &event.event_id == event_id
-                && event.event_type == EventKind::ObservationRecorded
-                && event.actor_id.as_ref() == Some(possessed_actor_id)
-        })
+fn actor_known_interval_delta_is_salient(delta: &ActorKnownIntervalDelta) -> bool {
+    delta.notices().iter().any(|notice| {
+        matches!(
+            notice.notice_kind(),
+            IntervalNoticeKind::Observation
+                | IntervalNoticeKind::Record
+                | IntervalNoticeKind::Belief
+        )
     })
 }
 
@@ -1805,6 +1854,7 @@ pub mod no_human {
                             },
                             controlled_proposals: vec![proposal.clone()],
                             due_actor_ids: Vec::new(),
+                            actor_known_interval_actor_id: None,
                             world_process_events: Vec::new(),
                         },
                     ) {
@@ -2201,6 +2251,7 @@ pub mod no_human {
                     advance: request,
                     controlled_proposals: Vec::new(),
                     due_actor_ids: Vec::new(),
+                    actor_known_interval_actor_id: None,
                     world_process_events: Vec::new(),
                 },
             ) {
@@ -3292,6 +3343,7 @@ pub mod no_human {
                         },
                         controlled_proposals: vec![proposal],
                         due_actor_ids: Vec::new(),
+                        actor_known_interval_actor_id: None,
                         world_process_events: Vec::new(),
                     },
                 )
@@ -6848,46 +6900,6 @@ mod tests {
         assert!(!step_appended_possessed_duration_terminal(
             &log,
             std::slice::from_ref(&waited_id),
-            &possessed,
-        ));
-    }
-
-    #[test]
-    fn step_appended_actor_known_salient_observation_requires_the_possessed_actor() {
-        let possessed = actor_id("actor_tomas");
-        let other = actor_id("actor_mara");
-        let mut log = EventLog::new();
-
-        // An observation recorded for the possessed actor is salient. This kills
-        // the `== -> !=` mutant on the actor-id match, which would require the
-        // observation to belong to a *different* actor.
-        let possessed_observation = event_for(
-            "event_observation_tomas",
-            EventKind::ObservationRecorded,
-            &possessed,
-            SimTick::new(5),
-        );
-        let possessed_observation_id = possessed_observation.event_id.clone();
-        log.append(possessed_observation).unwrap();
-        assert!(step_appended_actor_known_salient_observation(
-            &log,
-            std::slice::from_ref(&possessed_observation_id),
-            &possessed,
-        ));
-
-        // An observation recorded for a different actor is not the possessed
-        // actor's salient observation.
-        let other_observation = event_for(
-            "event_observation_mara",
-            EventKind::ObservationRecorded,
-            &other,
-            SimTick::new(6),
-        );
-        let other_observation_id = other_observation.event_id.clone();
-        log.append(other_observation).unwrap();
-        assert!(!step_appended_actor_known_salient_observation(
-            &log,
-            std::slice::from_ref(&other_observation_id),
             &possessed,
         ));
     }

@@ -88,6 +88,7 @@ fn transact_world_one_tick_for_test(
             advance: request,
             controlled_proposals: Vec::new(),
             due_actor_ids: Vec::new(),
+            actor_known_interval_actor_id: None,
             world_process_events: Vec::new(),
         },
     )
@@ -416,6 +417,59 @@ fn physical_state_for_actors_with_need_model(
     )
 }
 
+fn physical_state_for_two_actors_in_separate_places(
+    actor: &ActorId,
+    actor_place: &PlaceId,
+    other_actor: &ActorId,
+    other_place: &PlaceId,
+) -> PhysicalState {
+    let sleep_affordance_id = SleepAffordanceId::new("sleep_mat_home").unwrap();
+    let mut actors = BTreeMap::new();
+    actors.insert(
+        actor.clone(),
+        ActorBody::new(actor.clone(), actor_place.clone()),
+    );
+    actors.insert(
+        other_actor.clone(),
+        ActorBody::new(other_actor.clone(), other_place.clone()),
+    );
+    let mut places = BTreeMap::new();
+    for (place_id, local_actor_id) in [
+        (actor_place.clone(), actor.clone()),
+        (other_place.clone(), other_actor.clone()),
+    ] {
+        places.insert(
+            place_id.clone(),
+            PlaceState {
+                place_id,
+                display_label: "Home".to_string(),
+                adjacent_place_ids: BTreeSet::new(),
+                connected_door_ids: BTreeSet::new(),
+                local_container_ids: BTreeSet::new(),
+                local_item_ids: BTreeSet::new(),
+                local_actor_ids: BTreeSet::from([local_actor_id]),
+                visibility_default: VisibilityDefault::Visible,
+            },
+        );
+    }
+    let mut sleep_affordances = BTreeMap::new();
+    sleep_affordances.insert(
+        sleep_affordance_id.clone(),
+        SleepAffordanceState::new(sleep_affordance_id, other_place.clone(), 2, 20, 2),
+    );
+    PhysicalState::from_seed_parts(
+        actors,
+        places,
+        BTreeMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
+        sleep_affordances,
+        NeedModelState::new(0, 0),
+    )
+}
+
 fn agent_state_for(actor: &ActorId) -> AgentState {
     agent_state_for_actors([actor.clone()])
 }
@@ -565,6 +619,7 @@ fn transactional_world_step_attempts_due_actor_decision_transaction() {
                 advance: world_advance_request(0),
                 controlled_proposals: Vec::new(),
                 due_actor_ids: vec![actor.clone()],
+                actor_known_interval_actor_id: None,
                 world_process_events: Vec::new(),
             },
         )
@@ -609,6 +664,7 @@ fn transactional_world_step_applies_due_world_process_event() {
                 advance: world_advance_request(0),
                 controlled_proposals: Vec::new(),
                 due_actor_ids: Vec::new(),
+                actor_known_interval_actor_id: None,
                 world_process_events: vec![process_event],
             },
         )
@@ -652,6 +708,7 @@ fn transactional_world_step_failure_leaves_authorities_unchanged() {
                 advance: world_advance_request(0),
                 controlled_proposals: Vec::new(),
                 due_actor_ids: Vec::new(),
+                actor_known_interval_actor_id: None,
                 world_process_events: vec![bad_event],
             },
         )
@@ -1137,10 +1194,12 @@ fn advance_until_ignores_hidden_other_actor_duration_terminal() {
     let actor = actor_id("actor_tomas");
     let other_actor = actor_id("actor_mara");
     let place = place_id("home_tomas");
-    let physical = physical_state_for_actors_with_need_model(
-        [actor.clone(), other_actor.clone()],
+    let other_place = place_id("home_mara");
+    let physical = physical_state_for_two_actors_in_separate_places(
+        &actor,
         &place,
-        NeedModelState::new(0, 0),
+        &other_actor,
+        &other_place,
     );
     let mut agent = agent_state_for_actors([actor.clone(), other_actor.clone()]);
     let sleep_affordance = SleepAffordanceId::new("sleep_mat_home").unwrap();

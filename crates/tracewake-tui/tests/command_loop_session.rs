@@ -93,8 +93,11 @@ fn continue_zero_stops_before_next_tick() {
 fn continue_stops_at_controller_safety_bound() {
     let output = run_session("continue 2\nquit\n");
 
-    assert!(output.contains("Advanced until: reason=controller_safety_bound ticks=2 stop_tick=2"));
-    assert!(output.contains("Actor: actor_tomas | Tick: 2"));
+    assert!(output
+        .contains("Advanced until: reason=actor_known_salient_observation ticks=1 stop_tick=1"));
+    assert!(output.contains("Actor: actor_tomas | Tick: 1"));
+    assert!(output
+        .contains("- observation source=event.perception.actor_tomas.1.visible_actor.actor_elena"));
 }
 
 #[test]

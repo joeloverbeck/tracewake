@@ -1,6 +1,6 @@
 # 0048FOUCONHAR-005: Wire interval summary and salient stop through the step (flip; delete raw-log path)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — wires `advance_until` and the interval summary to the ticket-003 typed holder-known step delta and the ticket-002 sealed projection; deletes the TUI raw-log interval-source builder, the salient-observation global-log scan, and the legacy `String`-based `ActorKnownInterval*` types. No new event kinds, content, or fixtures.
@@ -94,3 +94,24 @@ Add `crates/tracewake-core/tests/salient_stop_actor_known.rs` with the positive 
 
 1. `cargo test -p tracewake-core --test salient_stop_actor_known`
 2. `cargo test -p tracewake-core && cargo test -p tracewake-tui` (the read-side flip compiles and passes across both crates).
+
+## Outcome
+
+Completed: 2026-06-23
+
+Replaced the raw-log salient-observation scan with typed interval-delta evidence carried by `WorldAdvanceResult`. `advance_until` now requests possessed-actor interval evidence from the staged one-tick transaction and stops only on the recorded typed salience policy: `Observation`, `Record`, and `Belief` notices are salient; routine direct `Perception` notices remain summary-only. Projection-derived embodied contexts now carry source-event provenance for included actor-known facts so interval deltas are source-citing and replayable.
+
+Rewired `TuiApp::advance_until` to snapshot the sealed before context, run the scheduler, project resumption perception, build the sealed after context, and store a `TypedActorKnownIntervalSummary` from `EpistemicProjection::actor_known_interval_delta`. The TUI renderer converts only closed typed stop/notice values to strings at the rendering boundary. Exact interval ticks remain rendered in embodied interval summaries as controller/replay interval labels; debug continues to expose exact replay time.
+
+Deleted `step_appended_actor_known_salient_observation`, `actor_known_interval_sources`, `actor_known_interval_summary_for_event`, `ActorKnownIntervalSource`, `build_actor_known_interval_summary`, and the legacy string-based `ActorKnownIntervalNotice` / `ActorKnownIntervalSummary` view types. The new `crates/tracewake-core/tests/salient_stop_actor_known.rs` fixture proves a modeled visible-actor observation stops acceleration with typed source evidence, an other-actor hidden observation is not included in the possessed actor delta, and replay rebuild recomputes the stop evidence.
+
+Verification run:
+
+1. `grep -rn "step_appended_actor_known_salient_observation\|actor_known_interval_sources\|build_actor_known_interval_summary" crates/` — printed nothing.
+2. `cargo test -p tracewake-core --test salient_stop_actor_known` — passed.
+3. `cargo test -p tracewake-core` — passed.
+4. `cargo test -p tracewake-tui` — passed.
+5. `cargo fmt --all --check` — passed.
+6. `cargo clippy -p tracewake-core --all-targets -- -D warnings` — passed.
+7. `cargo clippy -p tracewake-tui --all-targets -- -D warnings` — passed.
+8. `git diff --check` — passed.
