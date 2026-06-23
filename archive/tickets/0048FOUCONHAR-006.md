@@ -1,6 +1,6 @@
 # 0048FOUCONHAR-006: Authoritative held-equal differential, generated mixed schedules, and reservation census
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — test-harness only: the non-vacuous held-equal human/no-human loaded-world differential, generated mixed-schedule extension to the deterministic generative harness, and the derived action-registry body-exclusive reservation census. No production code.
@@ -86,3 +86,26 @@ Add `crates/tracewake-core/tests/reservation_body_exclusive_census.rs`: derive t
 1. `cargo test -p tracewake-core --test world_step_coordinator`
 2. `cargo test -p tracewake-core --test generative_lock --test reservation_body_exclusive_census`
 3. `cargo test -p tracewake-core` (full-crate harness build).
+
+## Outcome
+
+Completed: 2026-06-23
+
+Implemented the ticket as test-harness coverage only, with no production-code changes:
+
+1. Added `authoritative_loaded_world_differential_is_non_vacuous` in `crates/tracewake-core/tests/world_step_coordinator.rs`. The lock runs a real human-origin controlled wait against the no-human/scheduler-origin path with the same loaded world, nonzero due unpossessed actor work, and a due world-process event. It asserts identical final physical state, agent state, reconstructed frontier, replay final state/projection checksums, and degraded missing-actor / missing-process variants fail.
+2. Extended the deterministic generative harness with `GeneratedWorldStepSchedule` metadata and `generated_world_step_schedules_replay_frontier_and_charge_once`, covering actor-opportunity, duration-boundary, and process-due schedule classes under recorded seeds while retaining replay and one-charge-per-key checks.
+3. Added `crates/tracewake-core/tests/reservation_body_exclusive_census.rs`, deriving the current body-using registry action list as `eat`, `move`, `sleep`, `wait`, and `work_block`, and asserting reservation-conflict rejection for human, scheduler, and agent origins while an open body-exclusive sleep duration exists.
+
+Deviations from original plan:
+
+- The held-equal differential compares replay temporal diagnostics for equality across human/no-human runs rather than asserting the current due-actor wait path has no temporal diagnostics; the asserted frontier, final state, projection, and checksums remain byte-identical across the held-equal pair.
+
+Verification:
+
+1. `cargo test -p tracewake-core --test world_step_coordinator` — passed.
+2. `cargo test -p tracewake-core --test generative_lock --test reservation_body_exclusive_census` — passed.
+3. `cargo test -p tracewake-core` — passed.
+4. `cargo clippy -p tracewake-core --all-targets -- -D warnings` — passed.
+5. `cargo fmt --all --check` — passed.
+6. `git diff --check` — passed.

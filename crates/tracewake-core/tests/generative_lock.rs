@@ -334,6 +334,33 @@ fn generated_evidence_package_metadata_is_explicit_and_sampled() {
 }
 
 #[test]
+fn generated_world_step_schedules_replay_frontier_and_charge_once() {
+    let mut actor_opportunity_cases = 0;
+    let mut duration_boundary_cases = 0;
+    let mut process_due_cases = 0;
+    for seed in GENERATIVE_SEEDS {
+        let case = generate_case(*seed);
+        actor_opportunity_cases +=
+            usize::from(!case.world_step_schedule.actor_opportunity_ticks.is_empty());
+        duration_boundary_cases +=
+            usize::from(!case.world_step_schedule.duration_boundary_ticks.is_empty());
+        process_due_cases += usize::from(!case.world_step_schedule.process_due_ticks.is_empty());
+        let run = run_case(&case);
+        assert!(has_event(&run.log, EventKind::NoHumanAdvanceStarted));
+        assert!(has_event(&run.log, EventKind::NoHumanAdvanceCompleted));
+        assert_single_need_charge_per_actor_tick_kind(&run.log, *seed);
+        assert_live_matches_replay(&run, *seed);
+        assert_eq!(
+            run.final_tick, case.end_tick,
+            "seed={seed:x} generated schedule final tick must match run report"
+        );
+    }
+    assert!(actor_opportunity_cases > 0);
+    assert!(duration_boundary_cases > 0);
+    assert!(process_due_cases > 0);
+}
+
+#[test]
 fn generated_runs_are_deterministic_under_seed_order_permutation() {
     let forward = generated_log_fingerprints(GENERATIVE_SEEDS.iter().copied());
     let reversed = generated_log_fingerprints(GENERATIVE_SEEDS.iter().rev().copied());

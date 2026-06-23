@@ -1,9 +1,14 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use tracewake_core::actions::defs::wait::build_wait_events;
-use tracewake_core::actions::{ActionRegistry, Proposal, ProposalOrigin};
-use tracewake_core::agent::{NeedChangeCause, NeedKind, NeedState};
+use tracewake_core::actions::{
+    ActionRegistry, Proposal, ProposalOrigin, ProposalSource, ProposalSourceContext,
+};
+use tracewake_core::agent::{
+    current_place_knowledge_context, NeedChangeCause, NeedKind, NeedState,
+};
 use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext, PhysicalChecksum};
+use tracewake_core::controller::ControllerBindings;
 use tracewake_core::events::apply::apply_agent_event;
 use tracewake_core::events::log::EventLog;
 use tracewake_core::events::{
@@ -11,7 +16,7 @@ use tracewake_core::events::{
 };
 use tracewake_core::ids::{
     ActionId, ActorId, ContentManifestId, ContentVersion, ControllerId, EventId, FixtureId,
-    PlaceId, ProcessId, ProposalId, SleepAffordanceId, WorkplaceId,
+    PlaceId, ProcessId, ProposalId, SemanticActionId, SleepAffordanceId, ViewModelId, WorkplaceId,
 };
 use tracewake_core::replay::rebuild_projection;
 use tracewake_core::scheduler::no_human::{advance_no_human, NoHumanStateMut};
@@ -22,8 +27,8 @@ use tracewake_core::scheduler::{
     WorldAdvanceResult, WorldStepTransactionRequest,
 };
 use tracewake_core::state::{
-    ActorBody, AgentState, NeedModelState, PhysicalState, PlaceState, SleepAffordanceState,
-    VisibilityDefault, WorkplaceState,
+    ActorBody, AgentState, ControllerMode, NeedModelState, PhysicalState, PlaceState,
+    SleepAffordanceState, VisibilityDefault, WorkplaceState,
 };
 use tracewake_core::time::SimTick;
 
@@ -312,6 +317,69 @@ fn ordinary_wait_event(id: &str, actor_id: &ActorId, tick: u64) -> EventEnvelope
         PayloadField::new("body_exclusive", "false"),
     ];
     event
+}
+
+fn wait_proposal(actor: &ActorId, origin: ProposalOrigin, tick: u64, id: &str) -> Proposal {
+    let mut proposal = Proposal::new(
+        ProposalId::new(id).unwrap(),
+        origin,
+        Some(actor.clone()),
+        ActionId::new("wait").unwrap(),
+        SimTick::new(tick),
+    );
+    proposal
+        .parameters
+        .insert("reason".to_string(), format!("held_equal_wait_{id}"));
+    proposal
+        .parameters
+        .insert("ticks".to_string(), "1".to_string());
+    proposal
+}
+
+fn attach_human_wait_source(
+    proposal: &mut Proposal,
+    state: &PhysicalState,
+    actor: &ActorId,
+    tick: SimTick,
+    source_frontier: u64,
+) -> ControllerBindings {
+    let controller_id = ControllerId::new("controller_loaded_world_differential").unwrap();
+    let source_context = current_place_knowledge_context(
+        state,
+        None,
+        actor,
+        tick,
+        &content_manifest_id(),
+        source_frontier,
+    );
+    let source_view_model_id =
+        ViewModelId::new(format!("view.loaded_world_differential.{}", actor.as_str())).unwrap();
+    proposal.source_view_model_id = Some(source_view_model_id.clone());
+    proposal.source = Some(ProposalSource::TuiSemanticAction(ProposalSourceContext {
+        source_view_model_id,
+        holder_known_context_id: source_context.holder_known_context_id().clone(),
+        holder_known_context_hash: source_context.holder_known_context_hash().clone(),
+        holder_known_context_frontier: source_context.event_frontier(),
+        context_tick: tick,
+        actor_id: actor.clone(),
+        semantic_action_id: SemanticActionId::new("wait.1_tick").unwrap(),
+        provenance_ancestry: Vec::new(),
+    }));
+    proposal
+        .parameters
+        .insert("controller_id".to_string(), controller_id.to_string());
+
+    let mut bindings = ControllerBindings::new();
+    let mut binding_log = EventLog::new();
+    bindings.attach(
+        controller_id,
+        actor.clone(),
+        ControllerMode::Embodied,
+        tick,
+        &mut binding_log,
+        content_manifest_id(),
+    );
+    bindings
 }
 
 fn malformed_actor_moved_process_event(
@@ -917,6 +985,280 @@ fn differential_human_wait_and_no_human_wait_match_authoritative_outcome() {
     assert_ne!(human_time_origin, no_human_time_origin);
     assert_eq!(no_human_report.marker_event_ids.len(), 2);
     assert_eq!(no_human_report.ordinary_pipeline_events, 0);
+}
+
+#[derive(Clone)]
+struct LoadedWorldDifferentialRun {
+    physical: PhysicalState,
+    agent: AgentState,
+    log: EventLog,
+    result: WorldAdvanceResult,
+    scheduler_tick: SimTick,
+}
+
+struct LoadedWorldDifferentialCase<'a> {
+    initial_physical: &'a PhysicalState,
+    initial_agent: &'a AgentState,
+    initial_tick: SimTick,
+    controlled_origin: ProposalOrigin,
+    possessed: &'a ActorId,
+    unpossessed_due: Option<ActorId>,
+    process_event: Option<EventEnvelope>,
+    proposal_id: &'a str,
+}
+
+fn run_loaded_world_differential_case(
+    case: LoadedWorldDifferentialCase<'_>,
+) -> LoadedWorldDifferentialRun {
+    let mut physical = case.initial_physical.clone();
+    let mut agent = case.initial_agent.clone();
+    let mut log = EventLog::new();
+    let mut registry = ActionRegistry::new();
+    registry.register_phase1_inspect_wait();
+    let mut scheduler = DeterministicScheduler::new(case.initial_tick);
+    let mut controlled_proposal = wait_proposal(
+        case.possessed,
+        case.controlled_origin.clone(),
+        case.initial_tick.value(),
+        case.proposal_id,
+    );
+    let controller_bindings = if case.controlled_origin == ProposalOrigin::Human {
+        Some(attach_human_wait_source(
+            &mut controlled_proposal,
+            &physical,
+            case.possessed,
+            case.initial_tick,
+            log.events().len() as u64,
+        ))
+    } else {
+        None
+    };
+    let result = scheduler
+        .transact_world_one_tick(
+            &mut physical,
+            &mut agent,
+            &mut log,
+            &registry,
+            controller_bindings.as_ref(),
+            None,
+            WorldStepTransactionRequest {
+                advance: world_advance_request(case.initial_tick.value()),
+                controlled_proposals: vec![controlled_proposal],
+                due_actor_ids: case.unpossessed_due.into_iter().collect(),
+                actor_known_interval_actor_id: None,
+                world_process_events: case.process_event.into_iter().collect(),
+            },
+        )
+        .unwrap();
+    LoadedWorldDifferentialRun {
+        physical,
+        agent,
+        log,
+        result,
+        scheduler_tick: scheduler.current_tick(),
+    }
+}
+
+fn loaded_world_differential_passes(
+    left: &LoadedWorldDifferentialRun,
+    right: &LoadedWorldDifferentialRun,
+    initial_physical: &PhysicalState,
+    initial_agent: &AgentState,
+) -> bool {
+    if left.result.due_work_summary.actor_transactions_attempted == 0
+        || left.result.due_work_summary.world_processes_applied == 0
+        || right.result.due_work_summary.actor_transactions_attempted == 0
+        || right.result.due_work_summary.world_processes_applied == 0
+    {
+        return false;
+    }
+    if left.physical != right.physical
+        || left.agent != right.agent
+        || left.scheduler_tick != right.scheduler_tick
+        || left.result.resulting_tick != right.result.resulting_tick
+    {
+        return false;
+    }
+    let left_rebuild = rebuild_projection(
+        initial_physical,
+        initial_agent,
+        &left.log,
+        &checksum_context(left.result.prior_tick, 0),
+        Some(&left.physical),
+    );
+    let right_rebuild = rebuild_projection(
+        initial_physical,
+        initial_agent,
+        &right.log,
+        &checksum_context(right.result.prior_tick, 0),
+        Some(&right.physical),
+    );
+    if left_rebuild.reconstructed_final_frontier != right_rebuild.reconstructed_final_frontier
+        || left_rebuild.final_state != right_rebuild.final_state
+        || left_rebuild.final_agent_state != right_rebuild.final_agent_state
+        || left_rebuild.final_checksum != right_rebuild.final_checksum
+        || left_rebuild.final_agent_checksum != right_rebuild.final_agent_checksum
+        || left_rebuild.final_epistemic_checksum != right_rebuild.final_epistemic_checksum
+        || left_rebuild.temporal_violations != right_rebuild.temporal_violations
+    {
+        return false;
+    }
+    for rebuild in [&left_rebuild, &right_rebuild] {
+        if rebuild.reconstructed_final_frontier != left.scheduler_tick
+            || !rebuild.state_diff.is_empty()
+            || !rebuild.invariant_violations.is_empty()
+            || !rebuild.epistemic_application_errors.is_empty()
+            || !rebuild.agent_application_errors.is_empty()
+        {
+            return false;
+        }
+    }
+    true
+}
+
+#[test]
+fn authoritative_loaded_world_differential_is_non_vacuous() {
+    let possessed = actor_id("actor_tomas");
+    let unpossessed = actor_id("actor_mara");
+    let place = place_id("home_tomas");
+    let initial_physical = physical_state_for_actors_with_need_model(
+        [possessed.clone(), unpossessed.clone()],
+        &place,
+        NeedModelState::new(5, 7),
+    );
+    let initial_agent = agent_state_for_actors([possessed.clone(), unpossessed.clone()]);
+    let process_id = ProcessId::new("process_loaded_world_probe").unwrap();
+    let initial_tick = SimTick::new(1);
+
+    let left = run_loaded_world_differential_case(LoadedWorldDifferentialCase {
+        initial_physical: &initial_physical,
+        initial_agent: &initial_agent,
+        initial_tick,
+        controlled_origin: ProposalOrigin::Human,
+        possessed: &possessed,
+        unpossessed_due: Some(unpossessed.clone()),
+        process_event: Some(process_marker_event(
+            "event.loaded_world_probe.left",
+            &process_id,
+            2,
+        )),
+        proposal_id: "proposal_loaded_world_left",
+    });
+    let right = run_loaded_world_differential_case(LoadedWorldDifferentialCase {
+        initial_physical: &initial_physical,
+        initial_agent: &initial_agent,
+        initial_tick,
+        controlled_origin: ProposalOrigin::Scheduler,
+        possessed: &possessed,
+        unpossessed_due: Some(unpossessed.clone()),
+        process_event: Some(process_marker_event(
+            "event.loaded_world_probe.left",
+            &process_id,
+            2,
+        )),
+        proposal_id: "proposal_loaded_world_left",
+    });
+
+    assert_eq!(left.physical, right.physical);
+    assert_eq!(left.agent, right.agent);
+    assert_eq!(left.scheduler_tick, right.scheduler_tick);
+    assert_eq!(left.result.resulting_tick, right.result.resulting_tick);
+    let left_rebuild = rebuild_projection(
+        &initial_physical,
+        &initial_agent,
+        &left.log,
+        &checksum_context(left.result.prior_tick, 0),
+        Some(&left.physical),
+    );
+    let right_rebuild = rebuild_projection(
+        &initial_physical,
+        &initial_agent,
+        &right.log,
+        &checksum_context(right.result.prior_tick, 0),
+        Some(&right.physical),
+    );
+    assert_eq!(
+        left_rebuild.reconstructed_final_frontier,
+        left.scheduler_tick
+    );
+    assert_eq!(
+        right_rebuild.reconstructed_final_frontier,
+        right.scheduler_tick
+    );
+    assert_eq!(
+        left_rebuild.temporal_violations,
+        right_rebuild.temporal_violations
+    );
+    assert!(left_rebuild.state_diff.is_empty());
+    assert!(right_rebuild.state_diff.is_empty());
+    assert_eq!(left_rebuild.final_state, right_rebuild.final_state);
+    assert_eq!(
+        left_rebuild.final_agent_state,
+        right_rebuild.final_agent_state
+    );
+    assert_eq!(left_rebuild.final_checksum, right_rebuild.final_checksum);
+    assert_eq!(
+        left_rebuild.final_agent_checksum,
+        right_rebuild.final_agent_checksum
+    );
+    assert_eq!(
+        left_rebuild.final_epistemic_checksum,
+        right_rebuild.final_epistemic_checksum
+    );
+    assert!(loaded_world_differential_passes(
+        &left,
+        &right,
+        &initial_physical,
+        &initial_agent
+    ));
+    assert_eq!(left.result.due_work_summary.actor_transactions_attempted, 1);
+    assert_eq!(left.result.due_work_summary.world_processes_applied, 1);
+    assert_eq!(
+        left.log
+            .events()
+            .iter()
+            .filter(|event| event.event_type == EventKind::ActorWaited)
+            .count(),
+        2
+    );
+
+    let missing_actor = run_loaded_world_differential_case(LoadedWorldDifferentialCase {
+        initial_physical: &initial_physical,
+        initial_agent: &initial_agent,
+        initial_tick,
+        controlled_origin: ProposalOrigin::Scheduler,
+        possessed: &possessed,
+        unpossessed_due: None,
+        process_event: Some(process_marker_event(
+            "event.loaded_world_probe.missing_actor",
+            &process_id,
+            2,
+        )),
+        proposal_id: "proposal_loaded_world_missing_actor",
+    });
+    assert!(!loaded_world_differential_passes(
+        &left,
+        &missing_actor,
+        &initial_physical,
+        &initial_agent
+    ));
+
+    let missing_process = run_loaded_world_differential_case(LoadedWorldDifferentialCase {
+        initial_physical: &initial_physical,
+        initial_agent: &initial_agent,
+        initial_tick,
+        controlled_origin: ProposalOrigin::Scheduler,
+        possessed: &possessed,
+        unpossessed_due: Some(unpossessed),
+        process_event: None,
+        proposal_id: "proposal_loaded_world_missing_process",
+    });
+    assert!(!loaded_world_differential_passes(
+        &left,
+        &missing_process,
+        &initial_physical,
+        &initial_agent
+    ));
 }
 
 #[test]
