@@ -96,10 +96,7 @@ fn ci_workflow_guards_cover_workflow_integrity() {
         "synthetic masked gate step must fail"
     );
 
-    let unpinned_third_party = CI_YML.replace(
-        "- uses: actions/checkout@v4",
-        "- uses: docker/login-action@v3",
-    );
+    let unpinned_third_party = format!("{CI_YML}\n      - uses: docker/login-action@v3\n");
     assert!(
         ci_workflow_guard_errors(&unpinned_third_party, MUTANTS_TOML, DOC10)
             .iter()
@@ -138,7 +135,7 @@ fn ci_workflow_guards_cover_workflow_integrity() {
     );
 
     let undocumented_job = format!(
-        "{CI_YML}\n  synthetic-undocumented:\n    name: synthetic\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n"
+        "{CI_YML}\n  synthetic-undocumented:\n    name: synthetic\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v5\n"
     );
     assert!(
         ci_workflow_guard_errors(&undocumented_job, MUTANTS_TOML, DOC10)
@@ -335,7 +332,7 @@ fn action_pin_errors(workflow: &str) -> Vec<String> {
 
 fn cache_key_errors(workflow: &str) -> Vec<String> {
     let mut errors = Vec::new();
-    for block in workflow.split("uses: actions/cache@v4").skip(1) {
+    for block in workflow.split("uses: actions/cache@").skip(1) {
         let block = block
             .split("\n      - ")
             .next()
@@ -440,7 +437,7 @@ fn mutation_perimeter_errors(workflow: &str, mutants_config: &str) -> Vec<String
         ".cargo/mutants-baseline-misses.txt",
         "comm -23",
         "mutants.out/timeout.txt",
-        "actions/upload-artifact@v4",
+        "actions/upload-artifact@",
     ] {
         if !workflow.contains(required) {
             errors.push(format!(
@@ -475,7 +472,7 @@ fn scheduled_mutation_lane_errors(workflow: &str) -> Vec<String> {
         r#"--timeout "$MUTANTS_TEST_TIMEOUT""#,
         "assigned-mutants.json",
         r#"cp -R "$out_dir/mutants.out" "$shard_dir/mutants.out""#,
-        "actions/download-artifact@v4",
+        "actions/download-artifact@",
         "pattern: cargo-mutants-lock-layer-*",
         "python3 tools/merge-mutation-shards.py",
         "--canonical-list",
