@@ -10,6 +10,10 @@ use crate::ids::{
     WorkplaceId,
 };
 use crate::location::Location;
+use crate::projections::{
+    ActorKnownIntervalDelta, IntervalNoticeKind, IntervalStopReason,
+    VerifiedActorKnownIntervalNotice,
+};
 use crate::time::SimTick;
 use crate::view_models::{
     DebugBeliefEntry, DebugBeliefsView, DebugContradictionEntry, DebugEpistemicsView,
@@ -570,6 +574,79 @@ impl EpistemicProjection {
             .collect()
     }
 
+    pub fn actor_known_interval_delta(
+        &self,
+        before: &KnowledgeContext,
+        after: &KnowledgeContext,
+        stop_reason: IntervalStopReason,
+    ) -> Result<ActorKnownIntervalDelta, ActorKnownIntervalDeltaError> {
+        if before.viewer_actor_id() != after.viewer_actor_id()
+            || before.bound_actor_id() != after.bound_actor_id()
+        {
+            return Err(ActorKnownIntervalDeltaError::ContextHolderMismatch);
+        }
+        if before.mode() != ViewMode::Embodied || after.mode() != ViewMode::Embodied {
+            return Err(ActorKnownIntervalDeltaError::NonEmbodiedContext);
+        }
+        if before.event_frontier() > after.event_frontier() {
+            return Err(ActorKnownIntervalDeltaError::FrontierRegression {
+                before: before.event_frontier(),
+                after: after.event_frontier(),
+            });
+        }
+        if after.debug_non_diegetic() {
+            return Err(ActorKnownIntervalDeltaError::DebugContext);
+        }
+
+        let before_provenance = before.provenance_entries().iter().collect::<BTreeSet<_>>();
+        let after_records = self
+            .actor_known_records_by_actor
+            .get(after.viewer_actor_id())
+            .cloned()
+            .unwrap_or_default();
+        let mut notices = Vec::new();
+        for entry in after
+            .provenance_entries()
+            .iter()
+            .filter(|entry| !before_provenance.contains(entry))
+        {
+            if !after.allowed_sources().contains(&entry.source()) {
+                return Err(ActorKnownIntervalDeltaError::SourceNotAllowed {
+                    source_key: entry.source_key().to_string(),
+                });
+            }
+            let Some(notice_kind) = interval_notice_kind(entry.kind()) else {
+                return Err(ActorKnownIntervalDeltaError::UnsupportedProvenanceKind {
+                    source_key: entry.source_key().to_string(),
+                    kind: entry.kind().stable_id(),
+                });
+            };
+            let Some(record) = after_records
+                .iter()
+                .find(|record| record.source_event_id().as_str() == entry.source_key())
+            else {
+                return Err(ActorKnownIntervalDeltaError::UnresolvedSource {
+                    source_key: entry.source_key().to_string(),
+                });
+            };
+            notices.push(VerifiedActorKnownIntervalNotice::from_verified(
+                notice_kind,
+                record.source_event_id().clone(),
+                entry.source_key(),
+            ));
+        }
+
+        Ok(ActorKnownIntervalDelta::from_verified(
+            after.viewer_actor_id().clone(),
+            before.current_tick(),
+            after.current_tick(),
+            before.event_frontier(),
+            after.event_frontier(),
+            stop_reason,
+            notices,
+        ))
+    }
+
     pub fn debug_epistemics_view(&self) -> DebugEpistemicsView {
         let observations = self
             .observations_by_id
@@ -770,6 +847,51 @@ impl ActorKnownProjectionSource {
             Self::VisibleItem => "visible_item",
             Self::VisibleActor => "visible_actor",
             Self::VisibleSleepAffordance => "visible_sleep_affordance",
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ActorKnownIntervalDeltaError {
+    ContextHolderMismatch,
+    NonEmbodiedContext,
+    DebugContext,
+    FrontierRegression {
+        before: u64,
+        after: u64,
+    },
+    SourceNotAllowed {
+        source_key: String,
+    },
+    UnsupportedProvenanceKind {
+        source_key: String,
+        kind: &'static str,
+    },
+    UnresolvedSource {
+        source_key: String,
+    },
+}
+
+fn interval_notice_kind(
+    kind: &crate::epistemics::knowledge_context::KnowledgeProvenanceKind,
+) -> Option<IntervalNoticeKind> {
+    match kind {
+        crate::epistemics::knowledge_context::KnowledgeProvenanceKind::Perception => {
+            Some(IntervalNoticeKind::Perception)
+        }
+        crate::epistemics::knowledge_context::KnowledgeProvenanceKind::Observation => {
+            Some(IntervalNoticeKind::Observation)
+        }
+        crate::epistemics::knowledge_context::KnowledgeProvenanceKind::Record => {
+            Some(IntervalNoticeKind::Record)
+        }
+        crate::epistemics::knowledge_context::KnowledgeProvenanceKind::Belief => {
+            Some(IntervalNoticeKind::Belief)
+        }
+        crate::epistemics::knowledge_context::KnowledgeProvenanceKind::Memory
+        | crate::epistemics::knowledge_context::KnowledgeProvenanceKind::Reservation
+        | crate::epistemics::knowledge_context::KnowledgeProvenanceKind::ActionAffordanceFact => {
+            None
         }
     }
 }

@@ -863,6 +863,52 @@ impl KnowledgeContext {
     }
 
     #[allow(clippy::too_many_arguments)]
+    pub fn embodied_at_frontier_with_all_facts_observations_and_provenance(
+        viewer_actor_id: ActorId,
+        current_tick: SimTick,
+        event_frontier: u64,
+        actor_known_workplaces: Vec<ActorKnownWorkplaceFact>,
+        actor_known_current_places: Vec<ActorKnownCurrentPlaceFact>,
+        actor_known_carried_items: Vec<ActorKnownCarriedItemFact>,
+        actor_known_food_sources: Vec<ActorKnownFoodSourceFact>,
+        actor_known_sleep_affordances: Vec<ActorKnownSleepAffordanceFact>,
+        actor_known_routes: Vec<ActorKnownRouteFact>,
+        actor_known_doors: Vec<ActorKnownDoorFact>,
+        actor_known_containers: Vec<ActorKnownContainerFact>,
+        actor_known_items: Vec<ActorKnownItemFact>,
+        actor_known_local_actors: Vec<ActorKnownLocalActorFact>,
+        provenance_entries: Vec<KnowledgeProvenanceEntry>,
+    ) -> Self {
+        let actor_scope = ScopeFilter::ActorPrivate(viewer_actor_id.clone());
+        let mut provenance = baseline_embodied_provenance();
+        provenance.extend(provenance_entries);
+        Self::seal(
+            viewer_actor_id.clone(),
+            viewer_actor_id,
+            ViewMode::Embodied,
+            current_tick,
+            event_frontier,
+            embodied_allowed_sources(),
+            forbidden_sources(),
+            actor_scope.clone(),
+            actor_scope.clone(),
+            actor_scope,
+            false,
+            provenance,
+            actor_known_workplaces,
+            actor_known_current_places,
+            actor_known_carried_items,
+            actor_known_food_sources,
+            actor_known_sleep_affordances,
+            actor_known_routes,
+            actor_known_doors,
+            actor_known_containers,
+            actor_known_items,
+            actor_known_local_actors,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
     fn seal(
         viewer_actor_id: ActorId,
         bound_actor_id: ActorId,

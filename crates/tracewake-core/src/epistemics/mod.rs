@@ -26,10 +26,11 @@ pub use observation::{
     PrivacyScope, SourceRef, TickWindow,
 };
 pub use projection::{
-    ActorKnownProjectionAccessibilityScope, ActorKnownProjectionEmbodiedScope,
-    ActorKnownProjectionFreshness, ActorKnownProjectionKindPolicy, ActorKnownProjectionPolicy,
-    ActorKnownProjectionRecord, ActorKnownProjectionSource, ClassifiedActorKnownProjectionRecord,
-    EpistemicProjection, EpistemicProjectionChecksum, EpistemicProjectionChecksumReport,
-    NotebookEntry, ProjectionEventRange,
+    ActorKnownIntervalDeltaError, ActorKnownProjectionAccessibilityScope,
+    ActorKnownProjectionEmbodiedScope, ActorKnownProjectionFreshness,
+    ActorKnownProjectionKindPolicy, ActorKnownProjectionPolicy, ActorKnownProjectionRecord,
+    ActorKnownProjectionSource, ClassifiedActorKnownProjectionRecord, EpistemicProjection,
+    EpistemicProjectionChecksum, EpistemicProjectionChecksumReport, NotebookEntry,
+    ProjectionEventRange,
 };
 pub use proposition::{Proposition, PropositionReferenceError};

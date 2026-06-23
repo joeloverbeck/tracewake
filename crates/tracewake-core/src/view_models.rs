@@ -58,6 +58,31 @@ pub struct ActorKnownIntervalNotice {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TypedActorKnownIntervalSummary {
+    pub start_tick: SimTick,
+    pub stop_tick: SimTick,
+    pub start_frontier: u64,
+    pub stop_frontier: u64,
+    pub stop_reason: crate::projections::IntervalStopReason,
+    pub notices: Vec<crate::projections::VerifiedActorKnownIntervalNotice>,
+    pub no_new_actor_known_information: bool,
+}
+
+impl From<crate::projections::ActorKnownIntervalDelta> for TypedActorKnownIntervalSummary {
+    fn from(delta: crate::projections::ActorKnownIntervalDelta) -> Self {
+        Self {
+            start_tick: delta.start_tick(),
+            stop_tick: delta.stop_tick(),
+            start_frontier: delta.start_frontier(),
+            stop_frontier: delta.stop_frontier(),
+            stop_reason: delta.stop_reason(),
+            notices: delta.notices().to_vec(),
+            no_new_actor_known_information: delta.no_new_actor_known_information(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Phase3AEmbodiedStatus {
     pub need_summaries: Vec<NeedStatusEntry>,
     pub intention_summary: Option<String>,

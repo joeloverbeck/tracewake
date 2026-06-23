@@ -714,6 +714,145 @@ pub struct ActorKnownIntervalSource {
     pub summary: String,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum IntervalNoticeKind {
+    Perception,
+    Observation,
+    Record,
+    Belief,
+}
+
+impl IntervalNoticeKind {
+    pub const fn stable_id(self) -> &'static str {
+        match self {
+            Self::Perception => "perception",
+            Self::Observation => "observation",
+            Self::Record => "record",
+            Self::Belief => "belief",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum IntervalStopReason {
+    PossessedDurationTerminal,
+    ActorKnownSalientObservation,
+    UserPausedBeforeNextTick,
+    ControllerSafetyBound,
+}
+
+impl IntervalStopReason {
+    pub const fn stable_id(self) -> &'static str {
+        match self {
+            Self::PossessedDurationTerminal => "possessed_duration_terminal",
+            Self::ActorKnownSalientObservation => "actor_known_salient_observation",
+            Self::UserPausedBeforeNextTick => "user_paused_before_next_tick",
+            Self::ControllerSafetyBound => "controller_safety_bound",
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct VerifiedActorKnownIntervalNotice {
+    notice_kind: IntervalNoticeKind,
+    source_event_id: EventId,
+    source_key: String,
+}
+
+impl VerifiedActorKnownIntervalNotice {
+    pub(crate) fn from_verified(
+        notice_kind: IntervalNoticeKind,
+        source_event_id: EventId,
+        source_key: impl Into<String>,
+    ) -> Self {
+        Self {
+            notice_kind,
+            source_event_id,
+            source_key: source_key.into(),
+        }
+    }
+
+    pub fn notice_kind(&self) -> IntervalNoticeKind {
+        self.notice_kind
+    }
+
+    pub fn source_event_id(&self) -> &EventId {
+        &self.source_event_id
+    }
+
+    pub fn source_key(&self) -> &str {
+        &self.source_key
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ActorKnownIntervalDelta {
+    viewer_actor_id: ActorId,
+    start_tick: SimTick,
+    stop_tick: SimTick,
+    start_frontier: u64,
+    stop_frontier: u64,
+    stop_reason: IntervalStopReason,
+    notices: Vec<VerifiedActorKnownIntervalNotice>,
+}
+
+impl ActorKnownIntervalDelta {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn from_verified(
+        viewer_actor_id: ActorId,
+        start_tick: SimTick,
+        stop_tick: SimTick,
+        start_frontier: u64,
+        stop_frontier: u64,
+        stop_reason: IntervalStopReason,
+        mut notices: Vec<VerifiedActorKnownIntervalNotice>,
+    ) -> Self {
+        notices.sort();
+        notices.dedup();
+        Self {
+            viewer_actor_id,
+            start_tick,
+            stop_tick,
+            start_frontier,
+            stop_frontier,
+            stop_reason,
+            notices,
+        }
+    }
+
+    pub fn viewer_actor_id(&self) -> &ActorId {
+        &self.viewer_actor_id
+    }
+
+    pub fn start_tick(&self) -> SimTick {
+        self.start_tick
+    }
+
+    pub fn stop_tick(&self) -> SimTick {
+        self.stop_tick
+    }
+
+    pub fn start_frontier(&self) -> u64 {
+        self.start_frontier
+    }
+
+    pub fn stop_frontier(&self) -> u64 {
+        self.stop_frontier
+    }
+
+    pub fn stop_reason(&self) -> IntervalStopReason {
+        self.stop_reason
+    }
+
+    pub fn notices(&self) -> &[VerifiedActorKnownIntervalNotice] {
+        &self.notices
+    }
+
+    pub fn no_new_actor_known_information(&self) -> bool {
+        self.notices.is_empty()
+    }
+}
+
 pub fn build_actor_known_interval_summary(
     viewer_actor_id: &ActorId,
     start_tick: SimTick,

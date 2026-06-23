@@ -1,6 +1,6 @@
 # 0048FOUCONHAR-002: Sealed holder-known interval-delta projection (additive, unwired)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — adds a sealed holder-known interval-delta projection to the core epistemic boundary, closed typed notice/stop-reason values, and private constructors, plus compile-fail and observational-equivalence guards. Additive only: the existing `String`-based interval types stay live until ticket 005 performs the flip. No new event kinds, content, or fixtures.
@@ -87,3 +87,42 @@ Extend `crates/tracewake-core/tests/negative_fixture_runner.rs` with compile-fai
 1. `cargo test -p tracewake-core --test holder_known_interval_projection`
 2. `cargo test -p tracewake-core --test negative_fixture_runner`
 3. `cargo test -p tracewake-core` (confirms additive types compile with the retained path untouched).
+
+## Outcome
+
+Completed: 2026-06-23
+
+Implemented the additive sealed holder-known interval-delta path while leaving
+the legacy `ActorKnownInterval*` string summary path live for ticket 005. The
+new API adds closed `IntervalNoticeKind` and `IntervalStopReason` values,
+`VerifiedActorKnownIntervalNotice` with private fields and a crate-only
+constructor, `ActorKnownIntervalDelta` with a crate-only constructor, and
+`TypedActorKnownIntervalSummary` carrying the closed values without rendering
+prose. `KnowledgeContext` gained a sealed constructor that accepts additional
+provenance entries while still routing through the existing seal/hash path.
+
+`EpistemicProjection::actor_known_interval_delta` now consumes sealed before
+and after `KnowledgeContext`s, verifies same holder/bound actor, embodied mode,
+non-regressing frontier, allowed provenance source class, supported provenance
+kind, and source resolution against actor-known projection records for the
+sealed viewer. Hidden projection records for other actors do not affect an
+unchanged holder-known delta.
+
+Added `holder_known_interval_projection.rs` for the positive verified-source
+delta, hidden-world observational equivalence, unresolved/wrong-kind
+fail-closed cases, and other-holder rejection. Added external negative fixtures
+proving downstream crates cannot call the verified notice constructor and cannot
+convert a debug event-log view into the typed embodied interval summary.
+
+Deviation from the original ticket plan: the additive projection derives its
+delta from sealed `KnowledgeContext` provenance entries and verifies each new
+entry against projection records by source event ID. It does not yet wire the TUI
+or delete the old raw-log path; those remain ticket 005 scope as planned.
+
+Verification:
+
+- `cargo test -p tracewake-core --test holder_known_interval_projection` passed.
+- `cargo test -p tracewake-core --test negative_fixture_runner` passed.
+- `cargo test -p tracewake-core` passed.
+- `cargo fmt --all --check` passed.
+- `git diff --check` passed.
