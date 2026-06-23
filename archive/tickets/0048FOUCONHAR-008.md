@@ -1,6 +1,6 @@
 # 0048FOUCONHAR-008: Capstone — focused mutation campaigns, evidence report, and conformance/risk-doc updates
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: None — acceptance/evidence capstone: runs focused mutation campaigns over the rewritten surfaces and records survivors, authors the implementation/review artifact, and updates conformance rows and risk-register evidence. Adds no production or test-harness code.
@@ -78,3 +78,41 @@ In `docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`, re-point the 
 1. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
 2. `cargo mutants -f crates/tracewake-core/src/scheduler.rs -f crates/tracewake-core/src/replay/temporal.rs -f crates/tracewake-core/src/projections.rs` (focused campaign over the rewritten surfaces; extend `-f` to the full rewritten set per Verification Layer 2 — the project's configured mutation tool, not a standard `fmt`/`clippy`/`test` gate).
 3. `grep -n "temporal\|frontier\|differential" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md` and `grep -nE "R-(08|09|10|11|13|15|16|27|28|29)" docs/3-reference/01_DESIGN_RISK_REGISTER.md` confirm the conformance/risk updates landed.
+
+## Outcome
+
+Completed: 2026-06-23
+
+Accepted as an evidence-only capstone. Added
+`reports/0048_foundational_conformance_hardening_acceptance.md`, updated the
+0048 conformance row in
+`docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`, and updated
+the existing R-08, R-09, R-10, R-11, R-13, R-15, R-16, R-27, R-28, and R-29
+evidence lines in `docs/3-reference/01_DESIGN_RISK_REGISTER.md`. No doctrine
+file, archived 0046/0047 artifact, production/test code, new risk id, or
+`.cargo/mutants.toml` perimeter changed.
+
+Full workspace gates passed before the report/doc closeout edits:
+
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
+
+Focused mutation evidence used `cargo-mutants 27.1.0`. The deliberate
+`--no-config` denominator check selected 61 mutants across
+`crates/tracewake-core/src/scheduler.rs`,
+`crates/tracewake-core/src/replay/temporal.rs`, and
+`crates/tracewake-core/src/projections.rs` for
+`transact_world_one_tick|advance_until|build_time_advanced_event|project_temporal_frontier|validate_time_advanced|ActorKnownIntervalDelta|VerifiedActorKnownIntervalNotice|proposal_from_current_view_semantic_action|build_embodied_view_model`.
+The executed campaign completed with 40 caught, 8 missed, and 13 unviable
+mutants under `target/mutants-0048-core`; all eight surviving focused mutants
+are triaged in the report. The standing checked-in mutation perimeter was not
+expanded and the full configured perimeter was not run for this capstone.
+
+Post-edit closeout checks:
+
+- `rg -n "0048_foundational_conformance_hardening_acceptance|0048FOUCONHAR|temporal|frontier|differential" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md`
+- `rg -n "R-(08|09|10|11|13|15|16|27|28|29)|0048_foundational_conformance_hardening_acceptance" docs/3-reference/01_DESIGN_RISK_REGISTER.md`
+- `rg -n "^### R-[0-9][0-9]" docs/3-reference/01_DESIGN_RISK_REGISTER.md`
+- `git diff --check`
