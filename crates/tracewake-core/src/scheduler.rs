@@ -4796,6 +4796,107 @@ pub mod no_human {
         }
 
         #[test]
+        fn decision_trace_append_requires_matching_ordinary_event_in_log() {
+            let actor = actor_id();
+            let process = ProcessId::new("process_decision_trace_witness").unwrap();
+            let window = DayWindow {
+                window_id: "morning".to_string(),
+                start_tick: SimTick::new(4),
+                end_tick: SimTick::new(9),
+            };
+            let proposal = Proposal::new(
+                ProposalId::new("proposal_decision_trace_wait").unwrap(),
+                ProposalOrigin::Agent,
+                Some(actor.clone()),
+                ActionId::new("wait").unwrap(),
+                SimTick::new(4),
+            );
+            let decision_trace = crate::agent::DecisionTrace::new(
+                DecisionTraceId::new("trace_decision_trace_witness").unwrap(),
+                actor.clone(),
+                window.start_tick,
+                window.end_tick,
+                Vec::new(),
+                None,
+                Vec::new(),
+                None,
+                None,
+                None,
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                vec!["source_event:event.wait.present".to_string()],
+                None,
+                None,
+                Some("wait fallback".to_string()),
+                crate::agent::HiddenTruthAudit {
+                    actor_known_only: true,
+                    notes: "test witness used actor-known input only".to_string(),
+                },
+                crate::agent::DecisionOutcome::Waited,
+                "test decision trace",
+            );
+            let decision_trace_record = DecisionTraceRecord::from_trace(&decision_trace);
+            let ordinary = ordinary_event(
+                "event.wait.present",
+                EventKind::ActorWaited,
+                &actor,
+                "wait",
+                SimTick::new(4),
+            );
+            let absent = ordinary_event(
+                "event.wait.absent",
+                EventKind::ActorWaited,
+                &actor,
+                "wait",
+                SimTick::new(4),
+            );
+            let mut log = EventLog::new();
+            log.append(ordinary.clone()).unwrap();
+            let mut agent_state = agent_state(&actor);
+
+            append_decision_trace_after_proposal(
+                &mut log,
+                &mut agent_state,
+                &process,
+                &actor,
+                &window,
+                &proposal,
+                &decision_trace_record,
+                &content_manifest_id(),
+                Some(&absent),
+            );
+            assert!(!log
+                .events()
+                .iter()
+                .any(|event| event.event_type == EventKind::DecisionTraceRecorded));
+
+            append_decision_trace_after_proposal(
+                &mut log,
+                &mut agent_state,
+                &process,
+                &actor,
+                &window,
+                &proposal,
+                &decision_trace_record,
+                &content_manifest_id(),
+                Some(&ordinary),
+            );
+            let trace_events = log
+                .events()
+                .iter()
+                .filter(|event| event.event_type == EventKind::DecisionTraceRecorded)
+                .collect::<Vec<_>>();
+            assert_eq!(trace_events.len(), 1);
+            assert!(trace_events[0].causes.iter().any(|cause| {
+                matches!(
+                    cause,
+                    EventCause::Event(event_id) if event_id == &ordinary.event_id
+                )
+            }));
+        }
+
+        #[test]
         fn no_human_day_progress_recording_is_exact() {
             let actor = actor_id();
             let mut progress = BTreeMap::new();
@@ -6829,6 +6930,245 @@ mod tests {
                 .count(),
             2
         );
+    }
+
+    #[test]
+    fn scheduler_log_witness_lookups_require_exact_outer_event_shape() {
+        let actor = actor_id("actor_tomas");
+        let other_actor = actor_id("actor_elena");
+        let kitchen = crate::ids::PlaceId::new("kitchen").unwrap();
+        let hall = crate::ids::PlaceId::new("hall").unwrap();
+        let mut log = EventLog::new();
+
+        let mut exact = event_for(
+            "event.obs.exact_outer",
+            EventKind::ObservationRecorded,
+            &actor,
+            SimTick::new(5),
+        );
+        exact.place_id = Some(kitchen.clone());
+        log.append(exact).unwrap();
+        let mut wrong_actor = event_for(
+            "event.obs.wrong_actor_outer",
+            EventKind::ObservationRecorded,
+            &other_actor,
+            SimTick::new(5),
+        );
+        wrong_actor.place_id = Some(kitchen.clone());
+        log.append(wrong_actor).unwrap();
+        let mut wrong_tick = event_for(
+            "event.obs.wrong_tick_outer",
+            EventKind::ObservationRecorded,
+            &actor,
+            SimTick::new(4),
+        );
+        wrong_tick.place_id = Some(kitchen.clone());
+        log.append(wrong_tick).unwrap();
+        let mut wrong_place = event_for(
+            "event.obs.wrong_place_outer",
+            EventKind::ObservationRecorded,
+            &actor,
+            SimTick::new(5),
+        );
+        wrong_place.place_id = Some(hall);
+        log.append(wrong_place).unwrap();
+
+        assert_eq!(
+            latest_current_place_perception_event_id(&log, &actor, SimTick::new(5), &kitchen)
+                .unwrap()
+                .as_str(),
+            "event.obs.exact_outer"
+        );
+
+        let mut need_log = EventLog::new();
+        let mut actor_field_only = event_for(
+            "event.need.actor_field_outer",
+            EventKind::NeedDeltaApplied,
+            &actor,
+            SimTick::new(6),
+        );
+        actor_field_only.payload = vec![
+            PayloadField::new("cause_kind", "tick_delta"),
+            PayloadField::new("need_kind", "hunger"),
+        ];
+        need_log.append(actor_field_only).unwrap();
+        let mut payload_only = event_for(
+            "event.need.payload_actor_outer",
+            EventKind::NeedDeltaApplied,
+            &other_actor,
+            SimTick::new(7),
+        );
+        payload_only.actor_id = None;
+        payload_only.payload = vec![
+            PayloadField::new("actor_id", actor.as_str()),
+            PayloadField::new("cause_kind", "tick_delta"),
+            PayloadField::new("need_kind", "fatigue"),
+        ];
+        need_log.append(payload_only).unwrap();
+        let mut non_need = event_for(
+            "event.non_need.actor_outer",
+            EventKind::ActorWaited,
+            &actor,
+            SimTick::new(8),
+        );
+        non_need.payload = vec![PayloadField::new("actor_id", actor.as_str())];
+        need_log.append(non_need).unwrap();
+
+        assert_eq!(
+            latest_need_event_id(&need_log, &actor).unwrap().as_str(),
+            "event.need.payload_actor_outer"
+        );
+
+        let mut actor_field_log = EventLog::new();
+        actor_field_log
+            .append(
+                need_log
+                    .events()
+                    .iter()
+                    .find(|event| event.event_id.as_str() == "event.need.actor_field_outer")
+                    .unwrap()
+                    .clone(),
+            )
+            .unwrap();
+        assert_eq!(
+            latest_need_event_id(&actor_field_log, &actor)
+                .unwrap()
+                .as_str(),
+            "event.need.actor_field_outer"
+        );
+    }
+
+    #[test]
+    fn scheduler_body_exclusive_lookup_requires_true_future_completion() {
+        let actor = actor_id("actor_tomas");
+        let mut log = EventLog::new();
+        let mut sleep_started = event_for(
+            "event.sleep_started.outer_open",
+            EventKind::SleepStarted,
+            &actor,
+            SimTick::ZERO,
+        );
+        sleep_started.payload = vec![
+            PayloadField::new("actor_id", actor.as_str()),
+            PayloadField::new("expected_completion_tick", "2"),
+            PayloadField::new("body_exclusive", "true"),
+        ];
+        log.append(sleep_started.clone()).unwrap();
+
+        assert!(actor_has_open_body_exclusive_at(&log, &actor, SimTick::new(1)).unwrap());
+        assert!(!actor_has_open_body_exclusive_at(&log, &actor, SimTick::new(2)).unwrap());
+
+        let mut non_body_exclusive = sleep_started;
+        non_body_exclusive.event_id =
+            EventId::new("event.sleep_started.outer_non_body_exclusive").unwrap();
+        for field in &mut non_body_exclusive.payload {
+            if field.key == "body_exclusive" {
+                field.value = "false".to_string();
+            }
+        }
+        let mut non_body_log = EventLog::new();
+        non_body_log.append(non_body_exclusive).unwrap();
+        assert!(!actor_has_open_body_exclusive_at(&non_body_log, &actor, SimTick::new(1)).unwrap());
+    }
+
+    #[test]
+    fn human_rejection_before_marker_rolls_world_step_back() {
+        let mut scheduler = DeterministicScheduler::new(SimTick::ZERO);
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
+        let mut agent_state = seeded_agent_state(actor_id("actor_tomas"));
+        let mut log = EventLog::new();
+        let registry = ActionRegistry::new();
+        let proposal = Proposal::new(
+            ProposalId::new("proposal_unknown_before_marker").unwrap(),
+            ProposalOrigin::Human,
+            Some(actor_id("actor_tomas")),
+            action_id("unregistered_action"),
+            SimTick::ZERO,
+        );
+
+        let result = scheduler
+            .transact_world_one_tick(
+                &mut state,
+                &mut agent_state,
+                &mut log,
+                &registry,
+                None,
+                None,
+                WorldStepTransactionRequest {
+                    advance: WorldAdvanceRequest {
+                        expected_tick: SimTick::ZERO,
+                        origin: WorldAdvanceOrigin::Process(process_id("test_world_step")),
+                        content_manifest_id: content_manifest_id(),
+                        authorized_sleep_interruptions: Vec::new(),
+                    },
+                    controlled_proposals: vec![proposal],
+                    due_actor_ids: Vec::new(),
+                    actor_known_interval_actor_id: None,
+                    world_process_events: Vec::new(),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(result.prior_tick, SimTick::ZERO);
+        assert_eq!(result.resulting_tick, SimTick::ZERO);
+        assert!(result.appended_event_ids.is_empty());
+        assert_eq!(result.controlled_pipeline_results.len(), 1);
+        assert_eq!(
+            result.controlled_pipeline_results[0].report.status,
+            ReportStatus::Rejected
+        );
+        assert!(log.events().is_empty());
+        assert_eq!(scheduler.current_tick, SimTick::ZERO);
+    }
+
+    #[test]
+    fn human_wait_rejection_after_marker_rolls_world_step_back() {
+        let mut scheduler = DeterministicScheduler::new(SimTick::ZERO);
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(5, 3));
+        let mut agent_state = seeded_agent_state(actor_id("actor_tomas"));
+        let mut log = EventLog::new();
+        let registry = ActionRegistry::new();
+        let proposal = Proposal::new(
+            ProposalId::new("proposal_wait_after_marker").unwrap(),
+            ProposalOrigin::Human,
+            Some(actor_id("actor_tomas")),
+            action_id("wait"),
+            SimTick::ZERO,
+        );
+
+        let result = scheduler
+            .transact_world_one_tick(
+                &mut state,
+                &mut agent_state,
+                &mut log,
+                &registry,
+                None,
+                None,
+                WorldStepTransactionRequest {
+                    advance: WorldAdvanceRequest {
+                        expected_tick: SimTick::ZERO,
+                        origin: WorldAdvanceOrigin::Process(process_id("test_world_step")),
+                        content_manifest_id: content_manifest_id(),
+                        authorized_sleep_interruptions: Vec::new(),
+                    },
+                    controlled_proposals: vec![proposal],
+                    due_actor_ids: Vec::new(),
+                    actor_known_interval_actor_id: None,
+                    world_process_events: Vec::new(),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(result.prior_tick, SimTick::ZERO);
+        assert_eq!(result.resulting_tick, SimTick::ZERO);
+        assert!(result.appended_event_ids.is_empty());
+        assert_eq!(result.controlled_pipeline_results.len(), 1);
+        assert_eq!(
+            result.controlled_pipeline_results[0].report.status,
+            ReportStatus::Rejected
+        );
+        assert!(log.events().is_empty());
+        assert_eq!(scheduler.current_tick, SimTick::ZERO);
     }
 
     fn event_for(
