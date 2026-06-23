@@ -664,6 +664,38 @@ mod tests {
         }
     }
 
+    fn time_advanced_event(prior_tick: u64, resulting_tick: u64) -> EventEnvelope {
+        let mut event = EventEnvelope::new_caused_v1(
+            EventId::new(format!("event_time_advanced_{prior_tick}_{resulting_tick}")).unwrap(),
+            EventKind::TimeAdvanced,
+            0,
+            0,
+            SimTick::new(resulting_tick),
+            OrderingKey::new(
+                SimTick::new(resulting_tick),
+                SchedulePhase::DeferredProcess,
+                SchedulerSourceId::Process(ProcessId::new("process_world_step").unwrap()),
+                ProposalSequence::new(0),
+                ActionId::new("time_advanced").unwrap(),
+                vec![resulting_tick.to_string()],
+                "time_advanced",
+            ),
+            ContentManifestId::new("phase1_manifest").unwrap(),
+            vec![EventCause::Process(
+                ProcessId::new("process_world_step").unwrap(),
+            )],
+        )
+        .unwrap();
+        event.payload = vec![
+            PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+            PayloadField::new("prior_tick", prior_tick.to_string()),
+            PayloadField::new("resulting_tick", resulting_tick.to_string()),
+            PayloadField::new("origin", "process.process_world_step"),
+            PayloadField::new("ordering_ancestry", "canonical_world_step_v1"),
+        ];
+        event
+    }
+
     fn ordered_test_log(mut events: Vec<EventEnvelope>) -> EventLog {
         let mut stream_positions = std::collections::BTreeMap::<EventStream, u64>::new();
         for (index, event) in events.iter_mut().enumerate() {
@@ -723,6 +755,51 @@ mod tests {
         run_pipeline(&mut move_context, &move_proposal);
 
         (initial, log, live)
+    }
+
+    #[test]
+    fn rebuild_final_checksum_uses_reconstructed_frontier_only_when_marker_exists() {
+        let initial = initial_state();
+        let base_context = context();
+        let empty_log = ordered_test_log(Vec::new());
+        let marker_log = ordered_test_log(vec![time_advanced_event(0, 1)]);
+        let tick_zero_context = ChecksumContext {
+            sim_tick: SimTick::ZERO,
+            ..base_context.clone()
+        };
+        let tick_one_context = ChecksumContext {
+            sim_tick: SimTick::new(1),
+            ..base_context.clone()
+        };
+
+        let no_marker_report = rebuild_projection(
+            &initial,
+            &crate::state::AgentState::default(),
+            &empty_log,
+            &base_context,
+            None,
+        );
+        let marker_report = rebuild_projection(
+            &initial,
+            &crate::state::AgentState::default(),
+            &marker_log,
+            &base_context,
+            None,
+        );
+
+        assert_eq!(
+            no_marker_report.final_checksum,
+            compute_physical_checksum(&initial, &tick_zero_context).checksum
+        );
+        assert_eq!(
+            marker_report.final_checksum,
+            compute_physical_checksum(&initial, &tick_one_context).checksum
+        );
+        assert_ne!(
+            marker_report.final_checksum,
+            no_marker_report.final_checksum
+        );
+        assert_eq!(marker_report.reconstructed_final_frontier, SimTick::new(1));
     }
 
     #[test]

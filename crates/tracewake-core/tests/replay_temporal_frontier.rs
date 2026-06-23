@@ -146,6 +146,39 @@ fn duplicate_time_marker_is_typed_divergence() {
 }
 
 #[test]
+fn duplicate_time_marker_checks_each_frontier_side_independently() {
+    let mut prior_before_frontier = EventLog::new();
+    prior_before_frontier
+        .append(time_advanced("event_time_prior_before_frontier", 1, 3))
+        .unwrap();
+
+    let report = rebuild(&prior_before_frontier, 2);
+
+    assert_eq!(
+        report.temporal_violations,
+        vec![TemporalDivergence::DuplicateTimeAdvanced {
+            event_id: EventId::new("event_time_prior_before_frontier").unwrap(),
+            tick: SimTick::new(3),
+        }]
+    );
+
+    let mut result_at_frontier = EventLog::new();
+    result_at_frontier
+        .append(time_advanced("event_time_result_at_frontier", 2, 2))
+        .unwrap();
+
+    let report = rebuild(&result_at_frontier, 2);
+
+    assert_eq!(
+        report.temporal_violations,
+        vec![TemporalDivergence::DuplicateTimeAdvanced {
+            event_id: EventId::new("event_time_result_at_frontier").unwrap(),
+            tick: SimTick::new(2),
+        }]
+    );
+}
+
+#[test]
 fn prior_result_mismatch_is_typed_divergence() {
     let mut log = EventLog::new();
     log.append(time_advanced("event_time_bad_prior", 2, 3))
@@ -176,6 +209,24 @@ fn multi_tick_jump_is_typed_divergence() {
             event_id: EventId::new("event_time_jump").unwrap(),
             expected: SimTick::new(1),
             actual: SimTick::new(2),
+        }]
+    );
+}
+
+#[test]
+fn equal_prior_result_tick_is_not_backward_time() {
+    let mut log = EventLog::new();
+    log.append(time_advanced("event_time_equal_tick", 5, 5))
+        .unwrap();
+
+    let report = rebuild(&log, 4);
+
+    assert_eq!(
+        report.temporal_violations,
+        vec![TemporalDivergence::PriorTickMismatch {
+            event_id: EventId::new("event_time_equal_tick").unwrap(),
+            expected: SimTick::new(4),
+            actual: SimTick::new(5),
         }]
     );
 }

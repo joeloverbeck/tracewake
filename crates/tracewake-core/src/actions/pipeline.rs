@@ -1552,6 +1552,69 @@ mod tests {
         ContentManifestId::new("phase2a_manifest").unwrap()
     }
 
+    fn need_tick_event(
+        event_id: &str,
+        actor_id: &ActorId,
+        need_kind: &str,
+        tick: SimTick,
+    ) -> EventEnvelope {
+        let mut event = EventEnvelope::new_caused_v1(
+            EventId::new(event_id).unwrap(),
+            EventKind::NeedDeltaApplied,
+            0,
+            0,
+            tick,
+            OrderingKey::new(
+                tick,
+                SchedulePhase::HumanCommand,
+                SchedulerSourceId::Actor(actor_id.clone()),
+                ProposalSequence::new(0),
+                action_id("wait"),
+                vec![actor_id.as_str().to_string()],
+                event_id,
+            ),
+            content_manifest_id(),
+            vec![EventCause::Proposal(
+                ProposalId::new("proposal_wait").unwrap(),
+            )],
+        )
+        .unwrap();
+        event.actor_id = Some(actor_id.clone());
+        event.payload = vec![
+            PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+            PayloadField::new("actor_id", actor_id.as_str()),
+            PayloadField::new("need_kind", need_kind),
+            PayloadField::new("delta", "1"),
+            PayloadField::new("cause_kind", "tick_delta"),
+        ];
+        event
+    }
+
+    #[test]
+    fn duplicate_need_tick_candidate_matches_same_actor_need_and_tick_only() {
+        let actor = actor_id("actor_tomas");
+        let existing = need_tick_event("event_need_existing", &actor, "hunger", SimTick::new(7));
+        let same_tick = need_tick_event("event_need_same_tick", &actor, "hunger", SimTick::new(7));
+        let different_tick = need_tick_event(
+            "event_need_different_tick",
+            &actor,
+            "hunger",
+            SimTick::new(8),
+        );
+        let different_need = need_tick_event(
+            "event_need_different_need",
+            &actor,
+            "fatigue",
+            SimTick::new(7),
+        );
+        let mut log = EventLog::new();
+        log.append(existing).unwrap();
+
+        assert!(is_duplicate_need_tick_candidate(&log, &same_tick));
+        assert!(!is_duplicate_need_tick_candidate(&log, &different_tick));
+        assert!(!is_duplicate_need_tick_candidate(&log, &different_need));
+    }
+
     fn phase2a_registry() -> ActionRegistry {
         let mut registry = ActionRegistry::new();
         registry.register_phase1_movement_open_close();
