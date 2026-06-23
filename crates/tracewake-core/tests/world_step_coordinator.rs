@@ -11,7 +11,7 @@ use tracewake_core::events::{
 };
 use tracewake_core::ids::{
     ActionId, ActorId, ContentManifestId, ContentVersion, ControllerId, EventId, FixtureId,
-    PlaceId, ProposalId, SleepAffordanceId, WorkplaceId,
+    PlaceId, ProcessId, ProposalId, SleepAffordanceId, WorkplaceId,
 };
 use tracewake_core::replay::rebuild_projection;
 use tracewake_core::scheduler::no_human::{advance_no_human, NoHumanStateMut};
@@ -19,6 +19,7 @@ use tracewake_core::scheduler::{
     AdvanceUntilRequest, AdvanceUntilStopReason, AuthorizedSleepInterruption,
     BodyExclusiveDurationKind, DeterministicScheduler, OrderingKey, ProposalSequence,
     SchedulePhase, SchedulerSourceId, WorldAdvanceError, WorldAdvanceOrigin, WorldAdvanceRequest,
+    WorldStepTransactionRequest,
 };
 use tracewake_core::state::{
     ActorBody, AgentState, NeedModelState, PhysicalState, PlaceState, SleepAffordanceState,
@@ -224,6 +225,32 @@ fn wait_events(
     .unwrap()
 }
 
+fn process_marker_event(id: &str, process_id: &ProcessId, tick: u64) -> EventEnvelope {
+    let mut event = EventEnvelope::new_caused_v1(
+        EventId::new(id).unwrap(),
+        EventKind::NoHumanAdvanceStarted,
+        0,
+        0,
+        SimTick::new(tick),
+        OrderingKey::new(
+            SimTick::new(tick),
+            SchedulePhase::DeferredProcess,
+            SchedulerSourceId::Process(process_id.clone()),
+            ProposalSequence::new(1),
+            ActionId::new("world_process_probe").unwrap(),
+            vec![process_id.as_str().to_string()],
+            id,
+        ),
+        content_manifest_id(),
+        vec![EventCause::Process(process_id.clone())],
+    )
+    .unwrap();
+    event.process_id = Some(process_id.clone());
+    event.payload = vec![PayloadField::new("schema_version", EVENT_SCHEMA_V1)];
+    event.effects_summary = "world process probe marker".to_string();
+    event
+}
+
 fn physical_state_for(actor: &ActorId, place: &PlaceId) -> PhysicalState {
     physical_state_for_with_need_model(actor, place, NeedModelState::new(0, 0))
 }
@@ -414,6 +441,92 @@ fn empty_world_step_appends_time_advanced_and_rebuilds_frontier() {
     assert!(rebuild.invariant_violations.is_empty());
     assert_eq!(rebuild.final_state, initial_physical);
     assert_eq!(rebuild.final_agent_state, empty_agent_state());
+}
+
+#[test]
+fn transactional_world_step_attempts_due_actor_decision_transaction() {
+    let actor = actor_id("actor_mara");
+    let place = place_id("home_mara");
+    let mut physical =
+        physical_state_for_with_need_model(&actor, &place, NeedModelState::new(0, 0));
+    let mut agent = AgentState::from_seed_parts(
+        BTreeMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
+    );
+    let mut log = EventLog::new();
+    let mut registry = ActionRegistry::new();
+    registry.register_phase1_inspect_wait();
+    let mut scheduler = DeterministicScheduler::new(SimTick::ZERO);
+
+    let result = scheduler
+        .transact_world_one_tick(
+            &mut physical,
+            &mut agent,
+            &mut log,
+            &registry,
+            None,
+            WorldStepTransactionRequest {
+                advance: world_advance_request(0),
+                due_actor_ids: vec![actor.clone()],
+                world_process_events: Vec::new(),
+            },
+        )
+        .unwrap();
+
+    assert_eq!(result.resulting_tick, SimTick::new(1));
+    assert_eq!(result.due_work_summary.actor_transactions_attempted, 1);
+    assert!(log.events().iter().any(|event| {
+        event.event_type == EventKind::ActorWaited && event.actor_id.as_ref() == Some(&actor)
+    }));
+    assert!(result.appended_event_ids.iter().any(|event_id| {
+        log.events().iter().any(|event| {
+            &event.event_id == event_id
+                && event.event_type == EventKind::ActorWaited
+                && event.actor_id.as_ref() == Some(&actor)
+        })
+    }));
+}
+
+#[test]
+fn transactional_world_step_applies_due_world_process_event() {
+    let actor = actor_id("actor_mara");
+    let place = place_id("home_mara");
+    let mut physical = physical_state_for(&actor, &place);
+    let mut agent = agent_state_for(&actor);
+    let mut log = EventLog::new();
+    let registry = ActionRegistry::new();
+    let process_id = ProcessId::new("process_probe").unwrap();
+    let process_event = process_marker_event("event.process_probe.1", &process_id, 1);
+    let process_event_id = process_event.event_id.clone();
+    let mut scheduler = DeterministicScheduler::new(SimTick::ZERO);
+
+    let result = scheduler
+        .transact_world_one_tick(
+            &mut physical,
+            &mut agent,
+            &mut log,
+            &registry,
+            None,
+            WorldStepTransactionRequest {
+                advance: world_advance_request(0),
+                due_actor_ids: Vec::new(),
+                world_process_events: vec![process_event],
+            },
+        )
+        .unwrap();
+
+    assert_eq!(result.resulting_tick, SimTick::new(1));
+    assert_eq!(result.due_work_summary.world_processes_applied, 1);
+    assert!(result.appended_event_ids.contains(&process_event_id));
+    assert!(log.events().iter().any(|event| {
+        event.event_id == process_event_id
+            && event.event_type == EventKind::NoHumanAdvanceStarted
+            && event.process_id.as_ref() == Some(&process_id)
+    }));
 }
 
 #[test]

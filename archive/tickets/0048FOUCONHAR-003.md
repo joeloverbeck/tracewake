@@ -1,6 +1,6 @@
 # 0048FOUCONHAR-003: Atomic one-tick world-step transaction (additive)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — introduces a typed one-tick world-step transaction in the core scheduler with a single prepare/commit boundary and the ordinary actor / world-process / duration / accounting / perception-projection phases; invokes proposal validation through the existing pipeline seam. Built additively alongside `advance_world_one_tick`; the caller flip is ticket 004. No new event kinds, content, or fixtures.
@@ -89,3 +89,23 @@ In `crates/tracewake-core/tests/world_step_coordinator.rs`, add step-level phase
 
 1. `cargo test -p tracewake-core --test world_step_coordinator`
 2. `cargo test -p tracewake-core` (confirms the new transaction + pipeline-seam changes compile crate-wide).
+
+## Outcome
+
+Completed: 2026-06-23
+
+Implemented an additive `DeterministicScheduler::transact_world_one_tick` path in `crates/tracewake-core/src/scheduler.rs`. The new path stages physical state, agent state, epistemic projection, and event log on scratch clones, prepares the time marker/duration lifecycle/accounting work, applies supplied typed world-process events, records/project current-place perception for due actors, invokes `ActorDecisionTransaction`, and commits accepted actor proposals through `run_pipeline`. The commit boundary copies the staged authorities back only after prepare/application succeeds, leaving the existing `advance_world_one_tick` caller path in place for ticket 004.
+
+Actor-known wait framing uses a typed diagnostic frame event caused by the step marker so modeled wait/reevaluation facts retain event-backed provenance accepted by the transaction witness allowlist. The scheduler does not synthesize actor proposals from raw state; it builds the actor-known surface from projected event evidence and hands proposal selection to the existing decision transaction.
+
+Added `world_step_coordinator` tests proving:
+
+1. A due actor transaction commits a typed ordinary `ActorWaited` event and reports a nonzero `actor_transactions_attempted`.
+2. A due typed process event is committed and reports a nonzero `world_processes_applied`.
+
+Verification run:
+
+1. `cargo test -p tracewake-core --test world_step_coordinator` — passed.
+2. `cargo test -p tracewake-core` — passed.
+3. `cargo clippy -p tracewake-core --all-targets -- -D warnings` — passed.
+4. `git diff --check` — passed.

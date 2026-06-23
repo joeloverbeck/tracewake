@@ -1,12 +1,22 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::actions::defs::need_events::{
     build_need_delta_and_threshold_events, NeedDeltaEventSpec,
 };
 use crate::actions::defs::sleep::{build_sleep_completion_events, build_sleep_interruption_events};
 use crate::actions::defs::work::build_work_completion_events;
-use crate::agent::{NeedKind, NeedState};
-use crate::events::apply::{apply_agent_event, ApplyError};
+use crate::actions::pipeline::{run_pipeline, PipelineContext};
+use crate::actions::registry::ActionRegistry;
+use crate::agent::{
+    record_current_place_perception_and_project, ActorDecisionTransaction,
+    ActorDecisionTransactionInput, ActorDecisionTransactionOutcome, NeedKind, NeedState,
+    NoHumanActorKnownSurfaceBuilder, NoHumanActorKnownSurfaceRequest,
+};
+use crate::epistemics::EpistemicProjection;
+use crate::events::apply::{
+    apply_agent_event, apply_epistemic_event, apply_event_stream, ApplyError,
+    EventApplicationContext, EventApplicationError,
+};
 use crate::events::log::{EventLog, EventLogError};
 use crate::events::{
     is_duration_terminal, EventCause, EventEnvelope, EventEnvelopeBuildError, EventKind,
@@ -183,6 +193,13 @@ pub struct WorldAdvanceResult {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WorldStepTransactionRequest {
+    pub advance: WorldAdvanceRequest,
+    pub due_actor_ids: Vec<ActorId>,
+    pub world_process_events: Vec<EventEnvelope>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum WorldAdvanceError {
     FrontierMismatch {
         expected: SimTick,
@@ -202,6 +219,15 @@ pub enum WorldAdvanceError {
         error: ApplyError,
     },
     EventAppend(EventLogError),
+    WorldProcessApply {
+        event_id: EventId,
+        error: EventApplicationError,
+    },
+    ActorPipelineApply {
+        actor_id: ActorId,
+        event_id: EventId,
+        error: EventApplicationError,
+    },
     InvalidAccountingActionId(IdError),
     InvalidMarkerId(IdError),
     InvalidMarkerEnvelope(EventEnvelopeBuildError),
@@ -409,6 +435,205 @@ impl DeterministicScheduler {
                 duration_terminals_appended: lifecycle.duration_terminals_appended,
                 actor_transactions_attempted: 0,
                 world_processes_applied: 0,
+            },
+        })
+    }
+
+    pub fn transact_world_one_tick(
+        &mut self,
+        state: &mut PhysicalState,
+        agent_state: &mut AgentState,
+        log: &mut EventLog,
+        registry: &ActionRegistry,
+        epistemic_projection: Option<&mut EpistemicProjection>,
+        request: WorldStepTransactionRequest,
+    ) -> Result<WorldAdvanceResult, WorldAdvanceError> {
+        if request.advance.expected_tick != self.current_tick {
+            return Err(WorldAdvanceError::FrontierMismatch {
+                expected: request.advance.expected_tick,
+                actual: self.current_tick,
+            });
+        }
+
+        let prior_tick = self.current_tick;
+        let resulting_tick = prior_tick.next();
+        let initial_log_len = log.events().len();
+        let mut scratch_state = state.clone();
+        let mut scratch_agent_state = agent_state.clone();
+        let mut scratch_log = log.clone();
+        let mut scratch_projection =
+            epistemic_projection.as_deref().cloned().unwrap_or_else(|| {
+                epistemic_projection_from_log(&scratch_log, &request.advance.content_manifest_id)
+            });
+        let due_duration_candidates =
+            discover_due_duration_candidates(&scratch_log, resulting_tick)?;
+        let marker = build_time_advanced_event(prior_tick, resulting_tick, &request.advance)?;
+        let lifecycle = build_duration_lifecycle_events(
+            &scratch_state,
+            &scratch_agent_state,
+            &scratch_log,
+            &request.advance,
+            &due_duration_candidates,
+            resulting_tick,
+            &marker,
+        )?;
+
+        let appended_marker = scratch_log
+            .append(marker)
+            .map_err(WorldAdvanceError::EventAppend)?;
+        for event in lifecycle.events {
+            let appended = scratch_log
+                .append(event)
+                .map_err(WorldAdvanceError::EventAppend)?;
+            apply_agent_event(&mut scratch_agent_state, &appended).map_err(|error| {
+                WorldAdvanceError::DurationLifecycleApply {
+                    event_id: appended.event_id.clone(),
+                    error,
+                }
+            })?;
+        }
+
+        let mut world_processes_applied = 0;
+        for event in request.world_process_events {
+            let appended = scratch_log
+                .append(event)
+                .map_err(WorldAdvanceError::EventAppend)?;
+            let mut application_context = EventApplicationContext {
+                physical_state: &mut scratch_state,
+                agent_state: &mut scratch_agent_state,
+                epistemic_projection: Some(&mut scratch_projection),
+            };
+            apply_event_stream(&mut application_context, &appended).map_err(|error| {
+                WorldAdvanceError::WorldProcessApply {
+                    event_id: appended.event_id.clone(),
+                    error,
+                }
+            })?;
+            world_processes_applied += 1;
+        }
+
+        let mut actor_transactions_attempted = 0;
+        let mut due_actor_ids = request.due_actor_ids;
+        due_actor_ids.sort();
+        due_actor_ids.dedup();
+        let actor_frame_event_id = if due_actor_ids.is_empty() {
+            None
+        } else {
+            let frame = build_world_step_actor_frame_event(
+                resulting_tick,
+                &request.advance,
+                &appended_marker.event_id,
+            )?;
+            let appended = scratch_log
+                .append(frame)
+                .map_err(WorldAdvanceError::EventAppend)?;
+            Some(appended.event_id)
+        };
+        for actor_id in due_actor_ids {
+            let Some(actor) = scratch_state.actors().get(&actor_id) else {
+                continue;
+            };
+            let current_place_id = actor.current_place_id.clone();
+            record_current_place_perception_and_project(
+                &mut scratch_log,
+                &mut scratch_state,
+                &mut scratch_agent_state,
+                &mut scratch_projection,
+                &actor_id,
+                resulting_tick,
+                &request.advance.content_manifest_id,
+            );
+            let actor_known_context =
+                NoHumanActorKnownSurfaceBuilder::from_projection(NoHumanActorKnownSurfaceRequest {
+                    projection: &scratch_projection,
+                    agent_state: &scratch_agent_state,
+                    actor_id: actor_id.clone(),
+                    current_place_id: current_place_id.clone(),
+                    decision_tick: resulting_tick,
+                    window_id: "world_step",
+                    window_end_tick: resulting_tick,
+                    current_place_witness_event_id: latest_current_place_perception_event_id(
+                        &scratch_log,
+                        &actor_id,
+                        resulting_tick,
+                        &current_place_id,
+                    ),
+                    needs_witness_event_id: latest_need_event_id(&scratch_log, &actor_id),
+                    frame_event_id: actor_frame_event_id.clone(),
+                })
+                .build(&scratch_agent_state)
+                .into_context();
+            let source_event_ids = scratch_log
+                .events()
+                .iter()
+                .map(|event| event.event_id.clone())
+                .collect::<BTreeSet<_>>();
+            let source_event_kinds = scratch_log
+                .events()
+                .iter()
+                .map(|event| (event.event_id.clone(), event.event_type))
+                .collect::<BTreeMap<_, _>>();
+            actor_transactions_attempted += 1;
+            let ActorDecisionTransactionOutcome::Proposed(proposed) =
+                ActorDecisionTransaction::run(ActorDecisionTransactionInput {
+                    actor_id: actor_id.clone(),
+                    decision_tick: resulting_tick,
+                    agent_state: &scratch_agent_state,
+                    actor_known_context: &actor_known_context,
+                    source_event_ids: Some(&source_event_ids),
+                    source_event_kinds: Some(&source_event_kinds),
+                    routine_window_family: None,
+                    include_idle_fallback: true,
+                })
+            else {
+                continue;
+            };
+            let proposal = proposed.proposal.into_proposal();
+            let ordering_key = OrderingKey::new(
+                resulting_tick,
+                SchedulePhase::NoHumanProcess,
+                SchedulerSourceId::Actor(actor_id.clone()),
+                self.assign_proposal_sequence(),
+                proposal.action_id.clone(),
+                proposal.target_ids.clone(),
+                format!("world_step_actor:{}", actor_id.as_str()),
+            );
+            let mut context = PipelineContext {
+                registry,
+                state: &mut scratch_state,
+                agent_state: &mut scratch_agent_state,
+                log: &mut scratch_log,
+                controller_bindings: None,
+                epistemic_projection: Some(&mut scratch_projection),
+                content_manifest_id: request.advance.content_manifest_id.clone(),
+                ordering_key,
+            };
+            run_pipeline(&mut context, &proposal);
+        }
+
+        let appended_event_ids = scratch_log.events()[initial_log_len..]
+            .iter()
+            .map(|event| event.event_id.clone())
+            .collect::<Vec<_>>();
+        let open_duration_candidates = due_duration_candidates.len();
+        *state = scratch_state;
+        *agent_state = scratch_agent_state;
+        *log = scratch_log;
+        if let Some(projection) = epistemic_projection {
+            *projection = scratch_projection;
+        }
+        self.current_tick = resulting_tick;
+
+        Ok(WorldAdvanceResult {
+            prior_tick,
+            resulting_tick,
+            appended_event_ids,
+            due_duration_candidates,
+            due_work_summary: WorldStepDueWorkSummary {
+                open_duration_candidates,
+                duration_terminals_appended: lifecycle.duration_terminals_appended,
+                actor_transactions_attempted,
+                world_processes_applied,
             },
         })
     }
@@ -995,6 +1220,49 @@ fn payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
         .map(|field| field.value.as_str())
 }
 
+fn epistemic_projection_from_log(
+    log: &EventLog,
+    content_manifest_id: &ContentManifestId,
+) -> EpistemicProjection {
+    let mut projection = EpistemicProjection::new(content_manifest_id.clone());
+    for event in log.events() {
+        if apply_epistemic_event(&mut projection, event).is_err() {
+            continue;
+        }
+    }
+    projection
+}
+
+fn latest_current_place_perception_event_id(
+    log: &EventLog,
+    actor_id: &ActorId,
+    tick: SimTick,
+    place_id: &crate::ids::PlaceId,
+) -> Option<EventId> {
+    log.events()
+        .iter()
+        .rev()
+        .find(|event| {
+            event.event_type == EventKind::ObservationRecorded
+                && event.actor_id.as_ref() == Some(actor_id)
+                && event.sim_tick == tick
+                && event.place_id.as_ref() == Some(place_id)
+        })
+        .map(|event| event.event_id.clone())
+}
+
+fn latest_need_event_id(log: &EventLog, actor_id: &ActorId) -> Option<EventId> {
+    log.events()
+        .iter()
+        .rev()
+        .find(|event| {
+            event.event_type == EventKind::NeedDeltaApplied
+                && (event.actor_id.as_ref() == Some(actor_id)
+                    || payload_value(event, "actor_id") == Some(actor_id.as_str()))
+        })
+        .map(|event| event.event_id.clone())
+}
+
 fn build_time_advanced_event(
     prior_tick: SimTick,
     resulting_tick: SimTick,
@@ -1044,6 +1312,53 @@ fn build_time_advanced_event(
         prior_tick.value(),
         resulting_tick.value()
     );
+    Ok(event)
+}
+
+fn build_world_step_actor_frame_event(
+    resulting_tick: SimTick,
+    request: &WorldAdvanceRequest,
+    marker_event_id: &EventId,
+) -> Result<EventEnvelope, WorldAdvanceError> {
+    let origin_id = request.origin.stable_id();
+    let process_id = request
+        .origin
+        .cause_process_id()
+        .map_err(WorldAdvanceError::InvalidMarkerId)?;
+    let event_id = EventId::new(format!(
+        "event.world_step_actor_frame.{}.{}",
+        resulting_tick.value(),
+        origin_id
+    ))
+    .map_err(WorldAdvanceError::InvalidMarkerId)?;
+    let ordering_key = OrderingKey::new(
+        resulting_tick,
+        SchedulePhase::NoHumanProcess,
+        SchedulerSourceId::Process(process_id.clone()),
+        ProposalSequence::new(1),
+        ActionId::new("world_step_actor_frame").map_err(WorldAdvanceError::InvalidMarkerId)?,
+        Vec::new(),
+        format!("world_step_actor_frame:{}", origin_id),
+    );
+    let mut event = EventEnvelope::new_caused_v1(
+        event_id,
+        EventKind::NoHumanAdvanceStarted,
+        0,
+        0,
+        resulting_tick,
+        ordering_key,
+        request.content_manifest_id.clone(),
+        vec![EventCause::Event(marker_event_id.clone())],
+    )
+    .map_err(WorldAdvanceError::InvalidMarkerEnvelope)?;
+    event.process_id = Some(process_id);
+    event.payload = vec![
+        PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+        PayloadField::new("frame_kind", "world_step_actor_transaction"),
+        PayloadField::new("origin", origin_id),
+        PayloadField::new("time_marker_event_id", marker_event_id.as_str()),
+    ];
+    event.effects_summary = "world-step actor transaction frame recorded".to_string();
     Ok(event)
 }
 
