@@ -138,6 +138,10 @@ const FIXTURES: &[NegativeFixture] = &[
         name: "external_crate_cannot_convert_debug_report_to_interval_summary",
         expected_stderr: "the trait bound",
     },
+    NegativeFixture {
+        name: "external_crate_cannot_assign_scheduler_frontier",
+        expected_stderr: "private field",
+    },
 ];
 
 struct ClippyBanProof {

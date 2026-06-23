@@ -19,7 +19,7 @@ use tracewake_core::scheduler::{
     AdvanceUntilRequest, AdvanceUntilStopReason, AuthorizedSleepInterruption,
     BodyExclusiveDurationKind, DeterministicScheduler, OrderingKey, ProposalSequence,
     SchedulePhase, SchedulerSourceId, WorldAdvanceError, WorldAdvanceOrigin, WorldAdvanceRequest,
-    WorldStepTransactionRequest,
+    WorldAdvanceResult, WorldStepTransactionRequest,
 };
 use tracewake_core::state::{
     ActorBody, AgentState, NeedModelState, PhysicalState, PlaceState, SleepAffordanceState,
@@ -68,6 +68,31 @@ fn world_advance_request(expected_tick: u64) -> WorldAdvanceRequest {
     }
 }
 
+fn transact_world_one_tick_for_test(
+    scheduler: &mut DeterministicScheduler,
+    physical: &PhysicalState,
+    agent: &mut AgentState,
+    log: &mut EventLog,
+    request: WorldAdvanceRequest,
+) -> Result<WorldAdvanceResult, WorldAdvanceError> {
+    let mut staged_physical = physical.clone();
+    let registry = ActionRegistry::new();
+    scheduler.transact_world_one_tick(
+        &mut staged_physical,
+        agent,
+        log,
+        &registry,
+        None,
+        None,
+        WorldStepTransactionRequest {
+            advance: request,
+            controlled_proposals: Vec::new(),
+            due_actor_ids: Vec::new(),
+            world_process_events: Vec::new(),
+        },
+    )
+}
+
 fn advance_until_request(
     actor_id: &ActorId,
     expected_tick: u64,
@@ -80,6 +105,18 @@ fn advance_until_request(
         possessed_actor_id: actor_id.clone(),
         max_ticks,
     }
+}
+
+fn advance_until_for_test(
+    scheduler: &mut DeterministicScheduler,
+    physical: &PhysicalState,
+    agent: &mut AgentState,
+    log: &mut EventLog,
+    request: AdvanceUntilRequest,
+) -> Result<tracewake_core::scheduler::AdvanceUntilResult, WorldAdvanceError> {
+    let mut staged_physical = physical.clone();
+    let registry = ActionRegistry::new();
+    scheduler.advance_until(&mut staged_physical, agent, log, &registry, None, request)
 }
 
 fn ordering_key(tick: u64, action_id: &str, actor_id: &ActorId) -> OrderingKey {
@@ -251,6 +288,60 @@ fn process_marker_event(id: &str, process_id: &ProcessId, tick: u64) -> EventEnv
     event
 }
 
+fn ordinary_wait_event(id: &str, actor_id: &ActorId, tick: u64) -> EventEnvelope {
+    let mut event = EventEnvelope::new_caused_v1(
+        EventId::new(id).unwrap(),
+        EventKind::ActorWaited,
+        0,
+        0,
+        SimTick::new(tick),
+        ordering_key(tick, "wait", actor_id),
+        content_manifest_id(),
+        vec![EventCause::Proposal(
+            ProposalId::new(format!("proposal_{id}")).unwrap(),
+        )],
+    )
+    .unwrap();
+    event.actor_id = Some(actor_id.clone());
+    event.payload = vec![
+        PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+        PayloadField::new("actor_id", actor_id.as_str()),
+        PayloadField::new("ticks", "1"),
+        PayloadField::new("reason", "future timestamp without marker"),
+        PayloadField::new("body_exclusive", "false"),
+    ];
+    event
+}
+
+fn malformed_actor_moved_process_event(
+    id: &str,
+    process_id: &ProcessId,
+    tick: u64,
+) -> EventEnvelope {
+    let mut event = EventEnvelope::new_caused_v1(
+        EventId::new(id).unwrap(),
+        EventKind::ActorMoved,
+        0,
+        0,
+        SimTick::new(tick),
+        OrderingKey::new(
+            SimTick::new(tick),
+            SchedulePhase::DeferredProcess,
+            SchedulerSourceId::Process(process_id.clone()),
+            ProposalSequence::new(1),
+            ActionId::new("malformed_move_probe").unwrap(),
+            vec![process_id.as_str().to_string()],
+            id,
+        ),
+        content_manifest_id(),
+        vec![EventCause::Process(process_id.clone())],
+    )
+    .unwrap();
+    event.process_id = Some(process_id.clone());
+    event.payload = vec![PayloadField::new("schema_version", EVENT_SCHEMA_V1)];
+    event
+}
+
 fn physical_state_for(actor: &ActorId, place: &PlaceId) -> PhysicalState {
     physical_state_for_with_need_model(actor, place, NeedModelState::new(0, 0))
 }
@@ -391,18 +482,18 @@ fn empty_world_step_appends_time_advanced_and_rebuilds_frontier() {
     let mut log = EventLog::new();
     let mut scheduler = DeterministicScheduler::new(SimTick::new(41));
 
-    let result = scheduler
-        .advance_world_one_tick(
-            &initial_physical,
-            &mut initial_agent,
-            &mut log,
-            world_advance_request(41),
-        )
-        .unwrap();
+    let result = transact_world_one_tick_for_test(
+        &mut scheduler,
+        &initial_physical,
+        &mut initial_agent,
+        &mut log,
+        world_advance_request(41),
+    )
+    .unwrap();
 
     assert_eq!(result.prior_tick, SimTick::new(41));
     assert_eq!(result.resulting_tick, SimTick::new(42));
-    assert_eq!(scheduler.current_tick, SimTick::new(42));
+    assert_eq!(scheduler.current_tick(), SimTick::new(42));
     assert_eq!(result.appended_event_ids.len(), 1);
     assert!(result.due_duration_candidates.is_empty());
     assert_eq!(result.due_work_summary.open_duration_candidates, 0);
@@ -469,8 +560,10 @@ fn transactional_world_step_attempts_due_actor_decision_transaction() {
             &mut log,
             &registry,
             None,
+            None,
             WorldStepTransactionRequest {
                 advance: world_advance_request(0),
+                controlled_proposals: Vec::new(),
                 due_actor_ids: vec![actor.clone()],
                 world_process_events: Vec::new(),
             },
@@ -511,8 +604,10 @@ fn transactional_world_step_applies_due_world_process_event() {
             &mut log,
             &registry,
             None,
+            None,
             WorldStepTransactionRequest {
                 advance: world_advance_request(0),
+                controlled_proposals: Vec::new(),
                 due_actor_ids: Vec::new(),
                 world_process_events: vec![process_event],
             },
@@ -527,6 +622,125 @@ fn transactional_world_step_applies_due_world_process_event() {
             && event.event_type == EventKind::NoHumanAdvanceStarted
             && event.process_id.as_ref() == Some(&process_id)
     }));
+}
+
+#[test]
+fn transactional_world_step_failure_leaves_authorities_unchanged() {
+    let actor = actor_id("actor_mara");
+    let place = place_id("home_mara");
+    let mut physical = physical_state_for(&actor, &place);
+    let mut agent = agent_state_for(&actor);
+    let mut log = EventLog::new();
+    let registry = ActionRegistry::new();
+    let process_id = ProcessId::new("process_bad_move").unwrap();
+    let bad_event = malformed_actor_moved_process_event("event.process_bad_move.1", &process_id, 1);
+    let mut scheduler = DeterministicScheduler::new(SimTick::ZERO);
+    let physical_before = physical.clone();
+    let agent_before = agent.clone();
+    let log_before = log.clone();
+    let checksum_before = state_checksum_pair(&physical, SimTick::ZERO, 0);
+
+    let error = scheduler
+        .transact_world_one_tick(
+            &mut physical,
+            &mut agent,
+            &mut log,
+            &registry,
+            None,
+            None,
+            WorldStepTransactionRequest {
+                advance: world_advance_request(0),
+                controlled_proposals: Vec::new(),
+                due_actor_ids: Vec::new(),
+                world_process_events: vec![bad_event],
+            },
+        )
+        .unwrap_err();
+
+    assert!(matches!(error, WorldAdvanceError::WorldProcessApply { .. }));
+    assert_eq!(scheduler.current_tick(), SimTick::ZERO);
+    assert_eq!(physical, physical_before);
+    assert_eq!(agent, agent_before);
+    assert_eq!(log, log_before);
+    assert_eq!(
+        state_checksum_pair(&physical, SimTick::ZERO, 0),
+        checksum_before
+    );
+}
+
+#[test]
+fn transactional_world_step_emits_chained_time_advanced_markers() {
+    let physical = PhysicalState::empty(NeedModelState::new(0, 0));
+    let mut agent = empty_agent_state();
+    let mut log = EventLog::new();
+    let mut scheduler = DeterministicScheduler::new(SimTick::ZERO);
+
+    for expected in 0..3 {
+        transact_world_one_tick_for_test(
+            &mut scheduler,
+            &physical,
+            &mut agent,
+            &mut log,
+            world_advance_request(expected),
+        )
+        .unwrap();
+    }
+
+    let markers = log
+        .events()
+        .iter()
+        .filter(|event| event.event_type == EventKind::TimeAdvanced)
+        .collect::<Vec<_>>();
+    assert_eq!(markers.len(), 3);
+    for (index, marker) in markers.iter().enumerate() {
+        let prior = index as u64;
+        let resulting = prior + 1;
+        let prior_text = prior.to_string();
+        let resulting_text = resulting.to_string();
+        assert_eq!(
+            marker.payload_value("prior_tick"),
+            Some(prior_text.as_str())
+        );
+        assert_eq!(
+            marker.payload_value("resulting_tick"),
+            Some(resulting_text.as_str())
+        );
+        assert_eq!(marker.sim_tick, SimTick::new(resulting));
+    }
+    let rebuild = rebuild_projection(
+        &physical,
+        &empty_agent_state(),
+        &log,
+        &checksum_context(SimTick::ZERO, 0),
+        Some(&physical),
+    );
+    assert_eq!(rebuild.reconstructed_final_frontier, SimTick::new(3));
+    assert!(rebuild.temporal_violations.is_empty());
+}
+
+#[test]
+fn ordinary_event_timestamp_without_marker_does_not_move_replay_frontier() {
+    let actor = actor_id("actor_mara");
+    let physical = physical_state_for(&actor, &place_id("home_mara"));
+    let agent = agent_state_for(&actor);
+    let mut log = EventLog::new();
+    log.append(ordinary_wait_event(
+        "event.future_wait_without_marker",
+        &actor,
+        7,
+    ))
+    .unwrap();
+
+    let rebuild = rebuild_projection(
+        &physical,
+        &agent,
+        &log,
+        &checksum_context(SimTick::ZERO, 0),
+        Some(&physical),
+    );
+
+    assert_eq!(rebuild.reconstructed_final_frontier, SimTick::ZERO);
+    assert!(!rebuild.temporal_violations.is_empty());
 }
 
 #[test]
@@ -559,14 +773,14 @@ fn differential_human_wait_and_no_human_wait_match_authoritative_outcome() {
         apply_agent_event(&mut human_agent, &appended).unwrap();
     }
     let mut human_scheduler = DeterministicScheduler::new(SimTick::ZERO);
-    let human_result = human_scheduler
-        .advance_world_one_tick(
-            &human_physical,
-            &mut human_agent,
-            &mut human_log,
-            world_advance_request(0),
-        )
-        .unwrap();
+    let human_result = transact_world_one_tick_for_test(
+        &mut human_scheduler,
+        &human_physical,
+        &mut human_agent,
+        &mut human_log,
+        world_advance_request(0),
+    )
+    .unwrap();
 
     let mut no_human_physical = initial_physical;
     let mut no_human_agent = initial_agent;
@@ -657,9 +871,14 @@ fn awake_world_step_emits_missing_passive_need_accounting_once() {
     let mut log = EventLog::new();
     let mut scheduler = DeterministicScheduler::new(SimTick::new(9));
 
-    let result = scheduler
-        .advance_world_one_tick(&physical, &mut agent, &mut log, world_advance_request(9))
-        .unwrap();
+    let result = transact_world_one_tick_for_test(
+        &mut scheduler,
+        &physical,
+        &mut agent,
+        &mut log,
+        world_advance_request(9),
+    )
+    .unwrap();
 
     assert_eq!(result.resulting_tick, SimTick::new(10));
     assert_eq!(
@@ -707,9 +926,14 @@ fn accepted_wait_tick_charge_is_not_replaced_or_double_charged_by_world_step() {
         .expect("wait event exists");
     let mut scheduler = DeterministicScheduler::new(SimTick::new(9));
 
-    let result = scheduler
-        .advance_world_one_tick(&physical, &mut agent, &mut log, world_advance_request(9))
-        .unwrap();
+    let result = transact_world_one_tick_for_test(
+        &mut scheduler,
+        &physical,
+        &mut agent,
+        &mut log,
+        world_advance_request(9),
+    )
+    .unwrap();
 
     assert_eq!(result.resulting_tick, SimTick::new(10));
     assert!(log.events().iter().any(|event| {
@@ -761,9 +985,14 @@ fn coordinator_discovers_due_open_duration_from_prior_transaction() {
     .unwrap();
     let mut scheduler = DeterministicScheduler::new(SimTick::new(9));
 
-    let result = scheduler
-        .advance_world_one_tick(&physical, &mut agent, &mut log, world_advance_request(9))
-        .unwrap();
+    let result = transact_world_one_tick_for_test(
+        &mut scheduler,
+        &physical,
+        &mut agent,
+        &mut log,
+        world_advance_request(9),
+    )
+    .unwrap();
 
     assert_eq!(result.resulting_tick, SimTick::new(10));
     assert_eq!(result.due_work_summary.open_duration_candidates, 1);
@@ -811,14 +1040,14 @@ fn advance_until_zero_ticks_reports_user_pause_without_world_step() {
     let mut log = EventLog::new();
     let mut scheduler = DeterministicScheduler::new(SimTick::new(9));
 
-    let result = scheduler
-        .advance_until(
-            &physical,
-            &mut agent,
-            &mut log,
-            advance_until_request(&actor, 9, 0),
-        )
-        .unwrap();
+    let result = advance_until_for_test(
+        &mut scheduler,
+        &physical,
+        &mut agent,
+        &mut log,
+        advance_until_request(&actor, 9, 0),
+    )
+    .unwrap();
 
     assert_eq!(result.stop_tick, SimTick::new(9));
     assert_eq!(result.ticks_advanced, 0);
@@ -839,14 +1068,14 @@ fn advance_until_stops_at_controller_safety_bound() {
     let mut log = EventLog::new();
     let mut scheduler = DeterministicScheduler::new(SimTick::new(9));
 
-    let result = scheduler
-        .advance_until(
-            &physical,
-            &mut agent,
-            &mut log,
-            advance_until_request(&actor, 9, 2),
-        )
-        .unwrap();
+    let result = advance_until_for_test(
+        &mut scheduler,
+        &physical,
+        &mut agent,
+        &mut log,
+        advance_until_request(&actor, 9, 2),
+    )
+    .unwrap();
 
     assert_eq!(result.stop_tick, SimTick::new(11));
     assert_eq!(result.ticks_advanced, 2);
@@ -881,14 +1110,14 @@ fn advance_until_stops_at_possessed_duration_terminal() {
     .unwrap();
     let mut scheduler = DeterministicScheduler::new(SimTick::new(9));
 
-    let result = scheduler
-        .advance_until(
-            &physical,
-            &mut agent,
-            &mut log,
-            advance_until_request(&actor, 9, 8),
-        )
-        .unwrap();
+    let result = advance_until_for_test(
+        &mut scheduler,
+        &physical,
+        &mut agent,
+        &mut log,
+        advance_until_request(&actor, 9, 8),
+    )
+    .unwrap();
 
     assert_eq!(result.stop_tick, SimTick::new(10));
     assert_eq!(result.ticks_advanced, 1);
@@ -926,14 +1155,14 @@ fn advance_until_ignores_hidden_other_actor_duration_terminal() {
     .unwrap();
     let mut scheduler = DeterministicScheduler::new(SimTick::new(9));
 
-    let result = scheduler
-        .advance_until(
-            &physical,
-            &mut agent,
-            &mut log,
-            advance_until_request(&actor, 9, 2),
-        )
-        .unwrap();
+    let result = advance_until_for_test(
+        &mut scheduler,
+        &physical,
+        &mut agent,
+        &mut log,
+        advance_until_request(&actor, 9, 2),
+    )
+    .unwrap();
 
     assert_eq!(result.stop_tick, SimTick::new(11));
     assert_eq!(
@@ -976,15 +1205,20 @@ fn malformed_due_duration_start_rejects_without_appending_marker() {
     .unwrap();
     let mut scheduler = DeterministicScheduler::new(SimTick::new(9));
 
-    let result = scheduler
-        .advance_world_one_tick(&physical, &mut agent, &mut log, world_advance_request(9))
-        .unwrap_err();
+    let result = transact_world_one_tick_for_test(
+        &mut scheduler,
+        &physical,
+        &mut agent,
+        &mut log,
+        world_advance_request(9),
+    )
+    .unwrap_err();
 
     assert!(matches!(
         result,
         WorldAdvanceError::DurationLifecycleBuild { .. }
     ));
-    assert_eq!(scheduler.current_tick, SimTick::new(9));
+    assert_eq!(scheduler.current_tick(), SimTick::new(9));
     assert_eq!(log.events().len(), 2);
 }
 
@@ -1007,9 +1241,14 @@ fn coordinator_closes_due_work_through_existing_completion_builder() {
     .unwrap();
     let mut scheduler = DeterministicScheduler::new(SimTick::new(9));
 
-    let result = scheduler
-        .advance_world_one_tick(&physical, &mut agent, &mut log, world_advance_request(9))
-        .unwrap();
+    let result = transact_world_one_tick_for_test(
+        &mut scheduler,
+        &physical,
+        &mut agent,
+        &mut log,
+        world_advance_request(9),
+    )
+    .unwrap();
 
     assert_eq!(result.due_work_summary.open_duration_candidates, 1);
     assert_eq!(result.due_work_summary.duration_terminals_appended, 1);
@@ -1066,9 +1305,9 @@ fn authorized_sleep_interruption_closes_before_expected_completion_tick() {
         });
     let mut scheduler = DeterministicScheduler::new(SimTick::new(9));
 
-    let result = scheduler
-        .advance_world_one_tick(&physical, &mut agent, &mut log, request)
-        .unwrap();
+    let result =
+        transact_world_one_tick_for_test(&mut scheduler, &physical, &mut agent, &mut log, request)
+            .unwrap();
 
     assert!(result.due_duration_candidates.is_empty());
     assert_eq!(result.due_work_summary.duration_terminals_appended, 1);
@@ -1128,9 +1367,14 @@ fn duplicate_duration_terminal_rejects_world_step_without_appending_marker() {
     .unwrap();
     let mut scheduler = DeterministicScheduler::new(SimTick::new(9));
 
-    let error = scheduler
-        .advance_world_one_tick(&physical, &mut agent, &mut log, world_advance_request(9))
-        .unwrap_err();
+    let error = transact_world_one_tick_for_test(
+        &mut scheduler,
+        &physical,
+        &mut agent,
+        &mut log,
+        world_advance_request(9),
+    )
+    .unwrap_err();
 
     let WorldAdvanceError::OpenDurationDiscovery(error) = error else {
         panic!("expected open-duration discovery failure");
@@ -1144,7 +1388,7 @@ fn duplicate_duration_terminal_rejects_world_step_without_appending_marker() {
         error.duplicate_terminal_event_id.as_str(),
         "event_work_failed_duplicate"
     );
-    assert_eq!(scheduler.current_tick, SimTick::new(9));
+    assert_eq!(scheduler.current_tick(), SimTick::new(9));
     assert_eq!(log.events().len(), 3);
 }
 
@@ -1155,9 +1399,14 @@ fn stale_expected_tick_rejects_without_appending_or_advancing() {
     let mut agent = empty_agent_state();
     let mut scheduler = DeterministicScheduler::new(SimTick::new(10));
 
-    let error = scheduler
-        .advance_world_one_tick(&physical, &mut agent, &mut log, world_advance_request(9))
-        .unwrap_err();
+    let error = transact_world_one_tick_for_test(
+        &mut scheduler,
+        &physical,
+        &mut agent,
+        &mut log,
+        world_advance_request(9),
+    )
+    .unwrap_err();
 
     assert_eq!(
         error,
@@ -1166,7 +1415,7 @@ fn stale_expected_tick_rejects_without_appending_or_advancing() {
             actual: SimTick::new(10),
         }
     );
-    assert_eq!(scheduler.current_tick, SimTick::new(10));
+    assert_eq!(scheduler.current_tick(), SimTick::new(10));
     assert!(log.events().is_empty());
 }
 

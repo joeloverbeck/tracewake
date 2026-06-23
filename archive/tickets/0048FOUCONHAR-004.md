@@ -1,6 +1,6 @@
 # 0048FOUCONHAR-004: Singular temporal authority — privatize the frontier and flip the callers (atomic cutover)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — privatizes `DeterministicScheduler::current_tick` behind a read-only accessor and a typed restoration constructor; deletes `sync_scheduler_frontier_to_appended_events` and the legacy `advance_world_one_tick`; reroutes the human and no-human callers into the ticket-003 one-tick transaction; removes the TUI frontier assignments. No new event kinds, content, or fixtures.
@@ -91,3 +91,23 @@ In `crates/tracewake-core/tests/world_step_coordinator.rs`, add the all-or-nothi
 1. `cargo test -p tracewake-core --test world_step_coordinator`
 2. `cargo test -p tracewake-core --test negative_fixture_runner`
 3. `cargo test -p tracewake-core && cargo test -p tracewake-tui` (full cutover compiles and passes across both crates — the local compile-atomicity boundary).
+
+## Outcome
+
+Completed: 2026-06-23
+
+Privatized `DeterministicScheduler::current_tick` behind `current_tick()` and added typed restoration constructors from the ticket-001 temporal projection/rebuild evidence. The runtime frontier now advances through the canonical `transact_world_one_tick` commit path; ordinary event timestamps and TUI/debug paths cannot assign the scheduler frontier.
+
+Deleted the legacy `advance_world_one_tick` and `sync_scheduler_frontier_to_appended_events` bypasses, then rerouted the TUI submit/wait path, no-human scheduled wait path, and `advance_until` through the ticket-003 transaction. Human controlled proposal rejection rolls back the staged marker, authorities, log, frontier, and checksums; scheduler/non-human rejected proposals may still commit diagnostic evidence. The no-human replay boundary now restores from a rebuild report rather than assigning `final_tick`.
+
+Added/updated witnesses for the failure-atomic transaction, chained `TimeAdvanced` marker ancestry, ordinary timestamp non-authority, no-human scheduled wait marker emission, and downstream compile-fail frontier assignment. The direct writer grep reports only the canonical commit assignment in `scheduler.rs`; restoration writes happen through typed struct construction rather than a public setter.
+
+Verification run:
+
+1. `cargo test -p tracewake-core` — passed.
+2. `cargo test -p tracewake-tui` — passed.
+3. `cargo fmt --all --check` — passed.
+4. `cargo clippy -p tracewake-core --all-targets -- -D warnings` — passed.
+5. `cargo clippy -p tracewake-tui --all-targets -- -D warnings` — passed.
+6. `git diff --check` — passed.
+7. `grep -rn "current_tick *=" crates/tracewake-tui crates/tracewake-core/src/scheduler.rs` — printed only `crates/tracewake-core/src/scheduler.rs:754:        self.current_tick = resulting_tick;`.

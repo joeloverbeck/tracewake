@@ -157,6 +157,14 @@ pub fn validate_proposal(
 }
 
 pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> PipelineResult {
+    run_pipeline_with_current_event_frontier(context, proposal, context.log.events().len() as u64)
+}
+
+pub(crate) fn run_pipeline_with_current_event_frontier(
+    context: &mut PipelineContext<'_>,
+    proposal: &Proposal,
+    current_event_frontier: u64,
+) -> PipelineResult {
     let read_context = PipelineReadContext {
         registry: context.registry,
         state: context.state,
@@ -165,7 +173,7 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
         epistemic_projection: context.epistemic_projection.as_deref(),
         content_manifest_id: &context.content_manifest_id,
         ordering_key: &context.ordering_key,
-        current_event_frontier: context.log.events().len() as u64,
+        current_event_frontier,
     };
     let decision = decide_proposal(read_context, proposal);
     let (candidate_events, checked_facts, would_mutate) = match decision {
@@ -208,6 +216,9 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
 
     let mut appended_events = Vec::new();
     for event in candidate_events {
+        if is_duplicate_need_tick_candidate(context.log, &event) {
+            continue;
+        }
         let appended = match context.log.append(event) {
             Ok(appended) => appended,
             Err(_) => {
@@ -395,6 +406,29 @@ pub fn run_pipeline(context: &mut PipelineContext<'_>, proposal: &Proposal) -> P
         report,
         appended_events,
     }
+}
+
+fn is_duplicate_need_tick_candidate(log: &EventLog, candidate: &EventEnvelope) -> bool {
+    candidate.event_type == EventKind::NeedDeltaApplied
+        && event_payload_value(candidate, "cause_kind") == Some("tick_delta")
+        && candidate.actor_id.as_ref().is_some_and(|actor_id| {
+            let need_kind = event_payload_value(candidate, "need_kind");
+            log.events().iter().any(|event| {
+                event.event_type == EventKind::NeedDeltaApplied
+                    && event_payload_value(event, "cause_kind") == Some("tick_delta")
+                    && event.actor_id.as_ref() == Some(actor_id)
+                    && event.sim_tick == candidate.sim_tick
+                    && event_payload_value(event, "need_kind") == need_kind
+            })
+        })
+}
+
+fn event_payload_value<'a>(event: &'a EventEnvelope, key: &str) -> Option<&'a str> {
+    event
+        .payload
+        .iter()
+        .find(|field| field.key == key)
+        .map(|field| field.value.as_str())
 }
 
 fn body_exclusive_reservation_conflict(

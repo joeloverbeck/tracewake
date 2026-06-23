@@ -5,13 +5,18 @@ use crate::actions::defs::need_events::{
 };
 use crate::actions::defs::sleep::{build_sleep_completion_events, build_sleep_interruption_events};
 use crate::actions::defs::work::build_work_completion_events;
-use crate::actions::pipeline::{run_pipeline, PipelineContext};
+use crate::actions::pipeline::{
+    run_pipeline, run_pipeline_with_current_event_frontier, PipelineContext, PipelineResult,
+};
+use crate::actions::proposal::{Proposal, ProposalOrigin};
 use crate::actions::registry::ActionRegistry;
+use crate::actions::report::ReportStatus;
 use crate::agent::{
     record_current_place_perception_and_project, ActorDecisionTransaction,
     ActorDecisionTransactionInput, ActorDecisionTransactionOutcome, NeedKind, NeedState,
     NoHumanActorKnownSurfaceBuilder, NoHumanActorKnownSurfaceRequest,
 };
+use crate::controller::ControllerBindings;
 use crate::epistemics::EpistemicProjection;
 use crate::events::apply::{
     apply_agent_event, apply_epistemic_event, apply_event_stream, ApplyError,
@@ -190,11 +195,33 @@ pub struct WorldAdvanceResult {
     pub appended_event_ids: Vec<EventId>,
     pub due_duration_candidates: Vec<OpenDurationCandidate>,
     pub due_work_summary: WorldStepDueWorkSummary,
+    pub controlled_pipeline_results: Vec<PipelineResult>,
+}
+
+fn rolled_back_controlled_result(
+    prior_tick: SimTick,
+    _attempted_resulting_tick: SimTick,
+    controlled_pipeline_results: Vec<PipelineResult>,
+) -> WorldAdvanceResult {
+    WorldAdvanceResult {
+        prior_tick,
+        resulting_tick: prior_tick,
+        appended_event_ids: Vec::new(),
+        due_duration_candidates: Vec::new(),
+        due_work_summary: WorldStepDueWorkSummary {
+            open_duration_candidates: 0,
+            duration_terminals_appended: 0,
+            actor_transactions_attempted: 0,
+            world_processes_applied: 0,
+        },
+        controlled_pipeline_results,
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct WorldStepTransactionRequest {
     pub advance: WorldAdvanceRequest,
+    pub controlled_proposals: Vec<Proposal>,
     pub due_actor_ids: Vec<ActorId>,
     pub world_process_events: Vec<EventEnvelope>,
 }
@@ -361,7 +388,7 @@ pub fn duration_completion_ordering_key(
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DeterministicScheduler {
-    pub current_tick: SimTick,
+    current_tick: SimTick,
     proposal_sequences: ProposalSequenceAssigner,
 }
 
@@ -373,78 +400,42 @@ impl DeterministicScheduler {
         }
     }
 
+    pub const fn current_tick(&self) -> SimTick {
+        self.current_tick
+    }
+
+    pub fn restore_from_temporal_projection(
+        projection: &crate::replay::TemporalProjection,
+    ) -> Option<Self> {
+        if projection.violations.is_empty() {
+            Some(Self::new(projection.reconstructed_final_frontier))
+        } else {
+            None
+        }
+    }
+
+    pub fn restore_from_rebuild_report(
+        report: &crate::replay::ProjectionRebuildReport,
+    ) -> Option<Self> {
+        if report.temporal_violations.is_empty() {
+            Some(Self::new(report.reconstructed_final_frontier))
+        } else {
+            None
+        }
+    }
+
     pub fn assign_proposal_sequence(&mut self) -> ProposalSequence {
         self.proposal_sequences.assign_next()
     }
 
-    #[cfg(test)]
-    fn increment_clock_one_tick(&mut self) -> SimTick {
-        self.current_tick = self.current_tick.next();
-        self.current_tick
-    }
-
-    pub fn advance_world_one_tick(
-        &mut self,
-        state: &PhysicalState,
-        agent_state: &mut AgentState,
-        log: &mut EventLog,
-        request: WorldAdvanceRequest,
-    ) -> Result<WorldAdvanceResult, WorldAdvanceError> {
-        if request.expected_tick != self.current_tick {
-            return Err(WorldAdvanceError::FrontierMismatch {
-                expected: request.expected_tick,
-                actual: self.current_tick,
-            });
-        }
-
-        let prior_tick = self.current_tick;
-        let resulting_tick = prior_tick.next();
-        let due_duration_candidates = discover_due_duration_candidates(log, resulting_tick)?;
-        let marker = build_time_advanced_event(prior_tick, resulting_tick, &request)?;
-        let lifecycle = build_duration_lifecycle_events(
-            state,
-            agent_state,
-            log,
-            &request,
-            &due_duration_candidates,
-            resulting_tick,
-            &marker,
-        )?;
-        let appended_marker = log.append(marker).map_err(WorldAdvanceError::EventAppend)?;
-        let mut appended_event_ids = vec![appended_marker.event_id];
-        for event in lifecycle.events {
-            let appended = log.append(event).map_err(WorldAdvanceError::EventAppend)?;
-            apply_agent_event(agent_state, &appended).map_err(|error| {
-                WorldAdvanceError::DurationLifecycleApply {
-                    event_id: appended.event_id.clone(),
-                    error,
-                }
-            })?;
-            appended_event_ids.push(appended.event_id);
-        }
-        self.current_tick = resulting_tick;
-        let open_duration_candidates = due_duration_candidates.len();
-
-        Ok(WorldAdvanceResult {
-            prior_tick,
-            resulting_tick,
-            appended_event_ids,
-            due_duration_candidates,
-            due_work_summary: WorldStepDueWorkSummary {
-                open_duration_candidates,
-                duration_terminals_appended: lifecycle.duration_terminals_appended,
-                actor_transactions_attempted: 0,
-                world_processes_applied: 0,
-            },
-        })
-    }
-
+    #[allow(clippy::too_many_arguments)]
     pub fn transact_world_one_tick(
         &mut self,
         state: &mut PhysicalState,
         agent_state: &mut AgentState,
         log: &mut EventLog,
         registry: &ActionRegistry,
+        controller_bindings: Option<&ControllerBindings>,
         epistemic_projection: Option<&mut EpistemicProjection>,
         request: WorldStepTransactionRequest,
     ) -> Result<WorldAdvanceResult, WorldAdvanceError> {
@@ -458,6 +449,7 @@ impl DeterministicScheduler {
         let prior_tick = self.current_tick;
         let resulting_tick = prior_tick.next();
         let initial_log_len = log.events().len();
+        let controlled_source_frontier = initial_log_len as u64;
         let mut scratch_state = state.clone();
         let mut scratch_agent_state = agent_state.clone();
         let mut scratch_log = log.clone();
@@ -465,6 +457,53 @@ impl DeterministicScheduler {
             epistemic_projection.as_deref().cloned().unwrap_or_else(|| {
                 epistemic_projection_from_log(&scratch_log, &request.advance.content_manifest_id)
             });
+        let mut controlled_pipeline_results = Vec::new();
+        let mut post_marker_controlled_proposals = Vec::new();
+        for proposal in request.controlled_proposals {
+            if proposal.action_id.as_str() == "wait" {
+                post_marker_controlled_proposals.push(proposal);
+                continue;
+            }
+            let source_id = match proposal.actor_id.clone() {
+                Some(actor_id) => SchedulerSourceId::Actor(actor_id),
+                None => SchedulerSourceId::Process(
+                    request
+                        .advance
+                        .origin
+                        .cause_process_id()
+                        .map_err(WorldAdvanceError::InvalidMarkerId)?,
+                ),
+            };
+            let ordering_key = OrderingKey::new(
+                proposal.requested_tick,
+                SchedulePhase::HumanCommand,
+                source_id,
+                self.assign_proposal_sequence(),
+                proposal.action_id.clone(),
+                proposal.target_ids.clone(),
+                proposal.proposal_id.as_str().to_string(),
+            );
+            let mut context = PipelineContext {
+                registry,
+                state: &mut scratch_state,
+                agent_state: &mut scratch_agent_state,
+                log: &mut scratch_log,
+                controller_bindings,
+                epistemic_projection: Some(&mut scratch_projection),
+                content_manifest_id: request.advance.content_manifest_id.clone(),
+                ordering_key,
+            };
+            let result = run_pipeline(&mut context, &proposal);
+            let rejected = result.report.status == ReportStatus::Rejected;
+            controlled_pipeline_results.push(result);
+            if rejected && proposal.origin == ProposalOrigin::Human {
+                return Ok(rolled_back_controlled_result(
+                    prior_tick,
+                    resulting_tick,
+                    controlled_pipeline_results,
+                ));
+            }
+        }
         let due_duration_candidates =
             discover_due_duration_candidates(&scratch_log, resulting_tick)?;
         let marker = build_time_advanced_event(prior_tick, resulting_tick, &request.advance)?;
@@ -481,16 +520,26 @@ impl DeterministicScheduler {
         let appended_marker = scratch_log
             .append(marker)
             .map_err(WorldAdvanceError::EventAppend)?;
-        for event in lifecycle.events {
-            let appended = scratch_log
+        let (accounting_events, lifecycle_events): (Vec<_>, Vec<_>) = lifecycle
+            .events
+            .into_iter()
+            .partition(|event| payload_value(event, "accounting_phase") == Some("world_step"));
+        for event in lifecycle_events {
+            let mut trial_agent_state = scratch_agent_state.clone();
+            match apply_agent_event(&mut trial_agent_state, &event) {
+                Ok(_) => {}
+                Err(ApplyError::DuplicateNeedTickCharge { .. }) => continue,
+                Err(error) => {
+                    return Err(WorldAdvanceError::DurationLifecycleApply {
+                        event_id: event.event_id.clone(),
+                        error,
+                    });
+                }
+            }
+            scratch_log
                 .append(event)
                 .map_err(WorldAdvanceError::EventAppend)?;
-            apply_agent_event(&mut scratch_agent_state, &appended).map_err(|error| {
-                WorldAdvanceError::DurationLifecycleApply {
-                    event_id: appended.event_id.clone(),
-                    error,
-                }
-            })?;
+            scratch_agent_state = trial_agent_state;
         }
 
         let mut world_processes_applied = 0;
@@ -510,6 +559,86 @@ impl DeterministicScheduler {
                 }
             })?;
             world_processes_applied += 1;
+        }
+
+        for proposal in post_marker_controlled_proposals {
+            let source_id = match proposal.actor_id.clone() {
+                Some(actor_id) => SchedulerSourceId::Actor(actor_id),
+                None => SchedulerSourceId::Process(
+                    request
+                        .advance
+                        .origin
+                        .cause_process_id()
+                        .map_err(WorldAdvanceError::InvalidMarkerId)?,
+                ),
+            };
+            let ordering_key = OrderingKey::new(
+                proposal.requested_tick,
+                SchedulePhase::HumanCommand,
+                source_id,
+                self.assign_proposal_sequence(),
+                proposal.action_id.clone(),
+                proposal.target_ids.clone(),
+                proposal.proposal_id.as_str().to_string(),
+            );
+            let validation_frontier = proposal
+                .source
+                .as_ref()
+                .and_then(|source| source.tui_context())
+                .map_or(controlled_source_frontier, |source| {
+                    source.holder_known_context_frontier
+                });
+            let mut context = PipelineContext {
+                registry,
+                state: &mut scratch_state,
+                agent_state: &mut scratch_agent_state,
+                log: &mut scratch_log,
+                controller_bindings,
+                epistemic_projection: Some(&mut scratch_projection),
+                content_manifest_id: request.advance.content_manifest_id.clone(),
+                ordering_key,
+            };
+            controlled_pipeline_results.push(run_pipeline_with_current_event_frontier(
+                &mut context,
+                &proposal,
+                validation_frontier,
+            ));
+            if proposal.origin == ProposalOrigin::Human
+                && controlled_pipeline_results
+                    .last()
+                    .is_some_and(|result| result.report.status == ReportStatus::Rejected)
+            {
+                return Ok(rolled_back_controlled_result(
+                    prior_tick,
+                    resulting_tick,
+                    controlled_pipeline_results,
+                ));
+            }
+        }
+
+        for event in accounting_events {
+            if event.actor_id.as_ref().is_some_and(|actor_id| {
+                actor_has_open_body_exclusive_at(&scratch_log, actor_id, event.sim_tick)
+                    .unwrap_or(false)
+            }) {
+                continue;
+            }
+            let mut trial_agent_state = scratch_agent_state.clone();
+            match apply_agent_event(&mut trial_agent_state, &event) {
+                Ok(_) => {
+                    scratch_log
+                        .append(event)
+                        .map_err(WorldAdvanceError::EventAppend)?;
+                    scratch_agent_state = trial_agent_state;
+                }
+                Err(ApplyError::DuplicateNeedTickCharge { .. }) => {}
+                Err(error) => {
+                    return Err(WorldAdvanceError::DurationLifecycleApply {
+                        event_id: event.event_id.clone(),
+                        error,
+                    });
+                }
+            }
         }
 
         let mut actor_transactions_attempted = 0;
@@ -635,14 +764,17 @@ impl DeterministicScheduler {
                 actor_transactions_attempted,
                 world_processes_applied,
             },
+            controlled_pipeline_results,
         })
     }
 
     pub fn advance_until(
         &mut self,
-        state: &PhysicalState,
+        state: &mut PhysicalState,
         agent_state: &mut AgentState,
         log: &mut EventLog,
+        registry: &ActionRegistry,
+        mut epistemic_projection: Option<&mut EpistemicProjection>,
         request: AdvanceUntilRequest,
     ) -> Result<AdvanceUntilResult, WorldAdvanceError> {
         if request.expected_tick != self.current_tick {
@@ -665,15 +797,23 @@ impl DeterministicScheduler {
         }
 
         for _ in 0..request.max_ticks {
-            let step = self.advance_world_one_tick(
+            let step = self.transact_world_one_tick(
                 state,
                 agent_state,
                 log,
-                WorldAdvanceRequest {
-                    expected_tick: self.current_tick,
-                    origin: request.origin.clone(),
-                    content_manifest_id: request.content_manifest_id.clone(),
-                    authorized_sleep_interruptions: Vec::new(),
+                registry,
+                None,
+                epistemic_projection.as_deref_mut(),
+                WorldStepTransactionRequest {
+                    advance: WorldAdvanceRequest {
+                        expected_tick: self.current_tick,
+                        origin: request.origin.clone(),
+                        content_manifest_id: request.content_manifest_id.clone(),
+                        authorized_sleep_interruptions: Vec::new(),
+                    },
+                    controlled_proposals: Vec::new(),
+                    due_actor_ids: Vec::new(),
+                    world_process_events: Vec::new(),
                 },
             )?;
             appended_event_ids.extend(step.appended_event_ids.iter().cloned());
@@ -906,15 +1046,21 @@ fn build_duration_lifecycle_events(
             error,
         })?;
         for event in built_events {
+            let mut trial_agent_state = scratch_agent_state.clone();
+            match apply_agent_event(&mut trial_agent_state, &event) {
+                Ok(_) => {}
+                Err(ApplyError::DuplicateNeedTickCharge { .. }) => continue,
+                Err(error) => {
+                    return Err(WorldAdvanceError::DurationLifecycleApply {
+                        event_id: event.event_id.clone(),
+                        error,
+                    });
+                }
+            }
             let appended = scratch_log
                 .append(event.clone())
                 .map_err(WorldAdvanceError::EventAppend)?;
-            apply_agent_event(&mut scratch_agent_state, &appended).map_err(|error| {
-                WorldAdvanceError::DurationLifecycleApply {
-                    event_id: appended.event_id.clone(),
-                    error,
-                }
-            })?;
+            scratch_agent_state = trial_agent_state;
             if is_duration_terminal(appended.event_type) {
                 duration_terminals_appended += 1;
             }
@@ -1263,6 +1409,23 @@ fn latest_need_event_id(log: &EventLog, actor_id: &ActorId) -> Option<EventId> {
         .map(|event| event.event_id.clone())
 }
 
+fn actor_has_open_body_exclusive_at(
+    log: &EventLog,
+    actor_id: &ActorId,
+    tick: SimTick,
+) -> Result<bool, DuplicateDurationTerminal> {
+    Ok(open_body_exclusive_starts(log, actor_id, tick)?
+        .iter()
+        .any(|event_id| {
+            log.events().iter().any(|event| {
+                &event.event_id == event_id
+                    && payload_value(event, "body_exclusive") == Some("true")
+                    && parse_duration_start_completion_tick(event)
+                        .is_ok_and(|completion| completion > tick)
+            })
+        }))
+}
+
 fn build_time_advanced_event(
     prior_tick: SimTick,
     resulting_tick: SimTick,
@@ -1392,7 +1555,7 @@ pub mod no_human {
     };
     use crate::scheduler::{
         DeterministicScheduler, OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId,
-        WorldAdvanceError, WorldAdvanceOrigin, WorldAdvanceRequest,
+        WorldAdvanceError, WorldAdvanceOrigin, WorldAdvanceRequest, WorldStepTransactionRequest,
     };
     use crate::state::{AgentState, PhysicalState};
     use crate::time::SimTick;
@@ -1542,6 +1705,7 @@ pub mod no_human {
                 state,
                 agent_state,
                 log,
+                registry,
                 &process_id,
                 &mut scheduler,
                 &content_manifest_id,
@@ -1624,27 +1788,60 @@ pub mod no_human {
                 let proposal = agent_proposal.proposal;
                 let decision_trace_record = agent_proposal.decision_trace_record;
                 let active_before_proposal = active_intention_for_actor(agent_state, actor_id);
-                let ordering_key = OrderingKey::new(
-                    window.start_tick,
-                    SchedulePhase::NoHumanProcess,
-                    SchedulerSourceId::Actor(actor_id.clone()),
-                    scheduler.assign_proposal_sequence(),
-                    proposal.action_id.clone(),
-                    proposal.target_ids.clone(),
-                    format!("{}:{}", window.window_id, actor_id.as_str()),
-                );
-                let mut context = PipelineContext {
-                    registry,
-                    state,
-                    agent_state,
-                    log,
-                    controller_bindings: None,
-                    epistemic_projection: None,
-                    content_manifest_id: content_manifest_id.clone(),
-                    ordering_key,
+                let result = if proposal.action_id.as_str() == "wait" {
+                    match scheduler.transact_world_one_tick(
+                        state,
+                        agent_state,
+                        log,
+                        registry,
+                        None,
+                        None,
+                        WorldStepTransactionRequest {
+                            advance: WorldAdvanceRequest {
+                                expected_tick: scheduler.current_tick,
+                                origin: WorldAdvanceOrigin::Process(process_id.clone()),
+                                content_manifest_id: content_manifest_id.clone(),
+                                authorized_sleep_interruptions: Vec::new(),
+                            },
+                            controlled_proposals: vec![proposal.clone()],
+                            due_actor_ids: Vec::new(),
+                            world_process_events: Vec::new(),
+                        },
+                    ) {
+                        Ok(step) => {
+                            let Some(result) = step.controlled_pipeline_results.into_iter().next()
+                            else {
+                                continue;
+                            };
+                            result
+                        }
+                        Err(error) => {
+                            scheduler_errors.push(NoHumanSchedulerError::WorldAdvance { error });
+                            continue;
+                        }
+                    }
+                } else {
+                    let ordering_key = OrderingKey::new(
+                        window.start_tick,
+                        SchedulePhase::NoHumanProcess,
+                        SchedulerSourceId::Actor(actor_id.clone()),
+                        scheduler.assign_proposal_sequence(),
+                        proposal.action_id.clone(),
+                        proposal.target_ids.clone(),
+                        format!("{}:{}", window.window_id, actor_id.as_str()),
+                    );
+                    let mut context = PipelineContext {
+                        registry,
+                        state,
+                        agent_state,
+                        log,
+                        controller_bindings: None,
+                        epistemic_projection: None,
+                        content_manifest_id: content_manifest_id.clone(),
+                        ordering_key,
+                    };
+                    run_pipeline(&mut context, &proposal)
                 };
-                let result = run_pipeline(&mut context, &proposal);
-                sync_scheduler_frontier_to_appended_events(&mut scheduler, &result.appended_events);
                 let progress_events = no_human_progress_event_count(&result.appended_events);
                 ordinary_pipeline_events += progress_events;
                 record_window_progress(
@@ -1703,6 +1900,7 @@ pub mod no_human {
             state,
             agent_state,
             log,
+            registry,
             &process_id,
             &mut scheduler,
             &content_manifest_id,
@@ -1974,9 +2172,10 @@ pub mod no_human {
 
     #[allow(clippy::too_many_arguments)]
     fn advance_no_human_scheduler_to_tick(
-        state: &PhysicalState,
+        state: &mut PhysicalState,
         agent_state: &mut AgentState,
         log: &mut EventLog,
+        registry: &ActionRegistry,
         process_id: &ProcessId,
         scheduler: &mut DeterministicScheduler,
         content_manifest_id: &ContentManifestId,
@@ -1991,7 +2190,20 @@ pub mod no_human {
                 content_manifest_id: content_manifest_id.clone(),
                 authorized_sleep_interruptions: Vec::new(),
             };
-            let result = match scheduler.advance_world_one_tick(state, agent_state, log, request) {
+            let result = match scheduler.transact_world_one_tick(
+                state,
+                agent_state,
+                log,
+                registry,
+                None,
+                None,
+                WorldStepTransactionRequest {
+                    advance: request,
+                    controlled_proposals: Vec::new(),
+                    due_actor_ids: Vec::new(),
+                    world_process_events: Vec::new(),
+                },
+            ) {
                 Ok(result) => result,
                 Err(error) => {
                     scheduler_errors.push(NoHumanSchedulerError::WorldAdvance { error });
@@ -2041,20 +2253,6 @@ pub mod no_human {
             }
         }
         completed_durations
-    }
-
-    fn sync_scheduler_frontier_to_appended_events(
-        scheduler: &mut DeterministicScheduler,
-        appended_events: &[EventEnvelope],
-    ) {
-        if let Some(latest_tick) = appended_events.iter().map(|event| event.sim_tick).max() {
-            // Advance the frontier to the furthest appended tick, never backward.
-            // Taking the max instead of a `>` guard keeps the comparison fully
-            // mutation-covered: a `max -> min` mutant would drag the frontier
-            // backward and is caught by the frontier unit test, whereas the old
-            // `>` guard admitted an equivalent `>=` mutant (a no-op at equality).
-            scheduler.current_tick = scheduler.current_tick.max(latest_tick);
-        }
     }
 
     fn credit_completion(
@@ -2304,6 +2502,13 @@ pub mod no_human {
         let Some(ordinary_event) = ordinary_event else {
             return;
         };
+        if !log
+            .events()
+            .iter()
+            .any(|event| event.event_id == ordinary_event.event_id)
+        {
+            return;
+        }
         append_and_apply_agent_event(
             log,
             agent_state,
@@ -3058,30 +3263,44 @@ pub mod no_human {
             .collect::<Vec<_>>();
         sorted.sort_by(|left, right| left.0.cmp(&right.0));
 
-        for (ordering_key, proposal) in sorted {
+        for (_ordering_key, proposal) in sorted {
             advance_no_human_scheduler_to_tick(
                 physical_state,
                 agent_state,
                 log,
+                registry,
                 &process_id,
                 &mut scheduler,
                 &content_manifest_id,
                 proposal.requested_tick,
                 &mut scheduler_errors,
             );
-            let mut context = PipelineContext {
-                registry,
-                state: physical_state,
-                agent_state,
-                log,
-                controller_bindings: None,
-                epistemic_projection: None,
-                content_manifest_id: content_manifest_id.clone(),
-                ordering_key,
-            };
-            let result = run_pipeline(&mut context, &proposal);
-            sync_scheduler_frontier_to_appended_events(&mut scheduler, &result.appended_events);
-            ordinary_pipeline_events += no_human_progress_event_count(&result.appended_events);
+            let result = scheduler
+                .transact_world_one_tick(
+                    physical_state,
+                    agent_state,
+                    log,
+                    registry,
+                    None,
+                    None,
+                    WorldStepTransactionRequest {
+                        advance: WorldAdvanceRequest {
+                            expected_tick: scheduler.current_tick,
+                            origin: WorldAdvanceOrigin::Process(process_id.clone()),
+                            content_manifest_id: content_manifest_id.clone(),
+                            authorized_sleep_interruptions: Vec::new(),
+                        },
+                        controlled_proposals: vec![proposal],
+                        due_actor_ids: Vec::new(),
+                        world_process_events: Vec::new(),
+                    },
+                )
+                .map(|step| step.controlled_pipeline_results)
+                .unwrap_or_default();
+            ordinary_pipeline_events += result
+                .iter()
+                .map(|result| no_human_progress_event_count(&result.appended_events))
+                .sum::<usize>();
         }
 
         let final_tick = start_tick.advance_by(tick_count);
@@ -3089,6 +3308,7 @@ pub mod no_human {
             physical_state,
             agent_state,
             log,
+            registry,
             &process_id,
             &mut scheduler,
             &content_manifest_id,
@@ -3105,7 +3325,6 @@ pub mod no_human {
             tick_count,
             content_manifest_id,
         );
-
         NoHumanAdvanceReport {
             start_tick,
             final_tick: scheduler.current_tick,
@@ -4066,7 +4285,6 @@ pub mod no_human {
                 4,
                 vec![sleep, wait],
             );
-
             assert_eq!(report.final_tick, SimTick::new(4));
             assert!(log
                 .events()
@@ -6083,7 +6301,7 @@ pub mod no_human {
             assert!(log
                 .events()
                 .iter()
-                .any(|event| event.event_type == EventKind::ActorWaited));
+                .any(|event| event.event_type == EventKind::StuckDiagnosticRecorded));
             let rendered = format!("{:?}", log.events());
             assert!(!rendered.contains("player"));
             assert!(!rendered.contains("controller"));
@@ -6130,50 +6348,6 @@ pub mod no_human {
                 .iter()
                 .any(|field| field.key == "diagnostic_canonical"
                     && field.value.starts_with("stuck_diagnostic_v1|")));
-        }
-
-        #[test]
-        fn sync_scheduler_frontier_advances_only_to_a_strictly_greater_tick() {
-            let actor = ActorId::new("actor_tomas").unwrap();
-
-            // A strictly greater appended tick advances the frontier to that
-            // maximum. This kills the `> -> ==` mutant (which would refuse to
-            // advance because the max tick does not equal the current tick) and
-            // the `> -> <` mutant (which would refuse to advance because the max
-            // tick is not below the current tick).
-            let mut scheduler = DeterministicScheduler::new(SimTick::new(5));
-            let advancing_events = vec![
-                ordinary_event(
-                    "event_a",
-                    EventKind::ActorWaited,
-                    &actor,
-                    "wait",
-                    SimTick::new(7),
-                ),
-                ordinary_event(
-                    "event_b",
-                    EventKind::ActorWaited,
-                    &actor,
-                    "wait",
-                    SimTick::new(10),
-                ),
-            ];
-            sync_scheduler_frontier_to_appended_events(&mut scheduler, &advancing_events);
-            assert_eq!(scheduler.current_tick, SimTick::new(10));
-
-            // An appended tick below the current frontier must never drag it
-            // backward. This independently kills the `> -> <` mutant, which would
-            // move the frontier down to the smaller appended tick.
-            let mut scheduler = DeterministicScheduler::new(SimTick::new(10));
-            let stale_events = vec![ordinary_event(
-                "event_c",
-                EventKind::ActorWaited,
-                &actor,
-                "wait",
-                SimTick::new(4),
-            )];
-            sync_scheduler_frontier_to_appended_events(&mut scheduler, &stale_events);
-            assert_eq!(scheduler.current_tick, SimTick::new(10));
         }
     }
 }
@@ -6350,8 +6524,6 @@ mod tests {
             scheduler.assign_proposal_sequence(),
             ProposalSequence::new(0)
         );
-        assert_eq!(scheduler.increment_clock_one_tick(), SimTick::new(5));
-        assert_eq!(scheduler.current_tick, SimTick::new(5));
         assert_eq!(
             scheduler.assign_proposal_sequence(),
             ProposalSequence::new(1)

@@ -6,9 +6,7 @@ use tracewake_core::actions::{
 use tracewake_core::agent::{
     current_place_knowledge_context, record_current_place_perception_and_project,
 };
-use tracewake_core::checksum::{
-    compute_agent_state_checksum, compute_physical_checksum, ChecksumContext, PhysicalChecksum,
-};
+use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext, PhysicalChecksum};
 use tracewake_core::controller::ControllerBindings;
 use tracewake_core::debug_reports::{
     action_rejection_report, controller_binding_report, item_location_report,
@@ -36,6 +34,7 @@ use tracewake_core::scheduler::no_human::{
 use tracewake_core::scheduler::{
     AdvanceUntilRequest, AdvanceUntilResult, DeterministicScheduler, OrderingKey, SchedulePhase,
     SchedulerSourceId, WorldAdvanceError, WorldAdvanceOrigin, WorldAdvanceRequest,
+    WorldStepTransactionRequest,
 };
 use tracewake_core::state::{AgentState, ControllerMode, PhysicalState};
 use tracewake_core::time::SimTick;
@@ -58,6 +57,7 @@ pub enum AppError {
     ActorNotBound,
     DebugUnavailable,
     Projection(ProjectionError),
+    SchedulerRestoreFailed,
     SemanticActionNotFound(String),
     WorldAdvance(WorldAdvanceError),
 }
@@ -155,7 +155,7 @@ impl TuiApp {
             self.controller_id.clone(),
             actor_id.clone(),
             mode,
-            self.scheduler.current_tick,
+            self.scheduler.current_tick(),
             &mut self.log,
             self.content_manifest_id.clone(),
         );
@@ -165,7 +165,7 @@ impl TuiApp {
             &mut self.agent_state,
             &mut self.epistemic_projection,
             &actor_id,
-            self.scheduler.current_tick,
+            self.scheduler.current_tick(),
             &self.content_manifest_id,
         );
         self.bound_actor_id = Some(actor_id);
@@ -216,7 +216,7 @@ impl TuiApp {
             &self.state,
             Some(&self.epistemic_projection),
             actor_id,
-            self.scheduler.current_tick,
+            self.scheduler.current_tick(),
             &self.content_manifest_id,
             self.log.events().len() as u64,
         )
@@ -268,7 +268,7 @@ impl TuiApp {
         advance_world_after_acceptance: bool,
     ) -> Result<PipelineResult, AppError> {
         let actor_id = self.bound_actor_id.clone().ok_or(AppError::ActorNotBound)?;
-        let expected_tick = self.scheduler.current_tick;
+        let expected_tick = self.scheduler.current_tick();
         let sequence = self.scheduler.assign_proposal_sequence();
         let proposal = proposal_from_current_view_semantic_action(
             ProposalId::new(format!("proposal_tui_{}", sequence.value())).unwrap(),
@@ -279,47 +279,59 @@ impl TuiApp {
             &self.controller_id,
         );
 
-        let ordering_key = OrderingKey::new(
-            expected_tick,
-            SchedulePhase::HumanCommand,
-            SchedulerSourceId::Controller(self.controller_id.clone()),
-            sequence,
-            proposal.action_id.clone(),
-            proposal.target_ids.clone(),
-            proposal.proposal_id.as_str().to_string(),
-        );
-        let mut context = PipelineContext {
-            registry: &self.registry,
-            state: &mut self.state,
-            agent_state: &mut self.agent_state,
-            log: &mut self.log,
-            controller_bindings: Some(&self.controller_bindings),
-            epistemic_projection: Some(&mut self.epistemic_projection),
-            content_manifest_id: self.content_manifest_id.clone(),
-            ordering_key,
-        };
-        let result = run_pipeline(&mut context, &proposal);
-        if result.report.status == ReportStatus::Rejected {
-            self.last_rejection = Some(result.report.clone());
-        } else {
-            self.last_rejection = None;
-            if advance_world_after_acceptance {
-                self.scheduler
-                    .advance_world_one_tick(
-                        &self.state,
-                        &mut self.agent_state,
-                        &mut self.log,
-                        WorldAdvanceRequest {
+        let result = if advance_world_after_acceptance {
+            let step = self
+                .scheduler
+                .transact_world_one_tick(
+                    &mut self.state,
+                    &mut self.agent_state,
+                    &mut self.log,
+                    &self.registry,
+                    Some(&self.controller_bindings),
+                    Some(&mut self.epistemic_projection),
+                    WorldStepTransactionRequest {
+                        advance: WorldAdvanceRequest {
                             expected_tick,
                             origin: WorldAdvanceOrigin::Controller(self.controller_id.clone()),
                             content_manifest_id: self.content_manifest_id.clone(),
                             authorized_sleep_interruptions: Vec::new(),
                         },
-                    )
-                    .map_err(AppError::WorldAdvance)?;
-            } else if let Some(last_event) = result.appended_events.last() {
-                self.scheduler.current_tick = last_event.sim_tick;
-            }
+                        controlled_proposals: vec![proposal],
+                        due_actor_ids: Vec::new(),
+                        world_process_events: Vec::new(),
+                    },
+                )
+                .map_err(AppError::WorldAdvance)?;
+            step.controlled_pipeline_results
+                .into_iter()
+                .next()
+                .expect("submitted proposal produces one pipeline result")
+        } else {
+            let ordering_key = OrderingKey::new(
+                expected_tick,
+                SchedulePhase::HumanCommand,
+                SchedulerSourceId::Controller(self.controller_id.clone()),
+                sequence,
+                proposal.action_id.clone(),
+                proposal.target_ids.clone(),
+                proposal.proposal_id.as_str().to_string(),
+            );
+            let mut context = PipelineContext {
+                registry: &self.registry,
+                state: &mut self.state,
+                agent_state: &mut self.agent_state,
+                log: &mut self.log,
+                controller_bindings: Some(&self.controller_bindings),
+                epistemic_projection: Some(&mut self.epistemic_projection),
+                content_manifest_id: self.content_manifest_id.clone(),
+                ordering_key,
+            };
+            run_pipeline(&mut context, &proposal)
+        };
+        if result.report.status == ReportStatus::Rejected {
+            self.last_rejection = Some(result.report.clone());
+        } else {
+            self.last_rejection = None;
             if let Some(actor_id) = self.bound_actor_id.clone() {
                 record_current_place_perception_and_project(
                     &mut self.log,
@@ -327,7 +339,7 @@ impl TuiApp {
                     &mut self.agent_state,
                     &mut self.epistemic_projection,
                     &actor_id,
-                    self.scheduler.current_tick,
+                    self.scheduler.current_tick(),
                     &self.content_manifest_id,
                 );
             }
@@ -344,11 +356,13 @@ impl TuiApp {
         let result = self
             .scheduler
             .advance_until(
-                &self.state,
+                &mut self.state,
                 &mut self.agent_state,
                 &mut self.log,
+                &self.registry,
+                Some(&mut self.epistemic_projection),
                 AdvanceUntilRequest {
-                    expected_tick: self.scheduler.current_tick,
+                    expected_tick: self.scheduler.current_tick(),
                     origin: WorldAdvanceOrigin::Controller(self.controller_id.clone()),
                     content_manifest_id: self.content_manifest_id.clone(),
                     possessed_actor_id: actor_id.clone(),
@@ -369,7 +383,7 @@ impl TuiApp {
             &mut self.agent_state,
             &mut self.epistemic_projection,
             &actor_id,
-            self.scheduler.current_tick,
+            self.scheduler.current_tick(),
             &self.content_manifest_id,
         );
         self.last_rejection = None;
@@ -380,7 +394,7 @@ impl TuiApp {
         if !self.debug_available() {
             return Err(AppError::DebugUnavailable);
         }
-        let windows = default_day_windows(self.scheduler.current_tick);
+        let windows = default_day_windows(self.scheduler.current_tick());
         let report = run_no_human_day(
             &mut self.state,
             &mut self.agent_state,
@@ -392,15 +406,29 @@ impl TuiApp {
                 windows,
             },
         );
-        self.epistemic_projection = rebuild_projection(
+        let rebuild = rebuild_projection(
             &self.initial_state,
             &self.initial_agent_state,
             &self.log,
             &self.checksum_context(),
             Some(&self.state),
-        )
-        .final_epistemic_projection;
-        self.scheduler.current_tick = report.final_tick;
+        );
+        self.scheduler = DeterministicScheduler::restore_from_rebuild_report(&rebuild)
+            .ok_or(AppError::SchedulerRestoreFailed)?;
+        self.state = rebuild.final_state;
+        self.agent_state = rebuild.final_agent_state;
+        self.epistemic_projection = rebuild.final_epistemic_projection;
+        if let Some(actor_id) = self.bound_actor_id.clone() {
+            record_current_place_perception_and_project(
+                &mut self.log,
+                &mut self.state,
+                &mut self.agent_state,
+                &mut self.epistemic_projection,
+                &actor_id,
+                self.scheduler.current_tick(),
+                &self.content_manifest_id,
+            );
+        }
         self.last_rejection = None;
         Ok(report)
     }
@@ -410,10 +438,14 @@ impl TuiApp {
     }
 
     pub fn checksum_context(&self) -> ChecksumContext {
+        self.checksum_context_at(self.scheduler.current_tick())
+    }
+
+    pub fn checksum_context_at(&self, sim_tick: SimTick) -> ChecksumContext {
         ChecksumContext {
             fixture_id: self.fixture_id.clone(),
             content_version: self.content_version.clone(),
-            sim_tick: self.scheduler.current_tick,
+            sim_tick,
             world_stream_position_applied: self
                 .log
                 .events()
@@ -466,17 +498,15 @@ impl TuiApp {
     }
 
     pub fn render_debug_replay_panel(&self) -> String {
-        let expected_checksum = self.physical_checksum();
-        let expected_agent_checksum =
-            compute_agent_state_checksum(&self.agent_state, &self.checksum_context()).checksum;
+        let replay_context = self.checksum_context_at(SimTick::ZERO);
         let report = run_replay(
             &self.initial_state,
             &self.initial_agent_state,
             &self.log,
-            &self.checksum_context(),
+            &replay_context,
             Some(&self.state),
-            Some(expected_checksum),
-            Some(expected_agent_checksum),
+            None,
+            None,
         );
         render_replay_panel(&replay_debug_report(
             DebugReportId::new("debug.replay").unwrap(),
@@ -607,7 +637,7 @@ mod tests {
         assert!(!before.contains("Debug: available=true"));
         app.controller_bindings.detach(
             &app.controller_id,
-            app.scheduler.current_tick,
+            app.scheduler.current_tick(),
             &mut app.log,
             app.content_manifest_id.clone(),
         );
@@ -640,7 +670,7 @@ mod tests {
 
         app.controller_bindings.detach(
             &app.controller_id,
-            app.scheduler.current_tick,
+            app.scheduler.current_tick(),
             &mut app.log,
             app.content_manifest_id.clone(),
         );
@@ -831,7 +861,7 @@ mod tests {
 
         app.controller_bindings.detach(
             &app.controller_id,
-            app.scheduler.current_tick,
+            app.scheduler.current_tick(),
             &mut app.log,
             app.content_manifest_id.clone(),
         );
