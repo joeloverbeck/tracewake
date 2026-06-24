@@ -1,6 +1,6 @@
 # 0050FOUCONSEC-006: Core owns final perception + interval product; remove TUI reconstruction
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — moves final perception + interval-summary construction into the core scratch transaction; removes TUI event/projection writes
@@ -90,3 +90,38 @@ In `crates/tracewake-core/tests/holder_known_interval_projection.rs` (and a TUI 
 1. `cargo test -p tracewake-core --test holder_known_interval_projection`
 2. `cargo test -p tracewake-tui --test tui_seam_conformance`
 3. `cargo build --workspace --all-targets --locked && cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Completed: 2026-06-24
+
+`AdvanceUntilResult` now carries the core-built aggregate
+`actor_known_interval_delta`. `DeterministicScheduler::advance_until` captures
+the initial holder-known context before stepping and constructs the final delta
+inside core for every stop path, using the final core projection/log frontier.
+The TUI stores/renders that returned product instead of rebuilding an "after"
+context or calling `actor_known_interval_delta` itself.
+
+Removed direct TUI calls to `record_current_place_perception_and_project` and
+`actor_known_interval_delta`. Needed current-view refreshes now route through
+`DeterministicScheduler::record_actor_current_place_perception`, a core-owned
+operation that performs perception event creation/projection mutation without
+the TUI owning the helper. Added a TUI read-only consumption witness proving
+that rendering after storing the core interval product does not change log
+length or epistemic projection checksum.
+
+The existing holder-known interval tests continue to cover hidden-world
+noninterference and fail-closed source validation; the full TUI suite covers
+the production render/command seams after removing direct TUI perception and
+interval writes.
+
+Verification run:
+
+- `cargo test -p tracewake-core --test holder_known_interval_projection`
+- `cargo test -p tracewake-tui --test tui_seam_conformance`
+- `cargo test -p tracewake-tui`
+- `rg -n "record_current_place_perception_and_project|actor_known_interval_delta\\(" crates/tracewake-tui/src` (no matches)
+- `cargo build --workspace --all-targets --locked`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo fmt --all --check`
+- `git diff --check`

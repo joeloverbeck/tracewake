@@ -18,7 +18,7 @@ use crate::agent::{
     NoHumanActorKnownSurfaceBuilder, NoHumanActorKnownSurfaceRequest, StuckDiagnosticRecord,
 };
 use crate::controller::ControllerBindings;
-use crate::epistemics::{ActorKnownIntervalDeltaError, EpistemicProjection};
+use crate::epistemics::{ActorKnownIntervalDeltaError, EpistemicProjection, KnowledgeContext};
 use crate::events::apply::{
     apply_agent_event, apply_epistemic_event, apply_event_stream, ApplyError,
     EventApplicationContext, EventApplicationError,
@@ -380,6 +380,7 @@ pub struct AdvanceUntilResult {
     pub ticks_advanced: u64,
     pub stop_reason: AdvanceUntilStopReason,
     pub appended_event_ids: Vec<EventId>,
+    pub actor_known_interval_delta: Option<ActorKnownIntervalDelta>,
 }
 
 pub fn sort_scheduled<T>(scheduled: &mut [Scheduled<T>]) {
@@ -608,6 +609,26 @@ impl DeterministicScheduler {
                 random_provenance,
             ),
         );
+    }
+
+    pub fn record_actor_current_place_perception(
+        &self,
+        state: &mut PhysicalState,
+        agent_state: &mut AgentState,
+        log: &mut EventLog,
+        epistemic_projection: &mut EpistemicProjection,
+        actor_id: &ActorId,
+        content_manifest_id: &ContentManifestId,
+    ) -> Vec<EventEnvelope> {
+        record_current_place_perception_and_project(
+            log,
+            state,
+            agent_state,
+            epistemic_projection,
+            actor_id,
+            self.current_tick,
+            content_manifest_id,
+        )
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1102,14 +1123,30 @@ impl DeterministicScheduler {
 
         let start_tick = self.current_tick;
         let mut appended_event_ids = Vec::new();
+        let interval_before_projection = epistemic_projection
+            .as_deref()
+            .cloned()
+            .unwrap_or_else(|| epistemic_projection_from_log(log, &request.content_manifest_id));
+        let interval_before = current_place_knowledge_context(
+            state,
+            Some(&interval_before_projection),
+            &request.possessed_actor_id,
+            start_tick,
+            &request.content_manifest_id,
+            log.events().len() as u64,
+        );
         if request.max_ticks == 0 {
-            return Ok(AdvanceUntilResult {
+            return build_advance_until_result(
+                state,
+                log,
+                epistemic_projection.as_deref(),
+                Some(&interval_before),
+                &request,
                 start_tick,
-                stop_tick: self.current_tick,
-                ticks_advanced: 0,
-                stop_reason: AdvanceUntilStopReason::UserPausedBeforeNextTick,
+                self.current_tick,
+                AdvanceUntilStopReason::UserPausedBeforeNextTick,
                 appended_event_ids,
-            });
+            );
         }
 
         for _ in 0..request.max_ticks {
@@ -1137,36 +1174,48 @@ impl DeterministicScheduler {
                 &step.appended_event_ids,
                 &request.possessed_actor_id,
             ) {
-                return Ok(AdvanceUntilResult {
+                return build_advance_until_result(
+                    state,
+                    log,
+                    epistemic_projection.as_deref(),
+                    Some(&interval_before),
+                    &request,
                     start_tick,
-                    stop_tick: self.current_tick,
-                    ticks_advanced: ticks_advanced_between(start_tick, self.current_tick),
-                    stop_reason: AdvanceUntilStopReason::PossessedDurationTerminal,
+                    self.current_tick,
+                    AdvanceUntilStopReason::PossessedDurationTerminal,
                     appended_event_ids,
-                });
+                );
             }
             if step
                 .actor_known_interval_delta
                 .as_ref()
                 .is_some_and(actor_known_interval_delta_is_salient)
             {
-                return Ok(AdvanceUntilResult {
+                return build_advance_until_result(
+                    state,
+                    log,
+                    epistemic_projection.as_deref(),
+                    Some(&interval_before),
+                    &request,
                     start_tick,
-                    stop_tick: self.current_tick,
-                    ticks_advanced: ticks_advanced_between(start_tick, self.current_tick),
-                    stop_reason: AdvanceUntilStopReason::ActorKnownSalientObservation,
+                    self.current_tick,
+                    AdvanceUntilStopReason::ActorKnownSalientObservation,
                     appended_event_ids,
-                });
+                );
             }
         }
 
-        Ok(AdvanceUntilResult {
+        build_advance_until_result(
+            state,
+            log,
+            epistemic_projection.as_deref(),
+            Some(&interval_before),
+            &request,
             start_tick,
-            stop_tick: self.current_tick,
-            ticks_advanced: ticks_advanced_between(start_tick, self.current_tick),
-            stop_reason: AdvanceUntilStopReason::ControllerSafetyBound,
+            self.current_tick,
+            AdvanceUntilStopReason::ControllerSafetyBound,
             appended_event_ids,
-        })
+        )
     }
 }
 
@@ -1200,6 +1249,71 @@ fn actor_known_interval_delta_is_salient(delta: &ActorKnownIntervalDelta) -> boo
                 | IntervalNoticeKind::Record
                 | IntervalNoticeKind::Belief
         )
+    })
+}
+
+fn advance_until_interval_stop_reason(reason: AdvanceUntilStopReason) -> IntervalStopReason {
+    match reason {
+        AdvanceUntilStopReason::PossessedDurationTerminal => {
+            IntervalStopReason::PossessedDurationTerminal
+        }
+        AdvanceUntilStopReason::ActorKnownSalientObservation => {
+            IntervalStopReason::ActorKnownSalientObservation
+        }
+        AdvanceUntilStopReason::UserPausedBeforeNextTick => {
+            IntervalStopReason::UserPausedBeforeNextTick
+        }
+        AdvanceUntilStopReason::ControllerSafetyBound => IntervalStopReason::ControllerSafetyBound,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn build_advance_until_result(
+    state: &PhysicalState,
+    log: &EventLog,
+    projection: Option<&EpistemicProjection>,
+    interval_before: Option<&KnowledgeContext>,
+    request: &AdvanceUntilRequest,
+    start_tick: SimTick,
+    stop_tick: SimTick,
+    stop_reason: AdvanceUntilStopReason,
+    appended_event_ids: Vec<EventId>,
+) -> Result<AdvanceUntilResult, WorldAdvanceError> {
+    let actor_known_interval_delta = interval_before
+        .map(|before| {
+            let rebuilt_projection;
+            let projection = match projection {
+                Some(projection) => projection,
+                None => {
+                    rebuilt_projection =
+                        epistemic_projection_from_log(log, &request.content_manifest_id);
+                    &rebuilt_projection
+                }
+            };
+            let after = current_place_knowledge_context(
+                state,
+                Some(projection),
+                &request.possessed_actor_id,
+                stop_tick,
+                &request.content_manifest_id,
+                log.events().len() as u64,
+            );
+            projection.actor_known_interval_delta(
+                before,
+                &after,
+                advance_until_interval_stop_reason(stop_reason),
+            )
+        })
+        .transpose()
+        .map_err(WorldAdvanceError::ActorKnownIntervalDelta)?;
+
+    Ok(AdvanceUntilResult {
+        start_tick,
+        stop_tick,
+        ticks_advanced: ticks_advanced_between(start_tick, stop_tick),
+        stop_reason,
+        appended_event_ids,
+        actor_known_interval_delta,
     })
 }
 
