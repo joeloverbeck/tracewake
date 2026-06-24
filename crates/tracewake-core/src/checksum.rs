@@ -799,6 +799,8 @@ mod tests {
                 candidate_goal_count: 1,
                 actor_known_context_hash: Some(HolderKnownContextHash::from_canonical_lines(&[])),
                 actor_known_inputs: Vec::new(),
+                local_plan_id: None,
+                proposal_ancestry: Vec::new(),
                 hidden_truth_audit_result: HiddenTruthAudit {
                     actor_known_only: true,
                     notes: "fixture".to_string(),

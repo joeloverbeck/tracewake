@@ -29,7 +29,8 @@ use crate::events::{
     PayloadField, EVENT_SCHEMA_V1,
 };
 use crate::ids::{
-    ActionId, ActorId, ContentManifestId, ControllerId, EventId, IdError, ProcessId, ProposalId,
+    ActionId, ActorId, ContentManifestId, ControllerId, DecisionTraceId, EventId, IdError,
+    ProcessId, ProposalId,
 };
 use crate::need_accounting::{
     classify_actor_tick_regimes, open_body_exclusive_starts, DuplicateDurationTerminal,
@@ -277,6 +278,9 @@ pub struct ActorStepSummary {
     pub actor_id: ActorId,
     pub status: ActorStepStatus,
     pub proposal_id: Option<ProposalId>,
+    pub decision_trace_id: Option<DecisionTraceId>,
+    pub local_plan_id: Option<String>,
+    pub proposal_ancestry: Vec<String>,
     pub pipeline_status: Option<ReportStatus>,
     pub committed_event_ids: Vec<EventId>,
     pub diagnostic_event_id: Option<EventId>,
@@ -1036,6 +1040,9 @@ impl DeterministicScheduler {
                         actor_id: actor_id.clone(),
                         status: ActorStepStatus::Proposed,
                         proposal_id: Some(proposal_id),
+                        decision_trace_id: Some(decision_trace_record.trace_id.clone()),
+                        local_plan_id: decision_trace_record.local_plan_id.clone(),
+                        proposal_ancestry: decision_trace_record.proposal_ancestry.clone(),
                         pipeline_status: Some(result.report.status.clone()),
                         committed_event_ids,
                         diagnostic_event_id: None,
@@ -1060,6 +1067,9 @@ impl DeterministicScheduler {
                         actor_id: actor_id.clone(),
                         status: ActorStepStatus::Stuck,
                         proposal_id: None,
+                        decision_trace_id: None,
+                        local_plan_id: diagnostic.local_plan_id.clone(),
+                        proposal_ancestry: diagnostic.proposal_ancestry.clone(),
                         pipeline_status: None,
                         committed_event_ids: vec![event_id.clone()],
                         diagnostic_event_id: Some(event_id),
@@ -2054,6 +2064,17 @@ fn build_actor_decision_trace_event(
             "trace_canonical",
             decision_trace_record.serialize_canonical(),
         ),
+        PayloadField::new(
+            "local_plan_id",
+            decision_trace_record
+                .local_plan_id
+                .as_deref()
+                .unwrap_or("none"),
+        ),
+        PayloadField::new(
+            "proposal_ancestry",
+            decision_trace_record.proposal_ancestry.join("\n"),
+        ),
         PayloadField::new("actor_id", actor_id.as_str()),
         PayloadField::new("decision_tick", tick.value().to_string()),
         PayloadField::new("action_id", proposal.action_id.as_str()),
@@ -2163,6 +2184,11 @@ fn build_actor_stuck_diagnostic_event(
         PayloadField::new("diagnostic_schema_version", "1"),
         PayloadField::new("diagnostic_id", diagnostic.diagnostic_id.as_str()),
         PayloadField::new("diagnostic_canonical", diagnostic.serialize_canonical()),
+        PayloadField::new(
+            "local_plan_id",
+            diagnostic.local_plan_id.as_deref().unwrap_or("none"),
+        ),
+        PayloadField::new("proposal_ancestry", diagnostic.proposal_ancestry.join("\n")),
         PayloadField::new(
             "responsible_layer",
             diagnostic.typed_diagnostic.responsible_layer.stable_id(),

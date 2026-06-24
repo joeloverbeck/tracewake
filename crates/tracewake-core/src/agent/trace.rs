@@ -272,6 +272,8 @@ pub struct DecisionTraceRecord {
     pub candidate_goal_count: usize,
     pub actor_known_context_hash: Option<HolderKnownContextHash>,
     pub actor_known_inputs: Vec<String>,
+    pub local_plan_id: Option<String>,
+    pub proposal_ancestry: Vec<String>,
     pub hidden_truth_audit_result: HiddenTruthAudit,
     pub typed_diagnostic: TypedDiagnosticFields,
 }
@@ -290,6 +292,8 @@ impl DecisionTraceRecord {
             candidate_goal_count: trace.candidate_goals_considered.len(),
             actor_known_context_hash: Some(actor_known_context_hash),
             actor_known_inputs,
+            local_plan_id: None,
+            proposal_ancestry: Vec::new(),
             hidden_truth_audit_result: trace.hidden_truth_audit_result.clone(),
             typed_diagnostic: TypedDiagnosticFields::from_decision_outcome(
                 trace.outcome,
@@ -298,9 +302,19 @@ impl DecisionTraceRecord {
         }
     }
 
+    pub fn with_plan_lineage(
+        mut self,
+        local_plan_id: impl Into<String>,
+        proposal_ancestry: Vec<String>,
+    ) -> Self {
+        self.local_plan_id = Some(local_plan_id.into());
+        self.proposal_ancestry = proposal_ancestry;
+        self
+    }
+
     pub fn serialize_canonical(&self) -> String {
         format!(
-            "decision_trace_v1|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+            "decision_trace_v1|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
             self.trace_id.serialize_canonical(),
             self.actor_id.serialize_canonical(),
             self.window_start_tick.value(),
@@ -312,6 +326,8 @@ impl DecisionTraceRecord {
                 .map(HolderKnownContextHash::as_str)
                 .unwrap_or("-"),
             encode_text_payload(&self.actor_known_inputs.join("\n")),
+            encode_opt_text(self.local_plan_id.as_deref()),
+            encode_text_payload(&self.proposal_ancestry.join("\n")),
             encode_bool(self.hidden_truth_audit_result.actor_known_only),
             encode_text_payload(&self.hidden_truth_audit_result.notes),
             self.typed_diagnostic.responsible_layer.stable_id(),
@@ -327,32 +343,62 @@ impl DecisionTraceRecord {
         let value =
             std::str::from_utf8(value).map_err(|_| DecisionTraceRecordParseError::InvalidUtf8)?;
         let fields: Vec<_> = value.split('|').collect();
-        if !matches!(fields.len(), 9 | 11 | 15 | 17) || fields[0] != "decision_trace_v1" {
+        if !matches!(fields.len(), 9 | 11 | 15 | 17 | 19) || fields[0] != "decision_trace_v1" {
             return Err(DecisionTraceRecordParseError::InvalidShape);
         }
-        let (actor_known_context_hash, actor_known_inputs, audit_index, typed_index) =
-            if matches!(fields.len(), 11 | 17) {
-                let actor_known_inputs = decode_text_payload(fields[8])?
-                    .lines()
-                    .filter(|line| !line.is_empty())
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>();
-                let actor_known_context_hash =
-                    compute_holder_known_context_hash(actor_known_inputs.clone()).hash;
-                // This checks trace serialization integrity. Replay derivability from the event
-                // log is enforced by the replay context-hash rebuild gate.
-                if fields[7] != actor_known_context_hash.as_str() {
-                    return Err(DecisionTraceRecordParseError::InvalidContextHash);
-                }
+        let (
+            actor_known_context_hash,
+            actor_known_inputs,
+            local_plan_id,
+            proposal_ancestry,
+            audit_index,
+            typed_index,
+        ) = if matches!(fields.len(), 11 | 17 | 19) {
+            let actor_known_inputs = decode_text_payload(fields[8])?
+                .lines()
+                .filter(|line| !line.is_empty())
+                .map(ToString::to_string)
+                .collect::<Vec<_>>();
+            let actor_known_context_hash =
+                compute_holder_known_context_hash(actor_known_inputs.clone()).hash;
+            // This checks trace serialization integrity. Replay derivability from the event
+            // log is enforced by the replay context-hash rebuild gate.
+            if fields[7] != actor_known_context_hash.as_str() {
+                return Err(DecisionTraceRecordParseError::InvalidContextHash);
+            }
+            let (local_plan_id, proposal_ancestry, audit_index, typed_index) = if fields.len() == 19
+            {
                 (
-                    Some(actor_known_context_hash),
-                    actor_known_inputs,
-                    9,
-                    (fields.len() == 17).then_some(11),
+                    decode_opt_text(fields[9])?,
+                    decode_text_payload(fields[10])?
+                        .lines()
+                        .filter(|line| !line.is_empty())
+                        .map(ToString::to_string)
+                        .collect(),
+                    11,
+                    Some(13),
                 )
             } else {
-                (None, Vec::new(), 7, (fields.len() == 15).then_some(9))
+                (None, Vec::new(), 9, (fields.len() == 17).then_some(11))
             };
+            (
+                Some(actor_known_context_hash),
+                actor_known_inputs,
+                local_plan_id,
+                proposal_ancestry,
+                audit_index,
+                typed_index,
+            )
+        } else {
+            (
+                None,
+                Vec::new(),
+                None,
+                Vec::new(),
+                7,
+                (fields.len() == 15).then_some(9),
+            )
+        };
         let actor_known_only =
             decode_bool(fields[audit_index]).ok_or(DecisionTraceRecordParseError::InvalidBool)?;
         Ok(Self {
@@ -376,6 +422,8 @@ impl DecisionTraceRecord {
                 .map_err(|_| DecisionTraceRecordParseError::InvalidCount)?,
             actor_known_context_hash,
             actor_known_inputs,
+            local_plan_id,
+            proposal_ancestry,
             hidden_truth_audit_result: HiddenTruthAudit {
                 actor_known_only,
                 notes: decode_text_payload(fields[audit_index + 1])?,
@@ -657,6 +705,8 @@ pub struct StuckDiagnostic {
     pub routine_execution_id: Option<RoutineExecutionId>,
     pub routine_step: Option<RoutineStep>,
     pub attempted_action: Option<SemanticActionId>,
+    pub local_plan_id: Option<String>,
+    pub proposal_ancestry: Vec<String>,
     pub blocker_category: BlockerCategory,
     pub concrete_blocker: String,
     pub actor_known_explanation: String,
@@ -701,6 +751,8 @@ impl StuckDiagnostic {
             routine_execution_id,
             routine_step,
             attempted_action,
+            local_plan_id: None,
+            proposal_ancestry: Vec::new(),
             blocker_category,
             concrete_blocker: concrete_blocker.into(),
             actor_known_explanation: actor_known_explanation.into(),
@@ -723,9 +775,19 @@ impl StuckDiagnostic {
         self
     }
 
+    pub fn with_plan_lineage(
+        mut self,
+        local_plan_id: impl Into<String>,
+        proposal_ancestry: Vec<String>,
+    ) -> Self {
+        self.local_plan_id = Some(local_plan_id.into());
+        self.proposal_ancestry = proposal_ancestry;
+        self
+    }
+
     pub fn serialize_canonical(&self) -> String {
         format!(
-            "stuck_diagnostic_v1|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+            "stuck_diagnostic_v1|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
             self.diagnostic_id.serialize_canonical(),
             self.actor_id.serialize_canonical(),
             self.window_start_tick.value(),
@@ -750,6 +812,8 @@ impl StuckDiagnostic {
                     .as_deref()
             ),
             encode_opt_id(self.attempted_action.as_ref().map(SemanticActionId::as_str)),
+            encode_opt_text(self.local_plan_id.as_deref()),
+            encode_text_payload(&self.proposal_ancestry.join("\n")),
             self.blocker_category.stable_id(),
             encode_text_payload(&self.concrete_blocker),
             encode_text_payload(&self.actor_known_explanation),
@@ -773,10 +837,17 @@ impl StuckDiagnostic {
         let value =
             std::str::from_utf8(value).map_err(|_| StuckDiagnosticParseError::InvalidUtf8)?;
         let fields: Vec<_> = value.split('|').collect();
-        if !matches!(fields.len(), 18 | 24) || fields[0] != "stuck_diagnostic_v1" {
+        if !matches!(fields.len(), 18 | 24 | 26) || fields[0] != "stuck_diagnostic_v1" {
             return Err(StuckDiagnosticParseError::InvalidShape);
         }
-        let blocker_category = BlockerCategory::parse(fields[12])?;
+        let has_lineage = fields.len() == 26;
+        let blocker_index = if has_lineage { 14 } else { 12 };
+        let typed_index = match fields.len() {
+            24 => Some(18),
+            26 => Some(20),
+            _ => None,
+        };
+        let blocker_category = BlockerCategory::parse(fields[blocker_index])?;
 
         Ok(Self {
             diagnostic_id: StuckDiagnosticId::new(fields[1])
@@ -802,26 +873,40 @@ impl StuckDiagnostic {
                 .transpose()
                 .map_err(|_| StuckDiagnosticParseError::InvalidRoutineStep)?,
             attempted_action: decode_opt_id(fields[11], |value| SemanticActionId::new(value))?,
+            local_plan_id: if has_lineage {
+                decode_opt_text(fields[12])?
+            } else {
+                None
+            },
+            proposal_ancestry: if has_lineage {
+                decode_text_payload(fields[13])?
+                    .lines()
+                    .filter(|line| !line.is_empty())
+                    .map(ToString::to_string)
+                    .collect()
+            } else {
+                Vec::new()
+            },
             blocker_category,
-            concrete_blocker: decode_text_payload(fields[13])?,
-            actor_known_explanation: decode_text_payload(fields[14])?,
-            debug_only_details: decode_text_payload(fields[15])?,
-            retry_abandon_fallback_outcome: decode_text_payload(fields[16])?,
+            concrete_blocker: decode_text_payload(fields[blocker_index + 1])?,
+            actor_known_explanation: decode_text_payload(fields[blocker_index + 2])?,
+            debug_only_details: decode_text_payload(fields[blocker_index + 3])?,
+            retry_abandon_fallback_outcome: decode_text_payload(fields[blocker_index + 4])?,
             resulting_status: StuckResultingStatus::parse(
                 fields
-                    .get(17)
+                    .get(blocker_index + 5)
                     .copied()
                     .ok_or(StuckDiagnosticParseError::InvalidShape)?,
             )?,
-            typed_diagnostic: if fields.len() == 24 {
+            typed_diagnostic: if let Some(typed_index) = typed_index {
                 TypedDiagnosticFields {
-                    responsible_layer: ResponsibleLayer::parse(fields[18])?,
-                    blocker_code: BlockerCode::parse(fields[19])?,
-                    input_source: decode_text_payload(fields[20])?,
-                    actual_source: decode_text_payload(fields[21])?,
-                    hidden_truth_referenced: decode_bool(fields[22])
+                    responsible_layer: ResponsibleLayer::parse(fields[typed_index])?,
+                    blocker_code: BlockerCode::parse(fields[typed_index + 1])?,
+                    input_source: decode_text_payload(fields[typed_index + 2])?,
+                    actual_source: decode_text_payload(fields[typed_index + 3])?,
+                    hidden_truth_referenced: decode_bool(fields[typed_index + 4])
                         .ok_or(StuckDiagnosticParseError::InvalidBool)?,
-                    remediation_hint: decode_text_payload(fields[23])?,
+                    remediation_hint: decode_text_payload(fields[typed_index + 5])?,
                 }
             } else {
                 let mut typed = TypedDiagnosticFields::stuck_default();
@@ -1325,6 +1410,12 @@ mod tests {
             candidate_goal_count: 0,
             actor_known_context_hash: Some(compute_holder_known_context_hash(Vec::new()).hash),
             actor_known_inputs: Vec::new(),
+            local_plan_id: Some("local_plan_trace_vocab_shape_wait".to_string()),
+            proposal_ancestry: vec![
+                "trace_vocab_shape".to_string(),
+                "goal_wait".to_string(),
+                "routine_wait".to_string(),
+            ],
             hidden_truth_audit_result: HiddenTruthAudit {
                 actor_known_only: true,
                 notes: "no applicable method".to_string(),

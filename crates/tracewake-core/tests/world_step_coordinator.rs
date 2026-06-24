@@ -669,6 +669,20 @@ fn transactional_world_step_attempts_due_actor_decision_transaction() {
         result.actor_step_summaries[0].status,
         ActorStepStatus::Proposed
     );
+    let summary = &result.actor_step_summaries[0];
+    let decision_trace_id = summary
+        .decision_trace_id
+        .as_ref()
+        .expect("planned actor step returns trace id");
+    let local_plan_id = summary
+        .local_plan_id
+        .as_ref()
+        .expect("planned actor step returns local plan id");
+    assert!(local_plan_id.starts_with("local_plan_"));
+    assert!(summary
+        .proposal_ancestry
+        .iter()
+        .any(|entry| entry == decision_trace_id.as_str()));
     assert_eq!(
         result.actor_step_summaries[0]
             .pipeline_status
@@ -680,6 +694,45 @@ fn transactional_world_step_attempts_due_actor_decision_transaction() {
     assert!(log.events().iter().any(|event| {
         event.event_type == EventKind::ActorWaited && event.actor_id.as_ref() == Some(&actor)
     }));
+    let trace_event = log
+        .events()
+        .iter()
+        .find(|event| {
+            event.event_type == EventKind::DecisionTraceRecorded
+                && event.actor_id.as_ref() == Some(&actor)
+                && event
+                    .causes
+                    .iter()
+                    .any(|cause| matches!(cause, EventCause::Event(event_id) if log.events().iter().any(|ordinary| &ordinary.event_id == event_id && ordinary.event_type == EventKind::ActorWaited)))
+        })
+        .expect("planned actor decision trace event committed");
+    assert_eq!(
+        trace_event.payload_value("local_plan_id"),
+        Some(local_plan_id.as_str())
+    );
+    let expected_ancestry = summary.proposal_ancestry.join("\n");
+    assert_eq!(
+        trace_event.payload_value("proposal_ancestry"),
+        Some(expected_ancestry.as_str())
+    );
+    let canonical_trace = tracewake_core::agent::DecisionTraceRecord::deserialize_canonical(
+        trace_event
+            .payload_value("trace_canonical")
+            .expect("trace event carries canonical trace")
+            .as_bytes(),
+    )
+    .expect("trace canonical replays");
+    assert_eq!(canonical_trace.local_plan_id.as_ref(), Some(local_plan_id));
+    assert_eq!(canonical_trace.proposal_ancestry, summary.proposal_ancestry);
+    assert_eq!(
+        agent
+            .decision_traces()
+            .get(decision_trace_id)
+            .expect("applied trace stored in agent state")
+            .local_plan_id
+            .as_ref(),
+        Some(local_plan_id)
+    );
     assert!(log.events().iter().any(|event| {
         event.event_type == EventKind::DecisionTraceRecorded
             && event.actor_id.as_ref() == Some(&actor)
