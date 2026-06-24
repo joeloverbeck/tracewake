@@ -4,6 +4,8 @@ use tracewake_core::events::{EventCause, EventEnvelope, EventKind, PayloadField,
 use tracewake_core::ids::{
     ActionId, ActorId, ContentManifestId, ContentVersion, EventId, FixtureId, ProcessId,
 };
+use tracewake_core::replay::report::{ReplayDivergenceDetail, ReplayDivergenceFieldFamily};
+use tracewake_core::replay::run_replay;
 use tracewake_core::replay::{rebuild_projection, TemporalDivergence};
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use tracewake_core::state::{AgentState, NeedModelState, PhysicalState};
@@ -94,6 +96,68 @@ fn rebuild(log: &EventLog, initial_tick: u64) -> tracewake_core::replay::Project
         &context(initial_tick),
         None,
     )
+}
+
+#[test]
+fn run_replay_temporal_violation_fails_aggregate_and_reports_typed_first_divergence() {
+    let initial_state = PhysicalState::empty(NeedModelState::new(0, 0));
+    let initial_agent_state = AgentState::default();
+    let mut marker = time_advanced("event_time_no_ancestry_report", 0, 1);
+    marker
+        .payload
+        .retain(|field| field.key != "ordering_ancestry");
+    let mut log = EventLog::new();
+    log.append(marker).unwrap();
+
+    let report = run_replay(
+        &initial_state,
+        &initial_agent_state,
+        &log,
+        &context(0),
+        Some(&initial_state),
+        None,
+        None,
+    );
+
+    assert_eq!(
+        report.temporal_violations,
+        vec![TemporalDivergence::MissingOrderingAncestry {
+            event_id: EventId::new("event_time_no_ancestry_report").unwrap(),
+        }]
+    );
+    assert!(report.state_diff.is_empty());
+    assert!(report.application_errors.is_empty());
+    assert!(!report.matches_expected);
+    assert_eq!(
+        report.first_divergence,
+        Some(ReplayDivergenceDetail {
+            first_divergent_event_id: Some("event_time_no_ancestry_report".to_string()),
+            field_family: ReplayDivergenceFieldFamily::Temporal,
+        })
+    );
+}
+
+#[test]
+fn run_replay_clean_time_marker_still_matches_expected() {
+    let initial_state = PhysicalState::empty(NeedModelState::new(0, 0));
+    let initial_agent_state = AgentState::default();
+    let mut log = EventLog::new();
+    log.append(time_advanced("event_time_clean_report", 0, 1))
+        .unwrap();
+
+    let report = run_replay(
+        &initial_state,
+        &initial_agent_state,
+        &log,
+        &context(0),
+        Some(&initial_state),
+        None,
+        None,
+    );
+
+    assert!(report.temporal_violations.is_empty());
+    assert!(report.matches_expected);
+    assert_eq!(report.first_divergence, None);
 }
 
 #[test]

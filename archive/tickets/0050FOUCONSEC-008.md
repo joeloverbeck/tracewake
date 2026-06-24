@@ -1,6 +1,6 @@
 # 0050FOUCONSEC-008: Replay fail-closed — temporal violations gate `matches_expected`
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — folds temporal-violation emptiness into the replay aggregate verdict and adds a typed temporal first-divergence
@@ -79,3 +79,17 @@ In `crates/tracewake-core/tests/replay_temporal_frontier.rs`, add the report-lev
 
 1. `cargo test -p tracewake-core --test replay_temporal_frontier`
 2. `cargo build --workspace --all-targets --locked && cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Completed: 2026-06-24
+
+Implemented fail-closed replay aggregate semantics for temporal violations by adding `rebuild.temporal_violations.is_empty()` to `ReplayReport::matches_expected`. Added a typed `Temporal` first-divergence family and derives the first divergent event ID from `TemporalDivergence` when there is no state diff.
+
+Added report-level temporal replay witnesses proving that an otherwise matching log with invalid `TimeAdvanced` ancestry yields nonempty `temporal_violations`, an empty state diff, `matches_expected == false`, and a typed temporal first divergence, while a clean marker still matches. Verification passed:
+
+1. `cargo test -p tracewake-core --test replay_temporal_frontier`
+2. `cargo build --workspace --all-targets --locked`
+3. `cargo clippy --workspace --all-targets -- -D warnings`
+4. `cargo fmt --all --check`
+5. `git diff --check`

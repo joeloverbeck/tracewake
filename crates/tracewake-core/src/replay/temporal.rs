@@ -56,6 +56,23 @@ pub enum TemporalDivergence {
     },
 }
 
+impl TemporalDivergence {
+    pub fn event_id(&self) -> &EventId {
+        match self {
+            Self::MissingPayload { event_id, .. }
+            | Self::BadPayload { event_id, .. }
+            | Self::PriorTickMismatch { event_id, .. }
+            | Self::ResultingTickMismatch { event_id, .. }
+            | Self::EnvelopePayloadMismatch { event_id, .. }
+            | Self::MissingOrWrongCause { event_id }
+            | Self::MissingOrderingAncestry { event_id }
+            | Self::DuplicateTimeAdvanced { event_id, .. }
+            | Self::BackwardTimeAdvanced { event_id, .. }
+            | Self::OrdinaryEventWithoutMarker { event_id, .. } => event_id,
+        }
+    }
+}
+
 pub fn project_temporal_frontier(
     initial_frontier: SimTick,
     events: &[EventEnvelope],
