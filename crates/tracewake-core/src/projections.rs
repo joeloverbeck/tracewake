@@ -772,6 +772,24 @@ impl IntervalStopReason {
     }
 }
 
+/// Closed holder-known salience classification for an actor-known interval.
+///
+/// The policy is intentionally semantic, not source-count based: routine
+/// re-observation of the same actor-known fact is quiet, while gaining a fact
+/// not present in the start context is salient. This keeps stop decisions
+/// holder-known and provenance-backed without consulting raw world/debug state.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum IntervalSalience {
+    None,
+    NovelActorKnownFact,
+}
+
+impl IntervalSalience {
+    pub const fn is_salient(self) -> bool {
+        matches!(self, Self::NovelActorKnownFact)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VerifiedActorKnownIntervalNotice {
     notice_kind: IntervalNoticeKind,
@@ -813,6 +831,7 @@ pub struct ActorKnownIntervalDelta {
     start_frontier: u64,
     stop_frontier: u64,
     stop_reason: IntervalStopReason,
+    salience: IntervalSalience,
     notices: Vec<VerifiedActorKnownIntervalNotice>,
 }
 
@@ -825,6 +844,7 @@ impl ActorKnownIntervalDelta {
         start_frontier: u64,
         stop_frontier: u64,
         stop_reason: IntervalStopReason,
+        salience: IntervalSalience,
         mut notices: Vec<VerifiedActorKnownIntervalNotice>,
     ) -> Self {
         notices.sort();
@@ -836,6 +856,7 @@ impl ActorKnownIntervalDelta {
             start_frontier,
             stop_frontier,
             stop_reason,
+            salience,
             notices,
         }
     }
@@ -862,6 +883,10 @@ impl ActorKnownIntervalDelta {
 
     pub fn stop_reason(&self) -> IntervalStopReason {
         self.stop_reason
+    }
+
+    pub fn salience(&self) -> IntervalSalience {
+        self.salience
     }
 
     pub fn notices(&self) -> &[VerifiedActorKnownIntervalNotice] {

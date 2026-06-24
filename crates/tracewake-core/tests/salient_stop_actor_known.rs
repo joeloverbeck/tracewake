@@ -9,7 +9,7 @@ use tracewake_core::events::EventStream;
 use tracewake_core::ids::{
     ActorId, ContentManifestId, ContentVersion, ControllerId, FixtureId, PlaceId,
 };
-use tracewake_core::projections::{IntervalNoticeKind, IntervalStopReason};
+use tracewake_core::projections::{IntervalNoticeKind, IntervalSalience, IntervalStopReason};
 use tracewake_core::replay::rebuild_projection;
 use tracewake_core::scheduler::{
     AdvanceUntilRequest, AdvanceUntilStopReason, DeterministicScheduler, WorldAdvanceOrigin,
@@ -33,27 +33,58 @@ fn manifest_id() -> ContentManifestId {
 }
 
 fn physical_state(actor_ids: impl IntoIterator<Item = ActorId>) -> PhysicalState {
-    let place = place_id("kitchen");
+    physical_state_with_remote_actor(actor_ids, None)
+}
+
+fn physical_state_with_remote_actor(
+    actor_ids: impl IntoIterator<Item = ActorId>,
+    remote_actor_id: Option<&ActorId>,
+) -> PhysicalState {
+    let kitchen = place_id("kitchen");
+    let pantry = place_id("pantry");
     let mut actors = BTreeMap::new();
-    let mut local_actor_ids = BTreeSet::new();
+    let mut kitchen_actor_ids = BTreeSet::new();
+    let mut pantry_actor_ids = BTreeSet::new();
     for actor_id in actor_ids {
+        let actor_place = if remote_actor_id == Some(&actor_id) {
+            pantry.clone()
+        } else {
+            kitchen.clone()
+        };
         actors.insert(
             actor_id.clone(),
-            ActorBody::new(actor_id.clone(), place.clone()),
+            ActorBody::new(actor_id.clone(), actor_place.clone()),
         );
-        local_actor_ids.insert(actor_id);
+        if actor_place == pantry {
+            pantry_actor_ids.insert(actor_id);
+        } else {
+            kitchen_actor_ids.insert(actor_id);
+        }
     }
     let mut places = BTreeMap::new();
     places.insert(
-        place.clone(),
+        kitchen.clone(),
         PlaceState {
-            place_id: place,
+            place_id: kitchen,
             display_label: "Kitchen".to_string(),
+            adjacent_place_ids: BTreeSet::from([pantry.clone()]),
+            connected_door_ids: BTreeSet::new(),
+            local_container_ids: BTreeSet::new(),
+            local_item_ids: BTreeSet::new(),
+            local_actor_ids: kitchen_actor_ids,
+            visibility_default: VisibilityDefault::Visible,
+        },
+    );
+    places.insert(
+        pantry.clone(),
+        PlaceState {
+            place_id: pantry,
+            display_label: "Pantry".to_string(),
             adjacent_place_ids: BTreeSet::new(),
             connected_door_ids: BTreeSet::new(),
             local_container_ids: BTreeSet::new(),
             local_item_ids: BTreeSet::new(),
-            local_actor_ids,
+            local_actor_ids: pantry_actor_ids,
             visibility_default: VisibilityDefault::Visible,
         },
     );
@@ -105,25 +136,23 @@ fn checksum_context(tick: SimTick, log: &EventLog) -> ChecksumContext {
 }
 
 #[test]
-fn typed_actor_known_delta_stops_on_modeled_observation_without_hidden_leak() {
+fn typed_salience_policy_distinguishes_quiet_novel_hidden_and_replay_cases() {
     let possessed = actor_id("actor_tomas");
     let other = actor_id("actor_mara");
-    let initial_physical = physical_state([possessed.clone(), other.clone()]);
-    let initial_agent = agent_state();
-    let mut physical = initial_physical.clone();
-    let mut agent = initial_agent.clone();
-    let mut log = EventLog::new();
-    let mut projection = EpistemicProjection::new(manifest_id());
-    let mut scheduler = DeterministicScheduler::new(SimTick::ZERO);
 
-    let result = scheduler
+    let mut quiet_physical = physical_state([possessed.clone(), other.clone()]);
+    let mut quiet_agent = agent_state();
+    let mut quiet_log = EventLog::new();
+    let mut quiet_projection = EpistemicProjection::new(manifest_id());
+    let mut quiet_scheduler = DeterministicScheduler::new(SimTick::ZERO);
+    quiet_scheduler
         .transact_world_one_tick(
-            &mut physical,
-            &mut agent,
-            &mut log,
+            &mut quiet_physical,
+            &mut quiet_agent,
+            &mut quiet_log,
             &ActionRegistry::new(),
             None,
-            Some(&mut projection),
+            Some(&mut quiet_projection),
             WorldStepTransactionRequest {
                 advance: world_advance_request(0),
                 controlled_proposals: Vec::new(),
@@ -132,25 +161,49 @@ fn typed_actor_known_delta_stops_on_modeled_observation_without_hidden_leak() {
         )
         .unwrap();
 
-    let delta = result
+    let quiet_result = quiet_scheduler
+        .advance_until(
+            &mut quiet_physical,
+            &mut quiet_agent,
+            &mut quiet_log,
+            &ActionRegistry::new(),
+            Some(&mut quiet_projection),
+            AdvanceUntilRequest {
+                expected_tick: SimTick::new(1),
+                origin: WorldAdvanceOrigin::Controller(
+                    ControllerId::new("controller_human").unwrap(),
+                ),
+                content_manifest_id: manifest_id(),
+                possessed_actor_id: possessed.clone(),
+                max_ticks: 3,
+            },
+        )
+        .unwrap();
+    assert_eq!(
+        quiet_result.stop_reason,
+        AdvanceUntilStopReason::ControllerSafetyBound
+    );
+    let quiet_delta = quiet_result
         .actor_known_interval_delta
         .as_ref()
-        .expect("step carries typed actor-known interval evidence");
-    assert_eq!(delta.stop_tick(), SimTick::new(1));
-    assert_eq!(
-        delta.stop_reason(),
-        IntervalStopReason::ActorKnownSalientObservation
-    );
+        .expect("quiet interval still carries typed interval evidence");
+    assert_eq!(quiet_delta.salience(), IntervalSalience::None);
     assert!(
-        delta.notices().iter().any(|notice| notice.notice_kind()
-            == IntervalNoticeKind::Observation
-            && notice.source_event_id().as_str() != "event_hidden_observation_other_actor"),
-        "expected possessed-actor perception notice, got {:#?}",
-        delta.notices()
+        quiet_delta
+            .notices()
+            .iter()
+            .any(|notice| notice.notice_kind() == IntervalNoticeKind::Observation),
+        "quiet case must include routine perception notices, got {:#?}",
+        quiet_delta.notices()
     );
-    assert!(delta.notices().iter().all(|notice| {
-        notice.source_event_id().as_str() != "event_hidden_observation_other_actor"
-    }));
+
+    let initial_physical = physical_state([possessed.clone(), other.clone()]);
+    let initial_agent = agent_state();
+    let mut physical = initial_physical.clone();
+    let mut agent = initial_agent.clone();
+    let mut log = EventLog::new();
+    let mut projection = EpistemicProjection::new(manifest_id());
+    let mut scheduler = DeterministicScheduler::new(SimTick::ZERO);
 
     let advance_result = scheduler
         .advance_until(
@@ -160,7 +213,7 @@ fn typed_actor_known_delta_stops_on_modeled_observation_without_hidden_leak() {
             &ActionRegistry::new(),
             Some(&mut projection),
             AdvanceUntilRequest {
-                expected_tick: SimTick::new(1),
+                expected_tick: SimTick::ZERO,
                 origin: WorldAdvanceOrigin::Controller(
                     ControllerId::new("controller_human").unwrap(),
                 ),
@@ -174,7 +227,78 @@ fn typed_actor_known_delta_stops_on_modeled_observation_without_hidden_leak() {
         advance_result.stop_reason,
         AdvanceUntilStopReason::ActorKnownSalientObservation
     );
-    assert_eq!(advance_result.stop_tick, SimTick::new(2));
+    assert_eq!(advance_result.stop_tick, SimTick::new(1));
+    let delta = advance_result
+        .actor_known_interval_delta
+        .as_ref()
+        .expect("salient stop carries typed actor-known interval evidence");
+    assert_eq!(
+        delta.stop_reason(),
+        IntervalStopReason::ActorKnownSalientObservation
+    );
+    assert_eq!(delta.salience(), IntervalSalience::NovelActorKnownFact);
+    assert!(
+        delta.notices().iter().any(|notice| notice.notice_kind()
+            == IntervalNoticeKind::Observation
+            && notice.source_event_id().as_str() != "event_hidden_observation_other_actor"),
+        "expected possessed-actor perception notice, got {:#?}",
+        delta.notices()
+    );
+    assert!(delta.notices().iter().all(|notice| {
+        notice.source_event_id().as_str() != "event_hidden_observation_other_actor"
+    }));
+
+    let mut hidden_physical =
+        physical_state_with_remote_actor([possessed.clone(), other.clone()], Some(&other));
+    let mut hidden_agent = agent_state();
+    let mut hidden_log = EventLog::new();
+    let mut hidden_projection = EpistemicProjection::new(manifest_id());
+    let mut hidden_scheduler = DeterministicScheduler::new(SimTick::ZERO);
+    hidden_scheduler
+        .transact_world_one_tick(
+            &mut hidden_physical,
+            &mut hidden_agent,
+            &mut hidden_log,
+            &ActionRegistry::new(),
+            None,
+            Some(&mut hidden_projection),
+            WorldStepTransactionRequest {
+                advance: world_advance_request(0),
+                controlled_proposals: Vec::new(),
+                actor_known_interval_actor_id: Some(possessed.clone()),
+            },
+        )
+        .unwrap();
+    let hidden_result = hidden_scheduler
+        .advance_until(
+            &mut hidden_physical,
+            &mut hidden_agent,
+            &mut hidden_log,
+            &ActionRegistry::new(),
+            Some(&mut hidden_projection),
+            AdvanceUntilRequest {
+                expected_tick: SimTick::new(1),
+                origin: WorldAdvanceOrigin::Controller(
+                    ControllerId::new("controller_human").unwrap(),
+                ),
+                content_manifest_id: manifest_id(),
+                possessed_actor_id: possessed.clone(),
+                max_ticks: 3,
+            },
+        )
+        .unwrap();
+    assert_eq!(
+        hidden_result.stop_reason,
+        AdvanceUntilStopReason::ControllerSafetyBound
+    );
+    assert_eq!(
+        hidden_result
+            .actor_known_interval_delta
+            .as_ref()
+            .unwrap()
+            .salience(),
+        IntervalSalience::None
+    );
 
     let rebuild = rebuild_projection(
         &initial_physical,
@@ -214,6 +338,8 @@ fn typed_actor_known_delta_stops_on_modeled_observation_without_hidden_leak() {
         )
         .unwrap();
     assert_eq!(replay_delta.stop_tick(), scheduler.current_tick());
+    assert_eq!(replay_delta.salience(), delta.salience());
+    assert_eq!(replay_delta.notices(), delta.notices());
     assert!(replay_delta.notices().iter().all(|notice| {
         notice.source_event_id().as_str() != "event_hidden_observation_other_actor"
     }));

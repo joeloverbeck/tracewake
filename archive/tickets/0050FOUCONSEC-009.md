@@ -1,6 +1,6 @@
 # 0050FOUCONSEC-009: Closed typed salience policy + four-case salient-stop witness
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — replaces the over-broad salient-stop predicate with a closed typed salience policy
@@ -80,3 +80,18 @@ In `crates/tracewake-core/tests/salient_stop_actor_known.rs`, add the quiet/nove
 
 1. `cargo test -p tracewake-core --test salient_stop_actor_known`
 2. `cargo build --workspace --all-targets --locked && cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Completed: 2026-06-24
+
+Implemented closed typed interval salience with `IntervalSalience::{None, NovelActorKnownFact}` on `ActorKnownIntervalDelta`. The classification is computed during holder-known delta construction by comparing new provenance-backed records against the start context's semantic actor-known facts, so routine re-observation of the same fact is quiet while a newly gained holder-known fact is salient.
+
+Updated `advance_until` to consume the typed salience field instead of inferring salience from broad notice kinds. Added a production-path salient-stop witness covering quiet repeated observation, novel holder-visible discovery, hidden other-place actor non-salience, and replay reconstruction of the same typed salience and notice summary. Verification passed:
+
+1. `cargo test -p tracewake-core --test salient_stop_actor_known`
+2. `cargo test -p tracewake-core --test holder_known_interval_projection`
+3. `cargo fmt --all --check`
+4. `cargo build --workspace --all-targets --locked`
+5. `cargo clippy --workspace --all-targets -- -D warnings`
+6. `git diff --check`

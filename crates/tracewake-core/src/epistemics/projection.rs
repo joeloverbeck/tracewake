@@ -11,7 +11,7 @@ use crate::ids::{
 };
 use crate::location::Location;
 use crate::projections::{
-    ActorKnownIntervalDelta, IntervalNoticeKind, IntervalStopReason,
+    ActorKnownIntervalDelta, IntervalNoticeKind, IntervalSalience, IntervalStopReason,
     VerifiedActorKnownIntervalNotice,
 };
 use crate::time::SimTick;
@@ -605,6 +605,7 @@ impl EpistemicProjection {
             .cloned()
             .unwrap_or_default();
         let mut notices = Vec::new();
+        let mut salience = IntervalSalience::None;
         for entry in after
             .provenance_entries()
             .iter()
@@ -634,6 +635,9 @@ impl EpistemicProjection {
                 record.source_event_id().clone(),
                 entry.source_key(),
             ));
+            if actor_known_record_is_novel_to_context(record, before) {
+                salience = IntervalSalience::NovelActorKnownFact;
+            }
         }
 
         Ok(ActorKnownIntervalDelta::from_verified(
@@ -643,6 +647,7 @@ impl EpistemicProjection {
             before.event_frontier(),
             after.event_frontier(),
             stop_reason,
+            salience,
             notices,
         ))
     }
@@ -893,6 +898,108 @@ fn interval_notice_kind(
         | crate::epistemics::knowledge_context::KnowledgeProvenanceKind::ActionAffordanceFact => {
             None
         }
+    }
+}
+
+fn actor_known_record_is_novel_to_context(
+    record: &ActorKnownProjectionRecord,
+    context: &KnowledgeContext,
+) -> bool {
+    match record {
+        ActorKnownProjectionRecord::CurrentPlace {
+            place_id,
+            display_label,
+            ..
+        } => !context
+            .actor_known_current_places()
+            .iter()
+            .any(|fact| fact.place_id() == place_id && fact.display_label() == display_label),
+        ActorKnownProjectionRecord::CarriedItem {
+            item_id,
+            source_location,
+            portable,
+            ..
+        } => !context.actor_known_carried_items().iter().any(|fact| {
+            fact.item_id() == item_id
+                && fact.source() == source_location
+                && fact.portable() == *portable
+        }),
+        ActorKnownProjectionRecord::Route {
+            from_place_id,
+            to_place_id,
+            ..
+        } => !context
+            .actor_known_routes()
+            .iter()
+            .any(|fact| fact.from_place_id() == from_place_id && fact.to_place_id() == to_place_id),
+        ActorKnownProjectionRecord::FoodSource {
+            food_source_id,
+            believed_servings,
+            ..
+        } => !context.actor_known_food_sources().iter().any(|fact| {
+            fact.food_supply_id().as_str() == food_source_id
+                && fact.believed_servings() == *believed_servings
+        }),
+        ActorKnownProjectionRecord::SleepPlace {
+            place_id,
+            sleep_affordance_id,
+            ..
+        } => !context.actor_known_sleep_affordances().iter().any(|fact| {
+            fact.place_id() == place_id
+                && Some(fact.sleep_affordance_id().as_str()) == sleep_affordance_id.as_deref()
+        }),
+        ActorKnownProjectionRecord::Workplace {
+            workplace_id,
+            place_id,
+            believed_access_open,
+            ..
+        } => !context.actor_known_workplaces().iter().any(|fact| {
+            fact.workplace_id() == workplace_id
+                && fact.place_id() == place_id
+                && fact.believed_access_open() == *believed_access_open
+        }),
+        ActorKnownProjectionRecord::LocalDoor {
+            door_id,
+            endpoint_a,
+            endpoint_b,
+            is_open,
+            is_locked,
+            blocks_movement_when_closed,
+            ..
+        } => !context.actor_known_doors().iter().any(|fact| {
+            fact.door_id() == door_id
+                && fact.endpoint_a() == endpoint_a
+                && fact.endpoint_b() == endpoint_b
+                && fact.is_open() == *is_open
+                && fact.is_locked() == *is_locked
+                && fact.blocks_movement_when_closed() == *blocks_movement_when_closed
+        }),
+        ActorKnownProjectionRecord::LocalContainer {
+            container_id,
+            is_open,
+            is_locked,
+            ..
+        } => !context.actor_known_containers().iter().any(|fact| {
+            fact.container_id() == container_id
+                && fact.is_open() == *is_open
+                && fact.is_locked() == *is_locked
+        }),
+        ActorKnownProjectionRecord::LocalItem {
+            item_id,
+            source_location,
+            portable,
+            ..
+        } => !context.actor_known_items().iter().any(|fact| {
+            fact.item_id() == item_id
+                && fact.source() == source_location
+                && fact.portable() == *portable
+        }),
+        ActorKnownProjectionRecord::LocalActor {
+            observed_actor_id, ..
+        } => !context
+            .actor_known_local_actors()
+            .iter()
+            .any(|fact| fact.actor_id() == observed_actor_id),
     }
 }
 

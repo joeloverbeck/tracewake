@@ -34,7 +34,7 @@ use crate::ids::{
 use crate::need_accounting::{
     classify_actor_tick_regimes, open_body_exclusive_starts, DuplicateDurationTerminal,
 };
-use crate::projections::{ActorKnownIntervalDelta, IntervalNoticeKind, IntervalStopReason};
+use crate::projections::{ActorKnownIntervalDelta, IntervalStopReason};
 use crate::state::{AgentState, NeedModelState, PhysicalState};
 use crate::time::{passive_awake_need_deltas, SimTick};
 
@@ -1242,14 +1242,7 @@ fn step_appended_possessed_duration_terminal(
 }
 
 fn actor_known_interval_delta_is_salient(delta: &ActorKnownIntervalDelta) -> bool {
-    delta.notices().iter().any(|notice| {
-        matches!(
-            notice.notice_kind(),
-            IntervalNoticeKind::Observation
-                | IntervalNoticeKind::Record
-                | IntervalNoticeKind::Belief
-        )
-    })
+    delta.salience().is_salient()
 }
 
 fn advance_until_interval_stop_reason(reason: AdvanceUntilStopReason) -> IntervalStopReason {
