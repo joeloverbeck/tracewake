@@ -739,7 +739,7 @@ fn transactional_world_step_applies_due_world_process_event() {
     assert!(result.appended_event_ids.contains(&process_event_id));
     assert!(log.events().iter().any(|event| {
         event.event_id == process_event_id
-            && event.event_type == EventKind::NoHumanAdvanceStarted
+            && event.event_type == EventKind::DeclaredWorldProcessApplied
             && event.process_id.as_ref() == Some(&process_id)
     }));
 }

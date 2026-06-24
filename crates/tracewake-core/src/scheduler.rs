@@ -20,7 +20,7 @@ use crate::agent::{
 use crate::controller::ControllerBindings;
 use crate::epistemics::{ActorKnownIntervalDeltaError, EpistemicProjection, KnowledgeContext};
 use crate::events::apply::{
-    apply_agent_event, apply_epistemic_event, apply_event_stream, ApplyError,
+    apply_agent_event, apply_epistemic_event, apply_event_stream, ApplyError, ApplyOutcome,
     EventApplicationContext, EventApplicationError,
 };
 use crate::events::log::{EventLog, EventLogError};
@@ -786,13 +786,16 @@ impl DeterministicScheduler {
                 agent_state: &mut scratch_agent_state,
                 epistemic_projection: Some(&mut scratch_projection),
             };
-            apply_event_stream(&mut application_context, &appended).map_err(|error| {
-                WorldAdvanceError::WorldProcessApply {
-                    event_id: appended.event_id.clone(),
-                    error,
-                }
-            })?;
-            world_processes_applied += 1;
+            let outcome =
+                apply_event_stream(&mut application_context, &appended).map_err(|error| {
+                    WorldAdvanceError::WorldProcessApply {
+                        event_id: appended.event_id.clone(),
+                        error,
+                    }
+                })?;
+            if matches!(outcome, ApplyOutcome::Applied | ApplyOutcome::WorldNoOp) {
+                world_processes_applied += 1;
+            }
         }
 
         for proposal in post_marker_controlled_proposals {
@@ -1942,7 +1945,7 @@ fn build_world_step_actor_frame_event(
     );
     let mut event = EventEnvelope::new_caused_v1(
         event_id,
-        EventKind::NoHumanAdvanceStarted,
+        EventKind::DeclaredWorldProcessApplied,
         0,
         0,
         resulting_tick,
@@ -2357,7 +2360,7 @@ fn build_declared_world_process_event(
             invocation.effective_tick.value()
         ))
         .map_err(WorldAdvanceError::InvalidMarkerId)?,
-        EventKind::NoHumanAdvanceStarted,
+        EventKind::DeclaredWorldProcessApplied,
         0,
         0,
         invocation.effective_tick,
@@ -2990,7 +2993,9 @@ pub mod no_human {
             .find(|event| {
                 matches!(
                     event.event_type,
-                    EventKind::NoHumanDayStarted | EventKind::NoHumanAdvanceStarted
+                    EventKind::NoHumanDayStarted
+                        | EventKind::NoHumanAdvanceStarted
+                        | EventKind::DeclaredWorldProcessApplied
                 )
             })
             .map(|event| event.event_id.clone())

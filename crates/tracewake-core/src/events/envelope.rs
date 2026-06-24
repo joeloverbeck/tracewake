@@ -89,6 +89,7 @@ pub enum EventKind {
     ItemPlacedInPlace,
     ActorWaited,
     TimeAdvanced,
+    DeclaredWorldProcessApplied,
     ActionStarted,
     ActionFailed,
     ActionRejected,
@@ -150,6 +151,7 @@ impl EventKind {
             EventKind::ItemPlacedInPlace,
             EventKind::ActorWaited,
             EventKind::TimeAdvanced,
+            EventKind::DeclaredWorldProcessApplied,
             EventKind::ActionStarted,
             EventKind::ActionFailed,
             EventKind::ActionRejected,
@@ -269,7 +271,8 @@ impl EventKind {
             | EventKind::ItemPlacedInPlace
             | EventKind::FoodConsumed
             | EventKind::ActorWaited
-            | EventKind::TimeAdvanced => EventStream::World,
+            | EventKind::TimeAdvanced
+            | EventKind::DeclaredWorldProcessApplied => EventStream::World,
         }
     }
 
@@ -288,6 +291,7 @@ impl EventKind {
                 | EventKind::FoodConsumed
                 | EventKind::ActorWaited
                 | EventKind::TimeAdvanced
+                | EventKind::DeclaredWorldProcessApplied
         )
     }
 
@@ -306,6 +310,7 @@ impl EventKind {
             EventKind::ItemPlacedInPlace => "item_placed_in_place",
             EventKind::ActorWaited => "actor_waited",
             EventKind::TimeAdvanced => "time_advanced",
+            EventKind::DeclaredWorldProcessApplied => "declared_world_process_applied",
             EventKind::ActionStarted => "action_started",
             EventKind::ActionFailed => "action_failed",
             EventKind::ActionRejected => "action_rejected",
@@ -379,6 +384,7 @@ pub const fn is_duration_terminal(kind: EventKind) -> bool {
         | EventKind::ItemPlacedInPlace
         | EventKind::ActorWaited
         | EventKind::TimeAdvanced
+        | EventKind::DeclaredWorldProcessApplied
         | EventKind::ActionStarted
         | EventKind::ActionFailed
         | EventKind::ActionRejected
@@ -439,6 +445,7 @@ impl EventKind {
             | EventKind::ItemPlacedInPlace
             | EventKind::ActorWaited
             | EventKind::TimeAdvanced
+            | EventKind::DeclaredWorldProcessApplied
             | EventKind::ObservationRecorded
             | EventKind::BeliefUpdated
             | EventKind::ContainerChecked

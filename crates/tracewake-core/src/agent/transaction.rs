@@ -633,7 +633,9 @@ fn witness_kind_allowed(stable_id: &str, event_kind: &EventKind) -> bool {
         | "modeled_wait_reason"
         | "reevaluation_window_known" => matches!(
             event_kind,
-            EventKind::NoHumanDayStarted | EventKind::NoHumanAdvanceStarted
+            EventKind::NoHumanDayStarted
+                | EventKind::NoHumanAdvanceStarted
+                | EventKind::DeclaredWorldProcessApplied
         ),
         "active_intention_present" | "next_step_available" => matches!(
             event_kind,
@@ -642,6 +644,7 @@ fn witness_kind_allowed(stable_id: &str, event_kind: &EventKind) -> bool {
                 | EventKind::IntentionResumed
                 | EventKind::NoHumanDayStarted
                 | EventKind::NoHumanAdvanceStarted
+                | EventKind::DeclaredWorldProcessApplied
         ),
         _ => false,
     }
@@ -1125,6 +1128,10 @@ mod tests {
                 stable_id,
                 &EventKind::NoHumanAdvanceStarted
             ));
+            assert!(witness_kind_allowed(
+                stable_id,
+                &EventKind::DeclaredWorldProcessApplied
+            ));
             assert!(!witness_kind_allowed(
                 stable_id,
                 &EventKind::ObservationRecorded
@@ -1138,6 +1145,7 @@ mod tests {
                 EventKind::IntentionResumed,
                 EventKind::NoHumanDayStarted,
                 EventKind::NoHumanAdvanceStarted,
+                EventKind::DeclaredWorldProcessApplied,
             ] {
                 assert!(witness_kind_allowed(stable_id, &event_kind));
             }
