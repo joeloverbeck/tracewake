@@ -309,9 +309,23 @@ fn actor_known_workplaces_for_context(
 }
 
 fn actor_known_doors_for_context(context: &KnowledgeContext) -> Vec<ActorKnownDoorSurface> {
-    let mut doors = context
-        .actor_known_doors()
-        .iter()
+    let mut selected = Vec::<&ActorKnownDoorFact>::new();
+    for fact in context.actor_known_doors() {
+        match selected
+            .iter_mut()
+            .find(|existing| existing.door_id() == fact.door_id())
+        {
+            Some(existing) => {
+                if fact.source_key() > existing.source_key() {
+                    *existing = fact;
+                }
+            }
+            None => selected.push(fact),
+        }
+    }
+
+    let mut doors = selected
+        .into_iter()
         .map(|fact: &ActorKnownDoorFact| ActorKnownDoorSurface {
             door_id: fact.door_id().clone(),
             endpoint_a: fact.endpoint_a().clone(),
@@ -329,9 +343,23 @@ fn actor_known_doors_for_context(context: &KnowledgeContext) -> Vec<ActorKnownDo
 fn actor_known_containers_for_context(
     context: &KnowledgeContext,
 ) -> Vec<ActorKnownContainerSurface> {
-    let mut containers = context
-        .actor_known_containers()
-        .iter()
+    let mut selected = Vec::<&ActorKnownContainerFact>::new();
+    for fact in context.actor_known_containers() {
+        match selected
+            .iter_mut()
+            .find(|existing| existing.container_id() == fact.container_id())
+        {
+            Some(existing) => {
+                if fact.source_key() > existing.source_key() {
+                    *existing = fact;
+                }
+            }
+            None => selected.push(fact),
+        }
+    }
+
+    let mut containers = selected
+        .into_iter()
         .map(
             |fact: &ActorKnownContainerFact| ActorKnownContainerSurface {
                 container_id: fact.container_id().clone(),

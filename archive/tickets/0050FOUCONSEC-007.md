@@ -1,6 +1,6 @@
 # 0050FOUCONSEC-007: Fail-closed `EventId` uniqueness (append + deserialize)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — makes a duplicate `EventId` a fail-closed `EventLogError` on live append and deserialization
@@ -81,3 +81,19 @@ Unit tests in `log.rs` (duplicate append → `EventLogError`; duplicate deserial
 1. `cargo test -p tracewake-core --test world_step_coordinator`
 2. `cargo test -p tracewake-core events::log`
 3. `cargo build --workspace --all-targets --locked && cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Completed: 2026-06-24
+
+Implemented fail-closed duplicate `EventId` rejection at `EventLog::append` and deserialize, with explicit `DuplicateEventId` unit coverage. Repeated current-place perceptions now preserve the first stable event ID and assign deterministic occurrence-suffixed IDs to later same actor/tick/kind/target observations, updating the event payload identity fields with the committed event ID. Same-tick repeated door/container observations collapse to the latest source when building embodied surfaces, preserving stale-token rejection and latest-state rendering.
+
+Added a multi-tick `advance_until` witness asserting committed `EventId`s are unique. Verification passed:
+
+1. `cargo test -p tracewake-core events::log`
+2. `cargo test -p tracewake-core --test world_step_coordinator`
+3. `cargo test -p tracewake-tui`
+4. `cargo fmt --all --check`
+5. `cargo build --workspace --all-targets --locked`
+6. `cargo clippy --workspace --all-targets -- -D warnings`
+7. `git diff --check`

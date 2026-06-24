@@ -824,6 +824,46 @@ fn transactional_world_step_emits_chained_time_advanced_markers() {
 }
 
 #[test]
+fn advance_until_commits_unique_event_ids_across_multi_tick_interval() {
+    let actor = actor_id("actor_mara");
+    let place = place_id("home_mara");
+    let mut physical =
+        physical_state_for_with_need_model(&actor, &place, NeedModelState::new(0, 0));
+    let mut agent = agent_state_for(&actor);
+    let mut log = EventLog::new();
+    let registry = ActionRegistry::new();
+    let mut scheduler = DeterministicScheduler::new(SimTick::ZERO);
+
+    scheduler
+        .advance_until(
+            &mut physical,
+            &mut agent,
+            &mut log,
+            &registry,
+            None,
+            AdvanceUntilRequest {
+                expected_tick: SimTick::ZERO,
+                origin: WorldAdvanceOrigin::Controller(
+                    ControllerId::new("controller_human").unwrap(),
+                ),
+                content_manifest_id: content_manifest_id(),
+                possessed_actor_id: actor,
+                max_ticks: 3,
+            },
+        )
+        .unwrap();
+
+    let mut ids = BTreeSet::new();
+    for event in log.events() {
+        assert!(
+            ids.insert(event.event_id.clone()),
+            "duplicate committed EventId {}",
+            event.event_id
+        );
+    }
+}
+
+#[test]
 fn ordinary_event_timestamp_without_marker_does_not_move_replay_frontier() {
     let actor = actor_id("actor_mara");
     let physical = physical_state_for(&actor, &place_id("home_mara"));

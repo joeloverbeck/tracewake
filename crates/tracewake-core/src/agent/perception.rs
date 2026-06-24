@@ -24,13 +24,43 @@ pub fn record_current_place_perception(
     decision_tick: SimTick,
     content_manifest_id: &ContentManifestId,
 ) -> Vec<EventEnvelope> {
+    // Repeated current-place perceptions at the same actor/tick/target can be
+    // distinct causal opportunities after intervening events. Preserve the
+    // stable base ID for the first occurrence and add a deterministic log
+    // frontier component for later occurrences before EventLog's fail-closed
+    // duplicate check.
     current_place_perception_events(state, actor_id, decision_tick, content_manifest_id)
         .into_iter()
-        .map(|event| {
+        .map(|mut event| {
+            if log.contains_event_id(&event.event_id) {
+                let base = event.event_id.as_str().to_string();
+                let mut occurrence = log.events().len();
+                loop {
+                    let candidate =
+                        EventId::new(format!("{base}.occurrence.{occurrence}")).unwrap();
+                    if !log.contains_event_id(&candidate) {
+                        rename_perception_event(&mut event, candidate);
+                        break;
+                    }
+                    occurrence += 1;
+                }
+            }
             log.append(event)
                 .expect("current-place perception event is versioned")
         })
         .collect()
+}
+
+fn rename_perception_event(event: &mut EventEnvelope, event_id: EventId) {
+    let observation_id = format!("obs.perception.{}", event_id.as_str());
+    for field in &mut event.payload {
+        match field.key.as_str() {
+            "observation_id" => field.value = observation_id.clone(),
+            "source_event_id" => field.value = event_id.as_str().to_string(),
+            _ => {}
+        }
+    }
+    event.event_id = event_id;
 }
 
 pub fn record_current_place_perception_and_project(
