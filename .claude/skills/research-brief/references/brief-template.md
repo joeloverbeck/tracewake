@@ -49,6 +49,20 @@ in §2 as a *structural model* read rather than naming it as a predecessor here.
 carry both at once; keep their roles separate so Session 2 reads the lineage predecessor for *what is
 already done* and the structural precedent for *what shape to produce*.
 
+**Second-pass / re-audit pass.** A brief may be a *follow-up pass over the same predecessor report*
+(not a new campaign block) — re-auditing a surface that a prior pass's findings were supposed to
+remediate. Two conventions apply. **(1) Naming:** reuse the predecessor's slug with a `-second-pass`
+suffix (then `-third-pass`, …) on **both** the `brief` and the `report` — e.g.
+`reports/<topic>-research-brief-second-pass.md` → `<topic>-research-report-second-pass.md`, per the
+established archive precedent (`architecture-tier-alignment-research-{brief,report}-second-pass.md`,
+`execution-tier-alignment-…-second-pass.md`, `reference-tier-alignment-research-report-second-pass.md`).
+Do **not** mint a fresh slug (`…-v2`, `<topic>-second-…`) — it breaks the brief↔report 1:1 mapping.
+**(2) Non-carry-forward posture:** when the intervening remediation has since merged into the fetch
+baseline (so the predecessor's pinned commit is an *ancestor/parent* of HEAD and the §2 seams changed
+wholesale), the predecessor's findings are the **pre-remediation baseline to re-verify, not carry
+forward** — run the SKILL.md Step 5 equivalence check to establish that non-equivalence, and make
+"assume nothing about the remediated surface's compliance" a settled intention.
+
 ### 2. Read in full (authority order)
 
 An explicit, tiered path list — every file Session 2 must read before producing — each

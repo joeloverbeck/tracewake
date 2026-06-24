@@ -1,18 +1,19 @@
 ---
 name: ticket-series
-description: Use for goals that implement a glob or series of tickets in dependency order from tickets/ with a referenced spec in specs/ or docs/4-specs/, including one-ticket-at-a-time implementation, acceptance verification, per-ticket archival and commits, final spec archival, and repository truthing.
+description: Use for goals that implement a glob or series of tickets in dependency order from tickets/, with an optional referenced spec in specs/ or docs/4-specs/, including one-ticket-at-a-time implementation, acceptance verification, per-ticket archival and commits, final spec or ticket-only closeout, and repository truthing.
 ---
 
 # Ticket Series
 
 Use this skill when the user asks to implement a ticket series such as
-`tickets/0004PHA1THIHAR*` using a reference spec such as `specs/0004_PHASE_1*`,
-especially inside a `/goal`.
+`tickets/0004PHA1THIHAR*`, optionally using a reference spec such as
+`specs/0004_PHASE_1*`, especially inside a `/goal`.
 
 ## Inputs
 
 - Ticket selector: usually a glob under `tickets/`.
-- Reference spec selector: usually a glob under `specs/` or `docs/4-specs/`.
+- Reference spec selector: optional; usually a glob under `specs/` or
+  `docs/4-specs/` when provided.
 - Any explicit sequencing, verification, commit, or archival constraints from
   the prompt.
 
@@ -28,9 +29,10 @@ or multiple plausible corrections.
 
 On a resumed active `/goal`, zero live ticket matches may mean the series was
 already archived in an earlier turn. Before treating that as selector failure,
-check for matching `archive/tickets/` entries, the archived reference spec, and
-the final spec-closeout commit. If those exist, route directly to the final
-completion audit instead of restarting intake.
+check for matching `archive/tickets/` entries, the archived reference spec and
+final spec-closeout commit when applicable, or ticket-only closeout evidence
+when no spec existed. If those exist, route directly to the final completion
+audit instead of restarting intake.
 
 ## Startup
 
@@ -44,8 +46,10 @@ completion audit instead of restarting intake.
    - `docs/4-specs/SPEC_LEDGER.md`
    - `docs/archival-workflow.md`
 3. Resolve the ticket and spec selectors to concrete paths.
-4. Read the resolved spec and tickets. Determine dependency order from explicit
-   dependency sections, numbering, ticket prose, and spec sequencing.
+4. Read the resolved tickets and, when a spec selector or obvious live spec is
+   present, the resolved spec. Determine dependency order from explicit
+   dependency sections, numbering, ticket prose, and spec sequencing when
+   applicable.
 5. Check `git status --short` before editing. Preserve unrelated user changes.
 
 ## Per-Ticket Loop
@@ -179,10 +183,56 @@ members is a failed ticket, not a completed one.
 
 After committing the final ticket in the series, stop before any final response
 or `/goal` completion. If the reference spec still exists under `specs/` or
-`docs/4-specs/`, continue directly to `## Final Spec Closeout`. A final ticket's
-local note that spec archival is out of scope, deferred, or left for later is
-not a valid stop condition unless the user explicitly instructed that the
-reference spec must remain active.
+`docs/4-specs/`, continue directly to `## Final Spec Closeout`. If no matching
+live spec existed for the series, continue directly to `## Ticket-Only
+Closeout`. A final ticket's local note that spec archival is out of scope,
+deferred, or left for later is not a valid stop condition unless the user
+explicitly instructed that the reference spec must remain active.
+
+## Ticket-Only Closeout
+
+Use this path only when no matching live reference spec exists under `specs/` or
+`docs/4-specs/`, and no prompt instruction named a reference artifact that still
+requires archival or truthing.
+
+1. Record the no-spec finding in final reporting as:
+
+```md
+Spec archived: None - no matching live spec existed under specs/ or docs/4-specs/.
+```
+
+2. Verify ticket archive truth mechanically for the completed family:
+
+```sh
+rg --files tickets | rg '<ticket-prefix>'
+test -e archive/tickets/<ticket-id>.md # repeat for each completed ticket
+rg --files-without-match '^## Outcome' archive/tickets/<ticket-prefix>*.md
+rg --files-without-match '^Completed: ' archive/tickets/<ticket-prefix>*.md
+```
+
+   For absence checks, no output is expected. For `rg --files-without-match`,
+   no printed paths is success; exit code `1` can be expected when every checked
+   file contains the required pattern.
+
+3. Run stale-live-path sweeps that do not require a spec placeholder:
+
+```sh
+rg -P -n '(?<!archive/)tickets/<ticket-prefix>' docs reports specs tickets archive/reports archive/tickets archive/specs
+rg --files specs docs/4-specs | rg '<ticket-prefix>|<family-name>'
+```
+
+   No output is expected unless there is an active reference to repair. Leave
+   historical archived provenance alone unless it claims a current live path or
+   current pending state.
+
+4. Run the relevant final gates after the last tracked closeout edit. For full
+   completion in this repo, use the exact `AGENTS.md` commands listed in
+   `## Final Spec Closeout`.
+5. Confirm there are no staged changes, no matching active ticket paths remain,
+   the archived tickets exist, stale live paths are absent, and the final status
+   shows only intended changes or documented unrelated pre-existing changes.
+6. For active `/goal` runs, mark the goal complete only after the ticket-only
+   audit is complete.
 
 ## Final Spec Closeout
 
@@ -327,13 +377,18 @@ rg --files-without-match '^Completed: ' archive/tickets/<ticket-prefix>*.md arch
    manually review any matches. Keep this staged so broad historical archive
    prose does not swamp the current-state audit:
 
-   - First sweep active/current-state surfaces and the current archived
-     ticket/spec outcomes for the ticket/spec prefix under closeout.
+   - For ticket-only series, first sweep only the current archived ticket
+     outcomes for the ticket prefix under closeout. Broaden to active
+     docs/reports only if stale live references or current-state claims appear.
+   - For spec-backed series, first sweep active/current-state surfaces and the
+     current archived ticket/spec outcomes for the ticket/spec prefix under
+     closeout.
    - Then, only if needed, run the broad historical sweep and treat old problem
      statements, risk notes, and original out-of-scope sections as valid
      archive history unless the outcome now contradicts them.
 
 ```sh
+rg -n 'pending|remaining|TODO|deferred|out of scope|not run|live path|archive bookkeeping' archive/tickets/<ticket-prefix>*.md
 rg -n 'pending|remaining|TODO|deferred|out of scope|not run|live path|archive bookkeeping' reports docs/4-specs archive/tickets/<ticket-prefix>*.md archive/specs/<spec filename>
 rg -n 'pending|remaining|TODO|deferred|out of scope|not run|live path|archive bookkeeping' reports archive/tickets archive/specs docs/4-specs
 ```
@@ -352,8 +407,10 @@ rg -n 'pending|remaining|TODO|deferred|out of scope|not run|live path|archive bo
    has not already been committed before the final gates.
 9. Before sending the final response or marking a `/goal` complete, confirm:
    - no matching active ticket paths remain under `tickets/`;
-   - the reference spec no longer exists under `specs/` or `docs/4-specs/`;
-   - the archived spec exists under `archive/specs/`;
+   - for spec-backed series, the reference spec no longer exists under `specs/`
+     or `docs/4-specs/` and the archived spec exists under `archive/specs/`;
+   - for ticket-only series, no matching live spec existed under `specs/` or
+     `docs/4-specs/` and this is stated explicitly in final reporting;
    - active ledgers, reports, specs, docs, and ticket references no longer point
      at stale live paths;
    - there are no staged changes after the final commit;
@@ -378,7 +435,7 @@ rg -n 'pending|remaining|TODO|deferred|out of scope|not run|live path|archive bo
 ```sh
 git status --short
 rg --files tickets | rg '<ticket-prefix>'
-test ! -e specs/<spec filename> && test -e archive/specs/<spec filename>
+test ! -e specs/<spec filename> && test -e archive/specs/<spec filename> # spec-backed only
 rg -P -n '(?<!archive/)specs/<spec filename>|(?<!archive/)tickets/<ticket-prefix>' docs reports specs tickets archive/reports archive/tickets archive/specs
 ```
 
@@ -399,9 +456,9 @@ before the final response; do not rely on a prose closeout alone.
 Final responses must include:
 
 - `Tickets completed and archived: <list or None>.`
-- `Spec archived: <archive path, explicit user no-archive instruction, or live
-  blocking evidence>.` A ticket-local deferred/out-of-scope note is not
-  sufficient.
+- `Spec archived: <archive path, None - no matching live spec existed, explicit
+  user no-archive instruction, or live blocking evidence>.` A ticket-local
+  deferred/out-of-scope note is not sufficient.
 - `Verification commands run: <commands>.`
 - `Checks not run: <commands and why, or None>.`
 - `Required AGENTS gate deviations: <command/flag differences and why, or
@@ -430,7 +487,7 @@ status-only reply:
 
 ```md
 Tickets completed and archived: <list or None>.
-Spec archived: <archive path, explicit user no-archive instruction, or live blocking evidence>.
+Spec archived: <archive path, None - no matching live spec existed, explicit user no-archive instruction, or live blocking evidence>.
 Verification commands run: <commands>.
 Checks not run: <commands and why, or None>.
 Required AGENTS gate deviations: <command/flag differences and why, or None>.
