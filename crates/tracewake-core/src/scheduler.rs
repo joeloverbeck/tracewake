@@ -501,6 +501,35 @@ impl DeterministicScheduler {
         }
     }
 
+    pub fn from_loaded_world(
+        current_tick: SimTick,
+        state: &PhysicalState,
+        agent_state: &AgentState,
+        content_manifest_id: ContentManifestId,
+    ) -> Self {
+        let mut scheduler = Self::new(current_tick);
+        let first_due_tick = current_tick.next();
+        for actor_id in state.actors().keys() {
+            if agent_state.needs_by_actor().contains_key(actor_id) {
+                scheduler
+                    .loaded_actor_next_decision_tick
+                    .insert(actor_id.clone(), first_due_tick);
+            }
+        }
+        scheduler.declared_world_processes.insert(
+            ProcessId::new("process_loaded_world_tick").unwrap(),
+            DeclaredWorldProcess::new_cadenced(
+                ProcessId::new("process_loaded_world_tick").unwrap(),
+                first_due_tick,
+                1,
+                Vec::new(),
+                content_manifest_id,
+                None,
+            ),
+        );
+        scheduler
+    }
+
     pub const fn current_tick(&self) -> SimTick {
         self.current_tick
     }
@@ -578,37 +607,6 @@ impl DeterministicScheduler {
                     })
             })
             .collect()
-    }
-
-    pub fn schedule_loaded_actor_decision(
-        &mut self,
-        actor_id: ActorId,
-        next_decision_tick: SimTick,
-    ) {
-        self.loaded_actor_next_decision_tick
-            .insert(actor_id, next_decision_tick);
-    }
-
-    pub fn register_cadenced_world_process(
-        &mut self,
-        process_id: ProcessId,
-        first_due_tick: SimTick,
-        cadence_ticks: u64,
-        source_event_ids: Vec<EventId>,
-        content_manifest_id: ContentManifestId,
-        random_provenance: Option<String>,
-    ) {
-        self.declared_world_processes.insert(
-            process_id.clone(),
-            DeclaredWorldProcess::new_cadenced(
-                process_id,
-                first_due_tick,
-                cadence_ticks,
-                source_event_ids,
-                content_manifest_id,
-                random_provenance,
-            ),
-        );
     }
 
     pub fn record_actor_current_place_perception(

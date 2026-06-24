@@ -86,6 +86,19 @@ impl LoadedWorldRuntime {
         self.scheduler.current_tick()
     }
 
+    pub fn from_loaded_world(
+        mut initial: RuntimeInitialState,
+        current_tick: crate::time::SimTick,
+    ) -> Self {
+        initial.scheduler = DeterministicScheduler::from_loaded_world(
+            current_tick,
+            &initial.physical_state,
+            &initial.agent_state,
+            initial.content_manifest_id.clone(),
+        );
+        Self::from_initial_state(initial)
+    }
+
     pub fn event_count(&self) -> usize {
         self.event_log.events().len()
     }

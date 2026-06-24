@@ -79,6 +79,10 @@ const FIXTURES: &[NegativeFixture] = &[
         expected_stderr: "no method named `seed_items_mut`",
     },
     NegativeFixture {
+        name: "external_crate_cannot_seed_loaded_actor_or_process_eligibility",
+        expected_stderr: "no method named `schedule_loaded_actor_decision`",
+    },
+    NegativeFixture {
         name: "external_crate_cannot_mutate_agent_state_seed_maps",
         expected_stderr: "no method named `seed_intentions_mut`",
     },

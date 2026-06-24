@@ -8,6 +8,8 @@ use tracewake_core::events::{
 use tracewake_core::ids::{
     ActionId, ActorId, ContentManifestId, ContentVersion, EventId, PlaceId, ProcessId,
 };
+use tracewake_core::runtime::RuntimeInitialState;
+use tracewake_core::scheduler::DeterministicScheduler;
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use tracewake_core::time::SimTick;
 
@@ -49,6 +51,30 @@ pub struct LoadedFixture {
     pub canonical_agent_state: tracewake_core::state::AgentState,
     pub epistemic_projection: EpistemicProjection,
     pub seed_event_log: EventLog,
+}
+
+impl LoadedFixture {
+    pub fn into_runtime_initial_state(
+        self,
+        registry: tracewake_core::actions::ActionRegistry,
+    ) -> RuntimeInitialState {
+        let scheduler = DeterministicScheduler::from_loaded_world(
+            SimTick::ZERO,
+            &self.canonical_world,
+            &self.canonical_agent_state,
+            self.manifest.manifest_id.clone(),
+        );
+        RuntimeInitialState {
+            registry,
+            physical_state: self.canonical_world,
+            agent_state: self.canonical_agent_state,
+            event_log: self.seed_event_log,
+            epistemic_projection: self.epistemic_projection,
+            controller_bindings: tracewake_core::controller::ControllerBindings::new(),
+            scheduler,
+            content_manifest_id: self.manifest.manifest_id,
+        }
+    }
 }
 
 pub fn load_fixture_package(
@@ -422,8 +448,12 @@ mod tests {
     };
     use crate::serialization::serialize_fixture;
     use tracewake_core::agent::NeedKind;
-    use tracewake_core::ids::{ActorId, ContainerId, FixtureId, ItemId, PlaceId, SchemaVersion};
+    use tracewake_core::ids::{
+        ActorId, ContainerId, ControllerId, FixtureId, ItemId, PlaceId, SchemaVersion,
+    };
     use tracewake_core::location::Location;
+    use tracewake_core::runtime::{LoadedWorldRuntime, RuntimeReceiptKind};
+    use tracewake_core::scheduler::WorldAdvanceOrigin;
     use tracewake_core::state::VisibilityDefault;
 
     fn fixture() -> FixtureSchema {
@@ -528,5 +558,35 @@ mod tests {
             first.manifest.content_fingerprint,
             second.manifest.content_fingerprint
         );
+    }
+
+    #[test]
+    fn loaded_fixture_hands_off_derived_runtime_due_work() {
+        let bytes = serialize_fixture(&fixture());
+        let loaded = load_fixture_package(
+            ContentManifestId::new("manifest_runtime_handoff").unwrap(),
+            ContentVersion::new("content_v1").unwrap(),
+            vec![SourceFile {
+                path: "fixture.twf".to_string(),
+                bytes,
+            }],
+        )
+        .unwrap();
+        let initial =
+            loaded.into_runtime_initial_state(registry_for_fixture_scope(FixtureScope::Phase1));
+        let mut runtime = LoadedWorldRuntime::from_initial_state(initial);
+
+        let receipt = runtime
+            .wait_one_tick(WorldAdvanceOrigin::Controller(
+                ControllerId::new("controller_human").unwrap(),
+            ))
+            .unwrap();
+
+        match receipt.kind() {
+            RuntimeReceiptKind::OneTickAdvanced(result) => {
+                assert_eq!(result.due_work_summary.actor_transactions_attempted, 1);
+                assert_eq!(result.due_work_summary.world_processes_applied, 1);
+            }
+        }
     }
 }
