@@ -395,13 +395,15 @@ pub fn duration_completion_ordering_key(
 pub struct DeterministicScheduler {
     current_tick: SimTick,
     proposal_sequences: ProposalSequenceAssigner,
+    loaded_actor_next_decision_tick: BTreeMap<ActorId, SimTick>,
 }
 
 impl DeterministicScheduler {
-    pub const fn new(current_tick: SimTick) -> Self {
+    pub fn new(current_tick: SimTick) -> Self {
         Self {
             current_tick,
             proposal_sequences: ProposalSequenceAssigner::new(),
+            loaded_actor_next_decision_tick: BTreeMap::new(),
         }
     }
 
@@ -431,6 +433,32 @@ impl DeterministicScheduler {
 
     pub fn assign_proposal_sequence(&mut self) -> ProposalSequence {
         self.proposal_sequences.assign_next()
+    }
+
+    /// Derives loaded actors that are due for an actor-decision opportunity.
+    ///
+    /// Spec-0050's first pass uses a scheduler-owned per-actor next-decision
+    /// tick map as the replayable eligibility representation: a loaded actor is
+    /// eligible when the actor has a physical body, has agent state, and its
+    /// next-decision tick is at or before the target tick. `BTreeMap` iteration
+    /// provides stable sorted output, so caller insertion order cannot affect
+    /// replay.
+    #[allow(dead_code)]
+    fn due_loaded_actor_ids(
+        &self,
+        state: &PhysicalState,
+        agent_state: &AgentState,
+        target_tick: SimTick,
+    ) -> Vec<ActorId> {
+        self.loaded_actor_next_decision_tick
+            .iter()
+            .filter(|(actor_id, next_decision_tick)| {
+                **next_decision_tick <= target_tick
+                    && state.actors().contains_key(*actor_id)
+                    && agent_state.needs_by_actor().contains_key(*actor_id)
+            })
+            .map(|(actor_id, _)| actor_id.clone())
+            .collect()
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -6559,6 +6587,112 @@ mod tests {
             .collect(),
         );
         state
+    }
+
+    fn physical_state_for_actor_ids(actor_ids: &[ActorId]) -> PhysicalState {
+        let mut state = PhysicalState::empty(crate::state::NeedModelState::new(0, 0));
+        for actor_id in actor_ids {
+            state.actors.insert(
+                actor_id.clone(),
+                ActorBody::new(
+                    actor_id.clone(),
+                    crate::ids::PlaceId::new(format!("place_{}", actor_id.as_str())).unwrap(),
+                ),
+            );
+        }
+        state
+    }
+
+    fn agent_state_for_actor_ids(actor_ids: &[ActorId]) -> AgentState {
+        let mut state = AgentState::default();
+        for actor_id in actor_ids {
+            state.needs_by_actor.insert(
+                actor_id.clone(),
+                [
+                    (
+                        crate::agent::NeedKind::Hunger,
+                        crate::agent::NeedState::initial(
+                            crate::agent::NeedKind::Hunger,
+                            100,
+                            crate::agent::NeedChangeCause::FixtureInitial,
+                        ),
+                    ),
+                    (
+                        crate::agent::NeedKind::Fatigue,
+                        crate::agent::NeedState::initial(
+                            crate::agent::NeedKind::Fatigue,
+                            100,
+                            crate::agent::NeedChangeCause::FixtureInitial,
+                        ),
+                    ),
+                ]
+                .into_iter()
+                .collect(),
+            );
+        }
+        state
+    }
+
+    #[test]
+    fn due_loaded_actor_derivation_is_stable_and_scheduling_state_only() {
+        let due_late_inserted = actor_id("actor_zara");
+        let due_early_inserted = actor_id("actor_abel");
+        let not_yet_due = actor_id("actor_mira");
+        let unloaded = actor_id("actor_unloaded");
+        let agentless = actor_id("actor_agentless");
+        let target_tick = SimTick::new(10);
+
+        let mut scheduler = DeterministicScheduler::new(SimTick::new(9));
+        scheduler
+            .loaded_actor_next_decision_tick
+            .insert(due_late_inserted.clone(), SimTick::new(9));
+        scheduler
+            .loaded_actor_next_decision_tick
+            .insert(not_yet_due.clone(), SimTick::new(11));
+        scheduler
+            .loaded_actor_next_decision_tick
+            .insert(unloaded.clone(), SimTick::new(8));
+        scheduler
+            .loaded_actor_next_decision_tick
+            .insert(agentless.clone(), SimTick::new(8));
+        scheduler
+            .loaded_actor_next_decision_tick
+            .insert(due_early_inserted.clone(), SimTick::new(10));
+
+        let physical = physical_state_for_actor_ids(&[
+            due_late_inserted.clone(),
+            due_early_inserted.clone(),
+            not_yet_due.clone(),
+            agentless.clone(),
+        ]);
+        let agent = agent_state_for_actor_ids(&[
+            due_late_inserted.clone(),
+            due_early_inserted.clone(),
+            not_yet_due,
+            unloaded,
+        ]);
+
+        assert_eq!(
+            scheduler.due_loaded_actor_ids(&physical, &agent, target_tick),
+            vec![due_early_inserted.clone(), due_late_inserted.clone()]
+        );
+
+        let mut reversed_scheduler = DeterministicScheduler::new(SimTick::new(9));
+        for (actor_id, next_tick) in scheduler
+            .loaded_actor_next_decision_tick
+            .iter()
+            .rev()
+            .map(|(actor_id, tick)| (actor_id.clone(), *tick))
+        {
+            reversed_scheduler
+                .loaded_actor_next_decision_tick
+                .insert(actor_id, next_tick);
+        }
+
+        assert_eq!(
+            reversed_scheduler.due_loaded_actor_ids(&physical, &agent, target_tick),
+            scheduler.due_loaded_actor_ids(&physical, &agent, target_tick)
+        );
     }
 
     fn process_id(value: &str) -> ProcessId {

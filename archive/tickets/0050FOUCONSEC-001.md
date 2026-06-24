@@ -1,6 +1,6 @@
 # 0050FOUCONSEC-001: Core-owned loaded-actor eligibility derivation (additive, unwired)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds a private core-owned due-actor eligibility derivation in `tracewake-core` (no behavior wired in yet)
@@ -77,3 +77,30 @@ Add an additive test in `crates/tracewake-core/tests/world_step_coordinator.rs` 
 
 1. `cargo test -p tracewake-core --test world_step_coordinator`
 2. `cargo build --workspace --all-targets --locked && cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Completed: 2026-06-24
+
+Implemented the unwired core-owned loaded-actor eligibility substrate in
+`crates/tracewake-core/src/scheduler.rs`. The recorded representation is a
+scheduler-owned `BTreeMap<ActorId, SimTick>` of per-actor next-decision ticks;
+the private derivation returns only actors that are physically loaded, have
+agent state, and are due at or before the target tick, with deterministic
+`BTreeMap` ordering.
+
+Deviation: the ticket originally named an integration test in
+`crates/tracewake-core/tests/world_step_coordinator.rs`, but the same ticket
+also required the derivation to remain private/`pub(crate)` at most. The proof
+therefore landed as the internal unit test
+`scheduler::tests::due_loaded_actor_derivation_is_stable_and_scheduling_state_only`
+instead of widening the API solely for test reachability. The existing
+`world_step_coordinator` integration suite still passed unchanged.
+
+Verification run:
+
+- `cargo fmt --all --check`
+- `cargo test -p tracewake-core due_loaded_actor_derivation_is_stable_and_scheduling_state_only`
+- `cargo test -p tracewake-core --test world_step_coordinator`
+- `cargo build --workspace --all-targets --locked`
+- `cargo clippy --workspace --all-targets -- -D warnings`
