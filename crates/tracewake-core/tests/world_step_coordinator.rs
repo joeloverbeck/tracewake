@@ -92,9 +92,7 @@ fn transact_world_one_tick_for_test(
         WorldStepTransactionRequest {
             advance: request,
             controlled_proposals: Vec::new(),
-            due_actor_ids: Vec::new(),
             actor_known_interval_actor_id: None,
-            world_process_events: Vec::new(),
         },
     )
 }
@@ -268,32 +266,6 @@ fn wait_events(
     .unwrap()
 }
 
-fn process_marker_event(id: &str, process_id: &ProcessId, tick: u64) -> EventEnvelope {
-    let mut event = EventEnvelope::new_caused_v1(
-        EventId::new(id).unwrap(),
-        EventKind::NoHumanAdvanceStarted,
-        0,
-        0,
-        SimTick::new(tick),
-        OrderingKey::new(
-            SimTick::new(tick),
-            SchedulePhase::DeferredProcess,
-            SchedulerSourceId::Process(process_id.clone()),
-            ProposalSequence::new(1),
-            ActionId::new("world_process_probe").unwrap(),
-            vec![process_id.as_str().to_string()],
-            id,
-        ),
-        content_manifest_id(),
-        vec![EventCause::Process(process_id.clone())],
-    )
-    .unwrap();
-    event.process_id = Some(process_id.clone());
-    event.payload = vec![PayloadField::new("schema_version", EVENT_SCHEMA_V1)];
-    event.effects_summary = "world process probe marker".to_string();
-    event
-}
-
 fn ordinary_wait_event(id: &str, actor_id: &ActorId, tick: u64) -> EventEnvelope {
     let mut event = EventEnvelope::new_caused_v1(
         EventId::new(id).unwrap(),
@@ -380,35 +352,6 @@ fn attach_human_wait_source(
         content_manifest_id(),
     );
     bindings
-}
-
-fn malformed_actor_moved_process_event(
-    id: &str,
-    process_id: &ProcessId,
-    tick: u64,
-) -> EventEnvelope {
-    let mut event = EventEnvelope::new_caused_v1(
-        EventId::new(id).unwrap(),
-        EventKind::ActorMoved,
-        0,
-        0,
-        SimTick::new(tick),
-        OrderingKey::new(
-            SimTick::new(tick),
-            SchedulePhase::DeferredProcess,
-            SchedulerSourceId::Process(process_id.clone()),
-            ProposalSequence::new(1),
-            ActionId::new("malformed_move_probe").unwrap(),
-            vec![process_id.as_str().to_string()],
-            id,
-        ),
-        content_manifest_id(),
-        vec![EventCause::Process(process_id.clone())],
-    )
-    .unwrap();
-    event.process_id = Some(process_id.clone());
-    event.payload = vec![PayloadField::new("schema_version", EVENT_SCHEMA_V1)];
-    event
 }
 
 fn physical_state_for(actor: &ActorId, place: &PlaceId) -> PhysicalState {
@@ -662,18 +605,12 @@ fn transactional_world_step_attempts_due_actor_decision_transaction() {
     let place = place_id("home_mara");
     let mut physical =
         physical_state_for_with_need_model(&actor, &place, NeedModelState::new(0, 0));
-    let mut agent = AgentState::from_seed_parts(
-        BTreeMap::new(),
-        BTreeMap::new(),
-        BTreeMap::new(),
-        BTreeMap::new(),
-        BTreeMap::new(),
-        BTreeMap::new(),
-    );
+    let mut agent = agent_state_for(&actor);
     let mut log = EventLog::new();
     let mut registry = ActionRegistry::new();
     registry.register_phase1_inspect_wait();
     let mut scheduler = DeterministicScheduler::new(SimTick::ZERO);
+    scheduler.schedule_loaded_actor_decision(actor.clone(), SimTick::new(1));
 
     let result = scheduler
         .transact_world_one_tick(
@@ -686,9 +623,7 @@ fn transactional_world_step_attempts_due_actor_decision_transaction() {
             WorldStepTransactionRequest {
                 advance: world_advance_request(0),
                 controlled_proposals: Vec::new(),
-                due_actor_ids: vec![actor.clone()],
                 actor_known_interval_actor_id: None,
-                world_process_events: Vec::new(),
             },
         )
         .unwrap();
@@ -716,9 +651,75 @@ fn transactional_world_step_applies_due_world_process_event() {
     let mut log = EventLog::new();
     let registry = ActionRegistry::new();
     let process_id = ProcessId::new("process_probe").unwrap();
-    let process_event = process_marker_event("event.process_probe.1", &process_id, 1);
-    let process_event_id = process_event.event_id.clone();
+    let process_event_id = EventId::new("event.declared_world_process.process_probe.2").unwrap();
     let mut scheduler = DeterministicScheduler::new(SimTick::ZERO);
+    scheduler.register_cadenced_world_process(
+        process_id.clone(),
+        SimTick::new(2),
+        1,
+        Vec::new(),
+        content_manifest_id(),
+        None,
+    );
+
+    let not_yet_due = scheduler
+        .transact_world_one_tick(
+            &mut physical,
+            &mut agent,
+            &mut log,
+            &registry,
+            None,
+            None,
+            WorldStepTransactionRequest {
+                advance: world_advance_request(0),
+                controlled_proposals: Vec::new(),
+                actor_known_interval_actor_id: None,
+            },
+        )
+        .unwrap();
+
+    assert_eq!(not_yet_due.resulting_tick, SimTick::new(1));
+    assert_eq!(not_yet_due.due_work_summary.world_processes_applied, 0);
+    assert!(!not_yet_due.appended_event_ids.contains(&process_event_id));
+
+    let result = scheduler
+        .transact_world_one_tick(
+            &mut physical,
+            &mut agent,
+            &mut log,
+            &registry,
+            None,
+            None,
+            WorldStepTransactionRequest {
+                advance: world_advance_request(1),
+                controlled_proposals: Vec::new(),
+                actor_known_interval_actor_id: None,
+            },
+        )
+        .unwrap();
+
+    assert_eq!(result.resulting_tick, SimTick::new(2));
+    assert_eq!(result.due_work_summary.world_processes_applied, 1);
+    assert!(result.appended_event_ids.contains(&process_event_id));
+    assert!(log.events().iter().any(|event| {
+        event.event_id == process_event_id
+            && event.event_type == EventKind::NoHumanAdvanceStarted
+            && event.process_id.as_ref() == Some(&process_id)
+    }));
+}
+
+#[test]
+fn transactional_world_step_without_declared_process_applies_no_process_work() {
+    let actor = actor_id("actor_mara");
+    let place = place_id("home_mara");
+    let mut physical = physical_state_for(&actor, &place);
+    let mut agent = agent_state_for(&actor);
+    let mut log = EventLog::new();
+    let registry = ActionRegistry::new();
+    let mut scheduler = DeterministicScheduler::new(SimTick::ZERO);
+    let physical_before = physical.clone();
+    let agent_before = agent.clone();
+    let checksum_before = state_checksum_pair(&physical, SimTick::ZERO, 0);
 
     let result = scheduler
         .transact_world_one_tick(
@@ -731,62 +732,16 @@ fn transactional_world_step_applies_due_world_process_event() {
             WorldStepTransactionRequest {
                 advance: world_advance_request(0),
                 controlled_proposals: Vec::new(),
-                due_actor_ids: Vec::new(),
                 actor_known_interval_actor_id: None,
-                world_process_events: vec![process_event],
             },
         )
         .unwrap();
 
-    assert_eq!(result.resulting_tick, SimTick::new(1));
-    assert_eq!(result.due_work_summary.world_processes_applied, 1);
-    assert!(result.appended_event_ids.contains(&process_event_id));
-    assert!(log.events().iter().any(|event| {
-        event.event_id == process_event_id
-            && event.event_type == EventKind::NoHumanAdvanceStarted
-            && event.process_id.as_ref() == Some(&process_id)
-    }));
-}
-
-#[test]
-fn transactional_world_step_failure_leaves_authorities_unchanged() {
-    let actor = actor_id("actor_mara");
-    let place = place_id("home_mara");
-    let mut physical = physical_state_for(&actor, &place);
-    let mut agent = agent_state_for(&actor);
-    let mut log = EventLog::new();
-    let registry = ActionRegistry::new();
-    let process_id = ProcessId::new("process_bad_move").unwrap();
-    let bad_event = malformed_actor_moved_process_event("event.process_bad_move.1", &process_id, 1);
-    let mut scheduler = DeterministicScheduler::new(SimTick::ZERO);
-    let physical_before = physical.clone();
-    let agent_before = agent.clone();
-    let log_before = log.clone();
-    let checksum_before = state_checksum_pair(&physical, SimTick::ZERO, 0);
-
-    let error = scheduler
-        .transact_world_one_tick(
-            &mut physical,
-            &mut agent,
-            &mut log,
-            &registry,
-            None,
-            None,
-            WorldStepTransactionRequest {
-                advance: world_advance_request(0),
-                controlled_proposals: Vec::new(),
-                due_actor_ids: Vec::new(),
-                actor_known_interval_actor_id: None,
-                world_process_events: vec![bad_event],
-            },
-        )
-        .unwrap_err();
-
-    assert!(matches!(error, WorldAdvanceError::WorldProcessApply { .. }));
-    assert_eq!(scheduler.current_tick(), SimTick::ZERO);
+    assert_eq!(result.due_work_summary.world_processes_applied, 0);
+    assert_eq!(scheduler.current_tick(), SimTick::new(1));
     assert_eq!(physical, physical_before);
     assert_eq!(agent, agent_before);
-    assert_eq!(log, log_before);
+    assert_eq!(log.events().len(), 1);
     assert_eq!(
         state_checksum_pair(&physical, SimTick::ZERO, 0),
         checksum_before
@@ -1003,7 +958,7 @@ struct LoadedWorldDifferentialCase<'a> {
     controlled_origin: ProposalOrigin,
     possessed: &'a ActorId,
     unpossessed_due: Option<ActorId>,
-    process_event: Option<EventEnvelope>,
+    due_process_id: Option<ProcessId>,
     proposal_id: &'a str,
 }
 
@@ -1016,6 +971,19 @@ fn run_loaded_world_differential_case(
     let mut registry = ActionRegistry::new();
     registry.register_phase1_inspect_wait();
     let mut scheduler = DeterministicScheduler::new(case.initial_tick);
+    if let Some(actor_id) = &case.unpossessed_due {
+        scheduler.schedule_loaded_actor_decision(actor_id.clone(), case.initial_tick.next());
+    }
+    if let Some(process_id) = &case.due_process_id {
+        scheduler.register_cadenced_world_process(
+            process_id.clone(),
+            case.initial_tick.next(),
+            1,
+            Vec::new(),
+            content_manifest_id(),
+            None,
+        );
+    }
     let mut controlled_proposal = wait_proposal(
         case.possessed,
         case.controlled_origin.clone(),
@@ -1044,9 +1012,7 @@ fn run_loaded_world_differential_case(
             WorldStepTransactionRequest {
                 advance: world_advance_request(case.initial_tick.value()),
                 controlled_proposals: vec![controlled_proposal],
-                due_actor_ids: case.unpossessed_due.into_iter().collect(),
                 actor_known_interval_actor_id: None,
-                world_process_events: case.process_event.into_iter().collect(),
             },
         )
         .unwrap();
@@ -1137,11 +1103,7 @@ fn authoritative_loaded_world_differential_is_non_vacuous() {
         controlled_origin: ProposalOrigin::Human,
         possessed: &possessed,
         unpossessed_due: Some(unpossessed.clone()),
-        process_event: Some(process_marker_event(
-            "event.loaded_world_probe.left",
-            &process_id,
-            2,
-        )),
+        due_process_id: Some(process_id.clone()),
         proposal_id: "proposal_loaded_world_left",
     });
     let right = run_loaded_world_differential_case(LoadedWorldDifferentialCase {
@@ -1151,11 +1113,7 @@ fn authoritative_loaded_world_differential_is_non_vacuous() {
         controlled_origin: ProposalOrigin::Scheduler,
         possessed: &possessed,
         unpossessed_due: Some(unpossessed.clone()),
-        process_event: Some(process_marker_event(
-            "event.loaded_world_probe.left",
-            &process_id,
-            2,
-        )),
+        due_process_id: Some(process_id.clone()),
         proposal_id: "proposal_loaded_world_left",
     });
 
@@ -1229,11 +1187,7 @@ fn authoritative_loaded_world_differential_is_non_vacuous() {
         controlled_origin: ProposalOrigin::Scheduler,
         possessed: &possessed,
         unpossessed_due: None,
-        process_event: Some(process_marker_event(
-            "event.loaded_world_probe.missing_actor",
-            &process_id,
-            2,
-        )),
+        due_process_id: Some(process_id.clone()),
         proposal_id: "proposal_loaded_world_missing_actor",
     });
     assert!(!loaded_world_differential_passes(
@@ -1250,7 +1204,7 @@ fn authoritative_loaded_world_differential_is_non_vacuous() {
         controlled_origin: ProposalOrigin::Scheduler,
         possessed: &possessed,
         unpossessed_due: Some(unpossessed),
-        process_event: None,
+        due_process_id: None,
         proposal_id: "proposal_loaded_world_missing_process",
     });
     assert!(!loaded_world_differential_passes(

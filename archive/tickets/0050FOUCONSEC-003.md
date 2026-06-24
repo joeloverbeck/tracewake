@@ -1,6 +1,6 @@
 # 0050FOUCONSEC-003: Atomic cutover — reshape the world-step request, wire core-owned discovery, flip all callers, delete the raw-envelope path
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — reshapes `WorldStepTransactionRequest`, wires actor/process discovery into the coordinator, flips every production caller, deletes the raw caller-authored process-event path
@@ -93,3 +93,48 @@ In `crates/tracewake-core/tests/world_step_coordinator.rs`, replace the harness-
 1. `cargo test -p tracewake-core --test world_step_coordinator`
 2. `cargo test -p tracewake-tui --test command_loop_session`
 3. `cargo build --workspace --all-targets --locked && cargo clippy --workspace --all-targets -- -D warnings` — the full workspace must compile, which is the local-compile-atomicity proof that every caller was flipped.
+
+## Outcome
+
+Completed: 2026-06-24
+
+Removed the caller-supplied due-work fields from `WorldStepTransactionRequest`:
+`due_actor_ids` and `world_process_events` are no longer request members, and
+all in-workspace constructors now submit only the world-advance authority data,
+controlled proposals, and optional actor-known interval actor. The coordinator
+now derives due loaded actors from scheduler-owned loaded-actor scheduling state
+and derives due declared processes from the scheduler-owned cadenced process
+registry added by the previous tickets.
+
+Process work no longer crosses the request boundary as a finished
+`EventEnvelope`. The coordinator creates a declared-process event internally
+from a private `DueProcessInvocation`, with trigger/cadence payload,
+time-marker ancestry, content identity, and optional random provenance, then
+applies that core-built event inside the scratch transaction. The TUI,
+`advance_until`, no-human advancement helpers, and test constructors were
+updated to the reshaped request.
+
+The loaded-world differential was converted from request-injected due work to
+scheduler-owned setup: due actors are registered with
+`schedule_loaded_actor_decision`, due processes with
+`register_cadenced_world_process`, and the negative variants omit that
+scheduler-owned discovery state to prove the witness is non-vacuous. The
+declared-process witness now proves both the absent-one-tick-earlier case and
+the due-at-cadence case through the real coordinator.
+
+Deviation: compile-fail boundary fixtures remain out of scope here and are
+still assigned to `0050FOUCONSEC-004`, as the ticket states. The old raw
+process-event failure test was replaced because the raw-event request path no
+longer exists; the replacement proves that an unregistered process does not run
+and leaves only the ordinary time marker.
+
+Verification run:
+
+- `cargo fmt --all --check`
+- `cargo test -p tracewake-core --test world_step_coordinator`
+- `cargo test -p tracewake-core --test salient_stop_actor_known`
+- `cargo test -p tracewake-tui --test command_loop_session`
+- `cargo build --workspace --all-targets --locked`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `rg -n "pub due_actor_ids|pub world_process_events|request\\.world_process_events|request\\.due_actor_ids|world_process_events:|due_actor_ids:" crates/tracewake-core/src crates/tracewake-core/tests crates/tracewake-tui/src` (no matches)
+- `git diff --check`

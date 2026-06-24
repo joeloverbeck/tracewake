@@ -293,9 +293,7 @@ fn rolled_back_controlled_result(
 pub struct WorldStepTransactionRequest {
     pub advance: WorldAdvanceRequest,
     pub controlled_proposals: Vec<Proposal>,
-    pub due_actor_ids: Vec<ActorId>,
     pub actor_known_interval_actor_id: Option<ActorId>,
-    pub world_process_events: Vec<EventEnvelope>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -321,6 +319,10 @@ pub enum WorldAdvanceError {
     WorldProcessApply {
         event_id: EventId,
         error: EventApplicationError,
+    },
+    WorldProcessBuild {
+        process_id: ProcessId,
+        error: EventEnvelopeBuildError,
     },
     ActorKnownIntervalDelta(ActorKnownIntervalDeltaError),
     ActorPipelineApply {
@@ -513,7 +515,6 @@ impl DeterministicScheduler {
     /// next-decision tick is at or before the target tick. `BTreeMap` iteration
     /// provides stable sorted output, so caller insertion order cannot affect
     /// replay.
-    #[allow(dead_code)]
     fn due_loaded_actor_ids(
         &self,
         state: &PhysicalState,
@@ -539,7 +540,6 @@ impl DeterministicScheduler {
     /// source event IDs, content identity, and deterministic random provenance,
     /// but never a completed `EventEnvelope`; event construction remains owned
     /// by the later process transition wired in the atomic cutover.
-    #[allow(dead_code)]
     fn due_process_invocations(&self, target_tick: SimTick) -> Vec<DueProcessInvocation> {
         self.declared_world_processes
             .values()
@@ -556,6 +556,37 @@ impl DeterministicScheduler {
                     })
             })
             .collect()
+    }
+
+    pub fn schedule_loaded_actor_decision(
+        &mut self,
+        actor_id: ActorId,
+        next_decision_tick: SimTick,
+    ) {
+        self.loaded_actor_next_decision_tick
+            .insert(actor_id, next_decision_tick);
+    }
+
+    pub fn register_cadenced_world_process(
+        &mut self,
+        process_id: ProcessId,
+        first_due_tick: SimTick,
+        cadence_ticks: u64,
+        source_event_ids: Vec<EventId>,
+        content_manifest_id: ContentManifestId,
+        random_provenance: Option<String>,
+    ) {
+        self.declared_world_processes.insert(
+            process_id.clone(),
+            DeclaredWorldProcess::new_cadenced(
+                process_id,
+                first_due_tick,
+                cadence_ticks,
+                source_event_ids,
+                content_manifest_id,
+                random_provenance,
+            ),
+        );
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -687,7 +718,12 @@ impl DeterministicScheduler {
         }
 
         let mut world_processes_applied = 0;
-        for event in request.world_process_events {
+        for invocation in self.due_process_invocations(resulting_tick) {
+            let event = build_declared_world_process_event(
+                &invocation,
+                &request.advance,
+                &appended_marker.event_id,
+            )?;
             let appended = scratch_log
                 .append(event)
                 .map_err(WorldAdvanceError::EventAppend)?;
@@ -786,9 +822,8 @@ impl DeterministicScheduler {
         }
 
         let mut actor_transactions_attempted = 0;
-        let mut due_actor_ids = request.due_actor_ids;
-        due_actor_ids.sort();
-        due_actor_ids.dedup();
+        let due_actor_ids =
+            self.due_loaded_actor_ids(&scratch_state, &scratch_agent_state, resulting_tick);
         let actor_frame_event_id = if due_actor_ids.is_empty() {
             None
         } else {
@@ -988,9 +1023,7 @@ impl DeterministicScheduler {
                         authorized_sleep_interruptions: Vec::new(),
                     },
                     controlled_proposals: Vec::new(),
-                    due_actor_ids: Vec::new(),
                     actor_known_interval_actor_id: Some(request.possessed_actor_id.clone()),
-                    world_process_events: Vec::new(),
                 },
             )?;
             appended_event_ids.extend(step.appended_event_ids.iter().cloned());
@@ -1699,6 +1732,97 @@ fn build_world_step_actor_frame_event(
     Ok(event)
 }
 
+fn build_declared_world_process_event(
+    invocation: &DueProcessInvocation,
+    request: &WorldAdvanceRequest,
+    marker_event_id: &EventId,
+) -> Result<EventEnvelope, WorldAdvanceError> {
+    let ordering_key = OrderingKey::new(
+        invocation.effective_tick,
+        SchedulePhase::DeferredProcess,
+        SchedulerSourceId::Process(invocation.process_id.clone()),
+        ProposalSequence::new(invocation.trigger_witness.elapsed_ticks),
+        ActionId::new("declared_world_process").map_err(WorldAdvanceError::InvalidMarkerId)?,
+        vec![invocation.process_id.as_str().to_string()],
+        format!(
+            "declared_world_process:{}:{}",
+            invocation.process_id.as_str(),
+            invocation.effective_tick.value()
+        ),
+    );
+    let mut causes = invocation
+        .source_event_ids
+        .iter()
+        .cloned()
+        .map(EventCause::Event)
+        .collect::<Vec<_>>();
+    if causes.is_empty() {
+        causes.push(EventCause::Process(invocation.process_id.clone()));
+    }
+    causes.push(EventCause::Event(marker_event_id.clone()));
+    let mut event = EventEnvelope::new_caused_v1(
+        EventId::new(format!(
+            "event.declared_world_process.{}.{}",
+            invocation.process_id.as_str(),
+            invocation.effective_tick.value()
+        ))
+        .map_err(WorldAdvanceError::InvalidMarkerId)?,
+        EventKind::NoHumanAdvanceStarted,
+        0,
+        0,
+        invocation.effective_tick,
+        ordering_key,
+        request.content_manifest_id.clone(),
+        causes,
+    )
+    .map_err(|error| WorldAdvanceError::WorldProcessBuild {
+        process_id: invocation.process_id.clone(),
+        error,
+    })?;
+    event.process_id = Some(invocation.process_id.clone());
+    event.payload = vec![
+        PayloadField::new("schema_version", EVENT_SCHEMA_V1),
+        PayloadField::new("process_id", invocation.process_id.as_str()),
+        PayloadField::new("process_kind", "declared_world_process"),
+        PayloadField::new(
+            "effective_tick",
+            invocation.effective_tick.value().to_string(),
+        ),
+        PayloadField::new(
+            "first_due_tick",
+            invocation
+                .trigger_witness
+                .first_due_tick
+                .value()
+                .to_string(),
+        ),
+        PayloadField::new(
+            "cadence_ticks",
+            invocation.trigger_witness.cadence_ticks.to_string(),
+        ),
+        PayloadField::new(
+            "elapsed_ticks",
+            invocation.trigger_witness.elapsed_ticks.to_string(),
+        ),
+        PayloadField::new("time_marker_event_id", marker_event_id.as_str()),
+        PayloadField::new(
+            "content_manifest_id",
+            invocation.content_manifest_id.as_str(),
+        ),
+    ];
+    if let Some(random_provenance) = &invocation.random_provenance {
+        event
+            .payload
+            .push(PayloadField::new("random_provenance", random_provenance));
+    }
+    event.effects_summary = format!(
+        "declared world process {} ran at tick {}",
+        invocation.process_id.as_str(),
+        invocation.effective_tick.value()
+    );
+    Ok(event)
+}
+
 pub mod no_human {
     use std::collections::{BTreeMap, BTreeSet};
 
@@ -1978,9 +2102,7 @@ pub mod no_human {
                                 authorized_sleep_interruptions: Vec::new(),
                             },
                             controlled_proposals: vec![proposal.clone()],
-                            due_actor_ids: Vec::new(),
                             actor_known_interval_actor_id: None,
-                            world_process_events: Vec::new(),
                         },
                     ) {
                         Ok(step) => {
@@ -2375,9 +2497,7 @@ pub mod no_human {
                 WorldStepTransactionRequest {
                     advance: request,
                     controlled_proposals: Vec::new(),
-                    due_actor_ids: Vec::new(),
                     actor_known_interval_actor_id: None,
-                    world_process_events: Vec::new(),
                 },
             ) {
                 Ok(result) => result,
@@ -3467,9 +3587,7 @@ pub mod no_human {
                             authorized_sleep_interruptions: Vec::new(),
                         },
                         controlled_proposals: vec![proposal],
-                        due_actor_ids: Vec::new(),
                         actor_known_interval_actor_id: None,
-                        world_process_events: Vec::new(),
                     },
                 )
                 .map(|step| step.controlled_pipeline_results)
@@ -7404,9 +7522,7 @@ mod tests {
                         authorized_sleep_interruptions: Vec::new(),
                     },
                     controlled_proposals: vec![proposal],
-                    due_actor_ids: Vec::new(),
                     actor_known_interval_actor_id: None,
-                    world_process_events: Vec::new(),
                 },
             )
             .unwrap();
@@ -7454,9 +7570,7 @@ mod tests {
                         authorized_sleep_interruptions: Vec::new(),
                     },
                     controlled_proposals: vec![proposal],
-                    due_actor_ids: Vec::new(),
                     actor_known_interval_actor_id: None,
-                    world_process_events: Vec::new(),
                 },
             )
             .unwrap();

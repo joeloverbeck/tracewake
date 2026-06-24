@@ -5,17 +5,15 @@ use tracewake_core::agent::current_place_knowledge_context;
 use tracewake_core::checksum::ChecksumContext;
 use tracewake_core::epistemics::EpistemicProjection;
 use tracewake_core::events::log::EventLog;
-use tracewake_core::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
+use tracewake_core::events::EventStream;
 use tracewake_core::ids::{
-    ActionId, ActorId, ContentManifestId, ContentVersion, ControllerId, EventId, FixtureId,
-    PlaceId, ProcessId,
+    ActorId, ContentManifestId, ContentVersion, ControllerId, FixtureId, PlaceId,
 };
 use tracewake_core::projections::{IntervalNoticeKind, IntervalStopReason};
 use tracewake_core::replay::rebuild_projection;
 use tracewake_core::scheduler::{
-    AdvanceUntilRequest, AdvanceUntilStopReason, DeterministicScheduler, OrderingKey,
-    ProposalSequence, SchedulePhase, SchedulerSourceId, WorldAdvanceOrigin, WorldAdvanceRequest,
-    WorldStepTransactionRequest,
+    AdvanceUntilRequest, AdvanceUntilStopReason, DeterministicScheduler, WorldAdvanceOrigin,
+    WorldAdvanceRequest, WorldStepTransactionRequest,
 };
 use tracewake_core::state::{
     ActorBody, AgentState, NeedModelState, PhysicalState, PlaceState, VisibilityDefault,
@@ -100,50 +98,10 @@ fn checksum_context(tick: SimTick, log: &EventLog) -> ChecksumContext {
         world_stream_position_applied: log
             .events()
             .iter()
-            .filter(|event| event.stream == tracewake_core::events::EventStream::World)
+            .filter(|event| event.stream == EventStream::World)
             .count()
             .saturating_sub(1) as u64,
     }
-}
-
-fn hidden_other_actor_observation(actor: &ActorId, tick: SimTick) -> EventEnvelope {
-    let process = ProcessId::new("process_hidden_observation").unwrap();
-    let mut event = EventEnvelope::new_caused_v1(
-        EventId::new("event_hidden_observation_other_actor").unwrap(),
-        EventKind::ObservationRecorded,
-        99,
-        99,
-        tick,
-        OrderingKey::new(
-            tick,
-            SchedulePhase::NoHumanProcess,
-            SchedulerSourceId::Process(process.clone()),
-            ProposalSequence::new(0),
-            ActionId::new("hidden_observation").unwrap(),
-            vec![actor.as_str().to_string()],
-            "hidden_observation",
-        ),
-        manifest_id(),
-        vec![EventCause::Process(process)],
-    )
-    .unwrap();
-    event.actor_id = Some(actor.clone());
-    event.place_id = Some(place_id("kitchen"));
-    event.payload = vec![
-        PayloadField::new("schema_version", EVENT_SCHEMA_V1),
-        PayloadField::new("observation_id", "obs_hidden_other"),
-        PayloadField::new("observer_actor_id", actor.as_str()),
-        PayloadField::new("observer_place_id", "kitchen"),
-        PayloadField::new("place_id", "kitchen"),
-        PayloadField::new("observed_tick", tick.value().to_string()),
-        PayloadField::new("channel", "direct_sight"),
-        PayloadField::new("source_event_id", "event_hidden_observation_other_actor"),
-        PayloadField::new("perceived_kind", "current_place"),
-        PayloadField::new("subject_id", "kitchen"),
-        PayloadField::new("target_id", "kitchen"),
-        PayloadField::new("confidence", "1000"),
-    ];
-    event
 }
 
 #[test]
@@ -169,9 +127,7 @@ fn typed_actor_known_delta_stops_on_modeled_observation_without_hidden_leak() {
             WorldStepTransactionRequest {
                 advance: world_advance_request(0),
                 controlled_proposals: Vec::new(),
-                due_actor_ids: Vec::new(),
                 actor_known_interval_actor_id: Some(possessed.clone()),
-                world_process_events: vec![hidden_other_actor_observation(&other, SimTick::new(1))],
             },
         )
         .unwrap();

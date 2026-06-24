@@ -298,9 +298,7 @@ impl TuiApp {
                             authorized_sleep_interruptions: Vec::new(),
                         },
                         controlled_proposals: vec![proposal],
-                        due_actor_ids: Vec::new(),
                         actor_known_interval_actor_id: None,
-                        world_process_events: Vec::new(),
                     },
                 )
                 .map_err(AppError::WorldAdvance)?;
