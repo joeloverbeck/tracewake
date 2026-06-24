@@ -142,6 +142,18 @@ const FIXTURES: &[NegativeFixture] = &[
         name: "external_crate_cannot_assign_scheduler_frontier",
         expected_stderr: "private field",
     },
+    NegativeFixture {
+        name: "external_crate_cannot_set_world_step_due_actor_ids",
+        expected_stderr: "no field named `due_actor_ids`",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_set_world_step_process_events",
+        expected_stderr: "no field named `world_process_events`",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_name_due_process_invocation",
+        expected_stderr: "struct `DueProcessInvocation` is private",
+    },
 ];
 
 struct ClippyBanProof {

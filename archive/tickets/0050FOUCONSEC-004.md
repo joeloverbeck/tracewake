@@ -1,6 +1,6 @@
 # 0050FOUCONSEC-004: Compile-fail boundary fixtures for due-work / raw-process injection
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — adds external-crate compile-fail negative fixtures and registers them in the negative-fixture runner
@@ -70,3 +70,31 @@ Extend `crates/tracewake-core/tests/negative_fixture_runner.rs` to drive the new
 
 1. `cargo test -p tracewake-core --test negative_fixture_runner`
 2. `cargo build --workspace --all-targets --locked`
+
+## Outcome
+
+Completed: 2026-06-24
+
+Added three external negative-fixture crates proving the post-cutover world-step
+boundary cannot be used to reintroduce caller-authored due work:
+
+- `external_crate_cannot_set_world_step_due_actor_ids` attempts to populate the
+  removed `WorldStepTransactionRequest::due_actor_ids` field and fails to
+  compile.
+- `external_crate_cannot_set_world_step_process_events` attempts to populate the
+  removed `WorldStepTransactionRequest::world_process_events` field with raw
+  `EventEnvelope` process work and fails to compile.
+- `external_crate_cannot_name_due_process_invocation` attempts to name the
+  scheduler-private `DueProcessInvocation` type from an external crate and
+  fails to compile.
+
+Registered the fixtures in `negative_fixture_runner`; the directory census now
+requires these fixtures to stay registered, and the runner checks the expected
+rustc stderr fragments for each boundary failure.
+
+Verification run:
+
+- `cargo test -p tracewake-core --test negative_fixture_runner`
+- `cargo fmt --all --check`
+- `cargo build --workspace --all-targets --locked`
+- `git diff --check`
