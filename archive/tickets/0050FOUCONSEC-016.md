@@ -1,6 +1,6 @@
 # 0050FOUCONSEC-016: Mutation witnesses for actor-known-record novelty predicate
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — test-only (adds witnesses in `crates/tracewake-core/src/epistemics/projection.rs` test module).
@@ -79,3 +79,16 @@ Prioritize the variants whose lines changed in this PR's diff so every in-diff s
 1. `cargo test -p tracewake-core epistemics::projection`
 2. `cargo mutants --in-diff <(git diff origin/main...HEAD -- crates/tracewake-core/src/epistemics/projection.rs) --no-shuffle --jobs 2 --timeout 183` — reproduces the in-diff gate's input selection for the changed `projection.rs` lines.
 3. The per-file mutation command is the correct boundary because the CI gate scopes mutation to changed guarded-layer lines; the full standing perimeter is the scheduled `mutants-lock-layer` matrix, not this PR gate.
+
+## Outcome
+
+Completed: 2026-06-24
+
+Implemented test-only field-sensitivity witnesses in `crates/tracewake-core/src/epistemics/projection.rs` for `actor_known_record_is_novel_to_context`. The new test covers all context-backed `ActorKnownProjectionRecord` variants in the predicate: `CurrentPlace`, `CarriedItem`, `Route`, `FoodSource`, `SleepPlace`, `Workplace`, `LocalDoor`, `LocalContainer`, `LocalItem`, and `LocalActor`. For each variant, it asserts the all-discriminating-fields-match case is not novel and every discriminating single-field difference is novel.
+
+Verification run:
+
+- `cargo test -p tracewake-core epistemics::projection` — pass.
+- `cargo mutants --in-diff <(git diff origin/main -- crates/tracewake-core/src/epistemics/projection.rs) --no-shuffle --jobs 2 --timeout 183` — pass; 57 mutants tested, 56 caught, 1 unviable, 0 missed.
+
+No production behavior, mutation perimeter, or baseline files changed. As with the sibling survivor tickets, the mutation selector used `origin/main` so the in-diff input matched the current edited source tree rather than the pre-ticket committed diff.
