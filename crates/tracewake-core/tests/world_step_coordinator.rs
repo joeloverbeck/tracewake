@@ -1230,15 +1230,15 @@ fn authoritative_loaded_world_differential_is_non_vacuous() {
         &initial_physical,
         &initial_agent
     ));
-    assert!(left.result.due_work_summary.actor_transactions_attempted > 0);
+    assert_eq!(left.result.due_work_summary.actor_transactions_attempted, 1);
     assert_eq!(left.result.due_work_summary.world_processes_applied, 1);
-    assert!(
+    assert_eq!(
         left.log
             .events()
             .iter()
             .filter(|event| event.event_type == EventKind::ActorWaited)
-            .count()
-            >= 2
+            .count(),
+        2
     );
 }
 

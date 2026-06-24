@@ -686,9 +686,13 @@ impl DeterministicScheduler {
                         controlled_source_frontier,
                     )
                 });
+        let mut controlled_actor_ids = BTreeSet::new();
         let mut controlled_pipeline_results = Vec::new();
         let mut post_marker_controlled_proposals = Vec::new();
         for proposal in request.controlled_proposals {
+            if let Some(actor_id) = proposal.actor_id.clone() {
+                controlled_actor_ids.insert(actor_id);
+            }
             if proposal.action_id.as_str() == "wait" {
                 post_marker_controlled_proposals.push(proposal);
                 continue;
@@ -880,8 +884,11 @@ impl DeterministicScheduler {
 
         let mut actor_transactions_attempted = 0;
         let mut actor_step_summaries = Vec::new();
-        let due_actor_ids =
-            self.due_loaded_actor_ids(&scratch_state, &scratch_agent_state, resulting_tick);
+        let due_actor_ids = self
+            .due_loaded_actor_ids(&scratch_state, &scratch_agent_state, resulting_tick)
+            .into_iter()
+            .filter(|actor_id| !controlled_actor_ids.contains(actor_id))
+            .collect::<Vec<_>>();
         let actor_frame_event_id = if due_actor_ids.is_empty() {
             None
         } else {
