@@ -1,6 +1,6 @@
 # 0050FOUCONSEC-002: Declared world-process registry + cadence + private `DueProcessInvocation` (additive, unwired)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds a core-owned declared-process registry/cadence surface and a private `DueProcessInvocation` type (no behavior wired in yet)
@@ -80,3 +80,33 @@ Add an additive test in `crates/tracewake-core/tests/world_step_coordinator.rs`:
 
 1. `cargo test -p tracewake-core --test world_step_coordinator`
 2. `cargo build --workspace --all-targets --locked && cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Completed: 2026-06-24
+
+Implemented the unwired declared-world-process substrate in
+`crates/tracewake-core/src/scheduler.rs`. The recorded registry shape is a
+private scheduler-owned cadenced process map keyed by `ProcessId`; each process
+records first due tick, nonzero cadence, source event IDs, content manifest
+identity, and optional deterministic random provenance. The private
+`DueProcessInvocation` carries process ID, trigger witness, effective tick,
+source event IDs, content identity, and random provenance, and it carries no
+finished `EventEnvelope`.
+
+Deviation: like `0050FOUCONSEC-001`, the ticket named an integration test in
+`crates/tracewake-core/tests/world_step_coordinator.rs` while also requiring
+the new surface to remain private/`pub(crate)` at most. The proof therefore
+landed as the internal unit test
+`scheduler::tests::declared_process_derivation_is_cadenced_private_and_stable`
+instead of widening the API solely for test reachability. The existing
+`world_step_coordinator` integration suite passed unchanged during the
+implementation pass.
+
+Verification run:
+
+- `cargo fmt --all --check`
+- `cargo test -p tracewake-core declared_process_derivation_is_cadenced_private_and_stable`
+- `cargo test -p tracewake-core --test world_step_coordinator`
+- `cargo build --workspace --all-targets --locked`
+- `cargo clippy --workspace --all-targets -- -D warnings`

@@ -174,6 +174,74 @@ pub struct WorldStepDueWorkSummary {
     pub world_processes_applied: usize,
 }
 
+#[allow(dead_code)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct DeclaredWorldProcess {
+    process_id: ProcessId,
+    first_due_tick: SimTick,
+    cadence_ticks: u64,
+    source_event_ids: Vec<EventId>,
+    content_manifest_id: ContentManifestId,
+    random_provenance: Option<String>,
+}
+
+impl DeclaredWorldProcess {
+    #[allow(dead_code)]
+    fn new_cadenced(
+        process_id: ProcessId,
+        first_due_tick: SimTick,
+        cadence_ticks: u64,
+        source_event_ids: Vec<EventId>,
+        content_manifest_id: ContentManifestId,
+        random_provenance: Option<String>,
+    ) -> Self {
+        assert!(cadence_ticks > 0, "world-process cadence must be nonzero");
+        Self {
+            process_id,
+            first_due_tick,
+            cadence_ticks,
+            source_event_ids,
+            content_manifest_id,
+            random_provenance,
+        }
+    }
+
+    fn due_witness(&self, effective_tick: SimTick) -> Option<ProcessTriggerWitness> {
+        if effective_tick < self.first_due_tick {
+            return None;
+        }
+        let elapsed_ticks = effective_tick.value() - self.first_due_tick.value();
+        if elapsed_ticks.is_multiple_of(self.cadence_ticks) {
+            Some(ProcessTriggerWitness {
+                first_due_tick: self.first_due_tick,
+                cadence_ticks: self.cadence_ticks,
+                elapsed_ticks,
+            })
+        } else {
+            None
+        }
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct ProcessTriggerWitness {
+    first_due_tick: SimTick,
+    cadence_ticks: u64,
+    elapsed_ticks: u64,
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct DueProcessInvocation {
+    process_id: ProcessId,
+    trigger_witness: ProcessTriggerWitness,
+    effective_tick: SimTick,
+    source_event_ids: Vec<EventId>,
+    content_manifest_id: ContentManifestId,
+    random_provenance: Option<String>,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum BodyExclusiveDurationKind {
     Sleep,
@@ -396,6 +464,7 @@ pub struct DeterministicScheduler {
     current_tick: SimTick,
     proposal_sequences: ProposalSequenceAssigner,
     loaded_actor_next_decision_tick: BTreeMap<ActorId, SimTick>,
+    declared_world_processes: BTreeMap<ProcessId, DeclaredWorldProcess>,
 }
 
 impl DeterministicScheduler {
@@ -404,6 +473,7 @@ impl DeterministicScheduler {
             current_tick,
             proposal_sequences: ProposalSequenceAssigner::new(),
             loaded_actor_next_decision_tick: BTreeMap::new(),
+            declared_world_processes: BTreeMap::new(),
         }
     }
 
@@ -458,6 +528,33 @@ impl DeterministicScheduler {
                     && agent_state.needs_by_actor().contains_key(*actor_id)
             })
             .map(|(actor_id, _)| actor_id.clone())
+            .collect()
+    }
+
+    /// Derives due declared world-process invocations from scheduler-owned
+    /// registry state.
+    ///
+    /// Spec-0050's first process pass uses a private cadenced registry. The
+    /// resulting invocation carries trigger/cadence provenance, effective tick,
+    /// source event IDs, content identity, and deterministic random provenance,
+    /// but never a completed `EventEnvelope`; event construction remains owned
+    /// by the later process transition wired in the atomic cutover.
+    #[allow(dead_code)]
+    fn due_process_invocations(&self, target_tick: SimTick) -> Vec<DueProcessInvocation> {
+        self.declared_world_processes
+            .values()
+            .filter_map(|process| {
+                process
+                    .due_witness(target_tick)
+                    .map(|trigger_witness| DueProcessInvocation {
+                        process_id: process.process_id.clone(),
+                        trigger_witness,
+                        effective_tick: target_tick,
+                        source_event_ids: process.source_event_ids.clone(),
+                        content_manifest_id: process.content_manifest_id.clone(),
+                        random_provenance: process.random_provenance.clone(),
+                    })
+            })
             .collect()
     }
 
@@ -6701,6 +6798,77 @@ mod tests {
 
     fn content_manifest_id() -> ContentManifestId {
         ContentManifestId::new("phase1_manifest").unwrap()
+    }
+
+    #[test]
+    fn declared_process_derivation_is_cadenced_private_and_stable() {
+        let manifest = content_manifest_id();
+        let beta = process_id("process_beta");
+        let alpha = process_id("process_alpha");
+        let source_event_id = EventId::new("event.process_seed.alpha").unwrap();
+        let mut scheduler = DeterministicScheduler::new(SimTick::new(8));
+
+        scheduler.declared_world_processes.insert(
+            beta.clone(),
+            DeclaredWorldProcess::new_cadenced(
+                beta.clone(),
+                SimTick::new(10),
+                2,
+                Vec::new(),
+                manifest.clone(),
+                None,
+            ),
+        );
+        scheduler.declared_world_processes.insert(
+            alpha.clone(),
+            DeclaredWorldProcess::new_cadenced(
+                alpha.clone(),
+                SimTick::new(10),
+                2,
+                vec![source_event_id.clone()],
+                manifest.clone(),
+                Some("seeded-rng-stream:alpha".to_string()),
+            ),
+        );
+
+        assert!(scheduler
+            .due_process_invocations(SimTick::new(9))
+            .is_empty());
+        assert!(scheduler
+            .due_process_invocations(SimTick::new(11))
+            .is_empty());
+
+        let due = scheduler.due_process_invocations(SimTick::new(12));
+        assert_eq!(due.len(), 2);
+        assert_eq!(due[0].process_id, alpha);
+        assert_eq!(due[0].effective_tick, SimTick::new(12));
+        assert_eq!(due[0].trigger_witness.first_due_tick, SimTick::new(10));
+        assert_eq!(due[0].trigger_witness.cadence_ticks, 2);
+        assert_eq!(due[0].trigger_witness.elapsed_ticks, 2);
+        assert_eq!(due[0].source_event_ids, vec![source_event_id]);
+        assert_eq!(due[0].content_manifest_id, manifest);
+        assert_eq!(
+            due[0].random_provenance.as_deref(),
+            Some("seeded-rng-stream:alpha")
+        );
+        assert_eq!(due[1].process_id, beta);
+
+        let mut reversed_scheduler = DeterministicScheduler::new(SimTick::new(8));
+        for (process_id, process) in scheduler
+            .declared_world_processes
+            .iter()
+            .rev()
+            .map(|(process_id, process)| (process_id.clone(), process.clone()))
+        {
+            reversed_scheduler
+                .declared_world_processes
+                .insert(process_id, process);
+        }
+
+        assert_eq!(
+            reversed_scheduler.due_process_invocations(SimTick::new(12)),
+            due
+        );
     }
 
     fn key(
