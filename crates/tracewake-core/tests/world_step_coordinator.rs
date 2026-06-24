@@ -9,6 +9,7 @@ use tracewake_core::agent::{
 };
 use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext, PhysicalChecksum};
 use tracewake_core::controller::ControllerBindings;
+use tracewake_core::epistemics::EpistemicProjection;
 use tracewake_core::events::apply::apply_agent_event;
 use tracewake_core::events::log::EventLog;
 use tracewake_core::events::{
@@ -121,6 +122,34 @@ fn advance_until_for_test(
     let mut staged_physical = physical.clone();
     let registry = ActionRegistry::new();
     scheduler.advance_until(&mut staged_physical, agent, log, &registry, None, request)
+}
+
+fn advance_until_for_test_with_known_current_place(
+    scheduler: &mut DeterministicScheduler,
+    physical: &PhysicalState,
+    agent: &mut AgentState,
+    log: &mut EventLog,
+    request: AdvanceUntilRequest,
+) -> Result<tracewake_core::scheduler::AdvanceUntilResult, WorldAdvanceError> {
+    let mut staged_physical = physical.clone();
+    let registry = ActionRegistry::new();
+    let mut projection = EpistemicProjection::new(request.content_manifest_id.clone());
+    scheduler.record_actor_current_place_perception(
+        &mut staged_physical,
+        agent,
+        log,
+        &mut projection,
+        &request.possessed_actor_id,
+        &request.content_manifest_id,
+    );
+    scheduler.advance_until(
+        &mut staged_physical,
+        agent,
+        log,
+        &registry,
+        Some(&mut projection),
+        request,
+    )
 }
 
 fn ordering_key(tick: u64, action_id: &str, actor_id: &ActorId) -> OrderingKey {
@@ -1486,7 +1515,7 @@ fn advance_until_stops_at_controller_safety_bound() {
     let mut log = EventLog::new();
     let mut scheduler = DeterministicScheduler::new(SimTick::new(9));
 
-    let result = advance_until_for_test(
+    let result = advance_until_for_test_with_known_current_place(
         &mut scheduler,
         &physical,
         &mut agent,
@@ -1528,7 +1557,7 @@ fn advance_until_stops_at_possessed_duration_terminal() {
     .unwrap();
     let mut scheduler = DeterministicScheduler::new(SimTick::new(9));
 
-    let result = advance_until_for_test(
+    let result = advance_until_for_test_with_known_current_place(
         &mut scheduler,
         &physical,
         &mut agent,
@@ -1551,7 +1580,7 @@ fn advance_until_stops_at_possessed_duration_terminal() {
 }
 
 #[test]
-fn advance_until_ignores_hidden_other_actor_duration_terminal() {
+fn advance_until_does_not_treat_hidden_other_actor_duration_terminal_as_possessed() {
     let actor = actor_id("actor_tomas");
     let other_actor = actor_id("actor_mara");
     let place = place_id("home_tomas");
@@ -1584,10 +1613,11 @@ fn advance_until_ignores_hidden_other_actor_duration_terminal() {
     )
     .unwrap();
 
-    assert_eq!(result.stop_tick, SimTick::new(11));
+    assert_eq!(result.stop_tick, SimTick::new(10));
+    assert_eq!(result.ticks_advanced, 1);
     assert_eq!(
         result.stop_reason,
-        AdvanceUntilStopReason::ControllerSafetyBound
+        AdvanceUntilStopReason::ActorKnownSalientObservation
     );
     assert!(log
         .events()

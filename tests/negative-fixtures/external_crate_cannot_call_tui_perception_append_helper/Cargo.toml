@@ -1,0 +1,9 @@
+[package]
+name = "external_crate_cannot_call_tui_perception_append_helper"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+tracewake-tui = { path = "../../../crates/tracewake-tui" }
+
+[workspace]

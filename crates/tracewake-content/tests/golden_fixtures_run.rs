@@ -520,14 +520,21 @@ fn load_with_log(
 }
 
 fn checksum_context(fixture_id: &str, log: &EventLog) -> ChecksumContext {
-    ChecksumContext {
-        fixture_id: FixtureId::new(fixture_id).unwrap(),
-        content_version: ContentVersion::new("content_v1").unwrap(),
-        sim_tick: log
-            .events()
+    checksum_context_at(
+        fixture_id,
+        log,
+        log.events()
             .last()
             .map(|event| event.sim_tick)
             .unwrap_or(SimTick::ZERO),
+    )
+}
+
+fn checksum_context_at(fixture_id: &str, log: &EventLog, sim_tick: SimTick) -> ChecksumContext {
+    ChecksumContext {
+        fixture_id: FixtureId::new(fixture_id).unwrap(),
+        content_version: ContentVersion::new("content_v1").unwrap(),
+        sim_tick,
         world_stream_position_applied: log
             .events()
             .iter()
@@ -1724,14 +1731,19 @@ fn severe_safety_with_known_exit_produces_move_and_replays() {
                 .is_some_and(|canonical| canonical.contains("leave_unsafe_place"))
     }));
 
-    let context = checksum_context("severe_safety_with_known_exit_produces_move_001", &log);
-    let live_physical_checksum = compute_physical_checksum(&state, &context).checksum;
-    let live_agent_checksum = compute_agent_state_checksum(&agent_state, &context).checksum;
+    let final_context = checksum_context("severe_safety_with_known_exit_produces_move_001", &log);
+    let replay_context = checksum_context_at(
+        "severe_safety_with_known_exit_produces_move_001",
+        &log,
+        SimTick::ZERO,
+    );
+    let live_physical_checksum = compute_physical_checksum(&state, &final_context).checksum;
+    let live_agent_checksum = compute_agent_state_checksum(&agent_state, &final_context).checksum;
     let replay = run_replay(
         &initial_state,
         &initial_agent_state,
         &log,
-        &context,
+        &replay_context,
         Some(&state),
         Some(live_physical_checksum),
         Some(live_agent_checksum),

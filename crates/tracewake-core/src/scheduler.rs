@@ -4398,12 +4398,14 @@ pub mod no_human {
             remediation_hint: "inspect no-human ordering and proposal diagnostics".to_string(),
         });
         let canonical = diagnostic.serialize_canonical();
+        let occurrence = log.events().len();
         let mut event = EventEnvelope::new_caused_v1(
             EventId::new(format!(
-                "event.stuck_diagnostic_recorded.{}.{}.{}",
+                "event.stuck_diagnostic_recorded.{}.{}.{}.{}",
                 kind.stable_id(),
                 actor_id.as_str(),
-                window.window_id
+                window.window_id,
+                occurrence
             ))
             .unwrap(),
             EventKind::StuckDiagnosticRecorded,

@@ -1,6 +1,6 @@
 # 0050FOUCONSEC-010: Evidence rebuild & reachability-lock replacement
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — replaces the reachability-overstating `0048` behavioral locks and extends the deterministic generative + compile-fail + parity harnesses
@@ -89,3 +89,30 @@ Remove/replace the `0048` differential/salient/replay locks that the production-
 1. `cargo test -p tracewake-core --test generative_lock --test negative_fixture_runner`
 2. `cargo test -p tracewake-tui --test parity_adversarial --test playable_capability_parity`
 3. `cargo test --workspace && cargo build --workspace --all-targets --locked`
+
+## Outcome
+
+Completed: 2026-06-24
+
+Rebuilt the consolidated evidence surface around the production path: the
+deterministic generative harness now exercises production-shaped scheduling,
+prefix replay, order invariance, temporal fail-closed behavior, and duplicate
+marker rejection; parity adversarial tests now distinguish missing typed actor
+invocation, missing no-human process work, missing holder-known evidence, and
+removed temporal marker evidence; compile-fail coverage now includes the closed
+actor-step outcome boundary and the non-exported TUI perception append helper.
+
+While replacing the stale reachability expectations, replay tests that supplied
+final-frontier contexts were corrected to replay from the initial frontier while
+checking final checksums, no-human stuck diagnostics now carry deterministic
+unique event IDs, and controller/continue tests were updated for typed interval
+salience and current TUI transcript behavior.
+
+Verification:
+
+1. `cargo test -p tracewake-core --test generative_lock --test negative_fixture_runner`
+2. `cargo test -p tracewake-tui --test parity_adversarial --test playable_capability_parity`
+3. `cargo fmt --all --check`
+4. `cargo clippy --workspace --all-targets -- -D warnings`
+5. `cargo build --workspace --all-targets --locked`
+6. `cargo test --workspace`
