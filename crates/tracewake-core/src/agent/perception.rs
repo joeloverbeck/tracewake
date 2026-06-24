@@ -35,7 +35,7 @@ pub fn record_current_place_perception(
             if log.contains_event_id(&event.event_id) {
                 let base = event.event_id.as_str().to_string();
                 let mut occurrence = log.events().len();
-                loop {
+                for _ in 0..=log.events().len() {
                     let candidate =
                         EventId::new(format!("{base}.occurrence.{occurrence}")).unwrap();
                     if !log.contains_event_id(&candidate) {
@@ -44,6 +44,11 @@ pub fn record_current_place_perception(
                     }
                     occurrence += 1;
                 }
+                assert_ne!(
+                    event.event_id.as_str(),
+                    base,
+                    "no free perception-event frontier id within bound"
+                );
             }
             log.append(event)
                 .expect("current-place perception event is versioned")
@@ -883,6 +888,41 @@ mod tests {
                     field.key == "source_event_id" && field.value == event.event_id.as_str()
                 })
         }));
+    }
+
+    #[test]
+    fn record_current_place_perception_bounds_collision_search_and_renames_payload_ids() {
+        let state = state_without_visible_surfaces();
+        let actor_id = actor_id("actor_tomas");
+        let tick = SimTick::new(4);
+        let manifest_id = manifest_id();
+        let base_event = current_place_perception_events(&state, &actor_id, tick, &manifest_id)
+            .into_iter()
+            .next()
+            .expect("current place perception exists");
+        let base_id = base_event.event_id.as_str().to_string();
+        let first_collision_id = EventId::new(format!("{base_id}.occurrence.2")).unwrap();
+        let expected_id = format!("{base_id}.occurrence.3");
+        let mut first_collision_event = base_event.clone();
+        rename_perception_event(&mut first_collision_event, first_collision_id);
+        let mut log = EventLog::new();
+        log.append(base_event).unwrap();
+        log.append(first_collision_event).unwrap();
+
+        let recorded =
+            record_current_place_perception(&mut log, &state, &actor_id, tick, &manifest_id);
+
+        assert_eq!(recorded.len(), 1);
+        assert_eq!(recorded[0].event_id.as_str(), expected_id);
+        assert_eq!(
+            payload_value(&recorded[0], "observation_id"),
+            Some(format!("obs.perception.{expected_id}").as_str())
+        );
+        assert_eq!(
+            payload_value(&recorded[0], "source_event_id"),
+            Some(expected_id.as_str())
+        );
+        assert_eq!(log.events().len(), 3);
     }
 
     fn item_id(value: &str) -> ItemId {

@@ -1,6 +1,6 @@
 # 0050FOUCONSEC-015: Bound the perception event-id collision loop and witness its rename path
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: Yes — production change in `crates/tracewake-core/src/agent/perception.rs` (bound an unbounded `loop` in `record_current_place_perception`); no events/schemas/fixtures/skills/docs change.
@@ -96,3 +96,17 @@ In the `perception.rs` test module (`#[cfg(test)] mod tests` at `:745`), add tes
 1. `cargo test -p tracewake-core perception`
 2. `cargo mutants --in-diff <(git diff origin/main...HEAD -- crates/tracewake-core/src/agent/perception.rs) --no-shuffle --jobs 2 --timeout 183` — reproduces the in-diff gate's input selection for the changed `perception.rs` lines.
 3. The per-file mutation command is the correct boundary because the CI gate scopes mutation to changed guarded-layer lines; reproduce the gate's `--timeout 183` so the bounded loop is confirmed to no longer time out.
+
+## Outcome
+
+Completed: 2026-06-24
+
+Bounded the perception event-id collision search in `record_current_place_perception` with a fail-closed attempt cap while preserving the existing deterministic candidate sequence. Added a double-collision witness in `crates/tracewake-core/src/agent/perception.rs` that pre-seeds the base perception id and the first frontier candidate, then asserts the next frontier id plus rewritten `observation_id` and `source_event_id` payload fields.
+
+Verification run:
+
+- `cargo test -p tracewake-core perception` — pass.
+- `cargo mutants --in-diff <(git diff origin/main...HEAD -- crates/tracewake-core/src/agent/perception.rs) --no-shuffle --jobs 2 --timeout 183` — not accepted as evidence; failed before mutation because the committed diff was stale against the edited working tree (`loop` in diff, bounded `for` in source).
+- `cargo mutants --in-diff <(git diff origin/main -- crates/tracewake-core/src/agent/perception.rs) --no-shuffle --jobs 2 --timeout 183` — pass; 8 mutants tested, 7 caught, 1 unviable, 0 missed.
+
+No mutation perimeter or baseline files changed. The command selector was adjusted from `origin/main...HEAD` to `origin/main` so `cargo mutants --in-diff` consumed a diff matching the current source tree after this ticket's edit.
