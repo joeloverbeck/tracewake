@@ -7,3 +7,6 @@ license.workspace = true
 [dependencies]
 tracewake-core = { path = "../tracewake-core" }
 tracewake-content = { path = "../tracewake-content" }
+
+[dev-dependencies]
+tracewake-core = { path = "../tracewake-core", features = ["test-support"] }

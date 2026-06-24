@@ -1,4 +1,4 @@
-Actor: actor_tomas | Tick: 0
+Actor: actor_tomas
 Place: Tomas workshop (workshop_tomas)
 Needs:
 - fatigue: band=comfortable cause=fixture_initial

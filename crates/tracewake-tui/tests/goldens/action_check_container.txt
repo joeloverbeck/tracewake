@@ -1,4 +1,4 @@
-Actor: actor_tomas | Tick: 0
+Actor: actor_tomas
 Place: Tomas house (house_tomas)
 Why-not: The container is closed. kind=access reasons=container_closed
 Needs:

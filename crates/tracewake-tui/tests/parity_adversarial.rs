@@ -95,15 +95,15 @@ fn parity_adversarial_source_guard_target_removal_fails() {
         "removing the source guard target must fail"
     );
 
-    let rest_pattern = render_source.replace(
-        "debug_available: _debug_available,\n    } = view;",
-        "debug_available: _debug_available,\n        ..\n    } = view;",
+    let missing_accessor = render_source.replace(
+        "view.actor_known_interval_summary()",
+        "view.actor_known_interval_summary_removed()",
     );
     assert!(
-        embodied_render_source_guard_errors(&rest_pattern, view_model_source)
+        embodied_render_source_guard_errors(&missing_accessor, view_model_source)
             .iter()
-            .any(|error| error.contains("rest pattern")),
-        "adding a wildcard rest pattern must fail the source guard"
+            .any(|error| error.contains("actor_known_interval_summary")),
+        "removing a sealed accessor target must fail the source guard"
     );
 }
 
@@ -206,33 +206,25 @@ fn assert_failure(failures: &[parity::runner::ConformanceFailure], key: &str, co
 
 fn embodied_render_source_guard_errors(
     render_source: &str,
-    view_model_source: &str,
+    _view_model_source: &str,
 ) -> Vec<String> {
     let mut errors = Vec::new();
     let function_body = source_after(render_source, "pub fn render_embodied_view(");
-    let destructure = source_between(function_body, "let EmbodiedViewModel {", "} = view;");
 
-    if destructure.contains("..") {
-        errors.push("render_embodied_view contains a rest pattern".to_string());
-    }
-    if destructure
-        .lines()
-        .any(|line| line.trim().trim_end_matches(',') == "_")
-    {
-        errors.push("render_embodied_view contains a bare wildcard".to_string());
+    if function_body.contains("let EmbodiedViewModel {") {
+        errors.push("render_embodied_view destructures sealed EmbodiedViewModel".to_string());
     }
     if !render_source.contains("#[deny(unused_variables)]\npub fn render_embodied_view(") {
         errors.push("render_embodied_view is missing the local unused_variables deny".to_string());
     }
 
-    for field_name in embodied_view_model_field_names(view_model_source) {
-        if !destructure.contains(&format!("{field_name}:"))
-            && !destructure
-                .lines()
-                .any(|line| line.trim().starts_with(&format!("{field_name},")))
-        {
+    for required_accessor in [
+        "view.viewer_actor_id()",
+        "view.actor_known_interval_summary()",
+    ] {
+        if !render_source.contains(required_accessor) {
             errors.push(format!(
-                "render_embodied_view destructure is missing EmbodiedViewModel field {field_name}"
+                "render_embodied_view is missing sealed accessor {required_accessor}"
             ));
         }
     }
@@ -257,18 +249,4 @@ fn source_between<'a>(source: &'a str, start_marker: &str, end_marker: &str) -> 
         .unwrap_or_else(|| panic!("missing source marker {end_marker}"))
         + after_start;
     &source[after_start..end]
-}
-
-fn embodied_view_model_field_names(source: &str) -> Vec<&str> {
-    let struct_body = source_between(source, "pub struct EmbodiedViewModel {", "}\n\n#[derive");
-    struct_body
-        .lines()
-        .filter_map(|line| {
-            let trimmed = line.trim();
-            trimmed
-                .strip_prefix("pub ")
-                .and_then(|field| field.split_once(':'))
-                .map(|(field_name, _)| field_name.trim())
-        })
-        .collect()
 }

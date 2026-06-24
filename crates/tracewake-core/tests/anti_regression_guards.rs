@@ -189,7 +189,7 @@ const EMBODIED_SURFACE_FIELD_PRODUCERS: &[EmbodiedSurfaceFieldProducer] =
             struct_name: "EmbodiedViewModel",
             field_name: "notebook",
             source_path: "tracewake-tui/src/app.rs",
-            producer_snippet: "view.notebook = Some(build_notebook_view",
+            producer_snippet: "view.set_notebook(Some(build_notebook_view",
             cite: "docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md",
             rationale: "The core projection builds the embodied shell and the TUI boundary attaches the actor-known notebook from the same sealed view context.",
         },
@@ -197,7 +197,7 @@ const EMBODIED_SURFACE_FIELD_PRODUCERS: &[EmbodiedSurfaceFieldProducer] =
             struct_name: "EmbodiedViewModel",
             field_name: "debug_available",
             source_path: "tracewake-tui/src/app.rs",
-            producer_snippet: "view.debug_available = self.debug_available_for(actor_id);",
+            producer_snippet: "view.set_debug_available(self.debug_available_for(actor_id));",
             cite: "specs/0021_PHASE_3A_POSSESSION_REBIND_HYGIENE_GUARD_VACUITY_CLOSURE_HARNESS_PROVENANCE_FIDELITY_AND_REJECT_LOUDLY_REPLAY_POSTURE_HARDENING_SPEC.md",
             rationale: "Core leaves debug availability false; the TUI boundary derives it from the live controller binding for the viewed actor.",
         },
@@ -205,7 +205,7 @@ const EMBODIED_SURFACE_FIELD_PRODUCERS: &[EmbodiedSurfaceFieldProducer] =
             struct_name: "EmbodiedViewModel",
             field_name: "actor_known_interval_summary",
             source_path: "tracewake-tui/src/app.rs",
-            producer_snippet: "view.actor_known_interval_summary = self.last_interval_summary.clone();",
+            producer_snippet: "view.set_actor_known_interval_summary(self.last_interval_summary.clone());",
             cite: "archive/specs/0047_TUI_AUTHORITATIVE_WORLD_ADVANCE_DURATION_COMPLETION_AND_ACTOR_KNOWN_INTERVAL_SUMMARIES_SPEC.md",
             rationale: "Core builds the sealed embodied shell; the TUI boundary attaches the last completed advance summary constructed from source-bearing interval inputs.",
         },
@@ -1351,6 +1351,11 @@ const WORKSPACE_DEPENDENCY_ALLOWLIST: &[(&str, &str, &str)] = &[
     (
         "crates/tracewake-tui/Cargo.toml",
         "dependencies",
+        "tracewake-core",
+    ),
+    (
+        "crates/tracewake-tui/Cargo.toml",
+        "dev-dependencies",
         "tracewake-core",
     ),
 ];

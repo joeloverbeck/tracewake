@@ -1,4 +1,4 @@
-Actor: actor_lina | Tick: 0
+Actor: actor_lina
 Place: Market stall (market_stall)
 Needs:
 - fatigue: band=comfortable cause=fixture_initial

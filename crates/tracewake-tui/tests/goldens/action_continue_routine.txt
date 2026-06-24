@@ -1,4 +1,4 @@
-Actor: actor_mara | Tick: 0
+Actor: actor_mara
 Place: Mara workshop (workshop_mara)
 Needs:
 - fatigue: band=rising cause=fixture_initial

@@ -164,7 +164,15 @@ const FIXTURES: &[NegativeFixture] = &[
     },
     NegativeFixture {
         name: "external_crate_cannot_convert_debug_report_to_interval_summary",
-        expected_stderr: "the trait bound",
+        expected_stderr: "mismatched types",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_construct_actor_interval_summary",
+        expected_stderr: "private field",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_mutate_embodied_temporal_fields",
+        expected_stderr: "private field",
     },
     NegativeFixture {
         name: "external_crate_cannot_assign_scheduler_frontier",

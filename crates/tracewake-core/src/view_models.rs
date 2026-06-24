@@ -17,10 +17,22 @@ pub enum ViewMode {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EmbodiedViewModel {
+    #[cfg(feature = "test-support")]
     pub view_model_id: ViewModelId,
+    #[cfg(not(feature = "test-support"))]
+    pub(crate) view_model_id: ViewModelId,
+    #[cfg(feature = "test-support")]
     pub mode: ViewMode,
+    #[cfg(not(feature = "test-support"))]
+    pub(crate) mode: ViewMode,
+    #[cfg(feature = "test-support")]
     pub viewer_actor_id: ActorId,
+    #[cfg(not(feature = "test-support"))]
+    pub(crate) viewer_actor_id: ActorId,
+    #[cfg(feature = "test-support")]
     pub sim_tick: SimTick,
+    #[cfg(not(feature = "test-support"))]
+    pub(crate) sim_tick: SimTick,
     pub place_id: PlaceId,
     pub place_label: String,
     pub visible_exits: Vec<VisibleExit>,
@@ -33,28 +45,199 @@ pub struct EmbodiedViewModel {
     pub phase3a_status: Option<Phase3AEmbodiedStatus>,
     pub last_rejection_summary: Option<String>,
     pub last_rejection_why_not: Option<WhyNotView>,
+    #[cfg(feature = "test-support")]
     pub holder_known_context_id: HolderKnownContextId,
+    #[cfg(not(feature = "test-support"))]
+    pub(crate) holder_known_context_id: HolderKnownContextId,
+    #[cfg(feature = "test-support")]
     pub holder_known_context_hash: HolderKnownContextHash,
+    #[cfg(not(feature = "test-support"))]
+    pub(crate) holder_known_context_hash: HolderKnownContextHash,
+    #[cfg(feature = "test-support")]
     pub holder_known_context_frontier: u64,
+    #[cfg(not(feature = "test-support"))]
+    pub(crate) holder_known_context_frontier: u64,
+    #[cfg(feature = "test-support")]
     pub holder_known_context_source_summary: String,
+    #[cfg(not(feature = "test-support"))]
+    pub(crate) holder_known_context_source_summary: String,
+    #[cfg(feature = "test-support")]
     pub actor_known_interval_summary: Option<TypedActorKnownIntervalSummary>,
+    #[cfg(not(feature = "test-support"))]
+    pub(crate) actor_known_interval_summary: Option<TypedActorKnownIntervalSummary>,
     pub notebook: Option<NotebookView>,
+    #[cfg(feature = "test-support")]
     pub debug_available: bool,
+    #[cfg(not(feature = "test-support"))]
+    pub(crate) debug_available: bool,
+}
+
+impl EmbodiedViewModel {
+    #[cfg(feature = "test-support")]
+    #[allow(clippy::too_many_arguments)]
+    pub fn for_test(
+        view_model_id: ViewModelId,
+        mode: ViewMode,
+        viewer_actor_id: ActorId,
+        sim_tick: SimTick,
+        place_id: PlaceId,
+        place_label: String,
+        visible_exits: Vec<VisibleExit>,
+        visible_doors: Vec<VisibleDoor>,
+        visible_containers: Vec<VisibleContainer>,
+        visible_items: Vec<VisibleItem>,
+        carried_items: Vec<VisibleItem>,
+        local_actors: Vec<VisibleActor>,
+        semantic_actions: Vec<SemanticActionEntry>,
+        phase3a_status: Option<Phase3AEmbodiedStatus>,
+        last_rejection_summary: Option<String>,
+        last_rejection_why_not: Option<WhyNotView>,
+        holder_known_context_id: HolderKnownContextId,
+        holder_known_context_hash: HolderKnownContextHash,
+        holder_known_context_frontier: u64,
+        holder_known_context_source_summary: String,
+        actor_known_interval_summary: Option<TypedActorKnownIntervalSummary>,
+        notebook: Option<NotebookView>,
+        debug_available: bool,
+    ) -> Self {
+        Self {
+            view_model_id,
+            mode,
+            viewer_actor_id,
+            sim_tick,
+            place_id,
+            place_label,
+            visible_exits,
+            visible_doors,
+            visible_containers,
+            visible_items,
+            carried_items,
+            local_actors,
+            semantic_actions,
+            phase3a_status,
+            last_rejection_summary,
+            last_rejection_why_not,
+            holder_known_context_id,
+            holder_known_context_hash,
+            holder_known_context_frontier,
+            holder_known_context_source_summary,
+            actor_known_interval_summary,
+            notebook,
+            debug_available,
+        }
+    }
+
+    pub fn view_model_id(&self) -> &ViewModelId {
+        &self.view_model_id
+    }
+
+    pub fn mode(&self) -> ViewMode {
+        self.mode
+    }
+
+    pub fn viewer_actor_id(&self) -> &ActorId {
+        &self.viewer_actor_id
+    }
+
+    pub fn sim_tick(&self) -> SimTick {
+        self.sim_tick
+    }
+
+    pub fn holder_known_context_id(&self) -> &HolderKnownContextId {
+        &self.holder_known_context_id
+    }
+
+    pub fn holder_known_context_hash(&self) -> &HolderKnownContextHash {
+        &self.holder_known_context_hash
+    }
+
+    pub fn holder_known_context_frontier(&self) -> u64 {
+        self.holder_known_context_frontier
+    }
+
+    pub fn holder_known_context_source_summary(&self) -> &str {
+        &self.holder_known_context_source_summary
+    }
+
+    pub fn actor_known_interval_summary(&self) -> Option<&TypedActorKnownIntervalSummary> {
+        self.actor_known_interval_summary.as_ref()
+    }
+
+    pub fn debug_available(&self) -> bool {
+        self.debug_available
+    }
+
+    pub fn set_notebook(&mut self, notebook: Option<NotebookView>) {
+        self.notebook = notebook;
+    }
+
+    pub fn set_debug_available(&mut self, debug_available: bool) {
+        self.debug_available = debug_available;
+    }
+
+    pub fn set_actor_known_interval_summary(
+        &mut self,
+        summary: Option<TypedActorKnownIntervalSummary>,
+    ) {
+        self.actor_known_interval_summary = summary;
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TypedActorKnownIntervalSummary {
+    #[cfg(feature = "test-support")]
     pub start_tick: SimTick,
+    #[cfg(not(feature = "test-support"))]
+    pub(crate) start_tick: SimTick,
+    #[cfg(feature = "test-support")]
     pub stop_tick: SimTick,
+    #[cfg(not(feature = "test-support"))]
+    pub(crate) stop_tick: SimTick,
+    #[cfg(feature = "test-support")]
     pub start_frontier: u64,
+    #[cfg(not(feature = "test-support"))]
+    pub(crate) start_frontier: u64,
+    #[cfg(feature = "test-support")]
     pub stop_frontier: u64,
+    #[cfg(not(feature = "test-support"))]
+    pub(crate) stop_frontier: u64,
+    #[cfg(feature = "test-support")]
     pub stop_reason: crate::projections::IntervalStopReason,
+    #[cfg(not(feature = "test-support"))]
+    pub(crate) stop_reason: crate::projections::IntervalStopReason,
+    #[cfg(feature = "test-support")]
     pub notices: Vec<crate::projections::VerifiedActorKnownIntervalNotice>,
+    #[cfg(not(feature = "test-support"))]
+    pub(crate) notices: Vec<crate::projections::VerifiedActorKnownIntervalNotice>,
+    #[cfg(feature = "test-support")]
     pub no_new_actor_known_information: bool,
+    #[cfg(not(feature = "test-support"))]
+    pub(crate) no_new_actor_known_information: bool,
 }
 
-impl From<crate::projections::ActorKnownIntervalDelta> for TypedActorKnownIntervalSummary {
-    fn from(delta: crate::projections::ActorKnownIntervalDelta) -> Self {
+impl TypedActorKnownIntervalSummary {
+    #[cfg(feature = "test-support")]
+    pub fn for_test(
+        start_tick: SimTick,
+        stop_tick: SimTick,
+        start_frontier: u64,
+        stop_frontier: u64,
+        stop_reason: crate::projections::IntervalStopReason,
+        notices: Vec<crate::projections::VerifiedActorKnownIntervalNotice>,
+        no_new_actor_known_information: bool,
+    ) -> Self {
+        Self {
+            start_tick,
+            stop_tick,
+            start_frontier,
+            stop_frontier,
+            stop_reason,
+            notices,
+            no_new_actor_known_information,
+        }
+    }
+
+    pub fn from_actor_known_delta(delta: crate::projections::ActorKnownIntervalDelta) -> Self {
         Self {
             start_tick: delta.start_tick(),
             stop_tick: delta.stop_tick(),
@@ -64,6 +247,34 @@ impl From<crate::projections::ActorKnownIntervalDelta> for TypedActorKnownInterv
             notices: delta.notices().to_vec(),
             no_new_actor_known_information: delta.no_new_actor_known_information(),
         }
+    }
+
+    pub fn start_tick(&self) -> SimTick {
+        self.start_tick
+    }
+
+    pub fn stop_tick(&self) -> SimTick {
+        self.stop_tick
+    }
+
+    pub fn start_frontier(&self) -> u64 {
+        self.start_frontier
+    }
+
+    pub fn stop_frontier(&self) -> u64 {
+        self.stop_frontier
+    }
+
+    pub fn stop_reason(&self) -> crate::projections::IntervalStopReason {
+        self.stop_reason
+    }
+
+    pub fn notices(&self) -> &[crate::projections::VerifiedActorKnownIntervalNotice] {
+        &self.notices
+    }
+
+    pub fn no_new_actor_known_information(&self) -> bool {
+        self.no_new_actor_known_information
     }
 }
 

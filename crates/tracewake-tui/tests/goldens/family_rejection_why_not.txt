@@ -1,4 +1,4 @@
-Actor: actor_sena | Tick: 0
+Actor: actor_sena
 Place: Front hall (front_hall)
 Why-not: The door is closed. kind=access reasons=door_closed_blocks_movement
 Needs:

@@ -43,7 +43,8 @@ fn scripted_session_exercises_actual_binary_loop() {
     );
 
     assert!(output.contains("tracewake-tui ready"));
-    assert!(output.contains("Actor: actor_tomas | Tick: 0"));
+    assert!(output.contains("Actor: actor_tomas"));
+    assert!(!output.contains("Actor: actor_tomas | Tick: 0"));
     assert!(output.contains("Actions:"));
     assert!(output.contains("Accepted: close.door.door_house_street"));
     assert!(output.contains("Why-not: The door is closed."));
@@ -86,7 +87,8 @@ fn continue_zero_stops_before_next_tick() {
     assert!(
         output.contains("Advanced until: reason=user_paused_before_next_tick ticks=0 stop_tick=0")
     );
-    assert!(output.contains("Actor: actor_tomas | Tick: 0"));
+    assert!(output.contains("Actor: actor_tomas"));
+    assert!(!output.contains("Actor: actor_tomas | Tick: 0"));
 }
 
 #[test]
@@ -94,9 +96,10 @@ fn continue_stops_at_controller_safety_bound() {
     let output = run_session("continue 2\nquit\n");
 
     assert!(output.contains("Advanced until: reason=controller_safety_bound ticks=2 stop_tick=2"));
-    assert!(output.contains("Actor: actor_tomas | Tick: 2"));
-    assert!(output
-        .contains("- observation source=event.perception.actor_tomas.2.visible_actor.actor_elena"));
+    assert!(output.contains("Actor: actor_tomas"));
+    assert!(!output.contains("Actor: actor_tomas | Tick: 2"));
+    assert!(output.contains("- observation"));
+    assert!(!output.contains("event.perception.actor_tomas.2.visible_actor.actor_elena"));
 }
 
 #[test]
@@ -130,7 +133,7 @@ fn debug_item_does_not_leak_to_following_view_or_change_checksum() {
     assert_eq!(checksums[0], checksums[1]);
 
     let following_view = output
-        .rsplit_once("Actor: actor_tomas | Tick: 0")
+        .rsplit_once("Actor: actor_tomas")
         .map(|(_, view)| view)
         .expect("following embodied view renders");
     assert!(!following_view.contains("coin_stack_01"));

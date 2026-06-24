@@ -103,7 +103,7 @@ pub fn run_real_pipeline(entry: &CapabilityEntry) -> Result<ScenarioWitnesses, S
             submitted_status = Some(result.report.status.clone());
             rendered = app.render_current_view().map_err(ScenarioError::from)?;
             measured.typed = result.report.status == ReportStatus::Accepted;
-            measured.frontier_advanced = rendered.contains("Tick: 1");
+            measured.frontier_advanced = app.event_count() > initial_event_count;
             measured.marker_counted = app.event_count() > initial_event_count;
         }
         SetupOperation::StartSleepThenAdvanceUntil { max_ticks } => {

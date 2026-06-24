@@ -1,4 +1,4 @@
-Actor: actor_mara | Tick: 0
+Actor: actor_mara
 Place: Mara home (home_mara)
 Needs:
 - fatigue: band=comfortable cause=fixture_initial

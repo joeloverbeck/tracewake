@@ -172,12 +172,12 @@ impl TuiApp {
         let mut view =
             build_embodied_view_model(&context, &source, &preflight, self.last_rejection.as_ref())
                 .map_err(AppError::from)?;
-        view.notebook = Some(build_notebook_view(
+        view.set_notebook(Some(build_notebook_view(
             self.runtime.epistemic_projection(),
             &context,
-        ));
-        view.debug_available = self.debug_available_for(actor_id);
-        view.actor_known_interval_summary = self.last_interval_summary.clone();
+        )));
+        view.set_debug_available(self.debug_available_for(actor_id));
+        view.set_actor_known_interval_summary(self.last_interval_summary.clone());
         Ok(view)
     }
 
@@ -214,7 +214,7 @@ impl TuiApp {
 
     pub fn render_debug_embodied_overlay(&self) -> Result<Option<String>, AppError> {
         let view = self.current_view()?;
-        if view.debug_available {
+        if view.debug_available() {
             Ok(Some(render_debug_overlay(&view)))
         } else {
             Ok(None)
@@ -295,7 +295,7 @@ impl TuiApp {
         self.last_interval_summary = result
             .actor_known_interval_delta
             .clone()
-            .map(TypedActorKnownIntervalSummary::from);
+            .map(TypedActorKnownIntervalSummary::from_actor_known_delta);
         self.last_rejection = None;
         Ok(result)
     }
@@ -494,12 +494,12 @@ mod tests {
         let mut app = TuiApp::load_default().unwrap();
         app.bind_actor(ActorId::new("actor_tomas").unwrap())
             .unwrap();
-        assert!(!app.current_view().unwrap().debug_available);
+        assert!(!app.current_view().unwrap().debug_available());
         let before = app.render_current_view().unwrap();
         assert!(before.contains("strongbox_tomas"));
         assert!(!before.contains("Debug: available=true"));
         app.detach_controller_for_test();
-        assert!(!app.current_view().unwrap().debug_available);
+        assert!(!app.current_view().unwrap().debug_available());
         app.bind_actor(ActorId::new("actor_tomas").unwrap())
             .unwrap();
 
@@ -732,15 +732,15 @@ mod tests {
         let actor_id = ActorId::new("actor_tomas").unwrap();
 
         app.bind_actor(actor_id.clone()).unwrap();
-        assert!(!app.current_view().unwrap().debug_available);
+        assert!(!app.current_view().unwrap().debug_available());
         assert!(!app.debug_available());
 
         app.bind_debug_actor(actor_id.clone()).unwrap();
-        assert!(app.current_view().unwrap().debug_available);
+        assert!(app.current_view().unwrap().debug_available());
         assert!(app.debug_available());
 
         app.detach_controller_for_test();
-        assert!(!app.current_view().unwrap().debug_available);
+        assert!(!app.current_view().unwrap().debug_available());
 
         let docs = include_str!(
             "../../../docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md"

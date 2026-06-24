@@ -141,7 +141,8 @@ mod tests {
             .iter()
             .find(|section| section.name == "view.after_wait")
             .expect("representative transcript includes post-wait view");
-        assert!(after_wait.body.contains("Tick: 1"));
+        assert!(after_wait.body.contains("Actor: actor_sena"));
+        assert!(!after_wait.body.contains("Tick: 1"));
         assert!(first.contains("== view.initial =="));
         assert!(first.contains("== action.move.to.back_room =="));
         assert!(first.contains("DEBUG NON-DIEGETIC"));
