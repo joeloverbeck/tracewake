@@ -14,7 +14,8 @@ use crate::actions::report::ReportStatus;
 use crate::agent::{
     current_place_knowledge_context, record_current_place_perception_and_project,
     ActorDecisionTransaction, ActorDecisionTransactionInput, ActorDecisionTransactionOutcome,
-    NeedKind, NeedState, NoHumanActorKnownSurfaceBuilder, NoHumanActorKnownSurfaceRequest,
+    IntentionLifecycleEffect, IntentionSource, NeedKind, NeedState,
+    NoHumanActorKnownSurfaceBuilder, NoHumanActorKnownSurfaceRequest, StuckDiagnosticRecord,
 };
 use crate::controller::ControllerBindings;
 use crate::epistemics::{ActorKnownIntervalDeltaError, EpistemicProjection};
@@ -27,7 +28,9 @@ use crate::events::{
     is_duration_terminal, EventCause, EventEnvelope, EventEnvelopeBuildError, EventKind,
     PayloadField, EVENT_SCHEMA_V1,
 };
-use crate::ids::{ActionId, ActorId, ContentManifestId, ControllerId, EventId, IdError, ProcessId};
+use crate::ids::{
+    ActionId, ActorId, ContentManifestId, ControllerId, EventId, IdError, ProcessId, ProposalId,
+};
 use crate::need_accounting::{
     classify_actor_tick_regimes, open_body_exclusive_starts, DuplicateDurationTerminal,
 };
@@ -195,7 +198,7 @@ impl DeclaredWorldProcess {
         content_manifest_id: ContentManifestId,
         random_provenance: Option<String>,
     ) -> Self {
-        assert!(cadence_ticks > 0, "world-process cadence must be nonzero");
+        let cadence_ticks = cadence_ticks.max(1);
         Self {
             process_id,
             first_due_tick,
@@ -265,7 +268,24 @@ pub struct WorldAdvanceResult {
     pub actor_known_interval_delta: Option<ActorKnownIntervalDelta>,
     pub due_duration_candidates: Vec<OpenDurationCandidate>,
     pub due_work_summary: WorldStepDueWorkSummary,
+    pub actor_step_summaries: Vec<ActorStepSummary>,
     pub controlled_pipeline_results: Vec<PipelineResult>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ActorStepSummary {
+    pub actor_id: ActorId,
+    pub status: ActorStepStatus,
+    pub proposal_id: Option<ProposalId>,
+    pub pipeline_status: Option<ReportStatus>,
+    pub committed_event_ids: Vec<EventId>,
+    pub diagnostic_event_id: Option<EventId>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ActorStepStatus {
+    Proposed,
+    Stuck,
 }
 
 fn rolled_back_controlled_result(
@@ -285,6 +305,7 @@ fn rolled_back_controlled_result(
             actor_transactions_attempted: 0,
             world_processes_applied: 0,
         },
+        actor_step_summaries: Vec::new(),
         controlled_pipeline_results,
     }
 }
@@ -822,6 +843,7 @@ impl DeterministicScheduler {
         }
 
         let mut actor_transactions_attempted = 0;
+        let mut actor_step_summaries = Vec::new();
         let due_actor_ids =
             self.due_loaded_actor_ids(&scratch_state, &scratch_agent_state, resulting_tick);
         let actor_frame_event_id = if due_actor_ids.is_empty() {
@@ -837,6 +859,11 @@ impl DeterministicScheduler {
                 .map_err(WorldAdvanceError::EventAppend)?;
             Some(appended.event_id)
         };
+        let actor_process_id = request
+            .advance
+            .origin
+            .cause_process_id()
+            .map_err(WorldAdvanceError::InvalidMarkerId)?;
         for actor_id in due_actor_ids {
             let Some(actor) = scratch_state.actors().get(&actor_id) else {
                 continue;
@@ -882,41 +909,118 @@ impl DeterministicScheduler {
                 .map(|event| (event.event_id.clone(), event.event_type))
                 .collect::<BTreeMap<_, _>>();
             actor_transactions_attempted += 1;
-            let ActorDecisionTransactionOutcome::Proposed(proposed) =
-                ActorDecisionTransaction::run(ActorDecisionTransactionInput {
-                    actor_id: actor_id.clone(),
-                    decision_tick: resulting_tick,
-                    agent_state: &scratch_agent_state,
-                    actor_known_context: &actor_known_context,
-                    source_event_ids: Some(&source_event_ids),
-                    source_event_kinds: Some(&source_event_kinds),
-                    routine_window_family: None,
-                    include_idle_fallback: true,
-                })
-            else {
-                continue;
-            };
-            let proposal = proposed.proposal.into_proposal();
-            let ordering_key = OrderingKey::new(
-                resulting_tick,
-                SchedulePhase::NoHumanProcess,
-                SchedulerSourceId::Actor(actor_id.clone()),
-                self.assign_proposal_sequence(),
-                proposal.action_id.clone(),
-                proposal.target_ids.clone(),
-                format!("world_step_actor:{}", actor_id.as_str()),
-            );
-            let mut context = PipelineContext {
-                registry,
-                state: &mut scratch_state,
-                agent_state: &mut scratch_agent_state,
-                log: &mut scratch_log,
-                controller_bindings: None,
-                epistemic_projection: Some(&mut scratch_projection),
-                content_manifest_id: request.advance.content_manifest_id.clone(),
-                ordering_key,
-            };
-            run_pipeline(&mut context, &proposal);
+            match ActorDecisionTransaction::run(ActorDecisionTransactionInput {
+                actor_id: actor_id.clone(),
+                decision_tick: resulting_tick,
+                agent_state: &scratch_agent_state,
+                actor_known_context: &actor_known_context,
+                source_event_ids: Some(&source_event_ids),
+                source_event_kinds: Some(&source_event_kinds),
+                routine_window_family: None,
+                include_idle_fallback: true,
+            }) {
+                ActorDecisionTransactionOutcome::Proposed(proposed) => {
+                    let decision_trace_record = proposed.decision_trace_record.clone();
+                    let lifecycle_effects = proposed.lifecycle_effects.clone();
+                    let proposal = proposed.proposal.into_proposal();
+                    let proposal_id = proposal.proposal_id.clone();
+                    let ordering_key = OrderingKey::new(
+                        resulting_tick,
+                        SchedulePhase::NoHumanProcess,
+                        SchedulerSourceId::Actor(actor_id.clone()),
+                        self.assign_proposal_sequence(),
+                        proposal.action_id.clone(),
+                        proposal.target_ids.clone(),
+                        format!("world_step_actor:{}", actor_id.as_str()),
+                    );
+                    let result = {
+                        let mut context = PipelineContext {
+                            registry,
+                            state: &mut scratch_state,
+                            agent_state: &mut scratch_agent_state,
+                            log: &mut scratch_log,
+                            controller_bindings: None,
+                            epistemic_projection: Some(&mut scratch_projection),
+                            content_manifest_id: request.advance.content_manifest_id.clone(),
+                            ordering_key,
+                        };
+                        run_pipeline(&mut context, &proposal)
+                    };
+                    let ordinary_event = first_appended_event(&result).cloned();
+                    let mut committed_event_ids = result
+                        .appended_events
+                        .iter()
+                        .map(|event| event.event_id.clone())
+                        .collect::<Vec<_>>();
+                    for effect in &lifecycle_effects {
+                        let event = build_actor_intention_event(
+                            &actor_id,
+                            resulting_tick,
+                            &actor_process_id,
+                            &proposal,
+                            &decision_trace_record,
+                            effect,
+                            &request.advance.content_manifest_id,
+                            ordinary_event.as_ref(),
+                            actor_frame_event_id.as_ref(),
+                        )?;
+                        committed_event_ids.push(append_and_apply_actor_artifact(
+                            &mut scratch_log,
+                            &mut scratch_agent_state,
+                            &actor_id,
+                            event,
+                        )?);
+                    }
+                    let trace_event = build_actor_decision_trace_event(
+                        &actor_id,
+                        resulting_tick,
+                        &actor_process_id,
+                        &proposal,
+                        &decision_trace_record,
+                        &request.advance.content_manifest_id,
+                        ordinary_event.as_ref(),
+                        actor_frame_event_id.as_ref(),
+                    )?;
+                    committed_event_ids.push(append_and_apply_actor_artifact(
+                        &mut scratch_log,
+                        &mut scratch_agent_state,
+                        &actor_id,
+                        trace_event,
+                    )?);
+                    actor_step_summaries.push(ActorStepSummary {
+                        actor_id: actor_id.clone(),
+                        status: ActorStepStatus::Proposed,
+                        proposal_id: Some(proposal_id),
+                        pipeline_status: Some(result.report.status.clone()),
+                        committed_event_ids,
+                        diagnostic_event_id: None,
+                    });
+                }
+                ActorDecisionTransactionOutcome::Stuck { diagnostic } => {
+                    let event = build_actor_stuck_diagnostic_event(
+                        &actor_id,
+                        resulting_tick,
+                        &actor_process_id,
+                        &diagnostic,
+                        &request.advance.content_manifest_id,
+                        actor_frame_event_id.as_ref(),
+                    )?;
+                    let event_id = append_and_apply_actor_artifact(
+                        &mut scratch_log,
+                        &mut scratch_agent_state,
+                        &actor_id,
+                        event,
+                    )?;
+                    actor_step_summaries.push(ActorStepSummary {
+                        actor_id: actor_id.clone(),
+                        status: ActorStepStatus::Stuck,
+                        proposal_id: None,
+                        pipeline_status: None,
+                        committed_event_ids: vec![event_id.clone()],
+                        diagnostic_event_id: Some(event_id),
+                    });
+                }
+            }
         }
 
         let actor_known_interval_delta = request
@@ -975,6 +1079,7 @@ impl DeterministicScheduler {
                 actor_transactions_attempted,
                 world_processes_applied,
             },
+            actor_step_summaries,
             controlled_pipeline_results,
         })
     }
@@ -1732,6 +1837,366 @@ fn build_world_step_actor_frame_event(
     Ok(event)
 }
 
+fn append_and_apply_actor_artifact(
+    log: &mut EventLog,
+    agent_state: &mut AgentState,
+    actor_id: &ActorId,
+    event: EventEnvelope,
+) -> Result<EventId, WorldAdvanceError> {
+    let appended = log.append(event).map_err(WorldAdvanceError::EventAppend)?;
+    let event_id = appended.event_id.clone();
+    apply_agent_event(agent_state, &appended).map_err(|error| {
+        WorldAdvanceError::ActorPipelineApply {
+            actor_id: actor_id.clone(),
+            event_id: event_id.clone(),
+            error: EventApplicationError::Agent(error),
+        }
+    })?;
+    Ok(event_id)
+}
+
+fn actor_step_cause(
+    ordinary_event: Option<&EventEnvelope>,
+    proposal_id: Option<&ProposalId>,
+    frame_event_id: Option<&EventId>,
+) -> Vec<EventCause> {
+    if let Some(event) = ordinary_event {
+        vec![EventCause::Event(event.event_id.clone())]
+    } else if let Some(proposal_id) = proposal_id {
+        vec![EventCause::Proposal(proposal_id.clone())]
+    } else if let Some(frame_event_id) = frame_event_id {
+        vec![EventCause::Event(frame_event_id.clone())]
+    } else {
+        Vec::new()
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn build_actor_decision_trace_event(
+    actor_id: &ActorId,
+    tick: SimTick,
+    process_id: &ProcessId,
+    proposal: &Proposal,
+    decision_trace_record: &crate::agent::DecisionTraceRecord,
+    content_manifest_id: &ContentManifestId,
+    ordinary_event: Option<&EventEnvelope>,
+    frame_event_id: Option<&EventId>,
+) -> Result<EventEnvelope, WorldAdvanceError> {
+    let trace_id = decision_trace_record.trace_id.clone();
+    let mut event = EventEnvelope::new_caused_v1(
+        EventId::new(format!(
+            "event.world_step_decision_trace.{}.{}.{}",
+            actor_id.as_str(),
+            tick.value(),
+            trace_id.as_str()
+        ))
+        .map_err(WorldAdvanceError::InvalidMarkerId)?,
+        EventKind::DecisionTraceRecorded,
+        0,
+        0,
+        tick,
+        OrderingKey::new(
+            tick,
+            SchedulePhase::NoHumanProcess,
+            SchedulerSourceId::Actor(actor_id.clone()),
+            ProposalSequence::new(0),
+            ActionId::new("decision_trace_recorded").map_err(WorldAdvanceError::InvalidMarkerId)?,
+            vec![actor_id.as_str().to_string(), trace_id.as_str().to_string()],
+            format!("world_step_decision_trace:{}", actor_id.as_str()),
+        ),
+        content_manifest_id.clone(),
+        actor_step_cause(ordinary_event, Some(&proposal.proposal_id), frame_event_id),
+    )
+    .map_err(WorldAdvanceError::InvalidMarkerEnvelope)?;
+    event.actor_id = Some(actor_id.clone());
+    event.process_id = Some(process_id.clone());
+    event.proposal_id = Some(proposal.proposal_id.clone());
+    event.participants = vec![actor_id.to_string(), trace_id.to_string()];
+    event.payload = vec![
+        PayloadField::new("trace_schema_version", "1"),
+        PayloadField::new("trace_id", trace_id.as_str()),
+        PayloadField::new(
+            "trace_canonical",
+            decision_trace_record.serialize_canonical(),
+        ),
+        PayloadField::new("actor_id", actor_id.as_str()),
+        PayloadField::new("decision_tick", tick.value().to_string()),
+        PayloadField::new("action_id", proposal.action_id.as_str()),
+        PayloadField::new(
+            "ordinary_event_id",
+            ordinary_event
+                .map(|event| event.event_id.as_str())
+                .unwrap_or("none"),
+        ),
+        PayloadField::new(
+            "hidden_truth_audit_actor_known_only",
+            decision_trace_record
+                .hidden_truth_audit_result
+                .actor_known_only
+                .to_string(),
+        ),
+        PayloadField::new(
+            "hidden_truth_audit_notes",
+            decision_trace_record
+                .hidden_truth_audit_result
+                .notes
+                .clone(),
+        ),
+        PayloadField::new(
+            "responsible_layer",
+            decision_trace_record
+                .typed_diagnostic
+                .responsible_layer
+                .stable_id(),
+        ),
+        PayloadField::new(
+            "blocker_code",
+            decision_trace_record
+                .typed_diagnostic
+                .blocker_code
+                .stable_id(),
+        ),
+        PayloadField::new(
+            "input_source",
+            decision_trace_record.typed_diagnostic.input_source.clone(),
+        ),
+        PayloadField::new(
+            "actual_source",
+            decision_trace_record.typed_diagnostic.actual_source.clone(),
+        ),
+        PayloadField::new(
+            "hidden_truth_referenced",
+            decision_trace_record
+                .typed_diagnostic
+                .hidden_truth_referenced
+                .to_string(),
+        ),
+        PayloadField::new(
+            "remediation_hint",
+            decision_trace_record
+                .typed_diagnostic
+                .remediation_hint
+                .clone(),
+        ),
+    ];
+    event.effects_summary =
+        "world-step actor decision trace committed from sealed transaction".to_string();
+    Ok(event)
+}
+
+fn build_actor_stuck_diagnostic_event(
+    actor_id: &ActorId,
+    tick: SimTick,
+    process_id: &ProcessId,
+    diagnostic: &StuckDiagnosticRecord,
+    content_manifest_id: &ContentManifestId,
+    frame_event_id: Option<&EventId>,
+) -> Result<EventEnvelope, WorldAdvanceError> {
+    let mut event = EventEnvelope::new_caused_v1(
+        EventId::new(format!(
+            "event.world_step_stuck_diagnostic.{}.{}.{}",
+            actor_id.as_str(),
+            tick.value(),
+            diagnostic.diagnostic_id.as_str()
+        ))
+        .map_err(WorldAdvanceError::InvalidMarkerId)?,
+        EventKind::StuckDiagnosticRecorded,
+        0,
+        0,
+        tick,
+        OrderingKey::new(
+            tick,
+            SchedulePhase::NoHumanProcess,
+            SchedulerSourceId::Actor(actor_id.clone()),
+            ProposalSequence::new(0),
+            ActionId::new("stuck_diagnostic_recorded")
+                .map_err(WorldAdvanceError::InvalidMarkerId)?,
+            vec![
+                actor_id.as_str().to_string(),
+                diagnostic.diagnostic_id.as_str().to_string(),
+            ],
+            format!("world_step_stuck:{}", actor_id.as_str()),
+        ),
+        content_manifest_id.clone(),
+        actor_step_cause(None, None, frame_event_id),
+    )
+    .map_err(WorldAdvanceError::InvalidMarkerEnvelope)?;
+    event.actor_id = Some(actor_id.clone());
+    event.process_id = Some(process_id.clone());
+    event.participants = vec![actor_id.to_string()];
+    event.payload = vec![
+        PayloadField::new("diagnostic_schema_version", "1"),
+        PayloadField::new("diagnostic_id", diagnostic.diagnostic_id.as_str()),
+        PayloadField::new("diagnostic_canonical", diagnostic.serialize_canonical()),
+        PayloadField::new(
+            "responsible_layer",
+            diagnostic.typed_diagnostic.responsible_layer.stable_id(),
+        ),
+        PayloadField::new(
+            "blocker_code",
+            diagnostic.typed_diagnostic.blocker_code.stable_id(),
+        ),
+        PayloadField::new(
+            "input_source",
+            diagnostic.typed_diagnostic.input_source.clone(),
+        ),
+        PayloadField::new(
+            "actual_source",
+            diagnostic.typed_diagnostic.actual_source.clone(),
+        ),
+        PayloadField::new(
+            "hidden_truth_referenced",
+            diagnostic
+                .typed_diagnostic
+                .hidden_truth_referenced
+                .to_string(),
+        ),
+        PayloadField::new(
+            "remediation_hint",
+            diagnostic.typed_diagnostic.remediation_hint.clone(),
+        ),
+    ];
+    event.effects_summary =
+        "world-step actor stuck diagnostic committed from sealed transaction".to_string();
+    Ok(event)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn build_actor_intention_event(
+    actor_id: &ActorId,
+    tick: SimTick,
+    process_id: &ProcessId,
+    proposal: &Proposal,
+    decision_trace_record: &crate::agent::DecisionTraceRecord,
+    effect: &IntentionLifecycleEffect,
+    content_manifest_id: &ContentManifestId,
+    ordinary_event: Option<&EventEnvelope>,
+    frame_event_id: Option<&EventId>,
+) -> Result<EventEnvelope, WorldAdvanceError> {
+    let (kind, intention_id, reason) = match effect {
+        IntentionLifecycleEffect::Adopted { intention, reason } => (
+            EventKind::IntentionStarted,
+            intention.intention_id.clone(),
+            reason.clone(),
+        ),
+        IntentionLifecycleEffect::Continued {
+            intention_id,
+            reason,
+        } => (
+            EventKind::IntentionContinued,
+            intention_id.clone(),
+            reason.clone(),
+        ),
+        IntentionLifecycleEffect::Interrupted {
+            intention_id,
+            reason,
+        } => (
+            EventKind::IntentionInterrupted,
+            intention_id.clone(),
+            reason.clone(),
+        ),
+    };
+    let label = kind.stable_id();
+    let mut event = EventEnvelope::new_caused_v1(
+        EventId::new(format!(
+            "event.world_step_{}.{}.{}.{}",
+            label,
+            actor_id.as_str(),
+            tick.value(),
+            intention_id.as_str()
+        ))
+        .map_err(WorldAdvanceError::InvalidMarkerId)?,
+        kind,
+        0,
+        0,
+        tick,
+        OrderingKey::new(
+            tick,
+            SchedulePhase::NoHumanProcess,
+            SchedulerSourceId::Actor(actor_id.clone()),
+            ProposalSequence::new(0),
+            ActionId::new(label).map_err(WorldAdvanceError::InvalidMarkerId)?,
+            vec![
+                actor_id.as_str().to_string(),
+                intention_id.as_str().to_string(),
+            ],
+            format!("world_step_{}:{}", label, actor_id.as_str()),
+        ),
+        content_manifest_id.clone(),
+        actor_step_cause(ordinary_event, Some(&proposal.proposal_id), frame_event_id),
+    )
+    .map_err(WorldAdvanceError::InvalidMarkerEnvelope)?;
+    event.actor_id = Some(actor_id.clone());
+    event.process_id = Some(process_id.clone());
+    event.proposal_id = Some(proposal.proposal_id.clone());
+    event.participants = vec![actor_id.to_string(), intention_id.to_string()];
+    event.payload = match effect {
+        IntentionLifecycleEffect::Adopted { intention, .. } => vec![
+            PayloadField::new("actor_id", actor_id.as_str()),
+            PayloadField::new("intention_id", intention.intention_id.as_str()),
+            PayloadField::new("status", "active"),
+            PayloadField::new(
+                "source",
+                IntentionSource::CandidateGoalSelection.stable_id(),
+            ),
+            PayloadField::new("selected_goal_id", intention.selected_goal_id.as_str()),
+            PayloadField::new(
+                "selected_routine_method",
+                intention
+                    .selected_routine_method
+                    .as_ref()
+                    .map(|id| id.as_str())
+                    .unwrap_or(""),
+            ),
+            PayloadField::new(
+                "current_step",
+                intention
+                    .current_step
+                    .as_deref()
+                    .unwrap_or(proposal.action_id.as_str()),
+            ),
+            PayloadField::new("durability_level", intention.durability_level.to_string()),
+            PayloadField::new("start_tick", intention.start_tick.value().to_string()),
+            PayloadField::new("trace_id", decision_trace_record.trace_id.as_str()),
+            PayloadField::new("follow_on_action_id", proposal.action_id.as_str()),
+            PayloadField::new(
+                "follow_on_event_id",
+                ordinary_event
+                    .map(|event| event.event_id.as_str())
+                    .unwrap_or("none"),
+            ),
+            PayloadField::new("reason", reason),
+        ],
+        IntentionLifecycleEffect::Continued { .. } => vec![
+            PayloadField::new("actor_id", actor_id.as_str()),
+            PayloadField::new("intention_id", intention_id.as_str()),
+            PayloadField::new("status", "active"),
+            PayloadField::new("reason", reason),
+            PayloadField::new("progress_tick", tick.value().to_string()),
+            PayloadField::new("current_step", proposal.action_id.as_str()),
+            PayloadField::new("follow_on_action_id", proposal.action_id.as_str()),
+            PayloadField::new(
+                "follow_on_event_id",
+                ordinary_event
+                    .map(|event| event.event_id.as_str())
+                    .unwrap_or("none"),
+            ),
+        ],
+        IntentionLifecycleEffect::Interrupted { .. } => vec![
+            PayloadField::new("actor_id", actor_id.as_str()),
+            PayloadField::new("intention_id", intention_id.as_str()),
+            PayloadField::new("status", "interrupted"),
+            PayloadField::new("reason", reason),
+        ],
+    };
+    event.effects_summary = format!("world-step actor intention lifecycle committed: {label}");
+    Ok(event)
+}
+
+fn first_appended_event(result: &PipelineResult) -> Option<&EventEnvelope> {
+    result.appended_events.first()
+}
+
 fn build_declared_world_process_event(
     invocation: &DueProcessInvocation,
     request: &WorldAdvanceRequest,
@@ -2073,13 +2538,15 @@ pub mod no_human {
                     &mut stuck_diagnostic_event_ids,
                     &mut scheduler_errors,
                 );
-                let Some(agent_proposal) = build_agent_proposal(
+                let Some(agent_proposal) = run_no_human_actor_decision_transaction(
                     state,
                     agent_state,
                     log,
+                    &process_id,
                     actor_id,
                     window,
                     &content_manifest_id,
+                    &mut scheduler_errors,
                 ) else {
                     continue;
                 };
@@ -2147,7 +2614,7 @@ pub mod no_human {
                     actor_id,
                     progress_events,
                 );
-                append_intention_lifecycle_after_proposal(
+                commit_intention_lifecycle_artifact_after_actor_step(
                     log,
                     agent_state,
                     &process_id,
@@ -2159,7 +2626,7 @@ pub mod no_human {
                     active_before_proposal.as_ref(),
                     result.appended_events.first(),
                 );
-                append_routine_step_events_after_proposal(
+                commit_routine_step_artifacts_after_actor_step(
                     log,
                     agent_state,
                     &process_id,
@@ -2169,7 +2636,7 @@ pub mod no_human {
                     &content_manifest_id,
                     result.appended_events.first(),
                 );
-                append_decision_trace_after_proposal(
+                commit_decision_trace_artifact_after_actor_step(
                     log,
                     agent_state,
                     &process_id,
@@ -2289,13 +2756,16 @@ pub mod no_human {
         decision_trace_record: DecisionTraceRecord,
     }
 
-    fn build_agent_proposal(
+    #[allow(clippy::too_many_arguments)]
+    fn run_no_human_actor_decision_transaction(
         state: &PhysicalState,
-        agent_state: &AgentState,
-        log: &EventLog,
+        agent_state: &mut AgentState,
+        log: &mut EventLog,
+        process_id: &ProcessId,
         actor_id: &ActorId,
         window: &DayWindow,
         content_manifest_id: &ContentManifestId,
+        scheduler_errors: &mut Vec<NoHumanSchedulerError>,
     ) -> Option<BuiltAgentProposal> {
         let actor = state.actors.get(actor_id)?;
         let epistemic_projection = epistemic_projection_from_log(log, content_manifest_id);
@@ -2348,7 +2818,30 @@ pub mod no_human {
                 proposal: proposed.proposal.into_proposal(),
                 decision_trace_record: proposed.decision_trace_record,
             }),
-            ActorDecisionTransactionOutcome::Stuck { .. } => None,
+            ActorDecisionTransactionOutcome::Stuck { diagnostic } => {
+                let frame_event_id = latest_frame_event_id(log);
+                if let Ok(event) = super::build_actor_stuck_diagnostic_event(
+                    actor_id,
+                    window.start_tick,
+                    process_id,
+                    &diagnostic,
+                    content_manifest_id,
+                    frame_event_id.as_ref(),
+                ) {
+                    if let Ok(appended) = log.append(event) {
+                        match apply_agent_event(agent_state, &appended) {
+                            Ok(_) => {}
+                            Err(error) => {
+                                scheduler_errors.push(NoHumanSchedulerError::AgentApply {
+                                    event_id: appended.event_id,
+                                    error,
+                                });
+                            }
+                        }
+                    }
+                }
+                None
+            }
         }
     }
 
@@ -2784,7 +3277,7 @@ pub mod no_human {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn append_decision_trace_after_proposal(
+    fn commit_decision_trace_artifact_after_actor_step(
         log: &mut EventLog,
         agent_state: &mut AgentState,
         process_id: &ProcessId,
@@ -3057,7 +3550,7 @@ pub mod no_human {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn append_intention_lifecycle_after_proposal(
+    fn commit_intention_lifecycle_artifact_after_actor_step(
         log: &mut EventLog,
         agent_state: &mut AgentState,
         process_id: &ProcessId,
@@ -3247,7 +3740,7 @@ pub mod no_human {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn append_routine_step_events_after_proposal(
+    fn commit_routine_step_artifacts_after_actor_step(
         log: &mut EventLog,
         agent_state: &mut AgentState,
         process_id: &ProcessId,
@@ -4323,7 +4816,7 @@ pub mod no_human {
             );
             let mut move_log = EventLog::new();
 
-            append_routine_step_events_after_proposal(
+            commit_routine_step_artifacts_after_actor_step(
                 &mut move_log,
                 &mut move_agent_state,
                 &process_id,
@@ -4379,7 +4872,7 @@ pub mod no_human {
             );
             let mut work_log = EventLog::new();
 
-            append_routine_step_events_after_proposal(
+            commit_routine_step_artifacts_after_actor_step(
                 &mut work_log,
                 &mut work_agent_state,
                 &process_id,
@@ -5098,7 +5591,7 @@ pub mod no_human {
             log.append(ordinary.clone()).unwrap();
             let mut agent_state = agent_state(&actor);
 
-            append_decision_trace_after_proposal(
+            commit_decision_trace_artifact_after_actor_step(
                 &mut log,
                 &mut agent_state,
                 &process,
@@ -5114,7 +5607,7 @@ pub mod no_human {
                 .iter()
                 .any(|event| event.event_type == EventKind::DecisionTraceRecorded));
 
-            append_decision_trace_after_proposal(
+            commit_decision_trace_artifact_after_actor_step(
                 &mut log,
                 &mut agent_state,
                 &process,
@@ -5868,10 +6361,11 @@ pub mod no_human {
                 SimTick::ZERO,
                 &content_manifest_id(),
             );
-            let proposal = build_agent_proposal(
+            let proposal = run_no_human_actor_decision_transaction(
                 &state,
-                &agent_state,
-                &log,
+                &mut agent_state,
+                &mut log,
+                &ProcessId::new("test_no_human_actor_decision").unwrap(),
                 &actor_id,
                 &DayWindow {
                     window_id: "midday".to_string(),
@@ -5879,6 +6373,7 @@ pub mod no_human {
                     end_tick: SimTick::new(4),
                 },
                 &content_manifest_id(),
+                &mut Vec::new(),
             )
             .expect("transaction candidate should produce an eat proposal");
 

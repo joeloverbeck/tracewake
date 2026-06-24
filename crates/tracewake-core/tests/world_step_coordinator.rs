@@ -21,7 +21,7 @@ use tracewake_core::ids::{
 use tracewake_core::replay::rebuild_projection;
 use tracewake_core::scheduler::no_human::{advance_no_human, NoHumanStateMut};
 use tracewake_core::scheduler::{
-    AdvanceUntilRequest, AdvanceUntilStopReason, AuthorizedSleepInterruption,
+    ActorStepStatus, AdvanceUntilRequest, AdvanceUntilStopReason, AuthorizedSleepInterruption,
     BodyExclusiveDurationKind, DeterministicScheduler, OrderingKey, ProposalSequence,
     SchedulePhase, SchedulerSourceId, WorldAdvanceError, WorldAdvanceOrigin, WorldAdvanceRequest,
     WorldAdvanceResult, WorldStepTransactionRequest,
@@ -630,8 +630,33 @@ fn transactional_world_step_attempts_due_actor_decision_transaction() {
 
     assert_eq!(result.resulting_tick, SimTick::new(1));
     assert_eq!(result.due_work_summary.actor_transactions_attempted, 1);
+    assert_eq!(result.actor_step_summaries.len(), 1);
+    assert_eq!(result.actor_step_summaries[0].actor_id, actor);
+    assert_eq!(
+        result.actor_step_summaries[0].status,
+        ActorStepStatus::Proposed
+    );
+    assert_eq!(
+        result.actor_step_summaries[0]
+            .pipeline_status
+            .as_ref()
+            .map(|status| format!("{status:?}"))
+            .as_deref(),
+        Some("Accepted")
+    );
     assert!(log.events().iter().any(|event| {
         event.event_type == EventKind::ActorWaited && event.actor_id.as_ref() == Some(&actor)
+    }));
+    assert!(log.events().iter().any(|event| {
+        event.event_type == EventKind::DecisionTraceRecorded
+            && event.actor_id.as_ref() == Some(&actor)
+            && event
+                .causes
+                .iter()
+                .any(|cause| matches!(cause, EventCause::Event(event_id) if log.events().iter().any(|ordinary| &ordinary.event_id == event_id && ordinary.event_type == EventKind::ActorWaited)))
+    }));
+    assert!(log.events().iter().any(|event| {
+        event.event_type == EventKind::IntentionStarted && event.actor_id.as_ref() == Some(&actor)
     }));
     assert!(result.appended_event_ids.iter().any(|event_id| {
         log.events().iter().any(|event| {

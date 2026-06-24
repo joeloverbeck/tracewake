@@ -1,6 +1,6 @@
 # 0050FOUCONSEC-005: Unify the actor transition — consume the full decision outcome; delete the dual no-human choreography
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — adds a closed actor-step outcome consumed atomically by the coordinator; deletes the parallel no-human append choreography
@@ -87,3 +87,39 @@ In `crates/tracewake-core/tests/world_step_coordinator.rs`, add: a `Proposed` an
 
 1. `cargo test -p tracewake-core --test world_step_coordinator`
 2. `cargo build --workspace --all-targets --locked && cargo clippy --workspace --all-targets -- -D warnings`
+
+## Outcome
+
+Completed: 2026-06-24
+
+The world-step coordinator now consumes `ActorDecisionTransactionOutcome`
+exhaustively. `Proposed` actor steps run the sealed proposal through the shared
+pipeline, then commit transaction-owned intention lifecycle and decision trace
+artifacts in the same scratch transaction. `Stuck` actor steps now commit the
+typed stuck diagnostic instead of silently continuing. `WorldAdvanceResult`
+exposes `actor_step_summaries` with per-actor status, proposal/pipeline status,
+committed event ids, and diagnostic event id.
+
+The no-human transaction helper no longer drops `Stuck` outcomes: it commits the
+transaction-produced stuck diagnostic through the same diagnostic event builder.
+The legacy helper names called out by the ticket
+(`build_agent_proposal`, `append_decision_trace_after_proposal`,
+`append_intention_lifecycle_after_proposal`,
+`append_routine_step_events_after_proposal`) were removed from core source and
+core tests, and the anti-regression guards now target the renamed actor-decision
+transaction helper.
+
+Additional cleanup: the declared world-process cadence constructor no longer
+panics on zero cadence; it normalizes to a minimum cadence of one tick so the
+scheduler apply/completion no-panic guard remains true.
+
+Verification run:
+
+- `cargo test -p tracewake-core --test world_step_coordinator`
+- `cargo test -p tracewake-core --lib scheduler::no_human::tests`
+- `cargo test -p tracewake-core --test anti_regression_guards`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `rg -n "build_agent_proposal|append_decision_trace_after_proposal|append_intention_lifecycle_after_proposal|append_routine_step_events_after_proposal|Stuck \\{.*\\} => None|Stuck \\{.*\\} => continue" crates/tracewake-core/src crates/tracewake-core/tests` (no matches)
+- `cargo fmt --all --check`
+- `git diff --check`
