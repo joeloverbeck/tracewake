@@ -2,8 +2,10 @@
 
 ## Status
 
-Scoped spec-0050 hardening accepted for the implementation/evidence line ending
-at `57d1be0ce5873c6c3f05f949a4cc36ef087cecf7` plus this report commit.
+Scoped spec-0050 hardening accepted for implementation baseline commit
+`57d1be0ce5873c6c3f05f949a4cc36ef087cecf7`, evidence/report commit
+`448ecee`, and the archive/truthing commit that moved this report and spec to
+`archive/`.
 
 This is not latest-main certification, not Phase-4 entry, not second-proof
 entry, and not a green standing mutation-perimeter certification. The
@@ -158,7 +160,9 @@ The acceptance is deliberately scoped:
 - It does not certify the standing mutation perimeter as green because the
   configured campaign recorded 48 missed mutants and one timeout.
 
-Final spec closeout must add the archived 0050 row to
-`docs/4-specs/SPEC_LEDGER.md`, archive this report to `archive/reports/`, retarget
-references from `reports/0050_foundational_conformance_second_hardening_acceptance.md`
-to the archived report path, and move the spec to `archive/specs/`.
+Final spec closeout archived this report at
+`archive/reports/0050_foundational_conformance_second_hardening_acceptance.md`,
+archived the governing spec at
+`archive/specs/0050_FOUNDATIONAL_CONFORMANCE_SECOND_HARDENING_LOADED_WORLD_DISCOVERY_ACTOR_TRANSACTION_UNIFICATION_TUI_DEAUTHORITY_AND_REPLAY_FAIL_CLOSED_HARDENING_SPEC.md`,
+and added the 0050 row to `docs/4-specs/SPEC_LEDGER.md` in the same
+archive/truthing commit.

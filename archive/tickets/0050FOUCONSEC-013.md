@@ -33,7 +33,7 @@ Spec-0050 §7 + §8 (closure step 9 close-out): produce the implementation/revie
 
 ### 1. Author the acceptance artifact
 
-Create `reports/0050_foundational_conformance_second_hardening_acceptance.md` recording: the static-survey driver findings (F-01…F-08); the executed remediation evidence per ticket; the exact workspace-gate transcripts (`cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo build --workspace --all-targets --locked`, `cargo test --workspace --locked`); the §6 focused-suite results; the replay/golden lane results; the mutation campaign map (from `-011`, with denominators/caught/missed/unviable and the preserved `0049` rerun); and the evidence-honesty negative results. Re-enumerate expected counts from fixtures at test start, not hardcoded. Per execution `10` typed-before-rendered and anti-vacuity rules.
+Create `archive/reports/0050_foundational_conformance_second_hardening_acceptance.md` recording: the static-survey driver findings (F-01…F-08); the executed remediation evidence per ticket; the exact workspace-gate transcripts (`cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo build --workspace --all-targets --locked`, `cargo test --workspace --locked`); the §6 focused-suite results; the replay/golden lane results; the mutation campaign map (from `-011`, with denominators/caught/missed/unviable and the preserved `0049` rerun); and the evidence-honesty negative results. Re-enumerate expected counts from fixtures at test start, not hardcoded. Per execution `10` typed-before-rendered and anti-vacuity rules.
 
 ### 2. Render the verdict
 
@@ -41,7 +41,7 @@ State the scoped acceptance verdict for spec-0050 at the exact implementation/ev
 
 ## Files to Touch
 
-- `reports/0050_foundational_conformance_second_hardening_acceptance.md` (new)
+- `archive/reports/0050_foundational_conformance_second_hardening_acceptance.md` (new)
 
 ## Out of Scope
 
@@ -66,7 +66,7 @@ State the scoped acceptance verdict for spec-0050 at the exact implementation/ev
 
 ### New/Modified Tests
 
-1. `None — verification-only capstone; it assembles `reports/0050_foundational_conformance_second_hardening_acceptance.md` from the upstream tickets' suites and re-runs them. No new test code.`
+1. `None — verification-only capstone; it assembles `archive/reports/0050_foundational_conformance_second_hardening_acceptance.md` from the upstream tickets' suites and re-runs them. No new test code.`
 
 ### Commands
 
@@ -78,18 +78,20 @@ State the scoped acceptance verdict for spec-0050 at the exact implementation/ev
 
 Completed: 2026-06-24
 
-Created `reports/0050_foundational_conformance_second_hardening_acceptance.md`
-as the capstone acceptance artifact. The report maps F-01 through F-08 to the
-completed ticket line, records the workspace gates, focused core/TUI suites,
-replay/golden lanes, documentation truthing, evidence-honesty negatives, and
-the mutation map from `0050FOUCONSEC-011`.
+Created `archive/reports/0050_foundational_conformance_second_hardening_acceptance.md`
+as the capstone acceptance artifact.
+The report maps F-01 through F-08 to the completed ticket line, records the
+workspace gates, focused core/TUI suites, replay/golden lanes, documentation
+truthing, evidence-honesty negatives, and the mutation map from
+`0050FOUCONSEC-011`.
 
 Verdict: scoped spec-0050 hardening is accepted for the implementation/evidence
-line ending at `57d1be0ce5873c6c3f05f949a4cc36ef087cecf7` plus the report
-commit. The report explicitly does not claim latest-main certification,
-Phase-4 entry, second-proof entry, or green standing mutation certification.
-The configured standing mutation campaign remains non-green with 48 missed
-mutants and one timeout, routed to separate survivor remediation.
+line ending at `57d1be0ce5873c6c3f05f949a4cc36ef087cecf7`, evidence/report
+commit `448ecee`, and the final archive/truthing commit. The report explicitly
+does not claim latest-main certification, Phase-4 entry, second-proof entry, or
+green standing mutation certification. The configured standing mutation
+campaign remains non-green with 48 missed mutants and one timeout, routed to
+separate survivor remediation.
 
 Verification:
 
@@ -100,11 +102,11 @@ Verification:
 - `cargo test -p tracewake-core --test world_step_coordinator --test replay_temporal_frontier --test holder_known_interval_projection --test salient_stop_actor_known --test reservation_body_exclusive_census --test generative_lock --test negative_fixture_runner`
 - `cargo test -p tracewake-tui --test playable_capability_parity --test parity_adversarial --test tui_seam_conformance --test command_loop_session --test embodied_flow`
 - `cargo test -p tracewake-content --test golden_fixtures_run && cargo test -p tracewake-core --test replay_temporal_frontier --test golden_scenarios --test event_schema_replay_gates`
-- Post-report documentation delta checks: `git diff --check`, `test -e reports/0050_foundational_conformance_second_hardening_acceptance.md`, `rg -n "48 missed|not a green standing|57d1be0|0049MUTWIT|Final spec closeout|cargo test --workspace --locked" reports/0050_foundational_conformance_second_hardening_acceptance.md`, and `cargo test -p tracewake-core --test doc_invariant_references`
+- Post-report documentation delta checks: `git diff --check`, `test -e archive/reports/0050_foundational_conformance_second_hardening_acceptance.md`, `rg -n "48 missed|not a green standing|57d1be0|0049MUTWIT|Final spec closeout|cargo test --workspace --locked" archive/reports/0050_foundational_conformance_second_hardening_acceptance.md`, and `cargo test -p tracewake-core --test doc_invariant_references`
 
 Timing note: the broad workspace/focused/replay gates were run before adding
 the report file, because the report records those command results. The
 post-report changes were documentation-only and were checked by `git diff
---check`, report-content greps, and `doc_invariant_references`. The final
-spec/report/archive closeout is expected to rerun the final gates after the
-last spec/ledger/archive edits.
+--check`, report-content greps, and `doc_invariant_references`. Final
+spec/report/archive closeout reruns the AGENTS gates after the last
+spec/ledger/archive edits.

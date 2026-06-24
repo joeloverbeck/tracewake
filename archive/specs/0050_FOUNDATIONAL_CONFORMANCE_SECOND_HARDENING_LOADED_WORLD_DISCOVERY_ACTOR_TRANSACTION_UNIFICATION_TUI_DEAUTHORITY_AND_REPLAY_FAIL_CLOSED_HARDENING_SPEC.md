@@ -1,6 +1,6 @@
 # 0050 Foundational Conformance Second Hardening: Loaded-World Discovery, Actor-Transaction Unification, TUI De-Authority, and Replay Fail-Closed Hardening Spec
 
-**Status**: PROPOSED
+**Status**: COMPLETED
 
 This is a staged hardening spec in the parallel `specs/NNNN` series. It is staged in
 `specs/` and is promoted to `archive/specs/` on acceptance; it is never promoted to the
@@ -722,9 +722,46 @@ none (§5).
 
 ## Outcome
 
-_Pending implementation and acceptance._ On acceptance the closeout commit records the exact implementation
-baseline commit(s) and evidence/report commit, archives the implementation tickets, adds the
-`docs/4-specs/SPEC_LEDGER.md` archived row for this package, creates the `0049MUTWIT` source/ledger record
-(§4.8), updates the existing architecture-conformance and risk rows (R-27/R-28/R-29) and the named
-execution evidence maps, moves this spec to `archive/specs/`, and runs the required post-closeout gates.
+Completed: 2026-06-24
+
+Implemented by archived tickets `0050FOUCONSEC-001` through
+`0050FOUCONSEC-013`. The implementation replaced caller-injected loaded actor
+and raw process work with core-owned discovery, unified the actor transaction
+outcome, made the TUI consume the core interval product read-only, made
+duplicate `EventId` append/deserialization fail closed, made temporal replay
+violations fail aggregate replay, encoded typed interval salience, replaced the
+overbroad 0048 reachability locks, preserved and re-ran the 0049 focused
+mutation witnesses, and updated the live conformance/risk/ledger source
+records.
+
+Acceptance artifact:
+`archive/reports/0050_foundational_conformance_second_hardening_acceptance.md`.
+
+Commit roles:
+
+- Implementation baseline commit:
+  `57d1be0ce5873c6c3f05f949a4cc36ef087cecf7`.
+- Evidence/report commit: `448ecee`.
+- Archive/truthing commit: the commit that moves this spec/report to
+  `archive/` and adds the `docs/4-specs/SPEC_LEDGER.md` 0050 row.
+
+Verification recorded before this final archive edit:
+
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace --locked`
+- `cargo test -p tracewake-core --test world_step_coordinator --test replay_temporal_frontier --test holder_known_interval_projection --test salient_stop_actor_known --test reservation_body_exclusive_census --test generative_lock --test negative_fixture_runner`
+- `cargo test -p tracewake-tui --test playable_capability_parity --test parity_adversarial --test tui_seam_conformance --test command_loop_session --test embodied_flow`
+- `cargo test -p tracewake-content --test golden_fixtures_run && cargo test -p tracewake-core --test replay_temporal_frontier --test golden_scenarios --test event_schema_replay_gates`
+- Post-report delta: `git diff --check`, report-content greps, and
+  `cargo test -p tracewake-core --test doc_invariant_references`.
+
+Final archive/truthing verification is rerun after this Outcome, ledger row,
+report archive, and spec archive edit. The configured standing mutation
+campaign is not green: `0050FOUCONSEC-011` recorded 48 missed mutants and one
+timeout. Those findings are real missing mutation evidence and must route to
+separate survivor remediation before any artifact claims the standing mutation
+perimeter is green.
+
 This spec mints no invariant, doctrine change, gate, glossary term, or risk ID.
