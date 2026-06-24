@@ -1,0 +1,9 @@
+[package]
+name = "external_crate_cannot_set_world_step_process_events"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+tracewake-core = { path = "../../../crates/tracewake-core" }
+
+[workspace]

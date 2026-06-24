@@ -139,6 +139,16 @@ processes advance through the same owning seams. A proof that exercises only a
 private possessed-actor tick or only the debug no-human runner does not satisfy
 human-driven ordinary-life acceptance.
 
+The current 0050 evidence names the executable basis for this comparison:
+core derives loaded actor work and declared process work, then commits actor
+transaction artifacts through the same `transact_world_one_tick` path for
+human-origin and no-human-origin advancement. Acceptance rows must cite the
+production mixed-schedule and adversarial witnesses in
+`crates/tracewake-core/tests/world_step_coordinator.rs`,
+`crates/tracewake-core/tests/generative_lock.rs`, and
+`crates/tracewake-tui/tests/parity_adversarial.rs`, not the historical 0048
+harness-injected population as current reachability proof.
+
 ## Canonical recovery resolution
 
 The canonical `no_human_day_001` recovery resolution is intentionally recorded as

@@ -7190,7 +7190,8 @@ fn guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_tr
     let scheduler = guarded_source("src/scheduler.rs");
     let builder = guarded_source("src/agent/no_human_surface.rs");
     let scheduler_sources = guarded_sources_for(GuardedLayer::Scheduler);
-    let build_agent_proposal = body_after_marker(&scheduler, "fn build_agent_proposal");
+    let run_no_human_actor_decision_transaction =
+        body_after_marker(&scheduler, "fn run_no_human_actor_decision_transaction");
 
     for forbidden in [
         "visible_local_planning_state",
@@ -7202,7 +7203,7 @@ fn guard_014_no_human_cognition_surface_does_not_read_raw_assignment_or_sleep_tr
         "actor_at_workplace",
         "assigned_workplace_known",
     ] {
-        assert_absent(build_agent_proposal, forbidden);
+        assert_absent(run_no_human_actor_decision_transaction, forbidden);
         assert_absent_from_sources(&scheduler_sources, forbidden);
     }
 
@@ -7245,7 +7246,8 @@ fn guard_015_ord_hard_008_cognition_channel_stays_evented_and_sealed() {
     let actor_known = guarded_source("src/agent/actor_known.rs");
     let scheduler_sources = guarded_sources_for(GuardedLayer::Scheduler);
     let agent_sources = guarded_sources_for(GuardedLayer::Agent);
-    let build_agent_proposal = body_after_marker(&scheduler, "fn build_agent_proposal");
+    let run_no_human_actor_decision_transaction =
+        body_after_marker(&scheduler, "fn run_no_human_actor_decision_transaction");
     let consume_projection_record = body_after_marker(&builder, "fn consume_projection_record");
     let push_projection_fact = body_after_marker(&builder, "fn push_projection_fact");
 
@@ -7265,11 +7267,14 @@ fn guard_015_ord_hard_008_cognition_channel_stays_evented_and_sealed() {
     }
 
     for forbidden in ["extend_actor_known_facts", "add_actor_known_fact"] {
-        assert_absent(build_agent_proposal, forbidden);
+        assert_absent(run_no_human_actor_decision_transaction, forbidden);
         assert_absent_from_sources(&scheduler_sources, forbidden);
         assert_absent_from_sources(&agent_sources, forbidden);
     }
-    assert_absent(build_agent_proposal, "food_source_believed_accessible");
+    assert_absent(
+        run_no_human_actor_decision_transaction,
+        "food_source_believed_accessible",
+    );
     assert_absent_from_sources(&scheduler_sources, "food_source_believed_accessible");
 
     assert_absent(&actor_known, "pub fn extend_actor_known_facts");
@@ -8439,9 +8444,12 @@ fn guard_006_scheduler_has_no_routine_family_to_primitive_dispatch() {
 fn guard_014_scheduler_cannot_rewrite_transaction_proposals_after_cognition() {
     let scheduler = production(SCHEDULER_RS);
     let transaction = production(TRANSACTION_RS);
-    let build_agent_proposal = body_after_marker(&scheduler, "fn build_agent_proposal");
-    let after_transaction_run =
-        body_after_marker(build_agent_proposal, "ActorDecisionTransaction::run");
+    let run_no_human_actor_decision_transaction =
+        body_after_marker(&scheduler, "fn run_no_human_actor_decision_transaction");
+    let after_transaction_run = body_after_marker(
+        run_no_human_actor_decision_transaction,
+        "ActorDecisionTransaction::run",
+    );
 
     assert!(
         transaction.contains("pub struct SealedProposal"),

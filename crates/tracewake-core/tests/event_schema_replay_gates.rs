@@ -213,14 +213,21 @@ fn agent_state_with_active_intention_and_routine() -> AgentState {
 }
 
 fn checksum_context(fixture_id: &str, log: &EventLog) -> ChecksumContext {
-    ChecksumContext {
-        fixture_id: FixtureId::new(fixture_id).unwrap(),
-        content_version: content_version(),
-        sim_tick: log
-            .events()
+    checksum_context_at(
+        fixture_id,
+        log,
+        log.events()
             .last()
             .map(|event| event.sim_tick)
             .unwrap_or(SimTick::ZERO),
+    )
+}
+
+fn checksum_context_at(fixture_id: &str, log: &EventLog, sim_tick: SimTick) -> ChecksumContext {
+    ChecksumContext {
+        fixture_id: FixtureId::new(fixture_id).unwrap(),
+        content_version: content_version(),
+        sim_tick,
         world_stream_position_applied: log
             .events()
             .iter()
@@ -1115,9 +1122,12 @@ fn replay_report_match_mismatch_pair_exposes_semantic_fingerprints() {
         },
     );
 
-    let context = checksum_context("replay_report_match_mismatch_pair", &log);
-    let expected_checksum = compute_physical_checksum(&world, &context).checksum;
-    let expected_agent_checksum = compute_agent_state_checksum(&agent_state, &context).checksum;
+    let final_context = checksum_context("replay_report_match_mismatch_pair", &log);
+    let replay_context =
+        checksum_context_at("replay_report_match_mismatch_pair", &log, SimTick::ZERO);
+    let expected_checksum = compute_physical_checksum(&world, &final_context).checksum;
+    let expected_agent_checksum =
+        compute_agent_state_checksum(&agent_state, &final_context).checksum;
     let expected_diagnostic_event_count = log
         .events()
         .iter()
@@ -1132,7 +1142,7 @@ fn replay_report_match_mismatch_pair_exposes_semantic_fingerprints() {
         &initial_world,
         &initial_agent_state,
         &log,
-        &context,
+        &replay_context,
         Some(&world),
         Some(expected_checksum.clone()),
         Some(expected_agent_checksum.clone()),
@@ -1175,12 +1185,12 @@ fn replay_report_match_mismatch_pair_exposes_semantic_fingerprints() {
         *world.need_model(),
     );
     let corrupted_expected_checksum =
-        compute_physical_checksum(&corrupted_expected_world, &context).checksum;
+        compute_physical_checksum(&corrupted_expected_world, &final_context).checksum;
     let mismatching = run_replay(
         &initial_world,
         &initial_agent_state,
         &log,
-        &context,
+        &replay_context,
         Some(&corrupted_expected_world),
         Some(corrupted_expected_checksum.clone()),
         Some(matching.final_agent_checksum.clone()),

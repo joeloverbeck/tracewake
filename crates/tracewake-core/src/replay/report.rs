@@ -21,6 +21,7 @@ pub enum ReplayDivergenceFieldFamily {
     Workplace,
     SleepAffordance,
     NeedModel,
+    Temporal,
     Unknown,
 }
 
@@ -89,7 +90,12 @@ pub fn run_replay(
     } else {
         expected_state_diff
     };
-    let first_divergence = first_divergence_detail(&state_diff, log, rebuild.event_count_applied);
+    let first_divergence = first_divergence_detail(
+        &state_diff,
+        &rebuild.temporal_violations,
+        log,
+        rebuild.event_count_applied,
+    );
     let checksum_matches = expected_checksum
         .as_ref()
         .map(|expected| expected == &rebuild.final_checksum)
@@ -107,7 +113,8 @@ pub fn run_replay(
         && rebuild.invariant_violations.is_empty()
         && rebuild.epistemic_application_errors.is_empty()
         && rebuild.agent_application_errors.is_empty()
-        && rebuild.decision_context_hash_failures.is_empty();
+        && rebuild.decision_context_hash_failures.is_empty()
+        && rebuild.temporal_violations.is_empty();
     let epistemic_projection_version = rebuild
         .final_epistemic_projection
         .projection_version()
@@ -149,10 +156,13 @@ pub fn run_replay(
 
 fn first_divergence_detail(
     state_diff: &[String],
+    temporal_violations: &[TemporalDivergence],
     log: &EventLog,
     event_count_applied: usize,
 ) -> Option<ReplayDivergenceDetail> {
-    let first_diff = state_diff.first()?;
+    let Some(first_diff) = state_diff.first() else {
+        return temporal_violations.first().map(temporal_divergence_detail);
+    };
     let first_divergent_event_id = event_count_applied
         .checked_sub(1)
         .and_then(|index| log.events().get(index))
@@ -161,6 +171,13 @@ fn first_divergence_detail(
         first_divergent_event_id,
         field_family: classify_state_diff_family(first_diff),
     })
+}
+
+fn temporal_divergence_detail(violation: &TemporalDivergence) -> ReplayDivergenceDetail {
+    ReplayDivergenceDetail {
+        first_divergent_event_id: Some(violation.event_id().as_str().to_string()),
+        field_family: ReplayDivergenceFieldFamily::Temporal,
+    }
 }
 
 fn classify_state_diff_family(diff: &str) -> ReplayDivergenceFieldFamily {

@@ -3,9 +3,7 @@ use tracewake_content::load::{load_fixture_package, LoadError};
 use tracewake_core::actions::{
     run_pipeline, ActionRegistry, PipelineContext, PipelineResult, ReportStatus, ValidationReport,
 };
-use tracewake_core::agent::{
-    current_place_knowledge_context, record_current_place_perception_and_project,
-};
+use tracewake_core::agent::current_place_knowledge_context;
 use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext, PhysicalChecksum};
 use tracewake_core::controller::ControllerBindings;
 use tracewake_core::debug_reports::{
@@ -15,7 +13,6 @@ use tracewake_core::debug_reports::{
     replay_debug_report,
 };
 use tracewake_core::epistemics::projection::EpistemicProjection;
-use tracewake_core::epistemics::ActorKnownIntervalDeltaError;
 use tracewake_core::epistemics::KnowledgeContext;
 use tracewake_core::events::log::EventLog;
 use tracewake_core::ids::{
@@ -25,7 +22,7 @@ use tracewake_core::ids::{
 use tracewake_core::projections::{
     build_debug_event_log_view, build_embodied_view_model, build_notebook_view,
     proposal_from_current_view_semantic_action, EmbodiedPreflightSource, EmbodiedProjectionSource,
-    EmbodiedTruthSnapshot, IntervalStopReason, ProjectionError,
+    EmbodiedTruthSnapshot, ProjectionError,
 };
 use tracewake_core::replay::{rebuild_projection, run_replay};
 use tracewake_core::scheduler::no_human::{
@@ -56,7 +53,6 @@ pub enum AppError {
     ActorNotFound(ActorId),
     ActorNotBound,
     DebugUnavailable,
-    ActorKnownIntervalDelta(ActorKnownIntervalDeltaError),
     Projection(ProjectionError),
     SchedulerRestoreFailed,
     SemanticActionNotFound(String),
@@ -160,13 +156,12 @@ impl TuiApp {
             &mut self.log,
             self.content_manifest_id.clone(),
         );
-        record_current_place_perception_and_project(
-            &mut self.log,
+        self.scheduler.record_actor_current_place_perception(
             &mut self.state,
             &mut self.agent_state,
+            &mut self.log,
             &mut self.epistemic_projection,
             &actor_id,
-            self.scheduler.current_tick(),
             &self.content_manifest_id,
         );
         self.bound_actor_id = Some(actor_id);
@@ -298,9 +293,7 @@ impl TuiApp {
                             authorized_sleep_interruptions: Vec::new(),
                         },
                         controlled_proposals: vec![proposal],
-                        due_actor_ids: Vec::new(),
                         actor_known_interval_actor_id: None,
-                        world_process_events: Vec::new(),
                     },
                 )
                 .map_err(AppError::WorldAdvance)?;
@@ -335,13 +328,12 @@ impl TuiApp {
         } else {
             self.last_rejection = None;
             if let Some(actor_id) = self.bound_actor_id.clone() {
-                record_current_place_perception_and_project(
-                    &mut self.log,
+                self.scheduler.record_actor_current_place_perception(
                     &mut self.state,
                     &mut self.agent_state,
+                    &mut self.log,
                     &mut self.epistemic_projection,
                     &actor_id,
-                    self.scheduler.current_tick(),
                     &self.content_manifest_id,
                 );
             }
@@ -355,7 +347,6 @@ impl TuiApp {
 
     pub fn advance_until(&mut self, max_ticks: u64) -> Result<AdvanceUntilResult, AppError> {
         let actor_id = self.bound_actor_id.clone().ok_or(AppError::ActorNotBound)?;
-        let before_context = self.current_view_context(&actor_id);
         let result = self
             .scheduler
             .advance_until(
@@ -373,26 +364,10 @@ impl TuiApp {
                 },
             )
             .map_err(AppError::WorldAdvance)?;
-        record_current_place_perception_and_project(
-            &mut self.log,
-            &mut self.state,
-            &mut self.agent_state,
-            &mut self.epistemic_projection,
-            &actor_id,
-            self.scheduler.current_tick(),
-            &self.content_manifest_id,
-        );
-        let after_context = self.current_view_context(&actor_id);
-        self.last_interval_summary = Some(
-            self.epistemic_projection
-                .actor_known_interval_delta(
-                    &before_context,
-                    &after_context,
-                    interval_stop_reason(result.stop_reason),
-                )
-                .map(TypedActorKnownIntervalSummary::from)
-                .map_err(AppError::ActorKnownIntervalDelta)?,
-        );
+        self.last_interval_summary = result
+            .actor_known_interval_delta
+            .clone()
+            .map(TypedActorKnownIntervalSummary::from);
         self.last_rejection = None;
         Ok(result)
     }
@@ -426,13 +401,12 @@ impl TuiApp {
         self.agent_state = rebuild.final_agent_state;
         self.epistemic_projection = rebuild.final_epistemic_projection;
         if let Some(actor_id) = self.bound_actor_id.clone() {
-            record_current_place_perception_and_project(
-                &mut self.log,
+            self.scheduler.record_actor_current_place_perception(
                 &mut self.state,
                 &mut self.agent_state,
+                &mut self.log,
                 &mut self.epistemic_projection,
                 &actor_id,
-                self.scheduler.current_tick(),
                 &self.content_manifest_id,
             );
         }
@@ -575,25 +549,6 @@ impl TuiApp {
     }
 }
 
-fn interval_stop_reason(
-    reason: tracewake_core::scheduler::AdvanceUntilStopReason,
-) -> IntervalStopReason {
-    match reason {
-        tracewake_core::scheduler::AdvanceUntilStopReason::PossessedDurationTerminal => {
-            IntervalStopReason::PossessedDurationTerminal
-        }
-        tracewake_core::scheduler::AdvanceUntilStopReason::ActorKnownSalientObservation => {
-            IntervalStopReason::ActorKnownSalientObservation
-        }
-        tracewake_core::scheduler::AdvanceUntilStopReason::UserPausedBeforeNextTick => {
-            IntervalStopReason::UserPausedBeforeNextTick
-        }
-        tracewake_core::scheduler::AdvanceUntilStopReason::ControllerSafetyBound => {
-            IntervalStopReason::ControllerSafetyBound
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -629,6 +584,26 @@ mod tests {
         assert!(after.contains("strongbox_tomas"));
         assert!(after.contains("coin_stack_01"));
         assert!(app.event_count() >= 2);
+    }
+
+    #[test]
+    fn consuming_core_interval_product_is_read_only() {
+        let mut app = TuiApp::load_default().unwrap();
+        app.bind_actor(ActorId::new("actor_tomas").unwrap())
+            .unwrap();
+
+        app.advance_until(0).unwrap();
+        assert!(app.last_interval_summary.is_some());
+        let log_len = app.log.events().len();
+        let projection_checksum = app.epistemic_projection.compute_checksum().checksum;
+
+        let _rendered = app.render_current_view().unwrap();
+
+        assert_eq!(app.log.events().len(), log_len);
+        assert_eq!(
+            app.epistemic_projection.compute_checksum().checksum,
+            projection_checksum
+        );
     }
 
     #[test]

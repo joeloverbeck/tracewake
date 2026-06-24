@@ -124,6 +124,16 @@ Use this block as a pointer to foundation `03` / `INV-112`, the architecture tem
 - Do open durations close through the shared authority for event-sourced starts and terminals, not through batch-local pending queues or client-side completion logic?
 - Is interval output positive actor-known evidence from modeled sources, not a redacted omniscient event diff or an omniscient "nothing happened" summary?
 
+Current 0050 evidence answers these prompts by routing human-origin and
+no-human-origin advancement through core-derived loaded actors, declared
+processes, closed actor transaction outcomes, fail-closed event identity,
+temporal replay verdicts, and a core-owned interval product. Reviewers should
+look for `world_step_coordinator.rs`, `generative_lock.rs`,
+`replay_temporal_frontier.rs`, `holder_known_interval_projection.rs`,
+`salient_stop_actor_known.rs`, `negative_fixture_runner.rs`,
+`playable_capability_parity.rs`, and `parity_adversarial.rs` before treating a
+loaded-world/time-control row as current executable evidence.
+
 ### Ordinary-life play
 
 - Can the scenario run without a human controller and still produce ordinary life, needs, routines, interruptions, and consequences under `NO-HUMAN`?

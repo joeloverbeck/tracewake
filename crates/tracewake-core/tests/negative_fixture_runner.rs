@@ -135,12 +135,32 @@ const FIXTURES: &[NegativeFixture] = &[
         expected_stderr: "private",
     },
     NegativeFixture {
+        name: "external_crate_cannot_reduce_actor_step_outcome_to_option",
+        expected_stderr: "the trait bound",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_call_tui_perception_append_helper",
+        expected_stderr: "cannot find function",
+    },
+    NegativeFixture {
         name: "external_crate_cannot_convert_debug_report_to_interval_summary",
         expected_stderr: "the trait bound",
     },
     NegativeFixture {
         name: "external_crate_cannot_assign_scheduler_frontier",
         expected_stderr: "private field",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_set_world_step_due_actor_ids",
+        expected_stderr: "no field named `due_actor_ids`",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_set_world_step_process_events",
+        expected_stderr: "no field named `world_process_events`",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_name_due_process_invocation",
+        expected_stderr: "struct `DueProcessInvocation` is private",
     },
 ];
 

@@ -173,7 +173,7 @@ fn no_human_capstone_debug_and_replay_perturbation_are_non_interfering() {
     );
     assert_no_controller_or_hidden_truth_leak(&run.log);
 
-    let context = ChecksumContext {
+    let final_context = ChecksumContext {
         fixture_id: FixtureId::new("phase3a_capstone_perturbed").unwrap(),
         content_version: ContentVersion::new("content_v1").unwrap(),
         sim_tick: run.final_tick,
@@ -185,15 +185,20 @@ fn no_human_capstone_debug_and_replay_perturbation_are_non_interfering() {
             .count()
             .saturating_sub(1) as u64,
     };
-    let live_physical_checksum = compute_physical_checksum(&run.final_world, &context).checksum;
+    let replay_context = ChecksumContext {
+        sim_tick: SimTick::ZERO,
+        ..final_context.clone()
+    };
+    let live_physical_checksum =
+        compute_physical_checksum(&run.final_world, &final_context).checksum;
     let live_agent_checksum =
-        compute_agent_state_checksum(&run.final_agent_state, &context).checksum;
+        compute_agent_state_checksum(&run.final_agent_state, &final_context).checksum;
 
     let replay = run_replay(
         &run.initial_world,
         &run.initial_agent_state,
         &run.log,
-        &context,
+        &replay_context,
         Some(&run.final_world),
         Some(live_physical_checksum.clone()),
         Some(live_agent_checksum.clone()),
@@ -205,7 +210,7 @@ fn no_human_capstone_debug_and_replay_perturbation_are_non_interfering() {
         &run.initial_world,
         &run.initial_agent_state,
         &perturbed,
-        &context,
+        &replay_context,
         Some(&run.final_world),
         Some(live_physical_checksum),
         Some(live_agent_checksum),

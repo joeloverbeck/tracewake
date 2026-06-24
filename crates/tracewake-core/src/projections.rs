@@ -309,9 +309,23 @@ fn actor_known_workplaces_for_context(
 }
 
 fn actor_known_doors_for_context(context: &KnowledgeContext) -> Vec<ActorKnownDoorSurface> {
-    let mut doors = context
-        .actor_known_doors()
-        .iter()
+    let mut selected = Vec::<&ActorKnownDoorFact>::new();
+    for fact in context.actor_known_doors() {
+        match selected
+            .iter_mut()
+            .find(|existing| existing.door_id() == fact.door_id())
+        {
+            Some(existing) => {
+                if fact.source_key() > existing.source_key() {
+                    *existing = fact;
+                }
+            }
+            None => selected.push(fact),
+        }
+    }
+
+    let mut doors = selected
+        .into_iter()
         .map(|fact: &ActorKnownDoorFact| ActorKnownDoorSurface {
             door_id: fact.door_id().clone(),
             endpoint_a: fact.endpoint_a().clone(),
@@ -329,9 +343,23 @@ fn actor_known_doors_for_context(context: &KnowledgeContext) -> Vec<ActorKnownDo
 fn actor_known_containers_for_context(
     context: &KnowledgeContext,
 ) -> Vec<ActorKnownContainerSurface> {
-    let mut containers = context
-        .actor_known_containers()
-        .iter()
+    let mut selected = Vec::<&ActorKnownContainerFact>::new();
+    for fact in context.actor_known_containers() {
+        match selected
+            .iter_mut()
+            .find(|existing| existing.container_id() == fact.container_id())
+        {
+            Some(existing) => {
+                if fact.source_key() > existing.source_key() {
+                    *existing = fact;
+                }
+            }
+            None => selected.push(fact),
+        }
+    }
+
+    let mut containers = selected
+        .into_iter()
         .map(
             |fact: &ActorKnownContainerFact| ActorKnownContainerSurface {
                 container_id: fact.container_id().clone(),
@@ -744,6 +772,24 @@ impl IntervalStopReason {
     }
 }
 
+/// Closed holder-known salience classification for an actor-known interval.
+///
+/// The policy is intentionally semantic, not source-count based: routine
+/// re-observation of the same actor-known fact is quiet, while gaining a fact
+/// not present in the start context is salient. This keeps stop decisions
+/// holder-known and provenance-backed without consulting raw world/debug state.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum IntervalSalience {
+    None,
+    NovelActorKnownFact,
+}
+
+impl IntervalSalience {
+    pub const fn is_salient(self) -> bool {
+        matches!(self, Self::NovelActorKnownFact)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VerifiedActorKnownIntervalNotice {
     notice_kind: IntervalNoticeKind,
@@ -785,6 +831,7 @@ pub struct ActorKnownIntervalDelta {
     start_frontier: u64,
     stop_frontier: u64,
     stop_reason: IntervalStopReason,
+    salience: IntervalSalience,
     notices: Vec<VerifiedActorKnownIntervalNotice>,
 }
 
@@ -797,6 +844,7 @@ impl ActorKnownIntervalDelta {
         start_frontier: u64,
         stop_frontier: u64,
         stop_reason: IntervalStopReason,
+        salience: IntervalSalience,
         mut notices: Vec<VerifiedActorKnownIntervalNotice>,
     ) -> Self {
         notices.sort();
@@ -808,6 +856,7 @@ impl ActorKnownIntervalDelta {
             start_frontier,
             stop_frontier,
             stop_reason,
+            salience,
             notices,
         }
     }
@@ -834,6 +883,10 @@ impl ActorKnownIntervalDelta {
 
     pub fn stop_reason(&self) -> IntervalStopReason {
         self.stop_reason
+    }
+
+    pub fn salience(&self) -> IntervalSalience {
+        self.salience
     }
 
     pub fn notices(&self) -> &[VerifiedActorKnownIntervalNotice] {
@@ -1591,6 +1644,10 @@ mod tests {
         ContainerId::new(value).unwrap()
     }
 
+    fn door_id(value: &str) -> DoorId {
+        DoorId::new(value).unwrap()
+    }
+
     fn event_id(value: &str) -> crate::ids::EventId {
         crate::ids::EventId::new(value).unwrap()
     }
@@ -1611,6 +1668,130 @@ mod tests {
             notice.source_key(),
             "role_assignment_notice:event.interval.source"
         );
+    }
+
+    #[test]
+    fn actor_known_doors_for_context_prefers_greater_source_key_and_keeps_first_equal_key() {
+        let shared_door_id = door_id("door_shared");
+        let front = place_id("front_room");
+        let back = place_id("back_room");
+        let older_open = ActorKnownDoorFact::new(
+            shared_door_id.clone(),
+            front.clone(),
+            back.clone(),
+            true,
+            false,
+            true,
+            "source_a",
+        );
+        let newer_closed = ActorKnownDoorFact::new(
+            shared_door_id.clone(),
+            front.clone(),
+            back.clone(),
+            false,
+            true,
+            true,
+            "source_b",
+        );
+        let equal_key_later =
+            ActorKnownDoorFact::new(shared_door_id, front, back, false, false, true, "source_a");
+        let context = KnowledgeContext::embodied_at_frontier_with_all_facts(
+            actor_id("actor_tomas"),
+            SimTick::new(1),
+            0,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            vec![
+                older_open.clone(),
+                newer_closed.clone(),
+                equal_key_later.clone(),
+            ],
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
+
+        let doors = actor_known_doors_for_context(&context);
+
+        assert_eq!(doors.len(), 1);
+        assert!(!doors[0].is_open);
+        assert!(doors[0].is_locked);
+
+        let equal_key_context = KnowledgeContext::embodied_at_frontier_with_all_facts(
+            actor_id("actor_tomas"),
+            SimTick::new(1),
+            0,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            vec![older_open, equal_key_later],
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
+
+        let equal_key_doors = actor_known_doors_for_context(&equal_key_context);
+
+        assert_eq!(equal_key_doors.len(), 1);
+        assert!(!equal_key_doors[0].is_open);
+        assert!(!equal_key_doors[0].is_locked);
+    }
+
+    #[test]
+    fn actor_known_containers_for_context_prefers_greater_source_key_and_keeps_first_equal_key() {
+        let shared_container_id = container_id("container_shared");
+        let older_open =
+            ActorKnownContainerFact::new(shared_container_id.clone(), true, false, "source_a");
+        let newer_locked =
+            ActorKnownContainerFact::new(shared_container_id.clone(), false, true, "source_b");
+        let equal_key_later =
+            ActorKnownContainerFact::new(shared_container_id, false, false, "source_a");
+        let context = KnowledgeContext::embodied_at_frontier_with_all_facts(
+            actor_id("actor_tomas"),
+            SimTick::new(1),
+            0,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            vec![
+                older_open.clone(),
+                newer_locked.clone(),
+                equal_key_later.clone(),
+            ],
+            Vec::new(),
+            Vec::new(),
+        );
+
+        let containers = actor_known_containers_for_context(&context);
+
+        assert_eq!(containers.len(), 1);
+        assert!(!containers[0].is_open);
+        assert!(containers[0].is_locked);
+
+        let equal_key_context = KnowledgeContext::embodied_at_frontier_with_all_facts(
+            actor_id("actor_tomas"),
+            SimTick::new(1),
+            0,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            vec![older_open, equal_key_later],
+            Vec::new(),
+            Vec::new(),
+        );
+
+        let equal_key_containers = actor_known_containers_for_context(&equal_key_context);
+
+        assert_eq!(equal_key_containers.len(), 1);
+        assert!(!equal_key_containers[0].is_open);
+        assert!(!equal_key_containers[0].is_locked);
     }
 
     fn metric_event(kind: EventKind, sequence: u64, tick: u64) -> EventEnvelope {

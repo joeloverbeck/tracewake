@@ -19,6 +19,12 @@ temporary changes:
 
 Do not let a temporary-break artifact become the committed source of truth.
 
+Committed adversarial or negative tests may substitute for a manual temporary
+production break only when they prove the same failure mode. Record the
+substitution explicitly in the ticket, report, spec outcome, or final closeout
+surface that requested deliberate-break evidence, including the committed test
+or fixture name and the manual break that was intentionally not performed.
+
 ## Generated Baselines
 
 If the series commits verifier baselines or generated outputs:

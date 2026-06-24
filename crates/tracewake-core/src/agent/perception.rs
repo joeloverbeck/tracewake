@@ -24,13 +24,48 @@ pub fn record_current_place_perception(
     decision_tick: SimTick,
     content_manifest_id: &ContentManifestId,
 ) -> Vec<EventEnvelope> {
+    // Repeated current-place perceptions at the same actor/tick/target can be
+    // distinct causal opportunities after intervening events. Preserve the
+    // stable base ID for the first occurrence and add a deterministic log
+    // frontier component for later occurrences before EventLog's fail-closed
+    // duplicate check.
     current_place_perception_events(state, actor_id, decision_tick, content_manifest_id)
         .into_iter()
-        .map(|event| {
+        .map(|mut event| {
+            if log.contains_event_id(&event.event_id) {
+                let base = event.event_id.as_str().to_string();
+                let mut occurrence = log.events().len();
+                for _ in 0..=log.events().len() {
+                    let candidate =
+                        EventId::new(format!("{base}.occurrence.{occurrence}")).unwrap();
+                    if !log.contains_event_id(&candidate) {
+                        rename_perception_event(&mut event, candidate);
+                        break;
+                    }
+                    occurrence += 1;
+                }
+                assert_ne!(
+                    event.event_id.as_str(),
+                    base,
+                    "no free perception-event frontier id within bound"
+                );
+            }
             log.append(event)
                 .expect("current-place perception event is versioned")
         })
         .collect()
+}
+
+fn rename_perception_event(event: &mut EventEnvelope, event_id: EventId) {
+    let observation_id = format!("obs.perception.{}", event_id.as_str());
+    for field in &mut event.payload {
+        match field.key.as_str() {
+            "observation_id" => field.value = observation_id.clone(),
+            "source_event_id" => field.value = event_id.as_str().to_string(),
+            _ => {}
+        }
+    }
+    event.event_id = event_id;
 }
 
 pub fn record_current_place_perception_and_project(
@@ -853,6 +888,41 @@ mod tests {
                     field.key == "source_event_id" && field.value == event.event_id.as_str()
                 })
         }));
+    }
+
+    #[test]
+    fn record_current_place_perception_bounds_collision_search_and_renames_payload_ids() {
+        let state = state_without_visible_surfaces();
+        let actor_id = actor_id("actor_tomas");
+        let tick = SimTick::new(4);
+        let manifest_id = manifest_id();
+        let base_event = current_place_perception_events(&state, &actor_id, tick, &manifest_id)
+            .into_iter()
+            .next()
+            .expect("current place perception exists");
+        let base_id = base_event.event_id.as_str().to_string();
+        let first_collision_id = EventId::new(format!("{base_id}.occurrence.2")).unwrap();
+        let expected_id = format!("{base_id}.occurrence.3");
+        let mut first_collision_event = base_event.clone();
+        rename_perception_event(&mut first_collision_event, first_collision_id);
+        let mut log = EventLog::new();
+        log.append(base_event).unwrap();
+        log.append(first_collision_event).unwrap();
+
+        let recorded =
+            record_current_place_perception(&mut log, &state, &actor_id, tick, &manifest_id);
+
+        assert_eq!(recorded.len(), 1);
+        assert_eq!(recorded[0].event_id.as_str(), expected_id);
+        assert_eq!(
+            payload_value(&recorded[0], "observation_id"),
+            Some(format!("obs.perception.{expected_id}").as_str())
+        );
+        assert_eq!(
+            payload_value(&recorded[0], "source_event_id"),
+            Some(expected_id.as_str())
+        );
+        assert_eq!(log.events().len(), 3);
     }
 
     fn item_id(value: &str) -> ItemId {

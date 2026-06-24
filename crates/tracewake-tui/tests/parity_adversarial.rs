@@ -6,8 +6,13 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 
 use parity::{
     registry,
-    runner::{registered_action_coverage_failures, run_conformance},
+    runner::{
+        registered_action_coverage_failures, run_conformance,
+        run_conformance_with_measurement_probe,
+    },
     scenario::assert_actor_surface_does_not_leak,
+    scenario::ScenarioMeasuredEvidence,
+    EvidenceFlag,
 };
 
 #[test]
@@ -99,6 +104,103 @@ fn parity_adversarial_source_guard_target_removal_fails() {
             .iter()
             .any(|error| error.contains("rest pattern")),
         "adding a wildcard rest pattern must fail the source guard"
+    );
+}
+
+#[test]
+fn parity_adversarial_missing_actor_invocation_fails_typed_evidence() {
+    let entry = registry_entry_with(|entry| !entry.typed_witness.assertion.trim().is_empty());
+    let report = run_conformance_with_measurement_probe(std::slice::from_ref(&entry), |_| {
+        Some(ScenarioMeasuredEvidence {
+            actor_knowledge: true,
+            rendered: true,
+            replay_match: true,
+            debug_or_embodied_disposition: true,
+            ..ScenarioMeasuredEvidence::default()
+        })
+    });
+
+    assert_failure(
+        &report.failures,
+        entry.key,
+        "missing_measured_typed_evidence",
+    );
+}
+
+#[test]
+fn parity_adversarial_missing_world_process_fails_no_human_evidence() {
+    let entry = registry_entry_with(|entry| entry.key == "base.family.no_human_autonomy");
+    let report = run_conformance_with_measurement_probe(std::slice::from_ref(&entry), |_| {
+        Some(ScenarioMeasuredEvidence {
+            typed: true,
+            actor_knowledge: true,
+            rendered: true,
+            replay_match: true,
+            debug_or_embodied_disposition: true,
+            ..ScenarioMeasuredEvidence::default()
+        })
+    });
+
+    assert_failure(
+        &report.failures,
+        entry.key,
+        "missing_measured_no_human_work",
+    );
+}
+
+#[test]
+fn parity_adversarial_hidden_same_actor_id_source_fails_holder_known_evidence() {
+    let entry =
+        registry_entry_with(|entry| !entry.actor_knowledge_witness.assertion.trim().is_empty());
+    let report = run_conformance_with_measurement_probe(std::slice::from_ref(&entry), |_| {
+        Some(ScenarioMeasuredEvidence {
+            typed: true,
+            rendered: true,
+            replay_match: true,
+            debug_or_embodied_disposition: true,
+            ..ScenarioMeasuredEvidence::default()
+        })
+    });
+
+    assert_failure(
+        &report.failures,
+        entry.key,
+        "missing_measured_actor_knowledge",
+    );
+}
+
+#[test]
+fn parity_adversarial_removed_temporal_marker_fails_replay_evidence() {
+    let entry =
+        registry_entry_with(|entry| matches!(entry.replay_evidence, EvidenceFlag::Required));
+    let report = run_conformance_with_measurement_probe(std::slice::from_ref(&entry), |_| {
+        Some(ScenarioMeasuredEvidence {
+            typed: true,
+            actor_knowledge: true,
+            rendered: true,
+            debug_or_embodied_disposition: true,
+            ..ScenarioMeasuredEvidence::default()
+        })
+    });
+
+    assert_failure(&report.failures, entry.key, "missing_measured_replay");
+}
+
+fn registry_entry_with(
+    predicate: impl Fn(&parity::CapabilityEntry) -> bool,
+) -> parity::CapabilityEntry {
+    registry()
+        .into_iter()
+        .find(predicate)
+        .expect("registry contains a matching adversarial entry")
+}
+
+fn assert_failure(failures: &[parity::runner::ConformanceFailure], key: &str, code: &'static str) {
+    assert!(
+        failures
+            .iter()
+            .any(|failure| failure.key.as_deref() == Some(key) && failure.code == code),
+        "expected failure {code} for {key}, got {failures:#?}"
     );
 }
 

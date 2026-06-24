@@ -12,7 +12,7 @@ use tracewake_core::agent::NeedBand;
 use tracewake_core::checksum::{
     compute_agent_state_checksum, compute_physical_checksum, ChecksumContext,
 };
-use tracewake_core::events::log::EventLog;
+use tracewake_core::events::log::{EventLog, EventLogError};
 use tracewake_core::events::{EventCause, EventEnvelope, EventKind, EventStream};
 use tracewake_core::ids::{ContentVersion, EventId, FixtureId};
 use tracewake_core::projections::no_human_day_metrics;
@@ -215,7 +215,7 @@ fn generated_sequences_replay_and_satisfy_metamorphic_locks() {
         }
         assert_serialization_round_trip(&run.log, *seed);
         assert_prefix_replay_matches_full(&run, *seed);
-        assert_marker_append_does_not_change_physical_checksum(&run, *seed);
+        assert_duplicate_marker_append_fails_closed(&run, *seed);
         assert_single_need_charge_per_actor_tick_kind(&run.log, *seed);
 
         reachability.replay_round_trip = true;
@@ -552,6 +552,7 @@ struct GeneratedRun {
     final_world: tracewake_core::state::PhysicalState,
     final_agent_state: tracewake_core::state::AgentState,
     log: EventLog,
+    start_tick: SimTick,
     final_tick: SimTick,
 }
 
@@ -587,6 +588,7 @@ fn run_case(case: &support::generative::GeneratedCase) -> GeneratedRun {
         final_world: world,
         final_agent_state: agent_state,
         log,
+        start_tick: case.start_tick,
         final_tick: report.final_tick,
     }
 }
@@ -650,14 +652,15 @@ fn checksum_context(seed: u64, log: &EventLog, tick: SimTick) -> ChecksumContext
 }
 
 fn assert_live_matches_replay(run: &GeneratedRun, seed: u64) {
-    let context = checksum_context(seed, &run.log, run.final_tick);
-    let live_physical = compute_physical_checksum(&run.final_world, &context).checksum;
-    let live_agent = compute_agent_state_checksum(&run.final_agent_state, &context).checksum;
+    let replay_context = checksum_context(seed, &run.log, run.start_tick);
+    let final_context = checksum_context(seed, &run.log, run.final_tick);
+    let live_physical = compute_physical_checksum(&run.final_world, &final_context).checksum;
+    let live_agent = compute_agent_state_checksum(&run.final_agent_state, &final_context).checksum;
     let replay = run_replay(
         &run.initial_world,
         &run.initial_agent_state,
         &run.log,
-        &context,
+        &replay_context,
         Some(&run.final_world),
         Some(live_physical.clone()),
         Some(live_agent.clone()),
@@ -687,15 +690,17 @@ fn assert_payload_tamper_poisons_replay(run: &GeneratedRun, seed: u64) {
                 tampered_log.append(candidate).unwrap();
             }
 
-            let context = checksum_context(seed, &tampered_log, run.final_tick);
-            let live_physical = compute_physical_checksum(&run.final_world, &context).checksum;
+            let replay_context = checksum_context(seed, &tampered_log, run.start_tick);
+            let final_context = checksum_context(seed, &tampered_log, run.final_tick);
+            let live_physical =
+                compute_physical_checksum(&run.final_world, &final_context).checksum;
             let live_agent =
-                compute_agent_state_checksum(&run.final_agent_state, &context).checksum;
+                compute_agent_state_checksum(&run.final_agent_state, &final_context).checksum;
             let replay = run_replay(
                 &run.initial_world,
                 &run.initial_agent_state,
                 &tampered_log,
-                &context,
+                &replay_context,
                 Some(&run.final_world),
                 Some(live_physical),
                 Some(live_agent),
@@ -767,14 +772,15 @@ fn tampered_log(log: &EventLog, event_index: usize, payload_index: usize) -> Eve
 }
 
 fn replay_is_poisoned(run: &GeneratedRun, tampered_log: &EventLog, seed: u64) -> bool {
-    let context = checksum_context(seed, tampered_log, run.final_tick);
-    let live_physical = compute_physical_checksum(&run.final_world, &context).checksum;
-    let live_agent = compute_agent_state_checksum(&run.final_agent_state, &context).checksum;
+    let replay_context = checksum_context(seed, tampered_log, run.start_tick);
+    let final_context = checksum_context(seed, tampered_log, run.final_tick);
+    let live_physical = compute_physical_checksum(&run.final_world, &final_context).checksum;
+    let live_agent = compute_agent_state_checksum(&run.final_agent_state, &final_context).checksum;
     let replay = run_replay(
         &run.initial_world,
         &run.initial_agent_state,
         tampered_log,
-        &context,
+        &replay_context,
         Some(&run.final_world),
         Some(live_physical),
         Some(live_agent),
@@ -794,7 +800,7 @@ fn assert_prefix_replay_matches_full(run: &GeneratedRun, seed: u64) {
     for event in run.log.events().iter().take(midpoint).cloned() {
         prefix.append(event).unwrap();
     }
-    let prefix_context = checksum_context(seed, &prefix, run.final_tick);
+    let prefix_context = checksum_context(seed, &prefix, run.start_tick);
     let prefix_rebuild = rebuild_projection(
         &run.initial_world,
         &run.initial_agent_state,
@@ -807,7 +813,7 @@ fn assert_prefix_replay_matches_full(run: &GeneratedRun, seed: u64) {
         "seed={seed} prefix={prefix_rebuild:?}"
     );
 
-    let full_context = checksum_context(seed, &run.log, run.final_tick);
+    let full_context = checksum_context(seed, &run.log, run.start_tick);
     let full_rebuild = rebuild_projection(
         &run.initial_world,
         &run.initial_agent_state,
@@ -821,16 +827,16 @@ fn assert_prefix_replay_matches_full(run: &GeneratedRun, seed: u64) {
     );
     assert_eq!(
         full_rebuild.final_checksum,
-        compute_physical_checksum(&run.final_world, &full_context).checksum,
+        compute_physical_checksum(
+            &run.final_world,
+            &checksum_context(seed, &run.log, run.final_tick)
+        )
+        .checksum,
         "seed={seed}"
     );
 }
 
-fn assert_marker_append_does_not_change_physical_checksum(run: &GeneratedRun, seed: u64) {
-    let before_context = checksum_context(seed, &run.log, run.final_tick);
-    let before_physical = compute_physical_checksum(&run.final_world, &before_context).checksum;
-    let before_agent =
-        compute_agent_state_checksum(&run.final_agent_state, &before_context).checksum;
+fn assert_duplicate_marker_append_fails_closed(run: &GeneratedRun, seed: u64) {
     let mut marker_log = run.log.clone();
     let marker = run
         .log
@@ -840,12 +846,12 @@ fn assert_marker_append_does_not_change_physical_checksum(run: &GeneratedRun, se
         .find(|event| event.event_type == EventKind::NoHumanAdvanceCompleted)
         .cloned()
         .expect("generated run emits completion marker");
-    marker_log.append(marker).unwrap();
-    let after_context = checksum_context(seed, &marker_log, run.final_tick);
-    let after_physical = compute_physical_checksum(&run.final_world, &after_context).checksum;
-    let after_agent = compute_agent_state_checksum(&run.final_agent_state, &after_context).checksum;
-    assert_eq!(before_physical, after_physical, "seed={seed}");
-    assert_eq!(before_agent, after_agent, "seed={seed}");
+    let marker_id = marker.event_id.clone();
+    assert_eq!(
+        marker_log.append(marker),
+        Err(EventLogError::DuplicateEventId(marker_id)),
+        "seed={seed} duplicate completion marker must fail closed"
+    );
 }
 
 fn assert_single_need_charge_per_actor_tick_kind(log: &EventLog, seed: u64) {

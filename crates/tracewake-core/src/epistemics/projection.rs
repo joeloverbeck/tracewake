@@ -11,7 +11,7 @@ use crate::ids::{
 };
 use crate::location::Location;
 use crate::projections::{
-    ActorKnownIntervalDelta, IntervalNoticeKind, IntervalStopReason,
+    ActorKnownIntervalDelta, IntervalNoticeKind, IntervalSalience, IntervalStopReason,
     VerifiedActorKnownIntervalNotice,
 };
 use crate::time::SimTick;
@@ -605,6 +605,7 @@ impl EpistemicProjection {
             .cloned()
             .unwrap_or_default();
         let mut notices = Vec::new();
+        let mut salience = IntervalSalience::None;
         for entry in after
             .provenance_entries()
             .iter()
@@ -634,6 +635,9 @@ impl EpistemicProjection {
                 record.source_event_id().clone(),
                 entry.source_key(),
             ));
+            if actor_known_record_is_novel_to_context(record, before) {
+                salience = IntervalSalience::NovelActorKnownFact;
+            }
         }
 
         Ok(ActorKnownIntervalDelta::from_verified(
@@ -643,6 +647,7 @@ impl EpistemicProjection {
             before.event_frontier(),
             after.event_frontier(),
             stop_reason,
+            salience,
             notices,
         ))
     }
@@ -893,6 +898,108 @@ fn interval_notice_kind(
         | crate::epistemics::knowledge_context::KnowledgeProvenanceKind::ActionAffordanceFact => {
             None
         }
+    }
+}
+
+fn actor_known_record_is_novel_to_context(
+    record: &ActorKnownProjectionRecord,
+    context: &KnowledgeContext,
+) -> bool {
+    match record {
+        ActorKnownProjectionRecord::CurrentPlace {
+            place_id,
+            display_label,
+            ..
+        } => !context
+            .actor_known_current_places()
+            .iter()
+            .any(|fact| fact.place_id() == place_id && fact.display_label() == display_label),
+        ActorKnownProjectionRecord::CarriedItem {
+            item_id,
+            source_location,
+            portable,
+            ..
+        } => !context.actor_known_carried_items().iter().any(|fact| {
+            fact.item_id() == item_id
+                && fact.source() == source_location
+                && fact.portable() == *portable
+        }),
+        ActorKnownProjectionRecord::Route {
+            from_place_id,
+            to_place_id,
+            ..
+        } => !context
+            .actor_known_routes()
+            .iter()
+            .any(|fact| fact.from_place_id() == from_place_id && fact.to_place_id() == to_place_id),
+        ActorKnownProjectionRecord::FoodSource {
+            food_source_id,
+            believed_servings,
+            ..
+        } => !context.actor_known_food_sources().iter().any(|fact| {
+            fact.food_supply_id().as_str() == food_source_id
+                && fact.believed_servings() == *believed_servings
+        }),
+        ActorKnownProjectionRecord::SleepPlace {
+            place_id,
+            sleep_affordance_id,
+            ..
+        } => !context.actor_known_sleep_affordances().iter().any(|fact| {
+            fact.place_id() == place_id
+                && Some(fact.sleep_affordance_id().as_str()) == sleep_affordance_id.as_deref()
+        }),
+        ActorKnownProjectionRecord::Workplace {
+            workplace_id,
+            place_id,
+            believed_access_open,
+            ..
+        } => !context.actor_known_workplaces().iter().any(|fact| {
+            fact.workplace_id() == workplace_id
+                && fact.place_id() == place_id
+                && fact.believed_access_open() == *believed_access_open
+        }),
+        ActorKnownProjectionRecord::LocalDoor {
+            door_id,
+            endpoint_a,
+            endpoint_b,
+            is_open,
+            is_locked,
+            blocks_movement_when_closed,
+            ..
+        } => !context.actor_known_doors().iter().any(|fact| {
+            fact.door_id() == door_id
+                && fact.endpoint_a() == endpoint_a
+                && fact.endpoint_b() == endpoint_b
+                && fact.is_open() == *is_open
+                && fact.is_locked() == *is_locked
+                && fact.blocks_movement_when_closed() == *blocks_movement_when_closed
+        }),
+        ActorKnownProjectionRecord::LocalContainer {
+            container_id,
+            is_open,
+            is_locked,
+            ..
+        } => !context.actor_known_containers().iter().any(|fact| {
+            fact.container_id() == container_id
+                && fact.is_open() == *is_open
+                && fact.is_locked() == *is_locked
+        }),
+        ActorKnownProjectionRecord::LocalItem {
+            item_id,
+            source_location,
+            portable,
+            ..
+        } => !context.actor_known_items().iter().any(|fact| {
+            fact.item_id() == item_id
+                && fact.source() == source_location
+                && fact.portable() == *portable
+        }),
+        ActorKnownProjectionRecord::LocalActor {
+            observed_actor_id, ..
+        } => !context
+            .actor_known_local_actors()
+            .iter()
+            .any(|fact| fact.actor_id() == observed_actor_id),
     }
 }
 
@@ -1776,18 +1883,24 @@ mod tests {
     use super::*;
     use crate::agent::{
         current_place_knowledge_context, NoHumanActorKnownSurfaceBuilder,
-        NoHumanActorKnownSurfaceRequest,
+        NoHumanActorKnownSurfaceRequest, SourceEventIds,
     };
     use crate::epistemics::belief::{Belief, HolderKind, Stance};
     use crate::epistemics::contradiction::{Contradiction, ContradictionKind};
-    use crate::epistemics::knowledge_context::KnowledgeContext;
+    use crate::epistemics::knowledge_context::{
+        ActorKnownCarriedItemFact, ActorKnownContainerFact, ActorKnownCurrentPlaceFact,
+        ActorKnownDoorFact, ActorKnownFoodSourceFact, ActorKnownItemFact, ActorKnownLocalActorFact,
+        ActorKnownRouteFact, ActorKnownSleepAffordanceFact, ActorKnownWorkplaceFact,
+        KnowledgeContext,
+    };
     use crate::epistemics::observation::{
         Channel, Confidence, Observation, ObservationSubject, ObservationTarget, SourceRef,
     };
     use crate::epistemics::proposition::Proposition;
     use crate::events::PayloadField;
     use crate::ids::{
-        ActionId, ContainerId, ContradictionId, DoorId, EventId, ItemId, ObservationId,
+        ActionId, ContainerId, ContradictionId, DoorId, EventId, FoodSupplyId, ItemId,
+        ObservationId, SleepAffordanceId,
     };
     use crate::location::Location;
     use crate::state::{ActorBody, AgentState, NeedModelState, PhysicalState};
@@ -1805,12 +1918,24 @@ mod tests {
         ContainerId::new(value).unwrap()
     }
 
+    fn door_id(value: &str) -> DoorId {
+        DoorId::new(value).unwrap()
+    }
+
     fn event_id(value: &str) -> EventId {
         EventId::new(value).unwrap()
     }
 
+    fn food_supply_id(value: &str) -> FoodSupplyId {
+        FoodSupplyId::new(value).unwrap()
+    }
+
     fn place_id(value: &str) -> PlaceId {
         PlaceId::new(value).unwrap()
+    }
+
+    fn sleep_affordance_id(value: &str) -> SleepAffordanceId {
+        SleepAffordanceId::new(value).unwrap()
     }
 
     fn workplace_id(value: &str) -> WorkplaceId {
@@ -1878,6 +2003,720 @@ mod tests {
             proposition("coin_stack_01", "strongbox_tomas"),
             SimTick::new(5),
         )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn context_with_actor_known_facts(
+        actor_known_current_places: Vec<ActorKnownCurrentPlaceFact>,
+        actor_known_carried_items: Vec<ActorKnownCarriedItemFact>,
+        actor_known_workplaces: Vec<ActorKnownWorkplaceFact>,
+        actor_known_food_sources: Vec<ActorKnownFoodSourceFact>,
+        actor_known_sleep_affordances: Vec<ActorKnownSleepAffordanceFact>,
+        actor_known_routes: Vec<ActorKnownRouteFact>,
+        actor_known_doors: Vec<ActorKnownDoorFact>,
+        actor_known_containers: Vec<ActorKnownContainerFact>,
+        actor_known_items: Vec<ActorKnownItemFact>,
+        actor_known_local_actors: Vec<ActorKnownLocalActorFact>,
+    ) -> KnowledgeContext {
+        KnowledgeContext::embodied_at_frontier_with_all_facts_and_observations(
+            actor_id("actor_tomas"),
+            SimTick::new(4),
+            0,
+            actor_known_workplaces,
+            actor_known_current_places,
+            actor_known_carried_items,
+            actor_known_food_sources,
+            actor_known_sleep_affordances,
+            actor_known_routes,
+            actor_known_doors,
+            actor_known_containers,
+            actor_known_items,
+            actor_known_local_actors,
+        )
+    }
+
+    fn assert_record_novelty(
+        label: &str,
+        record: &ActorKnownProjectionRecord,
+        context: KnowledgeContext,
+        expected: bool,
+    ) {
+        assert_eq!(
+            actor_known_record_is_novel_to_context(record, &context),
+            expected,
+            "{label}"
+        );
+    }
+
+    #[test]
+    fn actor_known_record_novelty_is_field_sensitive_for_all_context_fact_variants() {
+        let actor = actor_id("actor_tomas");
+        let event = event_id("event_actor_known_source");
+        let tick = SimTick::new(4);
+
+        let current_place = ActorKnownProjectionRecord::CurrentPlace {
+            actor_id: actor.clone(),
+            place_id: place_id("home_tomas"),
+            display_label: "Tomas home".to_string(),
+            source: ActorKnownProjectionSource::CurrentPlace,
+            source_event_id: event.clone(),
+            source_tick: tick,
+        };
+        assert_record_novelty(
+            "current place all fields match",
+            &current_place,
+            context_with_actor_known_facts(
+                vec![ActorKnownCurrentPlaceFact::new(
+                    place_id("home_tomas"),
+                    "Tomas home",
+                    "current_place",
+                )],
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+            ),
+            false,
+        );
+        assert_record_novelty(
+            "current place place_id differs",
+            &current_place,
+            context_with_actor_known_facts(
+                vec![ActorKnownCurrentPlaceFact::new(
+                    place_id("workshop_tomas"),
+                    "Tomas home",
+                    "current_place",
+                )],
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+            ),
+            true,
+        );
+        assert_record_novelty(
+            "current place display_label differs",
+            &current_place,
+            context_with_actor_known_facts(
+                vec![ActorKnownCurrentPlaceFact::new(
+                    place_id("home_tomas"),
+                    "Old label",
+                    "current_place",
+                )],
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+            ),
+            true,
+        );
+
+        let carried_item = ActorKnownProjectionRecord::CarriedItem {
+            actor_id: actor.clone(),
+            item_id: item_id("notebook_01"),
+            place_id: place_id("home_tomas"),
+            source_location: Location::CarriedBy(actor.clone()),
+            portable: true,
+            source: ActorKnownProjectionSource::CarriedItem,
+            source_event_id: event.clone(),
+            source_tick: tick,
+        };
+        for (label, fact, expected) in [
+            (
+                "carried item all fields match",
+                ActorKnownCarriedItemFact::new(
+                    item_id("notebook_01"),
+                    Location::CarriedBy(actor.clone()),
+                    true,
+                    "carried_item",
+                ),
+                false,
+            ),
+            (
+                "carried item item_id differs",
+                ActorKnownCarriedItemFact::new(
+                    item_id("ledger_01"),
+                    Location::CarriedBy(actor.clone()),
+                    true,
+                    "carried_item",
+                ),
+                true,
+            ),
+            (
+                "carried item source_location differs",
+                ActorKnownCarriedItemFact::new(
+                    item_id("notebook_01"),
+                    Location::AtPlace(place_id("home_tomas")),
+                    true,
+                    "carried_item",
+                ),
+                true,
+            ),
+            (
+                "carried item portable differs",
+                ActorKnownCarriedItemFact::new(
+                    item_id("notebook_01"),
+                    Location::CarriedBy(actor.clone()),
+                    false,
+                    "carried_item",
+                ),
+                true,
+            ),
+        ] {
+            assert_record_novelty(
+                label,
+                &carried_item,
+                context_with_actor_known_facts(
+                    Vec::new(),
+                    vec![fact],
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                ),
+                expected,
+            );
+        }
+
+        let route = ActorKnownProjectionRecord::Route {
+            actor_id: actor.clone(),
+            from_place_id: place_id("home_tomas"),
+            to_place_id: place_id("market"),
+            source: ActorKnownProjectionSource::VisibleExit,
+            source_event_id: event.clone(),
+            source_tick: tick,
+        };
+        for (label, fact, expected) in [
+            (
+                "route all fields match",
+                ActorKnownRouteFact::new(place_id("home_tomas"), place_id("market"), "route"),
+                false,
+            ),
+            (
+                "route from_place_id differs",
+                ActorKnownRouteFact::new(place_id("workshop_tomas"), place_id("market"), "route"),
+                true,
+            ),
+            (
+                "route to_place_id differs",
+                ActorKnownRouteFact::new(place_id("home_tomas"), place_id("well"), "route"),
+                true,
+            ),
+        ] {
+            assert_record_novelty(
+                label,
+                &route,
+                context_with_actor_known_facts(
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    vec![fact],
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                ),
+                expected,
+            );
+        }
+
+        let food_source = ActorKnownProjectionRecord::FoodSource {
+            actor_id: actor.clone(),
+            food_source_id: "food_stew".to_string(),
+            place_id: Some(place_id("home_tomas")),
+            believed_servings: Some(2),
+            source: ActorKnownProjectionSource::VisibleFoodSupply,
+            source_event_id: event.clone(),
+            source_tick: tick,
+        };
+        for (label, fact, expected) in [
+            (
+                "food source all fields match",
+                ActorKnownFoodSourceFact::with_believed_servings(
+                    food_supply_id("food_stew"),
+                    Some(2),
+                    "food",
+                ),
+                false,
+            ),
+            (
+                "food source id differs",
+                ActorKnownFoodSourceFact::with_believed_servings(
+                    food_supply_id("food_bread"),
+                    Some(2),
+                    "food",
+                ),
+                true,
+            ),
+            (
+                "food source believed_servings differs",
+                ActorKnownFoodSourceFact::with_believed_servings(
+                    food_supply_id("food_stew"),
+                    Some(1),
+                    "food",
+                ),
+                true,
+            ),
+        ] {
+            assert_record_novelty(
+                label,
+                &food_source,
+                context_with_actor_known_facts(
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    vec![fact],
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                ),
+                expected,
+            );
+        }
+
+        let sleep_place = ActorKnownProjectionRecord::SleepPlace {
+            actor_id: actor.clone(),
+            place_id: place_id("home_tomas"),
+            sleep_affordance_id: Some("bed_tomas".to_string()),
+            source: ActorKnownProjectionSource::VisibleSleepAffordance,
+            source_event_id: event.clone(),
+            source_tick: tick,
+        };
+        for (label, fact, expected) in [
+            (
+                "sleep place all fields match",
+                ActorKnownSleepAffordanceFact::new(
+                    sleep_affordance_id("bed_tomas"),
+                    place_id("home_tomas"),
+                    "sleep",
+                ),
+                false,
+            ),
+            (
+                "sleep place place_id differs",
+                ActorKnownSleepAffordanceFact::new(
+                    sleep_affordance_id("bed_tomas"),
+                    place_id("workshop_tomas"),
+                    "sleep",
+                ),
+                true,
+            ),
+            (
+                "sleep place sleep_affordance_id differs",
+                ActorKnownSleepAffordanceFact::new(
+                    sleep_affordance_id("cot_tomas"),
+                    place_id("home_tomas"),
+                    "sleep",
+                ),
+                true,
+            ),
+        ] {
+            assert_record_novelty(
+                label,
+                &sleep_place,
+                context_with_actor_known_facts(
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    vec![fact],
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                ),
+                expected,
+            );
+        }
+
+        let workplace = ActorKnownProjectionRecord::Workplace {
+            actor_id: actor.clone(),
+            workplace_id: workplace_id("workplace_tomas"),
+            place_id: place_id("home_tomas"),
+            believed_access_open: true,
+            source: ActorKnownProjectionSource::RoleAssignmentNotice,
+            source_event_id: event.clone(),
+            source_tick: tick,
+        };
+        for (label, fact, expected) in [
+            (
+                "workplace all fields match",
+                ActorKnownWorkplaceFact::new(
+                    workplace_id("workplace_tomas"),
+                    place_id("home_tomas"),
+                    true,
+                    "workplace",
+                    SourceEventIds::checked(vec![event.clone()]).unwrap(),
+                    tick,
+                ),
+                false,
+            ),
+            (
+                "workplace workplace_id differs",
+                ActorKnownWorkplaceFact::new(
+                    workplace_id("workplace_mara"),
+                    place_id("home_tomas"),
+                    true,
+                    "workplace",
+                    SourceEventIds::checked(vec![event.clone()]).unwrap(),
+                    tick,
+                ),
+                true,
+            ),
+            (
+                "workplace place_id differs",
+                ActorKnownWorkplaceFact::new(
+                    workplace_id("workplace_tomas"),
+                    place_id("workshop_tomas"),
+                    true,
+                    "workplace",
+                    SourceEventIds::checked(vec![event.clone()]).unwrap(),
+                    tick,
+                ),
+                true,
+            ),
+            (
+                "workplace believed_access_open differs",
+                ActorKnownWorkplaceFact::new(
+                    workplace_id("workplace_tomas"),
+                    place_id("home_tomas"),
+                    false,
+                    "workplace",
+                    SourceEventIds::checked(vec![event.clone()]).unwrap(),
+                    tick,
+                ),
+                true,
+            ),
+        ] {
+            assert_record_novelty(
+                label,
+                &workplace,
+                context_with_actor_known_facts(
+                    Vec::new(),
+                    Vec::new(),
+                    vec![fact],
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                ),
+                expected,
+            );
+        }
+
+        let local_door = ActorKnownProjectionRecord::LocalDoor {
+            actor_id: actor.clone(),
+            door_id: door_id("door_home_market"),
+            place_id: place_id("home_tomas"),
+            endpoint_a: place_id("home_tomas"),
+            endpoint_b: place_id("market"),
+            is_open: true,
+            is_locked: false,
+            blocks_movement_when_closed: true,
+            source: ActorKnownProjectionSource::VisibleDoor,
+            source_event_id: event.clone(),
+            source_tick: tick,
+        };
+        for (label, fact, expected) in [
+            (
+                "local door all fields match",
+                ActorKnownDoorFact::new(
+                    door_id("door_home_market"),
+                    place_id("home_tomas"),
+                    place_id("market"),
+                    true,
+                    false,
+                    true,
+                    "door",
+                ),
+                false,
+            ),
+            (
+                "local door door_id differs",
+                ActorKnownDoorFact::new(
+                    door_id("door_home_well"),
+                    place_id("home_tomas"),
+                    place_id("market"),
+                    true,
+                    false,
+                    true,
+                    "door",
+                ),
+                true,
+            ),
+            (
+                "local door endpoint_a differs",
+                ActorKnownDoorFact::new(
+                    door_id("door_home_market"),
+                    place_id("workshop_tomas"),
+                    place_id("market"),
+                    true,
+                    false,
+                    true,
+                    "door",
+                ),
+                true,
+            ),
+            (
+                "local door endpoint_b differs",
+                ActorKnownDoorFact::new(
+                    door_id("door_home_market"),
+                    place_id("home_tomas"),
+                    place_id("well"),
+                    true,
+                    false,
+                    true,
+                    "door",
+                ),
+                true,
+            ),
+            (
+                "local door is_open differs",
+                ActorKnownDoorFact::new(
+                    door_id("door_home_market"),
+                    place_id("home_tomas"),
+                    place_id("market"),
+                    false,
+                    false,
+                    true,
+                    "door",
+                ),
+                true,
+            ),
+            (
+                "local door is_locked differs",
+                ActorKnownDoorFact::new(
+                    door_id("door_home_market"),
+                    place_id("home_tomas"),
+                    place_id("market"),
+                    true,
+                    true,
+                    true,
+                    "door",
+                ),
+                true,
+            ),
+            (
+                "local door blocks_movement_when_closed differs",
+                ActorKnownDoorFact::new(
+                    door_id("door_home_market"),
+                    place_id("home_tomas"),
+                    place_id("market"),
+                    true,
+                    false,
+                    false,
+                    "door",
+                ),
+                true,
+            ),
+        ] {
+            assert_record_novelty(
+                label,
+                &local_door,
+                context_with_actor_known_facts(
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    vec![fact],
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                ),
+                expected,
+            );
+        }
+
+        let local_container = ActorKnownProjectionRecord::LocalContainer {
+            actor_id: actor.clone(),
+            container_id: container_id("strongbox_tomas"),
+            place_id: place_id("home_tomas"),
+            is_open: false,
+            is_locked: true,
+            source: ActorKnownProjectionSource::VisibleContainer,
+            source_event_id: event.clone(),
+            source_tick: tick,
+        };
+        for (label, fact, expected) in [
+            (
+                "local container all fields match",
+                ActorKnownContainerFact::new(container_id("strongbox_tomas"), false, true, "box"),
+                false,
+            ),
+            (
+                "local container container_id differs",
+                ActorKnownContainerFact::new(container_id("basket_tomas"), false, true, "box"),
+                true,
+            ),
+            (
+                "local container is_open differs",
+                ActorKnownContainerFact::new(container_id("strongbox_tomas"), true, true, "box"),
+                true,
+            ),
+            (
+                "local container is_locked differs",
+                ActorKnownContainerFact::new(container_id("strongbox_tomas"), false, false, "box"),
+                true,
+            ),
+        ] {
+            assert_record_novelty(
+                label,
+                &local_container,
+                context_with_actor_known_facts(
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    vec![fact],
+                    Vec::new(),
+                    Vec::new(),
+                ),
+                expected,
+            );
+        }
+
+        let local_item = ActorKnownProjectionRecord::LocalItem {
+            actor_id: actor.clone(),
+            item_id: item_id("coin_stack_01"),
+            place_id: place_id("home_tomas"),
+            source_location: Location::AtPlace(place_id("home_tomas")),
+            portable: true,
+            source: ActorKnownProjectionSource::VisibleItem,
+            source_event_id: event.clone(),
+            source_tick: tick,
+        };
+        for (label, fact, expected) in [
+            (
+                "local item all fields match",
+                ActorKnownItemFact::new(
+                    item_id("coin_stack_01"),
+                    Location::AtPlace(place_id("home_tomas")),
+                    true,
+                    "item",
+                ),
+                false,
+            ),
+            (
+                "local item item_id differs",
+                ActorKnownItemFact::new(
+                    item_id("needle_01"),
+                    Location::AtPlace(place_id("home_tomas")),
+                    true,
+                    "item",
+                ),
+                true,
+            ),
+            (
+                "local item source_location differs",
+                ActorKnownItemFact::new(
+                    item_id("coin_stack_01"),
+                    Location::InContainer(container_id("strongbox_tomas")),
+                    true,
+                    "item",
+                ),
+                true,
+            ),
+            (
+                "local item portable differs",
+                ActorKnownItemFact::new(
+                    item_id("coin_stack_01"),
+                    Location::AtPlace(place_id("home_tomas")),
+                    false,
+                    "item",
+                ),
+                true,
+            ),
+        ] {
+            assert_record_novelty(
+                label,
+                &local_item,
+                context_with_actor_known_facts(
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    vec![fact],
+                    Vec::new(),
+                ),
+                expected,
+            );
+        }
+
+        let local_actor = ActorKnownProjectionRecord::LocalActor {
+            actor_id: actor,
+            observed_actor_id: actor_id("actor_mara"),
+            place_id: place_id("home_tomas"),
+            source: ActorKnownProjectionSource::VisibleActor,
+            source_event_id: event,
+            source_tick: tick,
+        };
+        for (label, fact, expected) in [
+            (
+                "local actor all fields match",
+                ActorKnownLocalActorFact::new(actor_id("actor_mara"), "actor"),
+                false,
+            ),
+            (
+                "local actor observed_actor_id differs",
+                ActorKnownLocalActorFact::new(actor_id("actor_ines"), "actor"),
+                true,
+            ),
+        ] {
+            assert_record_novelty(
+                label,
+                &local_actor,
+                context_with_actor_known_facts(
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    vec![fact],
+                ),
+                expected,
+            );
+        }
     }
 
     #[test]

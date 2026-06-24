@@ -1,4 +1,5 @@
 use crate::events::{EventEnvelope, EventEnvelopeParseError};
+use crate::ids::EventId;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct EventLog {
@@ -13,6 +14,7 @@ pub enum EventLogError {
     InvalidUtf8,
     GlobalOrderMismatch { expected: u64, actual: u64 },
     StreamPositionMismatch { expected: u64, actual: u64 },
+    DuplicateEventId(EventId),
 }
 
 impl EventLog {
@@ -25,6 +27,9 @@ impl EventLog {
             return Err(EventLogError::UnsupportedSchemaVersion(
                 event.event_schema_version.as_str().to_string(),
             ));
+        }
+        if self.contains_event_id(&event.event_id) {
+            return Err(EventLogError::DuplicateEventId(event.event_id));
         }
 
         event.global_order = self.events.len() as u64;
@@ -45,6 +50,9 @@ impl EventLog {
             return Err(EventLogError::UnsupportedSchemaVersion(
                 event.event_schema_version.as_str().to_string(),
             ));
+        }
+        if self.contains_event_id(&event.event_id) {
+            return Err(EventLogError::DuplicateEventId(event.event_id));
         }
         let expected_global_order = self.events.len() as u64;
         if event.global_order != expected_global_order {
@@ -70,6 +78,12 @@ impl EventLog {
 
     pub fn events(&self) -> &[EventEnvelope] {
         &self.events
+    }
+
+    pub(crate) fn contains_event_id(&self, event_id: &EventId) -> bool {
+        self.events
+            .iter()
+            .any(|existing| &existing.event_id == event_id)
     }
 
     #[cfg(test)]
@@ -195,6 +209,47 @@ mod tests {
         let round_tripped = EventLog::deserialize_canonical(&bytes).unwrap();
 
         assert_eq!(round_tripped, log);
+    }
+
+    #[test]
+    fn append_rejects_duplicate_event_id() {
+        let mut log = EventLog::new();
+        log.append(event("event_duplicate", EventKind::ActorWaited))
+            .unwrap();
+
+        let error = log
+            .append(event("event_duplicate", EventKind::ActionRejected))
+            .unwrap_err();
+
+        assert_eq!(
+            error,
+            EventLogError::DuplicateEventId(EventId::new("event_duplicate").unwrap())
+        );
+        assert_eq!(log.events().len(), 1);
+    }
+
+    #[test]
+    fn deserialization_rejects_duplicate_event_id() {
+        let mut log = EventLog::new();
+        log.append(event("event_duplicate", EventKind::ActorWaited))
+            .unwrap();
+        log.append(event("event_other", EventKind::ActionRejected))
+            .unwrap();
+        let mut duplicate = log.events()[1].clone();
+        duplicate.event_id = EventId::new("event_duplicate").unwrap();
+        let bytes = [log.events()[0].clone(), duplicate]
+            .into_iter()
+            .map(|event| encode_hex(&event.serialize_canonical()))
+            .collect::<Vec<_>>()
+            .join("\n")
+            .into_bytes();
+
+        let error = EventLog::deserialize_canonical(&bytes).unwrap_err();
+
+        assert_eq!(
+            error,
+            EventLogError::DuplicateEventId(EventId::new("event_duplicate").unwrap())
+        );
     }
 
     #[test]
