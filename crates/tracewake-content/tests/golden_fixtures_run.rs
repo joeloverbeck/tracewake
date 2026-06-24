@@ -13,7 +13,7 @@ use tracewake_core::actions::pipeline::{run_pipeline, PipelineContext};
 use tracewake_core::actions::proposal::{Proposal, ProposalOrigin};
 use tracewake_core::actions::{ActionRegistry, ReasonCode, ReportStatus};
 use tracewake_core::agent::{
-    generate_candidate_goals, plan_local_actions, record_current_place_perception_and_project,
+    current_place_perception_events, generate_candidate_goals, plan_local_actions,
     select_goal_and_trace, select_method_from_templates, ActorDecisionTransaction,
     ActorDecisionTransactionInput, ActorDecisionTransactionOutcome, ActorKnownFact,
     BlockerCategory, CandidateGenerationInput, DecisionInput, DecisionTraceRecord, GoalKind,
@@ -31,7 +31,9 @@ use tracewake_core::epistemics::{
     Channel, Confidence, EpistemicProjection, HolderKind, PrivacyScope, Proposition, SourceRef,
     Stance,
 };
-use tracewake_core::events::apply::{apply_event, apply_event_stream, EventApplicationContext};
+use tracewake_core::events::apply::{
+    apply_epistemic_event, apply_event, apply_event_stream, EventApplicationContext,
+};
 use tracewake_core::events::log::EventLog;
 use tracewake_core::events::{
     EventEnvelope, EventKind, EventStream, InitialBeliefSourceKind, PayloadField,
@@ -2633,18 +2635,18 @@ fn aged_food_record_surfaces_as_remembered_belief() {
     let golden = fixtures::aged_food_record_surfaces_as_remembered_belief_not_observation_001();
     let actor_id = ActorId::new("actor_tomas").unwrap();
     let current_place_id = PlaceId::new("home_tomas").unwrap();
-    let (mut state, mut agent_state, manifest_id, mut log) = load_with_log(golden);
+    let (state, agent_state, manifest_id, mut log) = load_with_log(golden);
     let mut epistemic_projection = EpistemicProjection::new(manifest_id.clone());
 
-    let perception_events = record_current_place_perception_and_project(
-        &mut log,
-        &mut state,
-        &mut agent_state,
-        &mut epistemic_projection,
-        &actor_id,
-        SimTick::new(4),
-        &manifest_id,
-    );
+    let perception_events =
+        current_place_perception_events(&state, &actor_id, SimTick::new(4), &manifest_id)
+            .into_iter()
+            .map(|event| {
+                let event = log.append(event).unwrap();
+                apply_epistemic_event(&mut epistemic_projection, &event).unwrap();
+                event
+            })
+            .collect::<Vec<_>>();
     assert!(perception_events.iter().any(|event| {
         event.event_type == EventKind::ObservationRecorded
             && payload(event, "target_id") == Some("food_stew_home_tomas")

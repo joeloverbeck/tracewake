@@ -331,8 +331,8 @@ fn tui_sources_do_not_call_event_application_directly() {
         violations.join("\n")
     );
     assert!(
-        include_str!("../src/app.rs").contains("run_pipeline(&mut context, &proposal)"),
-        "TUI submit path must retain the shared pipeline call"
+        include_str!("../src/app.rs").contains(".submit_controlled_proposal("),
+        "TUI submit path must route mutation through the loaded-world runtime"
     );
 }
 

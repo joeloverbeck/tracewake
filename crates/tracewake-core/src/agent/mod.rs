@@ -46,8 +46,8 @@ pub use need::{
 pub use no_human_surface::{
     NoHumanActorKnownSurfaceBuilder, NoHumanActorKnownSurfaceRequest, SealedActorKnownSurface,
 };
-pub use perception::{
-    current_place_knowledge_context, current_place_perception_events,
+pub use perception::{current_place_knowledge_context, current_place_perception_events};
+pub(crate) use perception::{
     record_current_place_perception, record_current_place_perception_and_project,
 };
 pub use planner::{

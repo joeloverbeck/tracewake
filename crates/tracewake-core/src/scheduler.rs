@@ -520,10 +520,13 @@ impl DeterministicScheduler {
                     .insert(actor_id.clone(), first_due_tick);
             }
         }
+        let Ok(loaded_world_tick_process_id) = ProcessId::new("process_loaded_world_tick") else {
+            return scheduler;
+        };
         scheduler.declared_world_processes.insert(
-            ProcessId::new("process_loaded_world_tick").unwrap(),
+            loaded_world_tick_process_id.clone(),
             DeclaredWorldProcess::new_cadenced(
-                ProcessId::new("process_loaded_world_tick").unwrap(),
+                loaded_world_tick_process_id,
                 first_due_tick,
                 1,
                 Vec::new(),
@@ -627,7 +630,7 @@ impl DeterministicScheduler {
             .collect()
     }
 
-    pub fn record_actor_current_place_perception(
+    pub(crate) fn record_actor_current_place_perception(
         &self,
         state: &mut PhysicalState,
         agent_state: &mut AgentState,

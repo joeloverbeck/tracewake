@@ -147,6 +147,22 @@ const FIXTURES: &[NegativeFixture] = &[
         expected_stderr: "cannot find function",
     },
     NegativeFixture {
+        name: "external_crate_cannot_call_core_perception_append_helper",
+        expected_stderr: "private",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_call_scheduler_perception_writer",
+        expected_stderr: "private method",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_mutate_loaded_runtime_fields",
+        expected_stderr: "private field",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_construct_pipeline_context_with_runtime_aggregates",
+        expected_stderr: "no function or associated item named `new`",
+    },
+    NegativeFixture {
         name: "external_crate_cannot_convert_debug_report_to_interval_summary",
         expected_stderr: "the trait bound",
     },

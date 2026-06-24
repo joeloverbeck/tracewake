@@ -13,9 +13,7 @@ use tracewake_content::schema::{
 use tracewake_content::serialization::{deserialize_fixture, serialize_fixture};
 use tracewake_content::validate::{validate_fixture, validate_fixture_bytes, ValidationPhase};
 use tracewake_core::actions::ActionRegistry;
-use tracewake_core::agent::{
-    current_place_knowledge_context, record_current_place_perception_and_project,
-};
+use tracewake_core::agent::{current_place_knowledge_context, current_place_perception_events};
 use tracewake_core::agent::{NeedKind, RoutineCondition, RoutineFamily, RoutineStep};
 use tracewake_core::epistemics::observation::EPISTEMIC_RECORD_SCHEMA_V1;
 use tracewake_core::epistemics::{Confidence, Proposition, SourceRef};
@@ -1097,15 +1095,15 @@ fn stale_workplace_notice_superseded_by_newer_001() {
     let actor_id = ActorId::new("actor_tomas").unwrap();
     let decision_tick = SimTick::new(3);
 
-    record_current_place_perception_and_project(
-        &mut loaded.seed_event_log,
-        &mut loaded.canonical_world,
-        &mut loaded.canonical_agent_state,
-        &mut loaded.epistemic_projection,
+    for event in current_place_perception_events(
+        &loaded.canonical_world,
         &actor_id,
         decision_tick,
         &loaded.manifest.manifest_id,
-    );
+    ) {
+        let event = loaded.seed_event_log.append(event).unwrap();
+        apply_epistemic_event(&mut loaded.epistemic_projection, &event).unwrap();
+    }
 
     let newer_notice_id = EventId::new("event_role_notice_newer_open_workplace_tomas").unwrap();
     let mut newer_notice = EventEnvelope::new_v1(

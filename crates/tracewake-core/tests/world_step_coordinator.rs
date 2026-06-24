@@ -5,12 +5,13 @@ use tracewake_core::actions::{
     ActionRegistry, Proposal, ProposalOrigin, ProposalSource, ProposalSourceContext,
 };
 use tracewake_core::agent::{
-    current_place_knowledge_context, NeedChangeCause, NeedKind, NeedState,
+    current_place_knowledge_context, current_place_perception_events, NeedChangeCause, NeedKind,
+    NeedState,
 };
 use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext, PhysicalChecksum};
 use tracewake_core::controller::ControllerBindings;
 use tracewake_core::epistemics::EpistemicProjection;
-use tracewake_core::events::apply::apply_agent_event;
+use tracewake_core::events::apply::{apply_agent_event, apply_epistemic_event};
 use tracewake_core::events::log::EventLog;
 use tracewake_core::events::{
     EventCause, EventEnvelope, EventKind, EventStream, PayloadField, EVENT_SCHEMA_V1,
@@ -134,14 +135,15 @@ fn advance_until_for_test_with_known_current_place(
     let mut staged_physical = physical.clone();
     let registry = ActionRegistry::new();
     let mut projection = EpistemicProjection::new(request.content_manifest_id.clone());
-    scheduler.record_actor_current_place_perception(
-        &mut staged_physical,
-        agent,
-        log,
-        &mut projection,
+    for event in current_place_perception_events(
+        &staged_physical,
         &request.possessed_actor_id,
+        scheduler.current_tick(),
         &request.content_manifest_id,
-    );
+    ) {
+        let event = log.append(event).unwrap();
+        apply_epistemic_event(&mut projection, &event).unwrap();
+    }
     scheduler.advance_until(
         &mut staged_physical,
         agent,
