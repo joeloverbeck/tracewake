@@ -104,6 +104,17 @@ The no-direct-dispatch guard must prove that no TUI path, debug runner,
 scheduler shortcut, routine label, need threshold, or duration queue mutates
 world state outside this canonical step and shared pipeline.
 
+Current 0050 conformance evidence records this choreography as core-owned:
+loaded actors are discovered by `due_loaded_actor_ids`, declared processes by
+`due_process_invocations`, and `transact_world_one_tick` consumes the closed
+`ActorDecisionTransactionOutcome` plus the pipeline result instead of accepting
+caller-injected actor lists, raw process envelopes, or a parallel no-human
+append path. The production-path witnesses live in
+`crates/tracewake-core/tests/world_step_coordinator.rs`, the external boundary
+fixtures in `crates/tracewake-core/tests/negative_fixture_runner.rs`, and the
+mutation/evidence record in `archive/tickets/0050FOUCONSEC-010.md` and
+`archive/tickets/0050FOUCONSEC-011.md`.
+
 ## Proposal ancestry
 
 A proposal must carry enough ancestry to reconstruct why it exists:

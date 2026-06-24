@@ -92,6 +92,18 @@ remain non-diegetic and excluded from actor-known context. Per-surface temporal
 rendering diagnostics are owned by
 `10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`.
 
+The accepted 0050 evidence makes the interval product a complete core result:
+the scheduler captures final perception, holder-known interval delta, stop
+reason, temporal verdict, and replay-facing ancestry before returning the
+typed result to the TUI. The TUI stores and renders that product read-only; it
+does not call event-appending perception helpers, rebuild holder-known context,
+or convert debug step reports into embodied interval summaries. The
+read-only boundary is witnessed by `crates/tracewake-tui/src/app.rs`,
+`crates/tracewake-core/tests/holder_known_interval_projection.rs`,
+`crates/tracewake-core/tests/salient_stop_actor_known.rs`, and the
+external-crate negative fixtures driven by
+`crates/tracewake-core/tests/negative_fixture_runner.rs`.
+
 ## Observation-time snapshot proof
 
 For any actor-visible action, menu option, possession preflight, or embodied

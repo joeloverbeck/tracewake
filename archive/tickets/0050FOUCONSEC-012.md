@@ -1,6 +1,6 @@
 # 0050FOUCONSEC-012: Documentation status/evidence truthing + `0049MUTWIT` source record
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: None
@@ -84,3 +84,38 @@ In `docs/4-specs/SPEC_LEDGER.md`, add the navigation record for the `0049MUTWIT`
 1. `grep -nE "0049MUTWIT" docs/4-specs/SPEC_LEDGER.md` — the navigation record is present.
 2. `grep -rL . docs/0-foundation/ >/dev/null; git diff --name-only -- docs/0-foundation/` — must show no foundation-tier change (no doctrine amendment).
 3. `grep -nE "R-2[789]" docs/3-reference/01_DESIGN_RISK_REGISTER.md` — R-27/R-28/R-29 present with updated evidence/status, no new risk ID.
+
+## Outcome
+
+Completed: 2026-06-24
+
+Updated the live conformance/evidence homes without touching
+`docs/0-foundation/` or archived tickets. The architecture conformance row now
+cites 0050 production-path evidence rather than treating the historical 0048
+acceptance as current loaded-world reachability proof. Execution docs `05`,
+`06`, `07`, and `10` now identify the core-owned loaded actor/process
+discovery, actor transaction outcome consumption, read-only TUI interval
+product, separated evidence classes, and the non-green standing mutation
+posture from `0050FOUCONSEC-011`.
+
+Updated `docs/3-reference/01_DESIGN_RISK_REGISTER.md` under existing R-27,
+R-28, and R-29 only; no new risk ID was minted. Updated
+`docs/3-reference/00_REFERENCE_INDEX_AND_REVIEW_CHECKLIST.md` with the live
+0050 executable evidence names. Added the `0049MUTWIT` source/navigation
+record to `docs/4-specs/SPEC_LEDGER.md`, naming
+`archive/tickets/0049MUTWIT-001.md`,
+`archive/tickets/0049MUTWIT-002.md`, and
+`archive/tickets/0049MUTWIT-003.md`, and classifying the line as test-only
+mutation-witness remediation rather than a feature, doctrine amendment, or
+latest-main certification.
+
+Verification:
+
+- `grep -nE "0049MUTWIT" docs/4-specs/SPEC_LEDGER.md`
+- `git diff --name-only -- docs/0-foundation/`
+- `grep -rL . docs/0-foundation/ >/dev/null`
+- `grep -nE "R-2[789]" docs/3-reference/01_DESIGN_RISK_REGISTER.md`
+- `rg -n "0050 loaded-world temporal conformance|due_loaded_actor_ids|due_process_invocations|ActorDecisionTransactionOutcome|EventLogError::DuplicateEventId|ReplayTemporalVerdict|actor_known_interval_delta|negative_fixture_runner|parity_adversarial|generative_lock|0049MUTWIT" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md docs/2-execution/05_TRANSACTION_SCHEDULER_ACTION_PIPELINE_AND_NO_DIRECT_DISPATCH.md docs/2-execution/06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md docs/3-reference/01_DESIGN_RISK_REGISTER.md docs/3-reference/00_REFERENCE_INDEX_AND_REVIEW_CHECKLIST.md docs/4-specs/SPEC_LEDGER.md crates/tracewake-core/src/scheduler.rs crates/tracewake-core/src/agent/transaction.rs crates/tracewake-core/src/events/log.rs crates/tracewake-core/tests crates/tracewake-tui/tests`
+- `rg -n "R-[0-9]{2}" docs/3-reference/01_DESIGN_RISK_REGISTER.md`
+- `git diff --check`
+- `cargo test -p tracewake-core --test doc_invariant_references --test anti_regression_guards`

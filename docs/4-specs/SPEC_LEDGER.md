@@ -92,6 +92,28 @@ Archived specs remain history. They may explain why the upper-tier overhaul happ
 | `archive/specs/0047_TUI_AUTHORITATIVE_WORLD_ADVANCE_DURATION_COMPLETION_AND_ACTOR_KNOWN_INTERVAL_SUMMARIES_SPEC.md` | TUI authoritative world-advance hardening across a shared kernel one-world-tick coordinator, human wait and duration continuation, no-human progression, log-derived duration completion, single-charge accounting, body-exclusive reservation enforcement, replay-visible tick ancestry, actor-known interval summaries, real human sleep/work witnesses, human/no-human differential coverage, hidden-truth anti-leak coverage, and spec-0047 playable capability parity entries. | Completed by the `0047TUIAUTWOR` ticket series plus `archive/reports/0047_tui_authoritative_world_advance_acceptance.md`; verdict is scoped spec-0047 feature hardening accepted for exact implementation/evidence commit `4228e1e2e5efd759e7e7bddb939a599e344742e9`. This does not certify latest main after that commit, Phase-4 entry, second-proof entry, institutions, notices, travel, LOD, LLM/speech, story-sifting, or future feature surfaces; it mints no new gate, invariant, risk ID, or glossary term. |
 | `archive/specs/0048_FOUNDATIONAL_CONFORMANCE_HARDENING_LOADED_WORLD_TICK_TEMPORAL_AUTHORITY_HOLDER_KNOWN_INTERVALS_AND_REPLAY_FRONTIER_RECONSTRUCTION_HARDENING_SPEC.md` | Foundational conformance hardening across loaded-world tick authority, atomic human/no-human world-step composition, singular temporal frontier authority, replay-derived temporal projection, holder-known interval deltas, salient-stop evidence, measured TUI parity outputs, generated mixed schedules, reservation census, focused mutation triage, and conformance/risk evidence updates. | Completed by the `0048FOUCONHAR` ticket series plus `reports/0048_foundational_conformance_hardening_acceptance.md`; verdict is scoped spec-0048 hardening accepted for implementation baseline commits `31889e8` through `3964f24` and evidence/report commit `f46fe32`. The focused mutation campaign left eight recorded survivors, so this is not a mutation-perfect claim and not a full configured mutation replacement; it does not certify latest main, Phase-4 entry, second-proof entry, institutions, notices, travel, LOD, LLM/speech, story-sifting, or future feature surfaces; it mints no new gate, invariant, risk ID, or glossary term. |
 
+## `0049MUTWIT` source/navigation record
+
+`0049MUTWIT` is a ticket-only mutation-witness follow-up to the eight recorded
+0048 focused survivors and adjacent same-function in-diff mutants. It has no
+live or archived spec package and does not mint a product feature, doctrine
+amendment, gate, risk ID, glossary term, or latest-`main` certification claim.
+
+The line is implemented by `archive/tickets/0049MUTWIT-001.md`,
+`archive/tickets/0049MUTWIT-002.md`, and
+`archive/tickets/0049MUTWIT-003.md`. Those tickets add test-only mutation
+witnesses over the scheduler, interval/projection, replay/rebuild, and action
+pipeline surfaces affected by the 0048 survivor floor. Their command records
+are historical exact-ticket evidence for the focused witnesses they ran; they
+are not a standing configured-perimeter pass and do not rewrite the 0048
+acceptance artifact.
+
+For current re-verification, preserve the named 0049 focused commands and run
+them alongside the standing configured mutation perimeter and any newer
+production-path witnesses named by later specs. Spec 0050 preserves this line
+while replacing the overbroad 0048 reachability locks with current
+production-path behavior witnesses.
+
 ## Next known execution move
 
 The current replacement P0-CERT artifact is

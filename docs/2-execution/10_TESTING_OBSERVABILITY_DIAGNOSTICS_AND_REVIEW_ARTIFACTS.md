@@ -245,6 +245,19 @@ embodied, debug-only, replay, no-human, parity, or observer-only, and must
 identify the source event, proposal, projection, context, or transcript
 references that make it path-under-test evidence.
 
+For the 0050 loaded-world/time-control seam, the matrix must keep five evidence
+classes distinct: production behavior (`world_step_coordinator.rs` and
+`generative_lock.rs`), temporal replay verdicts (`replay_temporal_frontier.rs`
+and `ReplayTemporalVerdict`/`run_replay` integration), core-owned
+holder-known interval output (`holder_known_interval_projection.rs` and
+`salient_stop_actor_known.rs`), compile-fail authority boundaries
+(`negative_fixture_runner.rs`), and TUI parity/adversarial rendering
+(`playable_capability_parity.rs` and `parity_adversarial.rs`). Focused
+mutation campaigns, including the preserved 0049 commands and the new 0050
+commands recorded in `archive/tickets/0050FOUCONSEC-011.md`, are mutation
+evidence only. The 0050 standing campaign recorded 48 missed mutants and one
+timeout, so it must not be cited as a green standing-perimeter certification.
+
 ## General anti-vacuity and behavior witnesses
 
 Every lock, gate, and proof obligation must identify at least one live negative
