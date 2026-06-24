@@ -13,6 +13,11 @@ const REQUIRED_GATE_COMMANDS: &[&str] = &[
     "cargo test --workspace --locked",
 ];
 
+const PRODUCTION_CONFORMANCE_COMMANDS: &[&str] = &[
+    "cargo test --locked -p tracewake-core --test generative_lock generated_cases_enter_through_loaded_runtime_constructor",
+    "cargo test --locked -p tracewake-content load::tests::loaded_fixture_hands_off_derived_runtime_due_work",
+];
+
 const STANDING_MUTATION_PERIMETER: &[&str] = &[
     "crates/tracewake-core/src/agent/**",
     "crates/tracewake-core/src/need_accounting.rs",
@@ -249,6 +254,7 @@ fn ci_workflow_guards_cover_workflow_integrity() {
 fn ci_workflow_guard_errors(workflow: &str, mutants_config: &str, doc10: &str) -> Vec<String> {
     let mut errors = Vec::new();
     errors.extend(required_gate_command_errors(workflow, doc10));
+    errors.extend(production_conformance_command_errors(workflow));
     errors.extend(masked_gate_errors(workflow));
     errors.extend(permission_errors(workflow));
     errors.extend(action_pin_errors(workflow));
@@ -258,6 +264,14 @@ fn ci_workflow_guard_errors(workflow: &str, mutants_config: &str, doc10: &str) -
     errors.extend(mutation_perimeter_errors(workflow, mutants_config));
     errors.extend(scheduled_mutation_lane_errors(workflow));
     errors
+}
+
+fn production_conformance_command_errors(workflow: &str) -> Vec<String> {
+    PRODUCTION_CONFORMANCE_COMMANDS
+        .iter()
+        .filter(|command| !workflow.contains(**command))
+        .map(|command| format!("missing production conformance command in workflow: {command}"))
+        .collect()
 }
 
 fn required_gate_command_errors(workflow: &str, doc10: &str) -> Vec<String> {

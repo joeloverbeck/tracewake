@@ -465,10 +465,16 @@ mod tests {
                 awake_hunger_delta_per_tick: 5,
                 awake_fatigue_delta_per_tick: 3,
             },
-            actors: vec![ActorSchema {
-                actor_id: ActorId::new("actor_tomas").unwrap(),
-                current_place_id: PlaceId::new("shop_front").unwrap(),
-            }],
+            actors: vec![
+                ActorSchema {
+                    actor_id: ActorId::new("actor_tomas").unwrap(),
+                    current_place_id: PlaceId::new("shop_front").unwrap(),
+                },
+                ActorSchema {
+                    actor_id: ActorId::new("actor_elena").unwrap(),
+                    current_place_id: PlaceId::new("shop_front").unwrap(),
+                },
+            ],
             places: vec![PlaceSchema {
                 place_id: PlaceId::new("shop_front").unwrap(),
                 display_label: "Shop front".to_string(),
@@ -504,6 +510,21 @@ mod tests {
                 },
                 InitialNeedSchema {
                     actor_id: ActorId::new("actor_tomas").unwrap(),
+                    kind: NeedKind::Safety,
+                    value: 100,
+                },
+                InitialNeedSchema {
+                    actor_id: ActorId::new("actor_elena").unwrap(),
+                    kind: NeedKind::Hunger,
+                    value: 100,
+                },
+                InitialNeedSchema {
+                    actor_id: ActorId::new("actor_elena").unwrap(),
+                    kind: NeedKind::Fatigue,
+                    value: 100,
+                },
+                InitialNeedSchema {
+                    actor_id: ActorId::new("actor_elena").unwrap(),
                     kind: NeedKind::Safety,
                     value: 100,
                 },
@@ -584,7 +605,7 @@ mod tests {
 
         match receipt.kind() {
             RuntimeReceiptKind::OneTickAdvanced(result) => {
-                assert_eq!(result.due_work_summary.actor_transactions_attempted, 1);
+                assert_eq!(result.due_work_summary.actor_transactions_attempted, 2);
                 assert_eq!(result.due_work_summary.world_processes_applied, 1);
             }
         }

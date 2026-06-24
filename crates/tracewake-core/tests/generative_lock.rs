@@ -14,10 +14,12 @@ use tracewake_core::checksum::{
 };
 use tracewake_core::events::log::{EventLog, EventLogError};
 use tracewake_core::events::{EventCause, EventEnvelope, EventKind, EventStream};
-use tracewake_core::ids::{ContentVersion, EventId, FixtureId};
+use tracewake_core::ids::{ContentVersion, ControllerId, EventId, FixtureId};
 use tracewake_core::projections::no_human_day_metrics;
 use tracewake_core::replay::{rebuild_projection, run_replay};
+use tracewake_core::runtime::{LoadedWorldRuntime, RuntimeInitialState, RuntimeReceiptKind};
 use tracewake_core::scheduler::no_human::advance_no_human;
+use tracewake_core::scheduler::{DeterministicScheduler, WorldAdvanceOrigin};
 use tracewake_core::time::SimTick;
 
 const RECORDED_GENERATIVE_MASK_DIVERSITY: usize = 7;
@@ -306,6 +308,64 @@ fn generated_sequences_replay_and_satisfy_metamorphic_locks() {
         RECORDED_GENERATIVE_SEQUENCE_LENGTH_DIVERSITY,
         "generated corpus sequence-length diversity too low: {sequence_lengths:?}; {corpus_summary}"
     );
+}
+
+#[test]
+fn generated_cases_enter_through_loaded_runtime_constructor() {
+    for seed in GENERATIVE_SEEDS.iter().copied().take(8) {
+        let case = generate_case(seed);
+        let initial_state = initial_world(seed);
+        let initial_agents = initial_agent_state(seed);
+        let mut runtime = LoadedWorldRuntime::from_initial_state(RuntimeInitialState {
+            registry: registry(),
+            physical_state: initial_state.clone(),
+            agent_state: initial_agents.clone(),
+            event_log: EventLog::new(),
+            epistemic_projection: tracewake_core::epistemics::projection::EpistemicProjection::new(
+                content_manifest_id(seed),
+            ),
+            controller_bindings: tracewake_core::controller::ControllerBindings::new(),
+            scheduler: DeterministicScheduler::new(case.start_tick),
+            content_manifest_id: content_manifest_id(seed),
+        });
+
+        let receipt = runtime
+            .wait_one_tick(WorldAdvanceOrigin::Controller(
+                ControllerId::new("controller_generated_runtime").unwrap(),
+            ))
+            .unwrap_or_else(|error| panic!("seed={seed} runtime command failed: {error:?}"));
+        match receipt.kind() {
+            RuntimeReceiptKind::OneTickAdvanced(result) => {
+                assert!(
+                    result.resulting_tick > result.prior_tick,
+                    "seed={seed} runtime command must advance time"
+                );
+            }
+        }
+        assert!(
+            !runtime.event_log().events().is_empty(),
+            "seed={seed} runtime command must append events through owned log"
+        );
+        let checksum_context = ChecksumContext {
+            fixture_id: FixtureId::new(format!("generative_runtime_{seed:x}")).unwrap(),
+            content_version: ContentVersion::new("content_v1").unwrap(),
+            sim_tick: runtime.current_tick(),
+            world_stream_position_applied: runtime.event_log().events().len() as u64,
+        };
+        let rebuild = rebuild_projection(
+            &initial_state,
+            &initial_agents,
+            runtime.event_log(),
+            &checksum_context,
+            Some(runtime.physical_state()),
+        );
+        assert!(
+            rebuild.epistemic_application_errors.is_empty()
+                && rebuild.agent_application_errors.is_empty()
+                && rebuild.state_diff.is_empty(),
+            "seed={seed} runtime-owned log must rebuild without divergence: {rebuild:#?}"
+        );
+    }
 }
 
 #[test]

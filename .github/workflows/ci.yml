@@ -92,6 +92,8 @@ jobs:
           cargo test --locked -p tracewake-core --test anti_regression_guards
           cargo test --locked -p tracewake-core --test event_schema_replay_gates
           cargo test --locked -p tracewake-core --test hidden_truth_gates
+          cargo test --locked -p tracewake-core --test generative_lock generated_cases_enter_through_loaded_runtime_constructor
+          cargo test --locked -p tracewake-content load::tests::loaded_fixture_hands_off_derived_runtime_due_work
           cargo test --locked -p tracewake-core --test acceptance_artifact_wording
           cargo test --locked -p tracewake-content --test schema_conformance
           cargo test --locked -p tracewake-content --test forbidden_content
