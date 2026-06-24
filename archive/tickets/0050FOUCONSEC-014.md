@@ -1,6 +1,6 @@
 # 0050FOUCONSEC-014: Mutation witnesses for actor-known door/container source-key dedup
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: None — test-only (adds witnesses in `crates/tracewake-core/src/projections.rs` test module).
@@ -80,3 +80,16 @@ Mirror the above for `ActorKnownContainerFact` / `ActorKnownContainerSurface` (s
 1. `cargo test -p tracewake-core projections`
 2. `cargo mutants --in-diff <(git diff origin/main...HEAD -- crates/tracewake-core/src/projections.rs) --no-shuffle --jobs 2 --timeout 183` — reproduces the in-diff gate's input selection for the changed `projections.rs` lines.
 3. The narrower per-file mutation command is the correct boundary because the CI gate scopes mutation to changed guarded-layer lines; the full standing perimeter is `mutants-lock-layer` (scheduled), not this PR gate.
+
+## Outcome
+
+Completed: 2026-06-24
+
+Implemented test-only witnesses in `crates/tracewake-core/src/projections.rs` for the actor-known door and container dedup surfaces. Each witness covers the greater-`source_key` selection and the equal-`source_key` tie-break that distinguishes the production `>` comparison from a `>=` mutant. During implementation, the equal-key assertion was corrected to match the real sealed-context contract: `KnowledgeContext::seal` sorts facts before projection, so the tie-break keeps the first fact in sealed canonical order, not caller insertion order.
+
+Verification run:
+
+- `cargo test -p tracewake-core projections` — pass.
+- `cargo mutants --in-diff <(git diff origin/main...HEAD -- crates/tracewake-core/src/projections.rs) --no-shuffle --jobs 2 --timeout 183` — pass; 16 mutants tested, 12 caught, 4 unviable, 0 missed.
+
+No production behavior, mutation perimeter, or baseline files changed. The full workspace gates remain for series closeout after the remaining `0050FOUCONSEC-015` and `0050FOUCONSEC-016` tickets.

@@ -1644,6 +1644,10 @@ mod tests {
         ContainerId::new(value).unwrap()
     }
 
+    fn door_id(value: &str) -> DoorId {
+        DoorId::new(value).unwrap()
+    }
+
     fn event_id(value: &str) -> crate::ids::EventId {
         crate::ids::EventId::new(value).unwrap()
     }
@@ -1664,6 +1668,130 @@ mod tests {
             notice.source_key(),
             "role_assignment_notice:event.interval.source"
         );
+    }
+
+    #[test]
+    fn actor_known_doors_for_context_prefers_greater_source_key_and_keeps_first_equal_key() {
+        let shared_door_id = door_id("door_shared");
+        let front = place_id("front_room");
+        let back = place_id("back_room");
+        let older_open = ActorKnownDoorFact::new(
+            shared_door_id.clone(),
+            front.clone(),
+            back.clone(),
+            true,
+            false,
+            true,
+            "source_a",
+        );
+        let newer_closed = ActorKnownDoorFact::new(
+            shared_door_id.clone(),
+            front.clone(),
+            back.clone(),
+            false,
+            true,
+            true,
+            "source_b",
+        );
+        let equal_key_later =
+            ActorKnownDoorFact::new(shared_door_id, front, back, false, false, true, "source_a");
+        let context = KnowledgeContext::embodied_at_frontier_with_all_facts(
+            actor_id("actor_tomas"),
+            SimTick::new(1),
+            0,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            vec![
+                older_open.clone(),
+                newer_closed.clone(),
+                equal_key_later.clone(),
+            ],
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
+
+        let doors = actor_known_doors_for_context(&context);
+
+        assert_eq!(doors.len(), 1);
+        assert!(!doors[0].is_open);
+        assert!(doors[0].is_locked);
+
+        let equal_key_context = KnowledgeContext::embodied_at_frontier_with_all_facts(
+            actor_id("actor_tomas"),
+            SimTick::new(1),
+            0,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            vec![older_open, equal_key_later],
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+        );
+
+        let equal_key_doors = actor_known_doors_for_context(&equal_key_context);
+
+        assert_eq!(equal_key_doors.len(), 1);
+        assert!(!equal_key_doors[0].is_open);
+        assert!(!equal_key_doors[0].is_locked);
+    }
+
+    #[test]
+    fn actor_known_containers_for_context_prefers_greater_source_key_and_keeps_first_equal_key() {
+        let shared_container_id = container_id("container_shared");
+        let older_open =
+            ActorKnownContainerFact::new(shared_container_id.clone(), true, false, "source_a");
+        let newer_locked =
+            ActorKnownContainerFact::new(shared_container_id.clone(), false, true, "source_b");
+        let equal_key_later =
+            ActorKnownContainerFact::new(shared_container_id, false, false, "source_a");
+        let context = KnowledgeContext::embodied_at_frontier_with_all_facts(
+            actor_id("actor_tomas"),
+            SimTick::new(1),
+            0,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            vec![
+                older_open.clone(),
+                newer_locked.clone(),
+                equal_key_later.clone(),
+            ],
+            Vec::new(),
+            Vec::new(),
+        );
+
+        let containers = actor_known_containers_for_context(&context);
+
+        assert_eq!(containers.len(), 1);
+        assert!(!containers[0].is_open);
+        assert!(containers[0].is_locked);
+
+        let equal_key_context = KnowledgeContext::embodied_at_frontier_with_all_facts(
+            actor_id("actor_tomas"),
+            SimTick::new(1),
+            0,
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            vec![older_open, equal_key_later],
+            Vec::new(),
+            Vec::new(),
+        );
+
+        let equal_key_containers = actor_known_containers_for_context(&equal_key_context);
+
+        assert_eq!(equal_key_containers.len(), 1);
+        assert!(!equal_key_containers[0].is_open);
+        assert!(!equal_key_containers[0].is_locked);
     }
 
     fn metric_event(kind: EventKind, sequence: u64, tick: u64) -> EventEnvelope {
