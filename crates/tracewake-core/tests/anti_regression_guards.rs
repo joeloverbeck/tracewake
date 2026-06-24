@@ -1481,6 +1481,8 @@ const WORKSPACE_SOURCE_CLASSIFICATIONS: &[WorkspaceSourceClassification] = &[
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/replay/rebuild.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/replay/report.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/replay/temporal.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/runtime/mod.rs", class: WorkspaceSourceClass::GuardedLayer },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/runtime/session.rs", class: WorkspaceSourceClass::GuardedLayer },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/scheduler.rs", class: WorkspaceSourceClass::GuardedLayer },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/state.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/time.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
@@ -1547,6 +1549,7 @@ fn is_guarded_layer_source(path: &str) -> bool {
 
 const MUTATION_PERIMETER_EXAMINE_GLOBS: &[&str] = &[
     "crates/tracewake-core/src/agent/**",
+    "crates/tracewake-core/src/runtime/**",
     "crates/tracewake-core/src/scheduler.rs",
     "crates/tracewake-core/src/projections.rs",
     "crates/tracewake-core/src/actions/pipeline.rs",
@@ -1578,6 +1581,7 @@ const MUTATION_PERIMETER_EXAMINE_GLOBS: &[&str] = &[
 
 const MUTATION_PERIMETER_CANARY_PATHS: &[&str] = &[
     "crates/tracewake-core/src/agent/transaction.rs",
+    "crates/tracewake-core/src/runtime/session.rs",
     "crates/tracewake-core/src/scheduler.rs",
     "crates/tracewake-core/src/projections.rs",
     "crates/tracewake-core/src/actions/pipeline.rs",
@@ -2400,6 +2404,8 @@ fn yaml_step_blocks_with_cargo_mutants(ci_yml: &str) -> Vec<&str> {
 fn in_diff_filter_matches_path(filter_line: &str, required_path: &str) -> bool {
     if required_path.starts_with("crates/tracewake-core/src/agent/") {
         filter_line.contains("crates/tracewake-core/src/agent/|")
+    } else if required_path.starts_with("crates/tracewake-core/src/runtime/") {
+        filter_line.contains("crates/tracewake-core/src/runtime/")
     } else if required_path.starts_with("crates/tracewake-core/src/events/") {
         filter_line.contains("crates/tracewake-core/src/events/")
     } else if required_path.starts_with("crates/tracewake-core/src/replay/") {
@@ -5556,6 +5562,7 @@ fn guarded_layer_entries_are_exactly_the_workspace_guarded_classifications() {
             .iter()
             .filter(|entry| matches!(entry.class, WorkspaceSourceClass::GuardedLayer))
             .all(|entry| entry.path.starts_with("crates/tracewake-core/src/agent/")
+                || entry.path.starts_with("crates/tracewake-core/src/runtime/")
                 || entry.path == "crates/tracewake-core/src/scheduler.rs"
                 || entry.path == "crates/tracewake-core/src/projections.rs"),
         "guarded layer classification must stay a reviewed explicit set, not a broad crate shortcut"
