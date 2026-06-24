@@ -1,14 +1,24 @@
+use std::collections::{BTreeMap, BTreeSet};
+
+use tracewake_core::actions::ActionRegistry;
+use tracewake_core::agent::{NeedChangeCause, NeedKind, NeedState};
 use tracewake_core::checksum::ChecksumContext;
 use tracewake_core::events::log::EventLog;
 use tracewake_core::events::{EventCause, EventEnvelope, EventKind, PayloadField, EVENT_SCHEMA_V1};
 use tracewake_core::ids::{
-    ActionId, ActorId, ContentManifestId, ContentVersion, EventId, FixtureId, ProcessId,
+    ActionId, ActorId, ContentManifestId, ContentVersion, ControllerId, EventId, FixtureId,
+    PlaceId, ProcessId,
 };
 use tracewake_core::replay::report::{ReplayDivergenceDetail, ReplayDivergenceFieldFamily};
 use tracewake_core::replay::run_replay;
 use tracewake_core::replay::{rebuild_projection, TemporalDivergence};
-use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
-use tracewake_core::state::{AgentState, NeedModelState, PhysicalState};
+use tracewake_core::scheduler::{
+    DeterministicScheduler, OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId,
+    WorldAdvanceOrigin, WorldAdvanceRequest, WorldStepTransactionRequest,
+};
+use tracewake_core::state::{
+    ActorBody, AgentState, NeedModelState, PhysicalState, PlaceState, VisibilityDefault,
+};
 use tracewake_core::time::SimTick;
 
 fn context(initial_tick: u64) -> ChecksumContext {
@@ -96,6 +106,236 @@ fn rebuild(log: &EventLog, initial_tick: u64) -> tracewake_core::replay::Project
         &context(initial_tick),
         None,
     )
+}
+
+fn actor_id(value: &str) -> ActorId {
+    ActorId::new(value).unwrap()
+}
+
+fn place_id(value: &str) -> PlaceId {
+    PlaceId::new(value).unwrap()
+}
+
+fn loaded_world(actor_ids: &[ActorId]) -> (PhysicalState, AgentState) {
+    let place = place_id("replay_house");
+    let mut actors = BTreeMap::new();
+    let mut local_actor_ids = BTreeSet::new();
+    for actor_id in actor_ids {
+        actors.insert(
+            actor_id.clone(),
+            ActorBody::new(actor_id.clone(), place.clone()),
+        );
+        local_actor_ids.insert(actor_id.clone());
+    }
+    let mut places = BTreeMap::new();
+    places.insert(
+        place.clone(),
+        PlaceState {
+            place_id: place,
+            display_label: "Replay house".to_string(),
+            adjacent_place_ids: BTreeSet::new(),
+            connected_door_ids: BTreeSet::new(),
+            local_container_ids: BTreeSet::new(),
+            local_item_ids: BTreeSet::new(),
+            local_actor_ids,
+            visibility_default: VisibilityDefault::Visible,
+        },
+    );
+    let physical = PhysicalState::from_seed_parts(
+        actors,
+        places,
+        BTreeMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
+        NeedModelState::new(0, 0),
+    );
+
+    let mut needs_by_actor = BTreeMap::new();
+    for actor_id in actor_ids {
+        needs_by_actor.insert(actor_id.clone(), initial_needs());
+    }
+    let agent = AgentState::from_seed_parts(
+        needs_by_actor,
+        BTreeMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
+        BTreeMap::new(),
+    );
+    (physical, agent)
+}
+
+fn initial_needs() -> BTreeMap<NeedKind, NeedState> {
+    BTreeMap::from([
+        (
+            NeedKind::Fatigue,
+            NeedState::initial(NeedKind::Fatigue, 100, NeedChangeCause::FixtureInitial),
+        ),
+        (
+            NeedKind::Hunger,
+            NeedState::initial(NeedKind::Hunger, 100, NeedChangeCause::FixtureInitial),
+        ),
+    ])
+}
+
+fn world_step_request(expected_tick: SimTick) -> WorldStepTransactionRequest {
+    WorldStepTransactionRequest {
+        advance: WorldAdvanceRequest {
+            expected_tick,
+            origin: WorldAdvanceOrigin::Controller(ControllerId::new("controller_human").unwrap()),
+            content_manifest_id: content_manifest_id(),
+            authorized_sleep_interruptions: Vec::new(),
+        },
+        controlled_proposals: Vec::new(),
+        actor_known_interval_actor_id: None,
+    }
+}
+
+fn run_loaded_tick(
+    scheduler: &mut DeterministicScheduler,
+    physical: &mut PhysicalState,
+    agent: &mut AgentState,
+    log: &mut EventLog,
+) -> tracewake_core::scheduler::WorldAdvanceResult {
+    let registry = ActionRegistry::new();
+    scheduler
+        .transact_world_one_tick(
+            physical,
+            agent,
+            log,
+            &registry,
+            None,
+            None,
+            world_step_request(scheduler.current_tick()),
+        )
+        .unwrap()
+}
+
+#[test]
+fn scheduler_restore_reconstructs_loaded_due_work_for_continuation_equivalence() {
+    let actors = [actor_id("actor_tomas"), actor_id("actor_mara")];
+    let (initial_physical, initial_agent) = loaded_world(&actors);
+
+    let mut uninterrupted_physical = initial_physical.clone();
+    let mut uninterrupted_agent = initial_agent.clone();
+    let mut uninterrupted_log = EventLog::new();
+    let mut uninterrupted_scheduler = DeterministicScheduler::from_loaded_world(
+        SimTick::ZERO,
+        &uninterrupted_physical,
+        &uninterrupted_agent,
+        content_manifest_id(),
+    );
+    run_loaded_tick(
+        &mut uninterrupted_scheduler,
+        &mut uninterrupted_physical,
+        &mut uninterrupted_agent,
+        &mut uninterrupted_log,
+    );
+    let uninterrupted_second = run_loaded_tick(
+        &mut uninterrupted_scheduler,
+        &mut uninterrupted_physical,
+        &mut uninterrupted_agent,
+        &mut uninterrupted_log,
+    );
+
+    let mut restored_physical = initial_physical.clone();
+    let mut restored_agent = initial_agent.clone();
+    let mut restored_log = EventLog::new();
+    let mut restored_scheduler = DeterministicScheduler::from_loaded_world(
+        SimTick::ZERO,
+        &restored_physical,
+        &restored_agent,
+        content_manifest_id(),
+    );
+    run_loaded_tick(
+        &mut restored_scheduler,
+        &mut restored_physical,
+        &mut restored_agent,
+        &mut restored_log,
+    );
+    let rebuild = rebuild_projection(
+        &initial_physical,
+        &initial_agent,
+        &restored_log,
+        &context(0),
+        Some(&restored_physical),
+    );
+    restored_scheduler =
+        DeterministicScheduler::restore_from_rebuild_report(&rebuild, content_manifest_id())
+            .unwrap();
+    restored_physical = rebuild.final_state;
+    restored_agent = rebuild.final_agent_state;
+    let restore_frontier = restored_log.events().len();
+    let restored_second = run_loaded_tick(
+        &mut restored_scheduler,
+        &mut restored_physical,
+        &mut restored_agent,
+        &mut restored_log,
+    );
+
+    assert_eq!(
+        restored_scheduler.current_tick(),
+        uninterrupted_scheduler.current_tick()
+    );
+    assert_eq!(
+        restored_second.due_work_summary,
+        uninterrupted_second.due_work_summary
+    );
+    assert_eq!(
+        restored_second
+            .actor_step_summaries
+            .iter()
+            .map(|summary| (&summary.actor_id, summary.status))
+            .collect::<Vec<_>>(),
+        uninterrupted_second
+            .actor_step_summaries
+            .iter()
+            .map(|summary| (&summary.actor_id, summary.status))
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(
+        restored_log.events()[restore_frontier..]
+            .iter()
+            .map(|event| (
+                event.event_type,
+                event.actor_id.clone(),
+                event.process_id.clone()
+            ))
+            .collect::<Vec<_>>(),
+        uninterrupted_log.events()[restore_frontier..]
+            .iter()
+            .map(|event| (
+                event.event_type,
+                event.actor_id.clone(),
+                event.process_id.clone()
+            ))
+            .collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn loaded_actor_next_opportunity_advances_after_due_transaction() {
+    let actors = [actor_id("actor_tomas")];
+    let (mut physical, mut agent) = loaded_world(&actors);
+    let mut log = EventLog::new();
+    let mut scheduler = DeterministicScheduler::from_loaded_world(
+        SimTick::ZERO,
+        &physical,
+        &agent,
+        content_manifest_id(),
+    );
+
+    let first = run_loaded_tick(&mut scheduler, &mut physical, &mut agent, &mut log);
+    let second = run_loaded_tick(&mut scheduler, &mut physical, &mut agent, &mut log);
+
+    assert_eq!(first.resulting_tick, SimTick::new(1));
+    assert_eq!(second.resulting_tick, SimTick::new(2));
+    assert_eq!(first.due_work_summary.actor_transactions_attempted, 1);
+    assert_eq!(second.due_work_summary.actor_transactions_attempted, 1);
+    assert_ne!(first.appended_event_ids, second.appended_event_ids);
 }
 
 #[test]

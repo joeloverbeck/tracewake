@@ -536,9 +536,17 @@ impl DeterministicScheduler {
 
     pub fn restore_from_temporal_projection(
         projection: &crate::replay::TemporalProjection,
+        state: &PhysicalState,
+        agent_state: &AgentState,
+        content_manifest_id: ContentManifestId,
     ) -> Option<Self> {
         if projection.violations.is_empty() {
-            Some(Self::new(projection.reconstructed_final_frontier))
+            Some(Self::from_loaded_world(
+                projection.reconstructed_final_frontier,
+                state,
+                agent_state,
+                content_manifest_id,
+            ))
         } else {
             None
         }
@@ -546,9 +554,15 @@ impl DeterministicScheduler {
 
     pub fn restore_from_rebuild_report(
         report: &crate::replay::ProjectionRebuildReport,
+        content_manifest_id: ContentManifestId,
     ) -> Option<Self> {
         if report.temporal_violations.is_empty() {
-            Some(Self::new(report.reconstructed_final_frontier))
+            Some(Self::from_loaded_world(
+                report.reconstructed_final_frontier,
+                &report.final_state,
+                &report.final_agent_state,
+                content_manifest_id,
+            ))
         } else {
             None
         }
@@ -883,17 +897,19 @@ impl DeterministicScheduler {
             .origin
             .cause_process_id()
             .map_err(WorldAdvanceError::InvalidMarkerId)?;
-        for actor_id in due_actor_ids {
-            let Some(actor) = scratch_state.actors().get(&actor_id) else {
+        let mut processed_actor_ids = Vec::new();
+        for actor_id in &due_actor_ids {
+            let Some(actor) = scratch_state.actors().get(actor_id) else {
                 continue;
             };
+            processed_actor_ids.push(actor_id.clone());
             let current_place_id = actor.current_place_id.clone();
             record_current_place_perception_and_project(
                 &mut scratch_log,
                 &mut scratch_state,
                 &mut scratch_agent_state,
                 &mut scratch_projection,
-                &actor_id,
+                actor_id,
                 resulting_tick,
                 &request.advance.content_manifest_id,
             );
@@ -908,11 +924,11 @@ impl DeterministicScheduler {
                     window_end_tick: resulting_tick,
                     current_place_witness_event_id: latest_current_place_perception_event_id(
                         &scratch_log,
-                        &actor_id,
+                        actor_id,
                         resulting_tick,
                         &current_place_id,
                     ),
-                    needs_witness_event_id: latest_need_event_id(&scratch_log, &actor_id),
+                    needs_witness_event_id: latest_need_event_id(&scratch_log, actor_id),
                     frame_event_id: actor_frame_event_id.clone(),
                 })
                 .build(&scratch_agent_state)
@@ -973,7 +989,7 @@ impl DeterministicScheduler {
                         .collect::<Vec<_>>();
                     for effect in &lifecycle_effects {
                         let event = build_actor_intention_event(
-                            &actor_id,
+                            actor_id,
                             resulting_tick,
                             &actor_process_id,
                             &proposal,
@@ -986,12 +1002,12 @@ impl DeterministicScheduler {
                         committed_event_ids.push(append_and_apply_actor_artifact(
                             &mut scratch_log,
                             &mut scratch_agent_state,
-                            &actor_id,
+                            actor_id,
                             event,
                         )?);
                     }
                     let trace_event = build_actor_decision_trace_event(
-                        &actor_id,
+                        actor_id,
                         resulting_tick,
                         &actor_process_id,
                         &proposal,
@@ -1003,7 +1019,7 @@ impl DeterministicScheduler {
                     committed_event_ids.push(append_and_apply_actor_artifact(
                         &mut scratch_log,
                         &mut scratch_agent_state,
-                        &actor_id,
+                        actor_id,
                         trace_event,
                     )?);
                     actor_step_summaries.push(ActorStepSummary {
@@ -1017,7 +1033,7 @@ impl DeterministicScheduler {
                 }
                 ActorDecisionTransactionOutcome::Stuck { diagnostic } => {
                     let event = build_actor_stuck_diagnostic_event(
-                        &actor_id,
+                        actor_id,
                         resulting_tick,
                         &actor_process_id,
                         &diagnostic,
@@ -1027,7 +1043,7 @@ impl DeterministicScheduler {
                     let event_id = append_and_apply_actor_artifact(
                         &mut scratch_log,
                         &mut scratch_agent_state,
-                        &actor_id,
+                        actor_id,
                         event,
                     )?;
                     actor_step_summaries.push(ActorStepSummary {
@@ -1085,6 +1101,10 @@ impl DeterministicScheduler {
             *projection = scratch_projection;
         }
         self.current_tick = resulting_tick;
+        for actor_id in processed_actor_ids {
+            self.loaded_actor_next_decision_tick
+                .insert(actor_id, resulting_tick.next());
+        }
 
         Ok(WorldAdvanceResult {
             prior_tick,

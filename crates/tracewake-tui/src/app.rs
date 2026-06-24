@@ -395,8 +395,11 @@ impl TuiApp {
             &self.checksum_context(),
             Some(&self.state),
         );
-        self.scheduler = DeterministicScheduler::restore_from_rebuild_report(&rebuild)
-            .ok_or(AppError::SchedulerRestoreFailed)?;
+        self.scheduler = DeterministicScheduler::restore_from_rebuild_report(
+            &rebuild,
+            self.content_manifest_id.clone(),
+        )
+        .ok_or(AppError::SchedulerRestoreFailed)?;
         self.state = rebuild.final_state;
         self.agent_state = rebuild.final_agent_state;
         self.epistemic_projection = rebuild.final_epistemic_projection;
