@@ -123,8 +123,8 @@ For each ticket:
    run the corresponding `--list` or `--list-files` command with the same
    selection flags, record the expected count/scope in the ticket or report,
    and make any deliberate `--no-config` or config override explicit.
-   For controlled temporary-break evidence, generated baselines, or bulky
-   long-running tool outputs, follow
+   For controlled temporary-break evidence, committed adversarial or negative
+   witnesses, generated baselines, or bulky long-running tool outputs, follow
    `references/closeout-edge-cases.md` and keep the stable evidence package
    tracked while leaving scratch output untracked unless explicitly required.
 5. Update the ticket with final status and an `Outcome` section following
@@ -281,18 +281,18 @@ deviations in the ticket and spec outcomes.
 5. Repair active references and ledgers, especially `docs/4-specs/SPEC_LEDGER.md`
    and any implementation-order or index surfaces found in the repo.
    Use separate concrete sweeps for stale live paths and expected archive
-   provenance. First run a strict stale-live-path sweep for the exact live spec
-   and ticket paths, for example:
+   provenance. First run a strict stale-live-path sweep for the exact live spec,
+   report, and ticket paths, for example:
 
 ```sh
-rg -n '(^|[^/A-Za-z0-9_-])(specs/<spec filename>|tickets/<ticket prefix>)' docs reports specs tickets
-rg -P -n '(?<!archive/)specs/<spec filename>|(?<!archive/)tickets/<ticket prefix>' docs reports specs tickets archive/reports
+rg -n '(^|[^/A-Za-z0-9_-])(specs/<spec filename>|reports/<report filename>|tickets/<ticket prefix>)' docs reports specs tickets
+rg -P -n '(?<!archive/)specs/<spec filename>|(?<!archive/)reports/<report filename>|(?<!archive/)tickets/<ticket prefix>' docs reports specs tickets archive/reports
 ```
 
    Then run an archive-reference audit for expected archived paths, for example:
 
 ```sh
-rg -n 'archive/specs/<spec filename>|archive/tickets/<ticket prefix>' docs reports archive
+rg -n 'archive/specs/<spec filename>|archive/reports/<report filename>|archive/tickets/<ticket prefix>' docs reports archive
 ```
 
    Update active references that should point to `archive/specs/` or
@@ -436,11 +436,15 @@ rg -n 'pending|remaining|TODO|deferred|out of scope|not run|live path|archive bo
 git status --short
 rg --files tickets | rg '<ticket-prefix>'
 test ! -e specs/<spec filename> && test -e archive/specs/<spec filename> # spec-backed only
-rg -P -n '(?<!archive/)specs/<spec filename>|(?<!archive/)tickets/<ticket-prefix>' docs reports specs tickets archive/reports archive/tickets archive/specs
+rg -P -n '(?<!archive/)specs/<spec filename>|(?<!archive/)reports/<report filename>|(?<!archive/)tickets/<ticket-prefix>' docs reports specs tickets archive/reports archive/tickets archive/specs
 ```
 
    Inspect command output rather than treating nonzero `rg` exits as failure by
    themselves; for absence checks, no output is usually the expected result.
+   When the ticket prefix and reference paths are known, the optional helper
+   `.agents/skills/ticket-series/scripts/closeout-audit.mjs` can produce these
+   active-path, archive-path, stale-live-path, and status checks; inspect its
+   output and still apply judgment for historical archive prose.
 10. If a `/goal` is active, mark it complete only after implementation,
    verification, ticket archives, spec archive, reference repair, required final
    checks, and required commits are done. On a resumed `/goal` turn, re-run the
@@ -509,3 +513,6 @@ aligned with this skill's trigger wording and closeout expectations.
 - `references/closeout-edge-cases.md`: optional progressive-disclosure guidance
   for controlled temporary-break evidence, generated baselines, ignored
   evidence paths, and bulky long-running tool outputs.
+- `scripts/closeout-audit.mjs`: optional helper that emits mechanical closeout
+  checks for active paths, archived paths, stale live references, and Git status
+  when the ticket prefix and reference artifact paths are known.
