@@ -3093,6 +3093,124 @@ mod tests {
     }
 
     #[test]
+    fn observation_insert_replaces_only_same_source_and_embodied_subject() {
+        let mut projection = EpistemicProjection::new(manifest_id());
+        projection.insert_observation(visible_observation(
+            "visible_container",
+            "strongbox_tomas",
+            vec![
+                PayloadField::new("is_open", "false"),
+                PayloadField::new("is_locked", "true"),
+            ],
+        ));
+        projection.insert_observation(visible_observation(
+            "visible_container",
+            "strongbox_tomas",
+            vec![
+                PayloadField::new("is_open", "true"),
+                PayloadField::new("is_locked", "false"),
+            ],
+        ));
+
+        let context = policy_behavior_embodied_context(
+            &projection,
+            actor_id("actor_tomas"),
+            place_id("home_tomas"),
+        );
+        assert_eq!(context.actor_known_containers().len(), 1);
+        let strongbox = &context.actor_known_containers()[0];
+        assert_eq!(strongbox.container_id().as_str(), "strongbox_tomas");
+        assert!(strongbox.is_open());
+        assert!(!strongbox.is_locked());
+
+        projection.insert_observation(visible_observation(
+            "visible_container",
+            "crate_tomas",
+            vec![
+                PayloadField::new("is_open", "false"),
+                PayloadField::new("is_locked", "false"),
+            ],
+        ));
+
+        let context = policy_behavior_embodied_context(
+            &projection,
+            actor_id("actor_tomas"),
+            place_id("home_tomas"),
+        );
+        let container_ids = context
+            .actor_known_containers()
+            .iter()
+            .map(|fact| fact.container_id().as_str())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            container_ids,
+            BTreeSet::from(["crate_tomas", "strongbox_tomas"])
+        );
+    }
+
+    #[test]
+    fn embodied_subject_keys_distinguish_same_source_local_subjects() {
+        let actor = actor_id("actor_tomas");
+        let source_event_id = event_id("event_visible_observation");
+        let tick = SimTick::new(4);
+        let records = [
+            ActorKnownProjectionRecord::LocalContainer {
+                actor_id: actor.clone(),
+                container_id: container_id("strongbox_tomas"),
+                place_id: place_id("home_tomas"),
+                is_open: false,
+                is_locked: true,
+                source: ActorKnownProjectionSource::VisibleContainer,
+                source_event_id: source_event_id.clone(),
+                source_tick: tick,
+            },
+            ActorKnownProjectionRecord::LocalContainer {
+                actor_id: actor.clone(),
+                container_id: container_id("crate_tomas"),
+                place_id: place_id("home_tomas"),
+                is_open: false,
+                is_locked: false,
+                source: ActorKnownProjectionSource::VisibleContainer,
+                source_event_id: source_event_id.clone(),
+                source_tick: tick,
+            },
+            ActorKnownProjectionRecord::LocalDoor {
+                actor_id: actor.clone(),
+                door_id: door_id("door_home_market"),
+                place_id: place_id("home_tomas"),
+                endpoint_a: place_id("home_tomas"),
+                endpoint_b: place_id("market"),
+                is_open: true,
+                is_locked: false,
+                blocks_movement_when_closed: true,
+                source: ActorKnownProjectionSource::VisibleDoor,
+                source_event_id: source_event_id.clone(),
+                source_tick: tick,
+            },
+            ActorKnownProjectionRecord::LocalItem {
+                actor_id: actor,
+                item_id: item_id("coin_stack_01"),
+                place_id: place_id("home_tomas"),
+                source_location: Location::AtPlace(place_id("home_tomas")),
+                portable: true,
+                source: ActorKnownProjectionSource::VisibleItem,
+                source_event_id,
+                source_tick: tick,
+            },
+        ];
+
+        let keys = records
+            .iter()
+            .map(ActorKnownProjectionRecord::embodied_subject_key)
+            .collect::<BTreeSet<_>>();
+        assert_eq!(keys.len(), records.len());
+        assert!(keys.contains("local_container:strongbox_tomas"));
+        assert!(keys.contains("local_container:crate_tomas"));
+        assert!(keys.contains("local_door:door_home_market"));
+        assert!(keys.contains("local_item:coin_stack_01"));
+    }
+
+    #[test]
     fn starting_beliefs_materialize_actor_known_records() {
         let mut projection = EpistemicProjection::new(manifest_id());
         projection.insert_starting_belief(
