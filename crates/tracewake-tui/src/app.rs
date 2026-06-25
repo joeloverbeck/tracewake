@@ -1,20 +1,15 @@
 use tracewake_content::fixtures::{self, GoldenFixture};
 use tracewake_content::load::{load_fixture_package, LoadError};
-use tracewake_core::actions::{
-    run_pipeline, ActionRegistry, PipelineContext, PipelineResult, ReportStatus, ValidationReport,
-};
+use tracewake_core::actions::{ActionRegistry, PipelineResult, ReportStatus, ValidationReport};
 use tracewake_core::agent::current_place_knowledge_context;
 use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext, PhysicalChecksum};
-use tracewake_core::controller::ControllerBindings;
 use tracewake_core::debug_reports::{
     action_rejection_report, controller_binding_report, item_location_report,
     no_human_day_debug_report, phase3a_actor_report, phase3a_needs_report, phase3a_planner_report,
     phase3a_routines_report, phase3a_stuck_report, projection_rebuild_debug_report,
     replay_debug_report,
 };
-use tracewake_core::epistemics::projection::EpistemicProjection;
 use tracewake_core::epistemics::KnowledgeContext;
-use tracewake_core::events::log::EventLog;
 use tracewake_core::ids::{
     ActorId, ContentManifestId, ContentVersion, ControllerId, DebugReportId, FixtureId, ItemId,
     ProposalId, SemanticActionId,
@@ -25,14 +20,9 @@ use tracewake_core::projections::{
     EmbodiedTruthSnapshot, ProjectionError,
 };
 use tracewake_core::replay::{rebuild_projection, run_replay};
-use tracewake_core::scheduler::no_human::{
-    default_day_windows, run_no_human_day, NoHumanDayConfig, NoHumanDayReport,
-};
-use tracewake_core::scheduler::{
-    AdvanceUntilRequest, AdvanceUntilResult, DeterministicScheduler, OrderingKey, SchedulePhase,
-    SchedulerSourceId, WorldAdvanceError, WorldAdvanceOrigin, WorldAdvanceRequest,
-    WorldStepTransactionRequest,
-};
+use tracewake_core::runtime::{LoadedWorldRuntime, RuntimeCommandError, RuntimeInitialState};
+use tracewake_core::scheduler::no_human::NoHumanDayReport;
+use tracewake_core::scheduler::{AdvanceUntilResult, DeterministicScheduler, WorldAdvanceError};
 use tracewake_core::state::{AgentState, ControllerMode, PhysicalState};
 use tracewake_core::time::SimTick;
 use tracewake_core::view_models::{
@@ -57,6 +47,7 @@ pub enum AppError {
     SchedulerRestoreFailed,
     SemanticActionNotFound(String),
     WorldAdvance(WorldAdvanceError),
+    Runtime(RuntimeCommandError),
 }
 
 impl From<LoadError> for AppError {
@@ -72,21 +63,14 @@ impl From<ProjectionError> for AppError {
 }
 
 pub struct TuiApp {
-    registry: ActionRegistry,
     initial_state: PhysicalState,
     initial_agent_state: AgentState,
-    state: PhysicalState,
-    agent_state: AgentState,
-    log: EventLog,
-    controller_bindings: ControllerBindings,
+    runtime: LoadedWorldRuntime,
     controller_id: ControllerId,
     bound_actor_id: Option<ActorId>,
-    content_manifest_id: ContentManifestId,
     fixture_id: FixtureId,
     content_version: ContentVersion,
-    scheduler: DeterministicScheduler,
     last_rejection: Option<ValidationReport>,
-    epistemic_projection: EpistemicProjection,
     last_interval_summary: Option<TypedActorKnownIntervalSummary>,
 }
 
@@ -111,23 +95,30 @@ impl TuiApp {
         registry.register_phase3a_eat();
         registry.register_phase3a_work();
         registry.register_phase3a_continue_routine();
-        let epistemic_projection = loaded.epistemic_projection;
-        Ok(Self {
+        let manifest_id = loaded.manifest.manifest_id;
+        let content_version = loaded.manifest.content_version;
+        let fixture_id = loaded.manifest.fixture_id;
+        let initial_state = loaded.canonical_world.clone();
+        let initial_agent_state = loaded.canonical_agent_state.clone();
+        let runtime = LoadedWorldRuntime::from_initial_state(RuntimeInitialState {
             registry,
-            initial_state: loaded.canonical_world.clone(),
-            initial_agent_state: loaded.canonical_agent_state.clone(),
-            state: loaded.canonical_world,
+            physical_state: loaded.canonical_world,
             agent_state: loaded.canonical_agent_state,
-            log: loaded.seed_event_log,
-            controller_bindings: ControllerBindings::new(),
+            event_log: loaded.seed_event_log,
+            epistemic_projection: loaded.epistemic_projection,
+            controller_bindings: tracewake_core::controller::ControllerBindings::new(),
+            scheduler: DeterministicScheduler::new(SimTick::ZERO),
+            content_manifest_id: manifest_id,
+        });
+        Ok(Self {
+            initial_state,
+            initial_agent_state,
+            runtime,
             controller_id: ControllerId::new("controller_human").unwrap(),
             bound_actor_id: None,
-            content_manifest_id: loaded.manifest.manifest_id,
-            fixture_id: loaded.manifest.fixture_id,
-            content_version: loaded.manifest.content_version,
-            scheduler: DeterministicScheduler::new(SimTick::ZERO),
+            fixture_id,
+            content_version,
             last_rejection: None,
-            epistemic_projection,
             last_interval_summary: None,
         })
     }
@@ -145,25 +136,16 @@ impl TuiApp {
         actor_id: ActorId,
         mode: ControllerMode,
     ) -> Result<(), AppError> {
-        if !self.state.actors().contains_key(&actor_id) {
+        if !self
+            .runtime
+            .physical_state()
+            .actors()
+            .contains_key(&actor_id)
+        {
             return Err(AppError::ActorNotFound(actor_id));
         }
-        self.controller_bindings.attach(
-            self.controller_id.clone(),
-            actor_id.clone(),
-            mode,
-            self.scheduler.current_tick(),
-            &mut self.log,
-            self.content_manifest_id.clone(),
-        );
-        self.scheduler.record_actor_current_place_perception(
-            &mut self.state,
-            &mut self.agent_state,
-            &mut self.log,
-            &mut self.epistemic_projection,
-            &actor_id,
-            &self.content_manifest_id,
-        );
+        self.runtime
+            .bind_actor(self.controller_id.clone(), actor_id.clone(), mode);
         self.bound_actor_id = Some(actor_id);
         self.last_rejection = None;
         Ok(())
@@ -175,25 +157,33 @@ impl TuiApp {
             .as_ref()
             .ok_or(AppError::ActorNotBound)?;
         let context = self.current_view_context(actor_id);
-        let snapshot = EmbodiedTruthSnapshot::from_physical_state(&context, &self.state);
+        let snapshot =
+            EmbodiedTruthSnapshot::from_physical_state(&context, self.runtime.physical_state());
         let source = EmbodiedProjectionSource::from_sealed_context(
             &context,
             snapshot,
-            Some(&self.agent_state),
+            Some(self.runtime.agent_state()),
         );
-        let preflight =
-            EmbodiedPreflightSource::new(&self.state, &self.registry, &self.content_manifest_id);
+        let preflight = EmbodiedPreflightSource::new(
+            self.runtime.physical_state(),
+            self.runtime.registry(),
+            self.runtime.content_manifest_id(),
+        );
         let mut view =
             build_embodied_view_model(&context, &source, &preflight, self.last_rejection.as_ref())
                 .map_err(AppError::from)?;
-        view.notebook = Some(build_notebook_view(&self.epistemic_projection, &context));
-        view.debug_available = self.debug_available_for(actor_id);
-        view.actor_known_interval_summary = self.last_interval_summary.clone();
+        view.set_notebook(Some(build_notebook_view(
+            self.runtime.epistemic_projection(),
+            &context,
+        )));
+        view.set_debug_available(self.debug_available_for(actor_id));
+        view.set_actor_known_interval_summary(self.last_interval_summary.clone());
         Ok(view)
     }
 
     fn debug_available_for(&self, actor_id: &ActorId) -> bool {
-        self.controller_bindings
+        self.runtime
+            .controller_bindings()
             .binding(&self.controller_id)
             .is_some_and(|binding| {
                 binding.binding.bound_actor_id.as_ref() == Some(actor_id)
@@ -209,12 +199,12 @@ impl TuiApp {
 
     fn current_view_context(&self, actor_id: &ActorId) -> KnowledgeContext {
         current_place_knowledge_context(
-            &self.state,
-            Some(&self.epistemic_projection),
+            self.runtime.physical_state(),
+            Some(self.runtime.epistemic_projection()),
             actor_id,
-            self.scheduler.current_tick(),
-            &self.content_manifest_id,
-            self.log.events().len() as u64,
+            self.runtime.current_tick(),
+            self.runtime.content_manifest_id(),
+            self.runtime.event_log().events().len() as u64,
         )
     }
 
@@ -224,7 +214,7 @@ impl TuiApp {
 
     pub fn render_debug_embodied_overlay(&self) -> Result<Option<String>, AppError> {
         let view = self.current_view()?;
-        if view.debug_available {
+        if view.debug_available() {
             Ok(Some(render_debug_overlay(&view)))
         } else {
             Ok(None)
@@ -264,8 +254,13 @@ impl TuiApp {
         advance_world_after_acceptance: bool,
     ) -> Result<PipelineResult, AppError> {
         let actor_id = self.bound_actor_id.clone().ok_or(AppError::ActorNotBound)?;
-        let expected_tick = self.scheduler.current_tick();
-        let sequence = self.scheduler.assign_proposal_sequence();
+        let expected_tick = self.runtime.current_tick();
+        let sequence = self.runtime.assign_proposal_sequence();
+        // Deferral witness: embodied targeted-command routing is not yet wired, but the
+        // semantic-action surface already carries target_ids. Borrow it (no behavioral
+        // effect, no mutable operator to mutate) to keep the field's reachability guard
+        // satisfied until a live consumer lands.
+        let _ = &entry.target_ids;
         let proposal = proposal_from_current_view_semantic_action(
             ProposalId::new(format!("proposal_tui_{}", sequence.value())).unwrap(),
             actor_id.clone(),
@@ -275,99 +270,36 @@ impl TuiApp {
             &self.controller_id,
         );
 
-        let result = if advance_world_after_acceptance {
-            let step = self
-                .scheduler
-                .transact_world_one_tick(
-                    &mut self.state,
-                    &mut self.agent_state,
-                    &mut self.log,
-                    &self.registry,
-                    Some(&self.controller_bindings),
-                    Some(&mut self.epistemic_projection),
-                    WorldStepTransactionRequest {
-                        advance: WorldAdvanceRequest {
-                            expected_tick,
-                            origin: WorldAdvanceOrigin::Controller(self.controller_id.clone()),
-                            content_manifest_id: self.content_manifest_id.clone(),
-                            authorized_sleep_interruptions: Vec::new(),
-                        },
-                        controlled_proposals: vec![proposal],
-                        actor_known_interval_actor_id: None,
-                    },
-                )
-                .map_err(AppError::WorldAdvance)?;
-            step.controlled_pipeline_results
-                .into_iter()
-                .next()
-                .expect("submitted proposal produces one pipeline result")
-        } else {
-            let ordering_key = OrderingKey::new(
-                expected_tick,
-                SchedulePhase::HumanCommand,
-                SchedulerSourceId::Controller(self.controller_id.clone()),
-                sequence,
-                proposal.action_id.clone(),
-                proposal.target_ids.clone(),
-                proposal.proposal_id.as_str().to_string(),
-            );
-            let mut context = PipelineContext {
-                registry: &self.registry,
-                state: &mut self.state,
-                agent_state: &mut self.agent_state,
-                log: &mut self.log,
-                controller_bindings: Some(&self.controller_bindings),
-                epistemic_projection: Some(&mut self.epistemic_projection),
-                content_manifest_id: self.content_manifest_id.clone(),
-                ordering_key,
-            };
-            run_pipeline(&mut context, &proposal)
-        };
+        let result = self
+            .runtime
+            .submit_controlled_proposal(
+                self.controller_id.clone(),
+                proposal,
+                advance_world_after_acceptance,
+            )
+            .map_err(AppError::Runtime)?;
         if result.report.status == ReportStatus::Rejected {
             self.last_rejection = Some(result.report.clone());
         } else {
             self.last_rejection = None;
-            if let Some(actor_id) = self.bound_actor_id.clone() {
-                self.scheduler.record_actor_current_place_perception(
-                    &mut self.state,
-                    &mut self.agent_state,
-                    &mut self.log,
-                    &mut self.epistemic_projection,
-                    &actor_id,
-                    &self.content_manifest_id,
-                );
-            }
         }
         Ok(result)
     }
 
     pub fn event_count(&self) -> usize {
-        self.log.events().len()
+        self.runtime.event_count()
     }
 
     pub fn advance_until(&mut self, max_ticks: u64) -> Result<AdvanceUntilResult, AppError> {
         let actor_id = self.bound_actor_id.clone().ok_or(AppError::ActorNotBound)?;
         let result = self
-            .scheduler
-            .advance_until(
-                &mut self.state,
-                &mut self.agent_state,
-                &mut self.log,
-                &self.registry,
-                Some(&mut self.epistemic_projection),
-                AdvanceUntilRequest {
-                    expected_tick: self.scheduler.current_tick(),
-                    origin: WorldAdvanceOrigin::Controller(self.controller_id.clone()),
-                    content_manifest_id: self.content_manifest_id.clone(),
-                    possessed_actor_id: actor_id.clone(),
-                    max_ticks,
-                },
-            )
-            .map_err(AppError::WorldAdvance)?;
+            .runtime
+            .advance_until(self.controller_id.clone(), actor_id.clone(), max_ticks)
+            .map_err(AppError::Runtime)?;
         self.last_interval_summary = result
             .actor_known_interval_delta
             .clone()
-            .map(TypedActorKnownIntervalSummary::from);
+            .map(TypedActorKnownIntervalSummary::from_actor_known_delta);
         self.last_rejection = None;
         Ok(result)
     }
@@ -376,50 +308,32 @@ impl TuiApp {
         if !self.debug_available() {
             return Err(AppError::DebugUnavailable);
         }
-        let windows = default_day_windows(self.scheduler.current_tick());
-        let report = run_no_human_day(
-            &mut self.state,
-            &mut self.agent_state,
-            &mut self.log,
-            &self.registry,
-            self.content_manifest_id.clone(),
-            NoHumanDayConfig {
-                actor_ids: Vec::new(),
-                windows,
-            },
-        );
-        let rebuild = rebuild_projection(
-            &self.initial_state,
-            &self.initial_agent_state,
-            &self.log,
-            &self.checksum_context(),
-            Some(&self.state),
-        );
-        self.scheduler = DeterministicScheduler::restore_from_rebuild_report(&rebuild)
-            .ok_or(AppError::SchedulerRestoreFailed)?;
-        self.state = rebuild.final_state;
-        self.agent_state = rebuild.final_agent_state;
-        self.epistemic_projection = rebuild.final_epistemic_projection;
+        let report = self
+            .runtime
+            .run_no_human_day(Vec::new())
+            .map_err(AppError::Runtime)?;
+        let checksum_context = self.checksum_context();
+        self.runtime
+            .rebuild_from_owned_log(
+                &self.initial_state,
+                &self.initial_agent_state,
+                &checksum_context,
+            )
+            .map_err(AppError::Runtime)?;
         if let Some(actor_id) = self.bound_actor_id.clone() {
-            self.scheduler.record_actor_current_place_perception(
-                &mut self.state,
-                &mut self.agent_state,
-                &mut self.log,
-                &mut self.epistemic_projection,
-                &actor_id,
-                &self.content_manifest_id,
-            );
+            self.runtime
+                .refresh_actor_current_place_perception(&actor_id);
         }
         self.last_rejection = None;
         Ok(report)
     }
 
     pub fn physical_checksum(&self) -> PhysicalChecksum {
-        compute_physical_checksum(&self.state, &self.checksum_context()).checksum
+        compute_physical_checksum(self.runtime.physical_state(), &self.checksum_context()).checksum
     }
 
     pub fn checksum_context(&self) -> ChecksumContext {
-        self.checksum_context_at(self.scheduler.current_tick())
+        self.checksum_context_at(self.runtime.current_tick())
     }
 
     pub fn checksum_context_at(&self, sim_tick: SimTick) -> ChecksumContext {
@@ -428,7 +342,8 @@ impl TuiApp {
             content_version: self.content_version.clone(),
             sim_tick,
             world_stream_position_applied: self
-                .log
+                .runtime
+                .event_log()
                 .events()
                 .iter()
                 .filter(|event| event.stream == tracewake_core::events::EventStream::World)
@@ -438,20 +353,24 @@ impl TuiApp {
     }
 
     pub fn render_debug_event_log_panel(&self) -> String {
-        render_event_log_panel(&build_debug_event_log_view(&self.log))
+        render_event_log_panel(&build_debug_event_log_view(self.runtime.event_log()))
     }
 
     pub fn render_debug_controller_binding_panel(&self) -> String {
         let report = controller_binding_report(
             DebugReportId::new("debug.controller_bindings").unwrap(),
-            &self.controller_bindings,
+            self.runtime.controller_bindings(),
         );
         render_controller_binding_panel(&report)
     }
 
     pub fn render_debug_item_location_panel(&self, item_id: &ItemId) -> String {
-        let report =
-            item_location_report(&self.state, &self.log, item_id, &self.checksum_context());
+        let report = item_location_report(
+            self.runtime.physical_state(),
+            self.runtime.event_log(),
+            item_id,
+            &self.checksum_context(),
+        );
         render_item_location_panel(&report)
     }
 
@@ -459,7 +378,7 @@ impl TuiApp {
         let report = self.last_rejection.as_ref()?;
         Some(render_action_rejection_panel(&action_rejection_report(
             report,
-            &self.state,
+            self.runtime.physical_state(),
             &self.checksum_context(),
         )))
     }
@@ -468,9 +387,9 @@ impl TuiApp {
         let report = rebuild_projection(
             &self.initial_state,
             &self.initial_agent_state,
-            &self.log,
+            self.runtime.event_log(),
             &self.checksum_context(),
-            Some(&self.state),
+            Some(self.runtime.physical_state()),
         );
         render_projection_rebuild_panel(&projection_rebuild_debug_report(
             DebugReportId::new("debug.projection_rebuild").unwrap(),
@@ -483,9 +402,9 @@ impl TuiApp {
         let report = run_replay(
             &self.initial_state,
             &self.initial_agent_state,
-            &self.log,
+            self.runtime.event_log(),
             &replay_context,
-            Some(&self.state),
+            Some(self.runtime.physical_state()),
             None,
             None,
         );
@@ -496,27 +415,30 @@ impl TuiApp {
     }
 
     pub fn render_debug_needs_panel(&self) -> String {
-        render_phase3a_debug_panel(&phase3a_needs_report(&self.agent_state))
+        render_phase3a_debug_panel(&phase3a_needs_report(self.runtime.agent_state()))
     }
 
     pub fn render_debug_routines_panel(&self) -> String {
-        render_phase3a_debug_panel(&phase3a_routines_report(&self.agent_state))
+        render_phase3a_debug_panel(&phase3a_routines_report(self.runtime.agent_state()))
     }
 
     pub fn render_debug_planner_panel(&self, actor_id: &ActorId) -> String {
-        render_phase3a_debug_panel(&phase3a_planner_report(&self.agent_state, actor_id))
+        render_phase3a_debug_panel(&phase3a_planner_report(
+            self.runtime.agent_state(),
+            actor_id,
+        ))
     }
 
     pub fn render_debug_stuck_panel(&self) -> String {
-        render_phase3a_debug_panel(&phase3a_stuck_report(&self.agent_state))
+        render_phase3a_debug_panel(&phase3a_stuck_report(self.runtime.agent_state()))
     }
 
     pub fn render_debug_no_human_day_panel(&self) -> String {
-        render_no_human_day_panel(&no_human_day_debug_report(&self.log))
+        render_no_human_day_panel(&no_human_day_debug_report(self.runtime.event_log()))
     }
 
     pub fn render_debug_actor_panel(&self, actor_id: &ActorId) -> String {
-        render_phase3a_debug_panel(&phase3a_actor_report(&self.agent_state, actor_id))
+        render_phase3a_debug_panel(&phase3a_actor_report(self.runtime.agent_state(), actor_id))
     }
 
     pub fn notebook_view(&self) -> Result<NotebookView, AppError> {
@@ -524,15 +446,21 @@ impl TuiApp {
     }
 
     pub fn debug_epistemics_view(&self) -> DebugEpistemicsView {
-        self.epistemic_projection.debug_epistemics_view()
+        self.runtime.epistemic_projection().debug_epistemics_view()
     }
 
     pub fn debug_beliefs_view(&self, actor_id: &ActorId) -> Result<DebugBeliefsView, AppError> {
-        if !self.state.actors().contains_key(actor_id) {
+        if !self
+            .runtime
+            .physical_state()
+            .actors()
+            .contains_key(actor_id)
+        {
             return Err(AppError::ActorNotFound(actor_id.clone()));
         }
         Ok(self
-            .epistemic_projection
+            .runtime
+            .epistemic_projection()
             .debug_beliefs_view(actor_id.clone()))
     }
 
@@ -540,12 +468,23 @@ impl TuiApp {
         &self,
         actor_id: &ActorId,
     ) -> Result<DebugObservationsView, AppError> {
-        if !self.state.actors().contains_key(actor_id) {
+        if !self
+            .runtime
+            .physical_state()
+            .actors()
+            .contains_key(actor_id)
+        {
             return Err(AppError::ActorNotFound(actor_id.clone()));
         }
         Ok(self
-            .epistemic_projection
+            .runtime
+            .epistemic_projection()
             .debug_observations_view(actor_id.clone()))
+    }
+
+    #[cfg(test)]
+    fn detach_controller_for_test(&mut self) {
+        self.runtime.detach_controller(&self.controller_id);
     }
 }
 
@@ -559,17 +498,12 @@ mod tests {
         let mut app = TuiApp::load_default().unwrap();
         app.bind_actor(ActorId::new("actor_tomas").unwrap())
             .unwrap();
-        assert!(!app.current_view().unwrap().debug_available);
+        assert!(!app.current_view().unwrap().debug_available());
         let before = app.render_current_view().unwrap();
         assert!(before.contains("strongbox_tomas"));
         assert!(!before.contains("Debug: available=true"));
-        app.controller_bindings.detach(
-            &app.controller_id,
-            app.scheduler.current_tick(),
-            &mut app.log,
-            app.content_manifest_id.clone(),
-        );
-        assert!(!app.current_view().unwrap().debug_available);
+        app.detach_controller_for_test();
+        assert!(!app.current_view().unwrap().debug_available());
         app.bind_actor(ActorId::new("actor_tomas").unwrap())
             .unwrap();
 
@@ -594,14 +528,21 @@ mod tests {
 
         app.advance_until(0).unwrap();
         assert!(app.last_interval_summary.is_some());
-        let log_len = app.log.events().len();
-        let projection_checksum = app.epistemic_projection.compute_checksum().checksum;
+        let log_len = app.runtime.event_log().events().len();
+        let projection_checksum = app
+            .runtime
+            .epistemic_projection()
+            .compute_checksum()
+            .checksum;
 
         let _rendered = app.render_current_view().unwrap();
 
-        assert_eq!(app.log.events().len(), log_len);
+        assert_eq!(app.runtime.event_log().events().len(), log_len);
         assert_eq!(
-            app.epistemic_projection.compute_checksum().checksum,
+            app.runtime
+                .epistemic_projection()
+                .compute_checksum()
+                .checksum,
             projection_checksum
         );
     }
@@ -616,12 +557,7 @@ mod tests {
         assert!(rendered.contains("DEBUG NON-DIEGETIC: Embodied Overlay"));
         assert!(rendered.contains("Knowledge context: id=hkc."));
 
-        app.controller_bindings.detach(
-            &app.controller_id,
-            app.scheduler.current_tick(),
-            &mut app.log,
-            app.content_manifest_id.clone(),
-        );
+        app.detach_controller_for_test();
 
         assert_eq!(app.render_debug_embodied_overlay().unwrap(), None);
     }
@@ -800,20 +736,15 @@ mod tests {
         let actor_id = ActorId::new("actor_tomas").unwrap();
 
         app.bind_actor(actor_id.clone()).unwrap();
-        assert!(!app.current_view().unwrap().debug_available);
+        assert!(!app.current_view().unwrap().debug_available());
         assert!(!app.debug_available());
 
         app.bind_debug_actor(actor_id.clone()).unwrap();
-        assert!(app.current_view().unwrap().debug_available);
+        assert!(app.current_view().unwrap().debug_available());
         assert!(app.debug_available());
 
-        app.controller_bindings.detach(
-            &app.controller_id,
-            app.scheduler.current_tick(),
-            &mut app.log,
-            app.content_manifest_id.clone(),
-        );
-        assert!(!app.current_view().unwrap().debug_available);
+        app.detach_controller_for_test();
+        assert!(!app.current_view().unwrap().debug_available());
 
         let docs = include_str!(
             "../../../docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md"

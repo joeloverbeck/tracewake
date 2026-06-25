@@ -51,10 +51,15 @@ already done* and the structural precedent for *what shape to produce*.
 
 **Second-pass / re-audit pass.** A brief may be a *follow-up pass over the same predecessor report*
 (not a new campaign block) — re-auditing a surface that a prior pass's findings were supposed to
-remediate. Two conventions apply. **(1) Naming:** reuse the predecessor's slug with a `-second-pass`
-suffix (then `-third-pass`, …) on **both** the `brief` and the `report` — e.g.
-`reports/<topic>-research-brief-second-pass.md` → `<topic>-research-report-second-pass.md`, per the
-established archive precedent (`architecture-tier-alignment-research-{brief,report}-second-pass.md`,
+remediate. Two conventions apply. **(1) Naming:** attach the pass-ordinal suffix to the **base topic
+slug** — base → `-second-pass` → `-third-pass` → … — on **both** the `brief` and the `report`. The
+ordinal **replaces** the prior pass's ordinal; it does **not** append to the predecessor's
+already-suffixed slug. So the third pass is `<topic>-research-brief-third-pass.md` (from the base
+slug), **not** `<topic>-research-brief-second-pass-third-pass.md`. Examples:
+`reports/<topic>-research-brief-second-pass.md` → `<topic>-research-report-second-pass.md` (second
+pass); `reports/<topic>-research-brief-third-pass.md` → `<topic>-research-report-third-pass.md` (third
+pass), per the established archive precedent
+(`architecture-tier-alignment-research-{brief,report}-second-pass.md`,
 `execution-tier-alignment-…-second-pass.md`, `reference-tier-alignment-research-report-second-pass.md`).
 Do **not** mint a fresh slug (`…-v2`, `<topic>-second-…`) — it breaks the brief↔report 1:1 mapping.
 **(2) Non-carry-forward posture:** when the intervening remediation has since merged into the fetch

@@ -1,4 +1,4 @@
-Actor: actor_tomas | Tick: 32
+Actor: actor_tomas
 Place: Tomas workshop (workshop_tomas)
 Needs:
 - fatigue: band=rising cause=tick_delta

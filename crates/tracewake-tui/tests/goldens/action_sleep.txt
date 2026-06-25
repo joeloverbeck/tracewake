@@ -1,4 +1,4 @@
-Actor: actor_tomas | Tick: 0
+Actor: actor_tomas
 Place: Tomas home (home_tomas)
 Needs:
 - fatigue: band=urgent cause=fixture_initial

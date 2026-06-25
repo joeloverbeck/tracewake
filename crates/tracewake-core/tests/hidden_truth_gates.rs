@@ -1689,15 +1689,15 @@ fn debug_truth_never_enters_holder_known_context_hash() {
     let after_view = embodied_view(&knowledge_context, &world);
 
     assert_eq!(
-        after_view.holder_known_context_hash,
-        before_view.holder_known_context_hash
+        after_view.holder_known_context_hash(),
+        before_view.holder_known_context_hash()
     );
     assert_eq!(
-        after_view.holder_known_context_source_summary,
-        before_view.holder_known_context_source_summary
+        after_view.holder_known_context_source_summary(),
+        before_view.holder_known_context_source_summary()
     );
     assert!(!after_view
-        .holder_known_context_source_summary
+        .holder_known_context_source_summary()
         .contains("debug"));
     assert!(!after_view.semantic_actions.iter().any(|entry| entry
         .target_ids
@@ -1806,16 +1806,19 @@ fn actor_known_local_actor_reaches_embodied_view_model_with_context_provenance()
         .iter()
         .any(|actor| actor.actor_id == hidden_actor));
     assert_eq!(
-        view.holder_known_context_id,
-        context.holder_known_context_id().clone()
+        view.holder_known_context_id(),
+        context.holder_known_context_id()
     );
     assert_eq!(
-        view.holder_known_context_hash,
-        context.holder_known_context_hash().clone()
+        view.holder_known_context_hash(),
+        context.holder_known_context_hash()
     );
-    assert_eq!(view.holder_known_context_frontier, context.event_frontier());
-    assert!(!view.debug_available);
-    assert!(!view.holder_known_context_source_summary.contains("debug"));
+    assert_eq!(
+        view.holder_known_context_frontier(),
+        context.event_frontier()
+    );
+    assert!(!view.debug_available());
+    assert!(!view.holder_known_context_source_summary().contains("debug"));
 }
 
 #[test]

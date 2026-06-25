@@ -97,6 +97,15 @@ anti-leak evidence, body-exclusive reservation-conflict evidence, and the
 standing TUI capability parity extension for time controls and interval
 summaries.
 
+For the current 0051 remediation, acceptance evidence must cite the production
+runtime constructor (`LoadedWorldRuntime::from_loaded_world`), the public TUI
+world-advance command path, the observed committed state/event/projection
+effects, and the sensitivity proof. The sensitivity proof is not a single green
+standing claim: `archive/tickets/0051FOUCONTHI-009.md` records the
+runtime-constructor CI lane, while `archive/tickets/0051FOUCONTHI-010.md`
+records focused mutation kills plus the standing disposition with remaining
+out-of-scope misses for follow-up disposition.
+
 Fairness and starvation review artifacts record which holders or processes were
 deferred, skipped, summarized, degraded, or blocked; why; for how long or
 across what source interval; the responsible layer; and what replay ancestry

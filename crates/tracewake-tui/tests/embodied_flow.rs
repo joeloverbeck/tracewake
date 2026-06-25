@@ -89,10 +89,11 @@ fn wait_command_advances_authoritative_world_one_tick() {
 
     let rendered = String::from_utf8(output).unwrap();
     assert!(rendered.contains("Accepted: wait.1_tick"));
-    assert!(rendered.contains("Actor: actor_tomas | Tick: 1"));
+    assert!(rendered.contains("Actor: actor_tomas"));
+    assert!(!rendered.contains("Actor: actor_tomas | Tick: 1"));
     assert!(app.event_count() > before_events);
     assert_eq!(
-        app.current_view().unwrap().holder_known_context_frontier,
+        app.current_view().unwrap().holder_known_context_frontier(),
         app.event_count() as u64
     );
     let event_log = app.render_debug_event_log_panel();
@@ -154,8 +155,9 @@ fn human_sleep_completion_real_pipeline_witness() {
     assert!(
         rendered.contains("Advanced until: reason=possessed_duration_terminal ticks=4 stop_tick=4")
     );
-    assert!(rendered.contains("Recent interval: ticks 0-4 stop=possessed_duration_terminal"));
-    assert!(rendered.contains("- perception source=event.perception.actor_tomas.4."));
+    assert!(rendered.contains("Recent interval: actor-known update"));
+    assert!(rendered.contains("- perception"));
+    assert!(!rendered.contains("event.perception.actor_tomas.4."));
     assert!(rendered.contains("Bound debug actor: actor_tomas"));
     assert!(rendered.contains("DEBUG NON-DIEGETIC: Replay"));
     assert!(rendered.contains("matches_expected=true"));
@@ -194,8 +196,9 @@ fn human_work_completion_real_pipeline_witness() {
     assert!(
         rendered.contains("Advanced until: reason=possessed_duration_terminal ticks=4 stop_tick=4")
     );
-    assert!(rendered.contains("Recent interval: ticks 0-4 stop=possessed_duration_terminal"));
-    assert!(rendered.contains("- perception source=event.perception.actor_tomas.4."));
+    assert!(rendered.contains("Recent interval: actor-known update"));
+    assert!(rendered.contains("- perception"));
+    assert!(!rendered.contains("event.perception.actor_tomas.4."));
     assert!(rendered.contains("Bound debug actor: actor_tomas"));
     assert!(rendered.contains("DEBUG NON-DIEGETIC: Replay"));
     assert!(rendered.contains("matches_expected=true"));

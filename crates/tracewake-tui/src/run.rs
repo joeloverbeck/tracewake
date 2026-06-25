@@ -266,7 +266,8 @@ mod tests {
         run_command_loop(&mut app, &script[..], &mut output).unwrap();
 
         let rendered = String::from_utf8(output).unwrap();
-        assert!(rendered.contains("Actor: actor_tomas | Tick: 0"));
+        assert!(rendered.contains("Actor: actor_tomas"));
+        assert!(!rendered.contains("Actor: actor_tomas | Tick: 0"));
         assert!(rendered.contains("Actions:"));
         assert!(rendered.contains("Accepted: close.door.door_house_street"));
         assert!(rendered.contains("Why-not:"));

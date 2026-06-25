@@ -79,6 +79,10 @@ const FIXTURES: &[NegativeFixture] = &[
         expected_stderr: "no method named `seed_items_mut`",
     },
     NegativeFixture {
+        name: "external_crate_cannot_seed_loaded_actor_or_process_eligibility",
+        expected_stderr: "no method named `schedule_loaded_actor_decision`",
+    },
+    NegativeFixture {
         name: "external_crate_cannot_mutate_agent_state_seed_maps",
         expected_stderr: "no method named `seed_intentions_mut`",
     },
@@ -140,11 +144,35 @@ const FIXTURES: &[NegativeFixture] = &[
     },
     NegativeFixture {
         name: "external_crate_cannot_call_tui_perception_append_helper",
-        expected_stderr: "cannot find function",
+        expected_stderr: "private",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_call_core_perception_append_helper",
+        expected_stderr: "private",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_call_scheduler_perception_writer",
+        expected_stderr: "private method",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_mutate_loaded_runtime_fields",
+        expected_stderr: "private field",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_construct_pipeline_context_with_runtime_aggregates",
+        expected_stderr: "no function or associated item named `new`",
     },
     NegativeFixture {
         name: "external_crate_cannot_convert_debug_report_to_interval_summary",
-        expected_stderr: "the trait bound",
+        expected_stderr: "mismatched types",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_construct_actor_interval_summary",
+        expected_stderr: "private field",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_mutate_embodied_temporal_fields",
+        expected_stderr: "private field",
     },
     NegativeFixture {
         name: "external_crate_cannot_assign_scheduler_frontier",

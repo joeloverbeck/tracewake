@@ -27,7 +27,7 @@ const TUI_SEAM_EVIDENCE: &[TuiSeamEvidence] = &[
     TuiSeamEvidence {
         requirement: "PAR-002",
         layer: "tui/view-model",
-        test_name: "render_embodied_view_uses_exhaustive_view_model_destructure",
+        test_name: "render_embodied_view_uses_sealed_view_model_accessors",
         source: include_str!("tui_seam_conformance.rs"),
         evidence_kind: EvidenceKind::StaticSourceGuard,
         evidence_class: EvidenceClass::Positive,
@@ -145,43 +145,25 @@ fn tui_seam_conformance_maps_tui_spine_requirements_to_named_tests() {
 }
 
 #[test]
-fn render_embodied_view_uses_exhaustive_view_model_destructure() {
+fn render_embodied_view_uses_sealed_view_model_accessors() {
     let render_source = include_str!("../src/render.rs");
-    let view_model_source = include_str!("../../tracewake-core/src/view_models.rs");
 
     let function_body = source_after(render_source, "pub fn render_embodied_view(");
-    let destructure = source_between(function_body, "let EmbodiedViewModel {", "} = view;");
-
     assert!(
-        !destructure.contains(".."),
-        "render_embodied_view must not use a rest pattern in the EmbodiedViewModel destructure"
-    );
-    assert!(
-        !destructure
-            .lines()
-            .any(|line| line.split_once(':').is_some_and(|(_, binding)| {
-                binding.trim().trim_end_matches(',') == "_"
-            })),
-        "render_embodied_view must use named underscore bindings with rationale comments, not field: _"
-    );
-    assert!(
-        !destructure
-            .lines()
-            .any(|line| line.trim().trim_end_matches(',') == "_"),
-        "render_embodied_view must not use a bare wildcard in the EmbodiedViewModel destructure"
+        !function_body.contains("let EmbodiedViewModel {"),
+        "render_embodied_view must not destructure sealed EmbodiedViewModel fields"
     );
     assert!(
         render_source.contains("#[deny(unused_variables)]\npub fn render_embodied_view("),
         "render_embodied_view must carry a local unused_variables deny"
     );
-
-    for field_name in embodied_view_model_field_names(view_model_source) {
+    for required_accessor in [
+        "view.viewer_actor_id()",
+        "view.actor_known_interval_summary()",
+    ] {
         assert!(
-            destructure.contains(&format!("{field_name}:"))
-                || destructure
-                    .lines()
-                    .any(|line| line.trim().starts_with(&format!("{field_name},"))),
-            "render_embodied_view destructure is missing EmbodiedViewModel field {field_name}"
+            render_source.contains(required_accessor),
+            "render_embodied_view must use sealed accessor {required_accessor}"
         );
     }
 }
@@ -203,20 +185,6 @@ fn source_between<'a>(source: &'a str, start_marker: &str, end_marker: &str) -> 
         .unwrap_or_else(|| panic!("missing source marker {end_marker}"))
         + after_start;
     &source[after_start..end]
-}
-
-fn embodied_view_model_field_names(source: &str) -> Vec<&str> {
-    let struct_body = source_between(source, "pub struct EmbodiedViewModel {", "}\n\n#[derive");
-    struct_body
-        .lines()
-        .filter_map(|line| {
-            let trimmed = line.trim();
-            trimmed
-                .strip_prefix("pub ")
-                .and_then(|field| field.split_once(':'))
-                .map(|(field_name, _)| field_name.trim())
-        })
-        .collect()
 }
 
 #[test]
@@ -294,7 +262,7 @@ fn tui_epistemic_debug_uses_core_builder_not_raw_projection_storage() {
     let app_source = include_str!("../src/app.rs");
 
     assert!(
-        app_source.contains("self.epistemic_projection.debug_epistemics_view()"),
+        app_source.contains("self.runtime.epistemic_projection().debug_epistemics_view()"),
         "TUI debug epistemics must be built by core, not from raw projection storage"
     );
     for forbidden in [

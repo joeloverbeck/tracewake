@@ -10,6 +10,7 @@ test_workspace = true
 
 examine_globs = [
   "crates/tracewake-core/src/agent/**",
+  "crates/tracewake-core/src/runtime/**",
   "crates/tracewake-core/src/need_accounting.rs",
   "crates/tracewake-core/src/scheduler.rs",
   "crates/tracewake-core/src/time.rs",

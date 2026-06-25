@@ -1070,6 +1070,8 @@ mod tests {
                 candidate_goal_count: 2,
                 actor_known_context_hash: Some(crate::checksum::HolderKnownContextHash::from_canonical_lines(&[])),
                 actor_known_inputs: Vec::new(),
+                local_plan_id: None,
+                proposal_ancestry: Vec::new(),
                 hidden_truth_audit_result: crate::agent::HiddenTruthAudit {
                     actor_known_only: true,
                     notes: "candidate_goals=eat,find_food;selected_method=none;rejected_reasons=empty_pantry;hidden_truth_audit=actor_known_only".to_string(),

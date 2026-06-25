@@ -40,6 +40,7 @@ pub struct ActorDecisionProposalOutcome {
     pub decision_trace_record: DecisionTraceRecord,
     pub lifecycle_effects: Vec<IntentionLifecycleEffect>,
     pub local_plan: LocalPlan,
+    pub selected_goal_bundle: SelectedGoalBundle,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -365,13 +366,27 @@ impl ActorDecisionTransaction {
             "routine_execution_id".to_string(),
             method.execution.execution_id.as_str().to_string(),
         );
+        proposal
+            .parameters
+            .insert("local_plan_id".to_string(), bundle.local_plan_id.clone());
+        proposal.parameters.insert(
+            "proposal_ancestry".to_string(),
+            bundle.proposal_ancestry.join("\n"),
+        );
+
+        let decision_trace_record = DecisionTraceRecord::from_trace(&selection.trace)
+            .with_plan_lineage(
+                bundle.local_plan_id.clone(),
+                bundle.proposal_ancestry.clone(),
+            );
 
         ActorDecisionTransactionOutcome::Proposed(Box::new(ActorDecisionProposalOutcome {
             proposal: SealedProposal::seal(proposal),
-            decision_trace_record: DecisionTraceRecord::from_trace(&selection.trace),
+            decision_trace_record,
             decision_trace: selection.trace,
             lifecycle_effects: selection.lifecycle_effects,
             local_plan,
+            selected_goal_bundle: bundle,
         }))
     }
 }
@@ -633,7 +648,9 @@ fn witness_kind_allowed(stable_id: &str, event_kind: &EventKind) -> bool {
         | "modeled_wait_reason"
         | "reevaluation_window_known" => matches!(
             event_kind,
-            EventKind::NoHumanDayStarted | EventKind::NoHumanAdvanceStarted
+            EventKind::NoHumanDayStarted
+                | EventKind::NoHumanAdvanceStarted
+                | EventKind::DeclaredWorldProcessApplied
         ),
         "active_intention_present" | "next_step_available" => matches!(
             event_kind,
@@ -642,6 +659,7 @@ fn witness_kind_allowed(stable_id: &str, event_kind: &EventKind) -> bool {
                 | EventKind::IntentionResumed
                 | EventKind::NoHumanDayStarted
                 | EventKind::NoHumanAdvanceStarted
+                | EventKind::DeclaredWorldProcessApplied
         ),
         _ => false,
     }
@@ -765,6 +783,8 @@ fn stuck_diagnostic(
             BlockerCode::PlannerBudgetExhausted,
         ),
     };
+    let (local_plan_id, proposal_ancestry) =
+        stuck_plan_lineage(actor_id, tick, active_goal, routine_step.as_ref());
     StuckDiagnosticRecord::new(
         StuckDiagnosticId::new(format!(
             "stuck_actor_decision_{}_{}",
@@ -789,6 +809,7 @@ fn stuck_diagnostic(
         "typed_stuck_diagnostic",
         StuckResultingStatus::Failed,
     )
+    .with_plan_lineage(local_plan_id, proposal_ancestry)
     .with_typed_diagnostic(TypedDiagnosticFields {
         responsible_layer,
         blocker_code,
@@ -807,6 +828,8 @@ fn stuck_diagnostic_for_plan_failure(
     failure: LocalPlanFailure,
 ) -> StuckDiagnosticRecord {
     let blocker_code = failure.blocker.blocker_code();
+    let (local_plan_id, proposal_ancestry) =
+        stuck_plan_lineage(actor_id, tick, Some(active_goal), routine_step.as_ref());
     StuckDiagnosticRecord::new(
         StuckDiagnosticId::new(format!(
             "stuck_actor_decision_{}_{}",
@@ -831,6 +854,7 @@ fn stuck_diagnostic_for_plan_failure(
         "typed_stuck_diagnostic",
         StuckResultingStatus::Failed,
     )
+    .with_plan_lineage(local_plan_id, proposal_ancestry)
     .with_typed_diagnostic(TypedDiagnosticFields {
         responsible_layer: ResponsibleLayer::LocalPlanning,
         blocker_code,
@@ -839,6 +863,29 @@ fn stuck_diagnostic_for_plan_failure(
         hidden_truth_referenced: false,
         remediation_hint: "inspect local plan trace for actor-known blocker".to_string(),
     })
+}
+
+fn stuck_plan_lineage(
+    actor_id: &ActorId,
+    tick: SimTick,
+    active_goal: Option<&CandidateGoal>,
+    routine_step: Option<&RoutineStep>,
+) -> (String, Vec<String>) {
+    let local_plan_id = format!("local_plan_stuck_{}_{}", actor_id.as_str(), tick.value());
+    let mut proposal_ancestry = vec![
+        format!("actor_decision:{}", actor_id.as_str()),
+        format!("tick:{}", tick.value()),
+    ];
+    if let Some(goal) = active_goal {
+        proposal_ancestry.push(goal.candidate_goal_id.as_str().to_string());
+        if let Some(method_id) = goal.selected_routine_method.as_ref() {
+            proposal_ancestry.push(method_id.as_str().to_string());
+        }
+    }
+    if let Some(step) = routine_step {
+        proposal_ancestry.push(step.serialize_canonical());
+    }
+    (local_plan_id, proposal_ancestry)
 }
 
 #[cfg(test)]
@@ -1125,6 +1172,10 @@ mod tests {
                 stable_id,
                 &EventKind::NoHumanAdvanceStarted
             ));
+            assert!(witness_kind_allowed(
+                stable_id,
+                &EventKind::DeclaredWorldProcessApplied
+            ));
             assert!(!witness_kind_allowed(
                 stable_id,
                 &EventKind::ObservationRecorded
@@ -1138,6 +1189,7 @@ mod tests {
                 EventKind::IntentionResumed,
                 EventKind::NoHumanDayStarted,
                 EventKind::NoHumanAdvanceStarted,
+                EventKind::DeclaredWorldProcessApplied,
             ] {
                 assert!(witness_kind_allowed(stable_id, &event_kind));
             }
@@ -1183,6 +1235,15 @@ mod tests {
             empty_plan.typed_diagnostic.blocker_code,
             BlockerCode::EmptyLocalPlan
         );
+        assert!(empty_plan.local_plan_id.is_some());
+        assert!(empty_plan
+            .proposal_ancestry
+            .iter()
+            .any(|entry| entry == "actor_decision:actor_tomas"));
+        assert!(empty_plan
+            .proposal_ancestry
+            .iter()
+            .any(|entry| entry == "tick:22"));
     }
 
     #[test]
@@ -1210,9 +1271,18 @@ mod tests {
             decision_trace_record,
             lifecycle_effects,
             local_plan,
+            selected_goal_bundle,
         } = *proposed;
 
         assert_eq!(decision_trace_record.trace_id, decision_trace.trace_id);
+        assert_eq!(
+            decision_trace_record.local_plan_id,
+            Some(selected_goal_bundle.local_plan_id.clone())
+        );
+        assert_eq!(
+            decision_trace_record.proposal_ancestry,
+            selected_goal_bundle.proposal_ancestry
+        );
         assert_eq!(local_plan.trace.selected_plan[0].action_id.as_str(), "eat");
         let selected_goal_id = decision_trace.selected_goal_id.clone().unwrap();
         assert_eq!(
@@ -1225,6 +1295,14 @@ mod tests {
         );
         assert!(proposal.parameters().contains_key("routine_template_id"));
         assert!(proposal.parameters().contains_key("routine_execution_id"));
+        assert_eq!(
+            proposal.parameters().get("local_plan_id"),
+            Some(&selected_goal_bundle.local_plan_id)
+        );
+        assert_eq!(
+            proposal.parameters().get("proposal_ancestry"),
+            Some(&selected_goal_bundle.proposal_ancestry.join("\n"))
+        );
         assert_eq!(proposal.action_id().as_str(), "eat");
         assert_eq!(proposal.target_ids(), ["food_stew".to_string()]);
         assert!(matches!(

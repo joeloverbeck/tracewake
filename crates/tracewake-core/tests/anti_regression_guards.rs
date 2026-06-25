@@ -189,7 +189,7 @@ const EMBODIED_SURFACE_FIELD_PRODUCERS: &[EmbodiedSurfaceFieldProducer] =
             struct_name: "EmbodiedViewModel",
             field_name: "notebook",
             source_path: "tracewake-tui/src/app.rs",
-            producer_snippet: "view.notebook = Some(build_notebook_view",
+            producer_snippet: "view.set_notebook(Some(build_notebook_view",
             cite: "docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md",
             rationale: "The core projection builds the embodied shell and the TUI boundary attaches the actor-known notebook from the same sealed view context.",
         },
@@ -197,7 +197,7 @@ const EMBODIED_SURFACE_FIELD_PRODUCERS: &[EmbodiedSurfaceFieldProducer] =
             struct_name: "EmbodiedViewModel",
             field_name: "debug_available",
             source_path: "tracewake-tui/src/app.rs",
-            producer_snippet: "view.debug_available = self.debug_available_for(actor_id);",
+            producer_snippet: "view.set_debug_available(self.debug_available_for(actor_id));",
             cite: "specs/0021_PHASE_3A_POSSESSION_REBIND_HYGIENE_GUARD_VACUITY_CLOSURE_HARNESS_PROVENANCE_FIDELITY_AND_REJECT_LOUDLY_REPLAY_POSTURE_HARDENING_SPEC.md",
             rationale: "Core leaves debug availability false; the TUI boundary derives it from the live controller binding for the viewed actor.",
         },
@@ -205,7 +205,7 @@ const EMBODIED_SURFACE_FIELD_PRODUCERS: &[EmbodiedSurfaceFieldProducer] =
             struct_name: "EmbodiedViewModel",
             field_name: "actor_known_interval_summary",
             source_path: "tracewake-tui/src/app.rs",
-            producer_snippet: "view.actor_known_interval_summary = self.last_interval_summary.clone();",
+            producer_snippet: "view.set_actor_known_interval_summary(self.last_interval_summary.clone());",
             cite: "archive/specs/0047_TUI_AUTHORITATIVE_WORLD_ADVANCE_DURATION_COMPLETION_AND_ACTOR_KNOWN_INTERVAL_SUMMARIES_SPEC.md",
             rationale: "Core builds the sealed embodied shell; the TUI boundary attaches the last completed advance summary constructed from source-bearing interval inputs.",
         },
@@ -1353,6 +1353,11 @@ const WORKSPACE_DEPENDENCY_ALLOWLIST: &[(&str, &str, &str)] = &[
         "dependencies",
         "tracewake-core",
     ),
+    (
+        "crates/tracewake-tui/Cargo.toml",
+        "dev-dependencies",
+        "tracewake-core",
+    ),
 ];
 
 const WORKSPACE_SOURCE_CLASSIFICATIONS: &[WorkspaceSourceClassification] = &[
@@ -1481,6 +1486,8 @@ const WORKSPACE_SOURCE_CLASSIFICATIONS: &[WorkspaceSourceClassification] = &[
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/replay/rebuild.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/replay/report.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/replay/temporal.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/runtime/mod.rs", class: WorkspaceSourceClass::GuardedLayer },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/runtime/session.rs", class: WorkspaceSourceClass::GuardedLayer },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/scheduler.rs", class: WorkspaceSourceClass::GuardedLayer },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/state.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/time.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
@@ -1547,6 +1554,7 @@ fn is_guarded_layer_source(path: &str) -> bool {
 
 const MUTATION_PERIMETER_EXAMINE_GLOBS: &[&str] = &[
     "crates/tracewake-core/src/agent/**",
+    "crates/tracewake-core/src/runtime/**",
     "crates/tracewake-core/src/scheduler.rs",
     "crates/tracewake-core/src/projections.rs",
     "crates/tracewake-core/src/actions/pipeline.rs",
@@ -1578,6 +1586,7 @@ const MUTATION_PERIMETER_EXAMINE_GLOBS: &[&str] = &[
 
 const MUTATION_PERIMETER_CANARY_PATHS: &[&str] = &[
     "crates/tracewake-core/src/agent/transaction.rs",
+    "crates/tracewake-core/src/runtime/session.rs",
     "crates/tracewake-core/src/scheduler.rs",
     "crates/tracewake-core/src/projections.rs",
     "crates/tracewake-core/src/actions/pipeline.rs",
@@ -2400,6 +2409,8 @@ fn yaml_step_blocks_with_cargo_mutants(ci_yml: &str) -> Vec<&str> {
 fn in_diff_filter_matches_path(filter_line: &str, required_path: &str) -> bool {
     if required_path.starts_with("crates/tracewake-core/src/agent/") {
         filter_line.contains("crates/tracewake-core/src/agent/|")
+    } else if required_path.starts_with("crates/tracewake-core/src/runtime/") {
+        filter_line.contains("crates/tracewake-core/src/runtime/")
     } else if required_path.starts_with("crates/tracewake-core/src/events/") {
         filter_line.contains("crates/tracewake-core/src/events/")
     } else if required_path.starts_with("crates/tracewake-core/src/replay/") {
@@ -5556,6 +5567,7 @@ fn guarded_layer_entries_are_exactly_the_workspace_guarded_classifications() {
             .iter()
             .filter(|entry| matches!(entry.class, WorkspaceSourceClass::GuardedLayer))
             .all(|entry| entry.path.starts_with("crates/tracewake-core/src/agent/")
+                || entry.path.starts_with("crates/tracewake-core/src/runtime/")
                 || entry.path == "crates/tracewake-core/src/scheduler.rs"
                 || entry.path == "crates/tracewake-core/src/projections.rs"),
         "guarded layer classification must stay a reviewed explicit set, not a broad crate shortcut"

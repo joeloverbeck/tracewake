@@ -11,45 +11,15 @@ pub const DEBUG_TOKENS: &[&str] = &[
 
 #[deny(unused_variables)]
 pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
-    let EmbodiedViewModel {
-        // Internal identity metadata belongs to debug/provenance surfaces, not embodied text.
-        view_model_id: _view_model_id,
-        // The renderer is already the embodied renderer; mode is a contract discriminator.
-        mode: _mode,
-        viewer_actor_id,
-        sim_tick,
-        place_id,
-        place_label,
-        visible_exits,
-        visible_doors,
-        visible_containers,
-        visible_items,
-        carried_items,
-        local_actors,
-        semantic_actions,
-        phase3a_status,
-        last_rejection_summary,
-        last_rejection_why_not,
-        // Holder-known context provenance is rendered only in the debug overlay.
-        holder_known_context_id: _holder_known_context_id,
-        holder_known_context_hash: _holder_known_context_hash,
-        holder_known_context_frontier: _holder_known_context_frontier,
-        holder_known_context_source_summary: _holder_known_context_source_summary,
-        actor_known_interval_summary,
-        // Notebook content is owned by the notebook renderer.
-        notebook: _notebook,
-        // Debug availability is rendered only in the debug overlay.
-        debug_available: _debug_available,
-    } = view;
     let mut lines = Vec::new();
+    lines.push(format!("Actor: {}", view.viewer_actor_id().as_str()));
     lines.push(format!(
-        "Actor: {} | Tick: {}",
-        viewer_actor_id.as_str(),
-        sim_tick.value()
+        "Place: {} ({})",
+        view.place_label,
+        view.place_id.as_str()
     ));
-    lines.push(format!("Place: {} ({})", place_label, place_id.as_str()));
 
-    if let Some(why_not) = last_rejection_why_not {
+    if let Some(why_not) = &view.last_rejection_why_not {
         lines.push(format!(
             "Why-not: {} kind={} reasons={}",
             why_not.actor_known_summary,
@@ -62,10 +32,10 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
                 why_not.actor_visible_facts.join(",")
             ));
         }
-    } else if let Some(summary) = last_rejection_summary {
+    } else if let Some(summary) = &view.last_rejection_summary {
         lines.push(format!("Why-not: {summary}"));
     }
-    if let Some(status) = phase3a_status {
+    if let Some(status) = &view.phase3a_status {
         lines.push("Needs:".to_string());
         if status.need_summaries.is_empty() {
             lines.push("- none known".to_string());
@@ -88,27 +58,18 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
             lines.push(format!("Interruption: {interruption}"));
         }
     }
-    if let Some(summary) = actor_known_interval_summary {
-        lines.push(format!(
-            "Recent interval: ticks {}-{} stop={}",
-            summary.start_tick.value(),
-            summary.stop_tick.value(),
-            summary.stop_reason.stable_id()
-        ));
-        if summary.no_new_actor_known_information {
+    if let Some(summary) = view.actor_known_interval_summary() {
+        lines.push("Recent interval: actor-known update".to_string());
+        if summary.no_new_actor_known_information() {
             lines.push("- no new actor-known notices or observations".to_string());
         }
-        for notice in &summary.notices {
-            lines.push(format!(
-                "- {} source={}",
-                notice.notice_kind().stable_id(),
-                notice.source_event_id().as_str()
-            ));
+        for notice in summary.notices() {
+            lines.push(format!("- {}", notice.notice_kind().stable_id()));
         }
     }
 
     lines.push("Exits:".to_string());
-    for exit in visible_exits {
+    for exit in &view.visible_exits {
         let blocker = exit
             .blocker_summary
             .as_ref()
@@ -122,7 +83,7 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
     }
 
     lines.push("Doors:".to_string());
-    for door in visible_doors {
+    for door in &view.visible_doors {
         lines.push(format!(
             "- {} open={} locked={} endpoints={}<->{}",
             door.door_id.as_str(),
@@ -134,7 +95,7 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
     }
 
     lines.push("Containers:".to_string());
-    for container in visible_containers {
+    for container in &view.visible_containers {
         lines.push(format!(
             "- {} open={} locked={}",
             container.container_id.as_str(),
@@ -144,7 +105,7 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
     }
 
     lines.push("Items:".to_string());
-    for item in visible_items {
+    for item in &view.visible_items {
         lines.push(format!(
             "- {} portable={} source={}",
             item.item_id.as_str(),
@@ -154,7 +115,7 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
     }
 
     lines.push("Inventory:".to_string());
-    for item in carried_items {
+    for item in &view.carried_items {
         lines.push(format!(
             "- {} portable={} source={}",
             item.item_id.as_str(),
@@ -164,12 +125,12 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
     }
 
     lines.push("Actors:".to_string());
-    for actor in local_actors {
+    for actor in &view.local_actors {
         lines.push(format!("- {}", actor.actor_id.as_str()));
     }
 
     lines.push("Actions:".to_string());
-    for (index, action) in semantic_actions.iter().enumerate() {
+    for (index, action) in view.semantic_actions.iter().enumerate() {
         let disabled = action
             .availability
             .actor_safe_summary()
@@ -197,22 +158,23 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
 
 pub fn render_debug_overlay(view: &EmbodiedViewModel) -> String {
     let mut lines = Vec::new();
-    if !view.debug_available {
+    if !view.debug_available() {
         return lines.join("\n");
     }
     lines.push(format!("{}: Embodied Overlay", DEBUG_TOKENS[0]));
     lines.push(format!(
         "{}: id={} hash={} tick={} frontier={} sources={}",
         DEBUG_TOKENS[1],
-        view.holder_known_context_id.as_str(),
-        view.holder_known_context_hash.as_str(),
-        view.sim_tick.value(),
-        view.holder_known_context_frontier,
-        view.holder_known_context_source_summary
+        view.holder_known_context_id().as_str(),
+        view.holder_known_context_hash().as_str(),
+        view.sim_tick().value(),
+        view.holder_known_context_frontier(),
+        view.holder_known_context_source_summary()
     ));
     lines.push(format!(
         "{} available={}",
-        DEBUG_TOKENS[2], view.debug_available
+        DEBUG_TOKENS[2],
+        view.debug_available()
     ));
     for action in &view.semantic_actions {
         let diagnostics = action.availability.debug_only_diagnostics();
@@ -394,7 +356,9 @@ mod tests {
                 no_new_actor_known_information: true,
             },
         )));
-        assert!(no_new.contains("Recent interval: ticks 0-2 stop=controller_safety_bound"));
+        assert!(no_new.contains("Recent interval: actor-known update"));
+        assert!(!no_new.contains("controller_safety_bound"));
+        assert!(!no_new.contains("ticks 0-2"));
         assert!(no_new.contains("- no new actor-known notices or observations"));
         assert!(!no_new.contains("nothing happened"));
 
@@ -409,7 +373,9 @@ mod tests {
                 no_new_actor_known_information: true,
             },
         )));
-        assert!(with_notice.contains("Recent interval: ticks 0-4 stop=possessed_duration_terminal"));
+        assert!(with_notice.contains("Recent interval: actor-known update"));
+        assert!(!with_notice.contains("possessed_duration_terminal"));
+        assert!(!with_notice.contains("ticks 0-4"));
         assert!(with_notice.contains("- no new actor-known notices or observations"));
     }
 

@@ -17,7 +17,7 @@ use crate::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSo
 use crate::state::{AgentState, PhysicalState};
 use crate::time::SimTick;
 
-pub fn record_current_place_perception(
+pub(crate) fn record_current_place_perception(
     log: &mut EventLog,
     state: &PhysicalState,
     actor_id: &ActorId,
@@ -68,7 +68,7 @@ fn rename_perception_event(event: &mut EventEnvelope, event_id: EventId) {
     event.event_id = event_id;
 }
 
-pub fn record_current_place_perception_and_project(
+pub(crate) fn record_current_place_perception_and_project(
     log: &mut EventLog,
     state: &mut PhysicalState,
     _agent_state: &mut AgentState,

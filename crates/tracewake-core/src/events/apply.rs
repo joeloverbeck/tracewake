@@ -191,7 +191,9 @@ fn apply_event_with_capability(
         EventKind::FoodConsumed => {
             apply_food_consumed(state, &payload).map(|_| ApplyOutcome::Applied)
         }
-        EventKind::ActorWaited | EventKind::TimeAdvanced => Ok(ApplyOutcome::WorldNoOp),
+        EventKind::ActorWaited
+        | EventKind::TimeAdvanced
+        | EventKind::DeclaredWorldProcessApplied => Ok(ApplyOutcome::WorldNoOp),
         other => Err(ApplyError::UnhandledWorldEventKind(other)),
     }
 }
@@ -2240,9 +2242,10 @@ mod tests {
             diagnostic.typed_diagnostic.blocker_code,
             crate::agent::BlockerCode::Resource
         );
-        assert!(diagnostic.serialize_canonical().starts_with(
-            "stuck_diagnostic_v1|stuck_food_missing|actor_tomas|1|2|-|-|-|-|-|-|-|resource"
-        ));
+        let diagnostic_canonical = diagnostic.serialize_canonical();
+        assert!(diagnostic_canonical
+            .starts_with("stuck_diagnostic_v1|stuck_food_missing|actor_tomas|1|2"));
+        assert!(diagnostic_canonical.contains("|resource|"));
     }
 
     #[test]

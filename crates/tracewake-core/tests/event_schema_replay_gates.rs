@@ -1445,12 +1445,14 @@ fn legacy_decision_trace_without_typed_diagnostic_keys_rebuilds_with_defaults() 
         .iter_mut()
         .find(|field| field.key == "trace_canonical")
         .expect("trace canonical payload exists");
-    trace_canonical.value = trace_canonical
-        .value
-        .split('|')
+    let fields = trace_canonical.value.split('|').collect::<Vec<_>>();
+    let legacy_without_lineage = fields
+        .iter()
+        .enumerate()
+        .filter_map(|(index, field)| (!matches!(index, 9 | 10)).then_some(*field))
         .take(11)
-        .collect::<Vec<_>>()
-        .join("|");
+        .collect::<Vec<_>>();
+    trace_canonical.value = legacy_without_lineage.join("|");
 
     let mut legacy_log = EventLog::new();
     append_to_log(&mut legacy_log, legacy_trace);

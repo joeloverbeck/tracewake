@@ -20,7 +20,7 @@ use crate::agent::{
 use crate::controller::ControllerBindings;
 use crate::epistemics::{ActorKnownIntervalDeltaError, EpistemicProjection, KnowledgeContext};
 use crate::events::apply::{
-    apply_agent_event, apply_epistemic_event, apply_event_stream, ApplyError,
+    apply_agent_event, apply_epistemic_event, apply_event_stream, ApplyError, ApplyOutcome,
     EventApplicationContext, EventApplicationError,
 };
 use crate::events::log::{EventLog, EventLogError};
@@ -29,7 +29,8 @@ use crate::events::{
     PayloadField, EVENT_SCHEMA_V1,
 };
 use crate::ids::{
-    ActionId, ActorId, ContentManifestId, ControllerId, EventId, IdError, ProcessId, ProposalId,
+    ActionId, ActorId, ContentManifestId, ControllerId, DecisionTraceId, EventId, IdError,
+    ProcessId, ProposalId,
 };
 use crate::need_accounting::{
     classify_actor_tick_regimes, open_body_exclusive_starts, DuplicateDurationTerminal,
@@ -277,6 +278,9 @@ pub struct ActorStepSummary {
     pub actor_id: ActorId,
     pub status: ActorStepStatus,
     pub proposal_id: Option<ProposalId>,
+    pub decision_trace_id: Option<DecisionTraceId>,
+    pub local_plan_id: Option<String>,
+    pub proposal_ancestry: Vec<String>,
     pub pipeline_status: Option<ReportStatus>,
     pub committed_event_ids: Vec<EventId>,
     pub diagnostic_event_id: Option<EventId>,
@@ -501,15 +505,55 @@ impl DeterministicScheduler {
         }
     }
 
+    pub fn from_loaded_world(
+        current_tick: SimTick,
+        state: &PhysicalState,
+        agent_state: &AgentState,
+        content_manifest_id: ContentManifestId,
+    ) -> Self {
+        let mut scheduler = Self::new(current_tick);
+        let first_due_tick = current_tick.next();
+        for actor_id in state.actors().keys() {
+            if agent_state.needs_by_actor().contains_key(actor_id) {
+                scheduler
+                    .loaded_actor_next_decision_tick
+                    .insert(actor_id.clone(), first_due_tick);
+            }
+        }
+        let Ok(loaded_world_tick_process_id) = ProcessId::new("process_loaded_world_tick") else {
+            return scheduler;
+        };
+        scheduler.declared_world_processes.insert(
+            loaded_world_tick_process_id.clone(),
+            DeclaredWorldProcess::new_cadenced(
+                loaded_world_tick_process_id,
+                first_due_tick,
+                1,
+                Vec::new(),
+                content_manifest_id,
+                None,
+            ),
+        );
+        scheduler
+    }
+
     pub const fn current_tick(&self) -> SimTick {
         self.current_tick
     }
 
     pub fn restore_from_temporal_projection(
         projection: &crate::replay::TemporalProjection,
+        state: &PhysicalState,
+        agent_state: &AgentState,
+        content_manifest_id: ContentManifestId,
     ) -> Option<Self> {
         if projection.violations.is_empty() {
-            Some(Self::new(projection.reconstructed_final_frontier))
+            Some(Self::from_loaded_world(
+                projection.reconstructed_final_frontier,
+                state,
+                agent_state,
+                content_manifest_id,
+            ))
         } else {
             None
         }
@@ -517,9 +561,15 @@ impl DeterministicScheduler {
 
     pub fn restore_from_rebuild_report(
         report: &crate::replay::ProjectionRebuildReport,
+        content_manifest_id: ContentManifestId,
     ) -> Option<Self> {
         if report.temporal_violations.is_empty() {
-            Some(Self::new(report.reconstructed_final_frontier))
+            Some(Self::from_loaded_world(
+                report.reconstructed_final_frontier,
+                &report.final_state,
+                &report.final_agent_state,
+                content_manifest_id,
+            ))
         } else {
             None
         }
@@ -580,38 +630,7 @@ impl DeterministicScheduler {
             .collect()
     }
 
-    pub fn schedule_loaded_actor_decision(
-        &mut self,
-        actor_id: ActorId,
-        next_decision_tick: SimTick,
-    ) {
-        self.loaded_actor_next_decision_tick
-            .insert(actor_id, next_decision_tick);
-    }
-
-    pub fn register_cadenced_world_process(
-        &mut self,
-        process_id: ProcessId,
-        first_due_tick: SimTick,
-        cadence_ticks: u64,
-        source_event_ids: Vec<EventId>,
-        content_manifest_id: ContentManifestId,
-        random_provenance: Option<String>,
-    ) {
-        self.declared_world_processes.insert(
-            process_id.clone(),
-            DeclaredWorldProcess::new_cadenced(
-                process_id,
-                first_due_tick,
-                cadence_ticks,
-                source_event_ids,
-                content_manifest_id,
-                random_provenance,
-            ),
-        );
-    }
-
-    pub fn record_actor_current_place_perception(
+    pub(crate) fn record_actor_current_place_perception(
         &self,
         state: &mut PhysicalState,
         agent_state: &mut AgentState,
@@ -674,9 +693,13 @@ impl DeterministicScheduler {
                         controlled_source_frontier,
                     )
                 });
+        let mut controlled_actor_ids = BTreeSet::new();
         let mut controlled_pipeline_results = Vec::new();
         let mut post_marker_controlled_proposals = Vec::new();
         for proposal in request.controlled_proposals {
+            if let Some(actor_id) = proposal.actor_id.clone() {
+                controlled_actor_ids.insert(actor_id);
+            }
             if proposal.action_id.as_str() == "wait" {
                 post_marker_controlled_proposals.push(proposal);
                 continue;
@@ -774,13 +797,16 @@ impl DeterministicScheduler {
                 agent_state: &mut scratch_agent_state,
                 epistemic_projection: Some(&mut scratch_projection),
             };
-            apply_event_stream(&mut application_context, &appended).map_err(|error| {
-                WorldAdvanceError::WorldProcessApply {
-                    event_id: appended.event_id.clone(),
-                    error,
-                }
-            })?;
-            world_processes_applied += 1;
+            let outcome =
+                apply_event_stream(&mut application_context, &appended).map_err(|error| {
+                    WorldAdvanceError::WorldProcessApply {
+                        event_id: appended.event_id.clone(),
+                        error,
+                    }
+                })?;
+            if matches!(outcome, ApplyOutcome::Applied | ApplyOutcome::WorldNoOp) {
+                world_processes_applied += 1;
+            }
         }
 
         for proposal in post_marker_controlled_proposals {
@@ -865,8 +891,11 @@ impl DeterministicScheduler {
 
         let mut actor_transactions_attempted = 0;
         let mut actor_step_summaries = Vec::new();
-        let due_actor_ids =
-            self.due_loaded_actor_ids(&scratch_state, &scratch_agent_state, resulting_tick);
+        let due_actor_ids = self
+            .due_loaded_actor_ids(&scratch_state, &scratch_agent_state, resulting_tick)
+            .into_iter()
+            .filter(|actor_id| !controlled_actor_ids.contains(actor_id))
+            .collect::<Vec<_>>();
         let actor_frame_event_id = if due_actor_ids.is_empty() {
             None
         } else {
@@ -885,17 +914,19 @@ impl DeterministicScheduler {
             .origin
             .cause_process_id()
             .map_err(WorldAdvanceError::InvalidMarkerId)?;
-        for actor_id in due_actor_ids {
-            let Some(actor) = scratch_state.actors().get(&actor_id) else {
+        let mut processed_actor_ids = Vec::new();
+        for actor_id in &due_actor_ids {
+            let Some(actor) = scratch_state.actors().get(actor_id) else {
                 continue;
             };
+            processed_actor_ids.push(actor_id.clone());
             let current_place_id = actor.current_place_id.clone();
             record_current_place_perception_and_project(
                 &mut scratch_log,
                 &mut scratch_state,
                 &mut scratch_agent_state,
                 &mut scratch_projection,
-                &actor_id,
+                actor_id,
                 resulting_tick,
                 &request.advance.content_manifest_id,
             );
@@ -910,11 +941,11 @@ impl DeterministicScheduler {
                     window_end_tick: resulting_tick,
                     current_place_witness_event_id: latest_current_place_perception_event_id(
                         &scratch_log,
-                        &actor_id,
+                        actor_id,
                         resulting_tick,
                         &current_place_id,
                     ),
-                    needs_witness_event_id: latest_need_event_id(&scratch_log, &actor_id),
+                    needs_witness_event_id: latest_need_event_id(&scratch_log, actor_id),
                     frame_event_id: actor_frame_event_id.clone(),
                 })
                 .build(&scratch_agent_state)
@@ -975,7 +1006,7 @@ impl DeterministicScheduler {
                         .collect::<Vec<_>>();
                     for effect in &lifecycle_effects {
                         let event = build_actor_intention_event(
-                            &actor_id,
+                            actor_id,
                             resulting_tick,
                             &actor_process_id,
                             &proposal,
@@ -988,12 +1019,12 @@ impl DeterministicScheduler {
                         committed_event_ids.push(append_and_apply_actor_artifact(
                             &mut scratch_log,
                             &mut scratch_agent_state,
-                            &actor_id,
+                            actor_id,
                             event,
                         )?);
                     }
                     let trace_event = build_actor_decision_trace_event(
-                        &actor_id,
+                        actor_id,
                         resulting_tick,
                         &actor_process_id,
                         &proposal,
@@ -1005,13 +1036,16 @@ impl DeterministicScheduler {
                     committed_event_ids.push(append_and_apply_actor_artifact(
                         &mut scratch_log,
                         &mut scratch_agent_state,
-                        &actor_id,
+                        actor_id,
                         trace_event,
                     )?);
                     actor_step_summaries.push(ActorStepSummary {
                         actor_id: actor_id.clone(),
                         status: ActorStepStatus::Proposed,
                         proposal_id: Some(proposal_id),
+                        decision_trace_id: Some(decision_trace_record.trace_id.clone()),
+                        local_plan_id: decision_trace_record.local_plan_id.clone(),
+                        proposal_ancestry: decision_trace_record.proposal_ancestry.clone(),
                         pipeline_status: Some(result.report.status.clone()),
                         committed_event_ids,
                         diagnostic_event_id: None,
@@ -1019,7 +1053,7 @@ impl DeterministicScheduler {
                 }
                 ActorDecisionTransactionOutcome::Stuck { diagnostic } => {
                     let event = build_actor_stuck_diagnostic_event(
-                        &actor_id,
+                        actor_id,
                         resulting_tick,
                         &actor_process_id,
                         &diagnostic,
@@ -1029,13 +1063,16 @@ impl DeterministicScheduler {
                     let event_id = append_and_apply_actor_artifact(
                         &mut scratch_log,
                         &mut scratch_agent_state,
-                        &actor_id,
+                        actor_id,
                         event,
                     )?;
                     actor_step_summaries.push(ActorStepSummary {
                         actor_id: actor_id.clone(),
                         status: ActorStepStatus::Stuck,
                         proposal_id: None,
+                        decision_trace_id: None,
+                        local_plan_id: diagnostic.local_plan_id.clone(),
+                        proposal_ancestry: diagnostic.proposal_ancestry.clone(),
                         pipeline_status: None,
                         committed_event_ids: vec![event_id.clone()],
                         diagnostic_event_id: Some(event_id),
@@ -1087,6 +1124,10 @@ impl DeterministicScheduler {
             *projection = scratch_projection;
         }
         self.current_tick = resulting_tick;
+        for actor_id in processed_actor_ids {
+            self.loaded_actor_next_decision_tick
+                .insert(actor_id, resulting_tick.next());
+        }
 
         Ok(WorldAdvanceResult {
             prior_tick,
@@ -1924,7 +1965,7 @@ fn build_world_step_actor_frame_event(
     );
     let mut event = EventEnvelope::new_caused_v1(
         event_id,
-        EventKind::NoHumanAdvanceStarted,
+        EventKind::DeclaredWorldProcessApplied,
         0,
         0,
         resulting_tick,
@@ -2025,6 +2066,17 @@ fn build_actor_decision_trace_event(
         PayloadField::new(
             "trace_canonical",
             decision_trace_record.serialize_canonical(),
+        ),
+        PayloadField::new(
+            "local_plan_id",
+            decision_trace_record
+                .local_plan_id
+                .as_deref()
+                .unwrap_or("none"),
+        ),
+        PayloadField::new(
+            "proposal_ancestry",
+            decision_trace_record.proposal_ancestry.join("\n"),
         ),
         PayloadField::new("actor_id", actor_id.as_str()),
         PayloadField::new("decision_tick", tick.value().to_string()),
@@ -2135,6 +2187,11 @@ fn build_actor_stuck_diagnostic_event(
         PayloadField::new("diagnostic_schema_version", "1"),
         PayloadField::new("diagnostic_id", diagnostic.diagnostic_id.as_str()),
         PayloadField::new("diagnostic_canonical", diagnostic.serialize_canonical()),
+        PayloadField::new(
+            "local_plan_id",
+            diagnostic.local_plan_id.as_deref().unwrap_or("none"),
+        ),
+        PayloadField::new("proposal_ancestry", diagnostic.proposal_ancestry.join("\n")),
         PayloadField::new(
             "responsible_layer",
             diagnostic.typed_diagnostic.responsible_layer.stable_id(),
@@ -2339,7 +2396,7 @@ fn build_declared_world_process_event(
             invocation.effective_tick.value()
         ))
         .map_err(WorldAdvanceError::InvalidMarkerId)?,
-        EventKind::NoHumanAdvanceStarted,
+        EventKind::DeclaredWorldProcessApplied,
         0,
         0,
         invocation.effective_tick,
@@ -2972,7 +3029,9 @@ pub mod no_human {
             .find(|event| {
                 matches!(
                     event.event_type,
-                    EventKind::NoHumanDayStarted | EventKind::NoHumanAdvanceStarted
+                    EventKind::NoHumanDayStarted
+                        | EventKind::NoHumanAdvanceStarted
+                        | EventKind::DeclaredWorldProcessApplied
                 )
             })
             .map(|event| event.event_id.clone())

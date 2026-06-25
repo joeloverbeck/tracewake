@@ -122,6 +122,16 @@ quest_truth:
 
 A test that demonstrates correct world mutation but cannot show the ordinary proposal, validation report, event(s), holder-known context ancestry, and replay result does not pass. A no-human run that produces plausible schedules but cannot prove actor-known decision ancestry fails.
 
+Current 0051 loaded-world evidence treats production construction as part of
+that authority boundary: `LoadedWorldRuntime::from_loaded_world` is the core
+entry point for fixture/content handoff, restored scheduler authority, loaded
+actor census, and declared process eligibility. Public world-advance commands
+cross through the TUI/core command boundary and observe committed
+state/event/projection effects; compile-fail fixtures in
+`negative_fixture_runner.rs` and focused mutation evidence in
+`archive/tickets/0051FOUCONTHI-010.md` are the sensitivity record, not
+client-side scaffolding.
+
 ## Anti-patterns
 
 - “The TUI knows the target, so the actor can act.”

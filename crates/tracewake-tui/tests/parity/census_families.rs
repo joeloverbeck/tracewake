@@ -150,7 +150,7 @@ fn time_control_entries() -> Vec<CapabilityEntry> {
             typed_assertion: "wait.1_tick appends ActorWaited and advances the world tick",
             actor_knowledge_assertion:
                 "actor_tomas receives the post-wait embodied view from his holder-known context",
-            rendered_assertion: "rendered embodied view advances to Tick: 1",
+            rendered_assertion: "rendered embodied view advances without exposing exact replay tick",
             anti_leak_fixtures: Vec::new(),
             no_human_evidence: EvidenceFlag::Required,
         }),

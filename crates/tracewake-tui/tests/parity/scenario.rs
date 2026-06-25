@@ -38,19 +38,20 @@ pub fn run_real_pipeline(entry: &CapabilityEntry) -> Result<ScenarioWitnesses, S
         .ok_or(ScenarioError::MissingFixture)?;
     let golden = fixtures::by_id(fixture_id)
         .ok_or_else(|| ScenarioError::UnknownFixture((*fixture_id).to_string()))?;
-    let mut app = TuiApp::from_golden(golden).map_err(ScenarioError::App)?;
+    let mut app = TuiApp::from_golden(golden).map_err(ScenarioError::from)?;
     let actor_id = ActorId::new(entry.viewer_actor.to_string())
         .map_err(|_| ScenarioError::BadActor(entry.viewer_actor.to_string()))?;
     if matches!(
         entry.setup_operation,
         SetupOperation::RenderDebugOverlay | SetupOperation::RunNoHumanDay
     ) {
-        app.bind_debug_actor(actor_id).map_err(ScenarioError::App)?;
+        app.bind_debug_actor(actor_id)
+            .map_err(ScenarioError::from)?;
     } else {
-        app.bind_actor(actor_id).map_err(ScenarioError::App)?;
+        app.bind_actor(actor_id).map_err(ScenarioError::from)?;
     }
 
-    let view = app.current_view().map_err(ScenarioError::App)?;
+    let view = app.current_view().map_err(ScenarioError::from)?;
     let mut measured = ScenarioMeasuredEvidence {
         actor_knowledge: view
             .holder_known_context_id
@@ -69,7 +70,7 @@ pub fn run_real_pipeline(entry: &CapabilityEntry) -> Result<ScenarioWitnesses, S
 
     let mut submitted_status = None;
     let initial_event_count = app.event_count();
-    let mut rendered = app.render_current_view().map_err(ScenarioError::App)?;
+    let mut rendered = app.render_current_view().map_err(ScenarioError::from)?;
     match entry.setup_operation {
         SetupOperation::SubmitSemanticAction { semantic_action_id } => {
             let semantic_action_id = SemanticActionId::new(semantic_action_id.to_string())
@@ -85,11 +86,11 @@ pub fn run_real_pipeline(entry: &CapabilityEntry) -> Result<ScenarioWitnesses, S
 
             let result = app
                 .submit_semantic_action(&semantic_action_id)
-                .map_err(ScenarioError::App)?;
+                .map_err(ScenarioError::from)?;
             submitted_status = Some(result.report.status.clone());
             measured.typed = result.report.action_id == action.action_id;
             if !action.availability.is_available() {
-                rendered = app.render_current_view().map_err(ScenarioError::App)?;
+                rendered = app.render_current_view().map_err(ScenarioError::from)?;
                 assert_actor_safe_why_not(entry, &rendered);
             }
         }
@@ -98,35 +99,35 @@ pub fn run_real_pipeline(entry: &CapabilityEntry) -> Result<ScenarioWitnesses, S
             assert_render_contains_action(entry, &rendered, semantic_action_id.as_str());
             let result = app
                 .submit_semantic_action(&semantic_action_id)
-                .map_err(ScenarioError::App)?;
+                .map_err(ScenarioError::from)?;
             submitted_status = Some(result.report.status.clone());
-            rendered = app.render_current_view().map_err(ScenarioError::App)?;
+            rendered = app.render_current_view().map_err(ScenarioError::from)?;
             measured.typed = result.report.status == ReportStatus::Accepted;
-            measured.frontier_advanced = rendered.contains("Tick: 1");
+            measured.frontier_advanced = app.event_count() > initial_event_count;
             measured.marker_counted = app.event_count() > initial_event_count;
         }
         SetupOperation::StartSleepThenAdvanceUntil { max_ticks } => {
             submit_semantic_action_by_id(&mut app, "sleep.here")?;
-            let result = app.advance_until(max_ticks).map_err(ScenarioError::App)?;
-            rendered = app.render_current_view().map_err(ScenarioError::App)?;
+            let result = app.advance_until(max_ticks).map_err(ScenarioError::from)?;
+            rendered = app.render_current_view().map_err(ScenarioError::from)?;
             measure_advance_until(&mut measured, &app, &result);
         }
         SetupOperation::MoveWorkThenAdvanceUntil { max_ticks } => {
             submit_semantic_action_by_id(&mut app, "move.to.workshop_tomas")?;
             submit_semantic_action_by_id(&mut app, "work.block.workplace_tomas")?;
-            let result = app.advance_until(max_ticks).map_err(ScenarioError::App)?;
-            rendered = app.render_current_view().map_err(ScenarioError::App)?;
+            let result = app.advance_until(max_ticks).map_err(ScenarioError::from)?;
+            rendered = app.render_current_view().map_err(ScenarioError::from)?;
             measure_advance_until(&mut measured, &app, &result);
         }
         SetupOperation::StartSleepThenWaitConflict => {
             submit_semantic_action_by_id(&mut app, "sleep.here")?;
-            let view = app.current_view().map_err(ScenarioError::App)?;
+            let view = app.current_view().map_err(ScenarioError::from)?;
             let semantic_action_id = semantic_action_for_action(&view, "wait")?;
             let result = app
                 .submit_semantic_action(&semantic_action_id)
-                .map_err(ScenarioError::App)?;
+                .map_err(ScenarioError::from)?;
             submitted_status = Some(result.report.status.clone());
-            rendered = app.render_current_view().map_err(ScenarioError::App)?;
+            rendered = app.render_current_view().map_err(ScenarioError::from)?;
             measured.typed = result.report.status == ReportStatus::Rejected
                 && result
                     .report
@@ -147,11 +148,11 @@ pub fn run_real_pipeline(entry: &CapabilityEntry) -> Result<ScenarioWitnesses, S
 
             let result = app
                 .submit_semantic_action(&semantic_action_id)
-                .map_err(ScenarioError::App)?;
+                .map_err(ScenarioError::from)?;
             submitted_status = Some(result.report.status.clone());
             measured.typed = result.report.action_id == action.action_id;
             if !action.availability.is_available() {
-                rendered = app.render_current_view().map_err(ScenarioError::App)?;
+                rendered = app.render_current_view().map_err(ScenarioError::from)?;
                 assert_actor_safe_why_not(entry, &rendered);
             }
         }
@@ -165,25 +166,25 @@ pub fn run_real_pipeline(entry: &CapabilityEntry) -> Result<ScenarioWitnesses, S
             measured.typed = true;
         }
         SetupOperation::RenderNotebook => {
-            rendered = render_notebook(&app.notebook_view().map_err(ScenarioError::App)?);
+            rendered = render_notebook(&app.notebook_view().map_err(ScenarioError::from)?);
             measured.typed = true;
         }
         SetupOperation::RenderDebugOverlay => {
             rendered = app
                 .render_debug_embodied_overlay()
-                .map_err(ScenarioError::App)?
+                .map_err(ScenarioError::from)?
                 .ok_or(ScenarioError::MissingDebugOverlay)?;
             measured.typed = rendered.contains("DEBUG NON-DIEGETIC");
             measured.debug_or_embodied_disposition = measured.typed;
         }
         SetupOperation::RunNoHumanDay => {
-            let report = app.run_no_human_day().map_err(ScenarioError::App)?;
+            let report = app.run_no_human_day().map_err(ScenarioError::from)?;
             measured.typed =
                 report.final_tick > report.start_tick && report.scheduler_errors.is_empty();
             measured.marker_counted = !report.marker_event_ids.is_empty();
             measured.autonomous_work =
                 !report.actor_decision_order.is_empty() || report.ordinary_pipeline_events > 0;
-            rendered = app.render_current_view().map_err(ScenarioError::App)?;
+            rendered = app.render_current_view().map_err(ScenarioError::from)?;
         }
         SetupOperation::BindViewer | SetupOperation::AdvanceNoHuman => {
             measured.typed = true;
@@ -266,7 +267,7 @@ fn submit_semantic_action_by_id(
         .map_err(|_| ScenarioError::BadSemanticAction(semantic_action_id.to_string()))?;
     let result = app
         .submit_semantic_action(&semantic_action_id)
-        .map_err(ScenarioError::App)?;
+        .map_err(ScenarioError::from)?;
     Ok(result.report.status)
 }
 
@@ -365,7 +366,13 @@ pub enum ScenarioError {
     MissingRegistryAction(String),
     MissingSemanticAction(String),
     MissingDebugOverlay,
-    App(AppError),
+    App(Box<AppError>),
+}
+
+impl From<AppError> for ScenarioError {
+    fn from(error: AppError) -> Self {
+        Self::App(Box::new(error))
+    }
 }
 
 impl std::fmt::Debug for ScenarioError {

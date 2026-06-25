@@ -118,6 +118,10 @@ For each ticket:
    transcript or output directories already exist, record generated-evidence
    dirtiness separately from source-tree cleanliness instead of collapsing both
    into a single "not clean" status.
+   If a required acceptance artifact or capstone proof needs a clean source tree
+   but the main checkout has unrelated dirty work, use the clean temporary
+   worktree protocol in `references/closeout-edge-cases.md` instead of folding
+   unrelated changes into the evidence package.
    For filtered mutation campaigns, verify the selected denominator before the
    expensive run. Repository mutation config can widen or override CLI filters;
    run the corresponding `--list` or `--list-files` command with the same
@@ -511,8 +515,9 @@ aligned with this skill's trigger wording and closeout expectations.
 ## Support Assets
 
 - `references/closeout-edge-cases.md`: optional progressive-disclosure guidance
-  for controlled temporary-break evidence, generated baselines, ignored
-  evidence paths, and bulky long-running tool outputs.
+  for clean temporary worktree evidence, controlled temporary-break evidence,
+  generated baselines, ignored evidence paths, and bulky long-running tool
+  outputs.
 - `scripts/closeout-audit.mjs`: optional helper that emits mechanical closeout
   checks for active paths, archived paths, stale live references, and Git status
   when the ticket prefix and reference artifact paths are known.

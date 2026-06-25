@@ -4,6 +4,6 @@ version = "0.0.0"
 edition = "2021"
 
 [dependencies]
-tracewake-tui = { path = "../../../crates/tracewake-tui" }
+tracewake-core = { path = "../../../crates/tracewake-core" }
 
 [workspace]
