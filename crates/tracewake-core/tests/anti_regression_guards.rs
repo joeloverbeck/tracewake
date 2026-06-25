@@ -41,6 +41,7 @@ const WORK_RS: &str = include_str!("../src/actions/defs/work.rs");
 const ACTIONS_REGISTRY_RS: &str = include_str!("../src/actions/registry.rs");
 const ACTIONS_REPORT_RS: &str = include_str!("../src/actions/report.rs");
 const PROJECTIONS_RS: &str = include_str!("../src/projections.rs");
+const RUNTIME_SESSION_RS: &str = include_str!("../src/runtime/session.rs");
 const VIEW_MODELS_RS: &str = include_str!("../src/view_models.rs");
 const REBUILD_RS: &str = include_str!("../src/replay/rebuild.rs");
 const REPORT_RS: &str = include_str!("../src/replay/report.rs");
@@ -6508,10 +6509,16 @@ fn embodied_projection_never_uses_unfiltered_checked_facts_as_actor_provenance()
 fn privileged_tui_proposal_requires_current_view_source_context() {
     let app = production(TUI_APP_RS);
     assert!(
-        app.contains("proposal_from_current_view_semantic_action"),
-        "TUI semantic-action submission must use the current-view source-context constructor"
+        app.contains("RuntimeCommand::submit_semantic_action"),
+        "TUI semantic-action submission must use the runtime command boundary"
     );
-    assert_absent(app, "proposal_from_semantic_action_entry");
+
+    let runtime_session = production(RUNTIME_SESSION_RS);
+    assert!(
+        runtime_session.contains("proposal_from_current_view_semantic_action"),
+        "runtime semantic-action submission must use the current-view source-context constructor"
+    );
+    assert_absent(runtime_session, "proposal_from_semantic_action_entry");
 
     let projections = production(PROJECTIONS_RS);
     assert!(

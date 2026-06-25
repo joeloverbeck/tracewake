@@ -1,5 +1,6 @@
 use crate::actions::{PipelineResult, ValidationReport};
 use crate::debug_capability::DebugCapability;
+use crate::events::EventEnvelope;
 use crate::ids::EventId;
 use crate::scheduler::{AdvanceUntilResult, WorldAdvanceResult};
 use crate::time::SimTick;
@@ -13,11 +14,16 @@ pub struct RuntimeReceipt {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RuntimeReceiptKind {
     OneTickAdvanced(WorldAdvanceResult),
-    ProposalSubmitted(PipelineResult),
+    ActionSubmitted(RuntimeActionReceipt),
     Continued(AdvanceUntilResult),
     Embodied(EmbodiedRuntimeReceipt),
     Debug(DebugRuntimeReceipt),
-    Rejected(RuntimeRejectionReceipt),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RuntimeActionReceipt {
+    pub report: ValidationReport,
+    pub appended_events: Vec<EventEnvelope>,
 }
 
 /// Actor-legible runtime product. It intentionally carries qualitative text
@@ -38,11 +44,6 @@ pub struct DebugRuntimeReceipt {
     stop_reason: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RuntimeRejectionReceipt {
-    report: ValidationReport,
-}
-
 impl RuntimeReceipt {
     pub(crate) fn one_tick_advanced(result: WorldAdvanceResult) -> Self {
         Self {
@@ -50,9 +51,9 @@ impl RuntimeReceipt {
         }
     }
 
-    pub(crate) fn proposal_submitted(result: PipelineResult) -> Self {
+    pub(crate) fn action_submitted(result: RuntimeActionReceipt) -> Self {
         Self {
-            kind: RuntimeReceiptKind::ProposalSubmitted(result),
+            kind: RuntimeReceiptKind::ActionSubmitted(result),
         }
     }
 
@@ -74,14 +75,24 @@ impl RuntimeReceipt {
         }
     }
 
-    pub(crate) fn rejected(report: ValidationReport) -> Self {
-        Self {
-            kind: RuntimeReceiptKind::Rejected(RuntimeRejectionReceipt { report }),
-        }
-    }
-
     pub fn kind(&self) -> &RuntimeReceiptKind {
         &self.kind
+    }
+
+    pub fn into_action_receipt(self) -> Option<RuntimeActionReceipt> {
+        match self.kind {
+            RuntimeReceiptKind::ActionSubmitted(receipt) => Some(receipt),
+            _ => None,
+        }
+    }
+}
+
+impl From<PipelineResult> for RuntimeActionReceipt {
+    fn from(value: PipelineResult) -> Self {
+        Self {
+            report: value.report,
+            appended_events: value.appended_events,
+        }
     }
 }
 
@@ -137,12 +148,6 @@ impl DebugRuntimeReceipt {
 
     pub fn stop_reason(&self) -> Option<&str> {
         self.stop_reason.as_deref()
-    }
-}
-
-impl RuntimeRejectionReceipt {
-    pub fn report(&self) -> &ValidationReport {
-        &self.report
     }
 }
 

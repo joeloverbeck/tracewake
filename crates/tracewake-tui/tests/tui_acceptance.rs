@@ -327,12 +327,50 @@ fn tui_sources_do_not_call_event_application_directly() {
 
     assert!(
         violations.is_empty(),
-        "TUI must mutate only through run_pipeline/current-view semantic submissions:\n{}",
+        "TUI must mutate only through runtime commands:\n{}",
         violations.join("\n")
     );
     assert!(
-        include_str!("../src/app.rs").contains(".submit_controlled_proposal("),
-        "TUI submit path must route mutation through the loaded-world runtime"
+        include_str!("../src/app.rs")
+            .contains(".submit_command(RuntimeCommand::submit_semantic_action("),
+        "TUI submit path must route mutation through the runtime command boundary"
+    );
+}
+
+#[test]
+fn tui_semantic_submissions_use_runtime_allocated_ordering_and_time_policy() {
+    let mut app = TuiApp::from_golden(fixtures::expectation_contradiction_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+
+    let initial_tick = app.current_view().unwrap().sim_tick();
+    let opened = app
+        .submit_semantic_action(&SemanticActionId::new("open.container.strongbox_tomas").unwrap())
+        .unwrap();
+    assert_eq!(opened.report.status, ReportStatus::Accepted);
+    assert_eq!(
+        app.current_view().unwrap().sim_tick(),
+        initial_tick,
+        "accepted non-wait semantic actions must not advance core time"
+    );
+
+    let checked = app
+        .submit_semantic_action(&SemanticActionId::new("check.container.strongbox_tomas").unwrap())
+        .unwrap();
+    assert_eq!(checked.report.status, ReportStatus::Accepted);
+    assert_eq!(opened.report.proposal_id.as_str(), "proposal_runtime_0");
+    assert_eq!(
+        checked.report.proposal_id.as_str(),
+        "proposal_runtime_2",
+        "non-wait commands must use runtime-minted proposal ids while scheduler ordering remains internal"
+    );
+
+    let wait_action = semantic_action_for_action_id(&app, "wait");
+    let waited = app.submit_semantic_action(&wait_action).unwrap();
+    assert_eq!(waited.report.status, ReportStatus::Accepted);
+    assert!(
+        app.current_view().unwrap().sim_tick() > initial_tick,
+        "wait semantic actions must follow core time-advance policy"
     );
 }
 

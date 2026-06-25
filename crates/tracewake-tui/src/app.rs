@@ -1,6 +1,6 @@
 use tracewake_content::fixtures::{self, GoldenFixture};
 use tracewake_content::load::{load_fixture_package, LoadError};
-use tracewake_core::actions::{ActionRegistry, PipelineResult, ReportStatus, ValidationReport};
+use tracewake_core::actions::{ActionRegistry, ReportStatus, ValidationReport};
 use tracewake_core::agent::current_place_knowledge_context;
 use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext, PhysicalChecksum};
 use tracewake_core::debug_reports::{
@@ -12,15 +12,17 @@ use tracewake_core::debug_reports::{
 use tracewake_core::epistemics::KnowledgeContext;
 use tracewake_core::ids::{
     ActorId, ContentManifestId, ContentVersion, ControllerId, DebugReportId, FixtureId, ItemId,
-    ProposalId, SemanticActionId,
+    SemanticActionId,
 };
 use tracewake_core::projections::{
     build_debug_event_log_view, build_embodied_view_model, build_notebook_view,
-    proposal_from_current_view_semantic_action, EmbodiedPreflightSource, EmbodiedProjectionSource,
-    EmbodiedTruthSnapshot, ProjectionError,
+    EmbodiedPreflightSource, EmbodiedProjectionSource, EmbodiedTruthSnapshot, ProjectionError,
 };
 use tracewake_core::replay::{rebuild_projection, run_replay};
-use tracewake_core::runtime::{LoadedWorldRuntime, RuntimeCommandError};
+use tracewake_core::runtime::{
+    LoadedWorldRuntime, RuntimeActionReceipt, RuntimeCommand, RuntimeCommandError,
+    RuntimeReceiptKind,
+};
 use tracewake_core::scheduler::no_human::NoHumanDayReport;
 use tracewake_core::scheduler::{AdvanceUntilResult, WorldAdvanceError};
 use tracewake_core::state::{AgentState, ControllerMode, PhysicalState};
@@ -217,7 +219,7 @@ impl TuiApp {
     pub fn submit_semantic_action(
         &mut self,
         semantic_action_id: &SemanticActionId,
-    ) -> Result<PipelineResult, AppError> {
+    ) -> Result<RuntimeActionReceipt, AppError> {
         let view = self.current_view()?;
         let entry = view
             .semantic_actions
@@ -232,45 +234,25 @@ impl TuiApp {
         &mut self,
         entry: &SemanticActionEntry,
         source_view: &EmbodiedViewModel,
-    ) -> Result<PipelineResult, AppError> {
-        self.submit_entry_with_world_advance(
-            entry,
-            source_view,
-            entry.semantic_action_id.as_str() == "wait.1_tick",
-        )
-    }
-
-    fn submit_entry_with_world_advance(
-        &mut self,
-        entry: &SemanticActionEntry,
-        source_view: &EmbodiedViewModel,
-        advance_world_after_acceptance: bool,
-    ) -> Result<PipelineResult, AppError> {
+    ) -> Result<RuntimeActionReceipt, AppError> {
         let actor_id = self.bound_actor_id.clone().ok_or(AppError::ActorNotBound)?;
-        let expected_tick = self.runtime.current_tick();
-        let sequence = self.runtime.assign_proposal_sequence();
         // Deferral witness: embodied targeted-command routing is not yet wired, but the
         // semantic-action surface already carries target_ids. Borrow it (no behavioral
         // effect, no mutable operator to mutate) to keep the field's reachability guard
         // satisfied until a live consumer lands.
         let _ = &entry.target_ids;
-        let proposal = proposal_from_current_view_semantic_action(
-            ProposalId::new(format!("proposal_tui_{}", sequence.value())).unwrap(),
-            actor_id.clone(),
-            expected_tick,
-            entry,
-            source_view,
-            &self.controller_id,
-        );
-
-        let result = self
+        let receipt = self
             .runtime
-            .submit_controlled_proposal(
+            .submit_command(RuntimeCommand::submit_semantic_action(
                 self.controller_id.clone(),
-                proposal,
-                advance_world_after_acceptance,
-            )
+                actor_id,
+                entry.clone(),
+                source_view.clone(),
+            ))
             .map_err(AppError::Runtime)?;
+        let result = receipt
+            .into_action_receipt()
+            .expect("submit_semantic_action command returns an action receipt");
         if result.report.status == ReportStatus::Rejected {
             self.last_rejection = Some(result.report.clone());
         } else {
@@ -285,10 +267,18 @@ impl TuiApp {
 
     pub fn advance_until(&mut self, max_ticks: u64) -> Result<AdvanceUntilResult, AppError> {
         let actor_id = self.bound_actor_id.clone().ok_or(AppError::ActorNotBound)?;
-        let result = self
+        let receipt = self
             .runtime
-            .advance_until(self.controller_id.clone(), actor_id.clone(), max_ticks)
+            .submit_command(RuntimeCommand::continue_until(
+                self.controller_id.clone(),
+                actor_id,
+                max_ticks,
+            ))
             .map_err(AppError::Runtime)?;
+        let result = match receipt.kind() {
+            RuntimeReceiptKind::Continued(result) => result.clone(),
+            _ => panic!("continue_until command returns a continued receipt"),
+        };
         self.last_interval_summary = result
             .actor_known_interval_delta
             .clone()

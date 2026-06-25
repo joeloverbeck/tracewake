@@ -3,7 +3,8 @@ use crate::checksum::ChecksumContext;
 use crate::controller::ControllerBindings;
 use crate::epistemics::projection::EpistemicProjection;
 use crate::events::log::EventLog;
-use crate::ids::{ActorId, ContentManifestId, ControllerId};
+use crate::ids::{ActorId, ContentManifestId, ControllerId, ProposalId};
+use crate::projections::proposal_from_current_view_semantic_action;
 use crate::replay::rebuild_projection;
 use crate::scheduler::no_human::{
     default_day_windows, run_no_human_day, NoHumanDayConfig, NoHumanDayReport,
@@ -17,7 +18,9 @@ use crate::state::{AgentState, ControllerMode, PhysicalState};
 use crate::time::SimTick;
 
 use super::command::{RuntimeCommand, RuntimeCommandKind};
-use super::receipt::{DebugRuntimeReceipt, EmbodiedRuntimeReceipt, RuntimeReceipt};
+use super::receipt::{
+    DebugRuntimeReceipt, EmbodiedRuntimeReceipt, RuntimeActionReceipt, RuntimeReceipt,
+};
 
 /// Owned initial aggregates for crate-internal runtime construction.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -207,19 +210,19 @@ impl LoadedWorldRuntime {
         );
     }
 
-    pub fn assign_proposal_sequence(&mut self) -> crate::scheduler::ProposalSequence {
+    fn assign_proposal_sequence(&mut self) -> crate::scheduler::ProposalSequence {
         self.scheduler.assign_proposal_sequence()
     }
 
-    pub fn submit_controlled_proposal(
+    fn run_semantic_proposal(
         &mut self,
         controller_id: ControllerId,
         proposal: crate::actions::Proposal,
-        advance_world_after_acceptance: bool,
+        uses_world_step: bool,
     ) -> Result<PipelineResult, RuntimeCommandError> {
         let expected_tick = self.scheduler.current_tick();
         let proposal_actor_id = proposal.actor_id.clone();
-        let result = if advance_world_after_acceptance {
+        let result = if uses_world_step {
             let step = self.scheduler.transact_world_one_tick(
                 &mut self.physical_state,
                 &mut self.agent_state,
@@ -272,7 +275,7 @@ impl LoadedWorldRuntime {
         Ok(result)
     }
 
-    pub fn advance_until(
+    fn advance_until(
         &mut self,
         controller_id: ControllerId,
         possessed_actor_id: ActorId,
@@ -343,16 +346,28 @@ impl LoadedWorldRuntime {
     ) -> Result<RuntimeReceipt, RuntimeCommandError> {
         match command.kind {
             RuntimeCommandKind::OneTickWait { origin } => self.run_one_tick_wait(origin),
-            RuntimeCommandKind::SubmitProposal {
+            RuntimeCommandKind::SubmitSemanticAction {
                 controller_id,
-                proposal,
+                actor_id,
+                entry,
+                source_view,
             } => {
-                let result = self.submit_controlled_proposal(controller_id, proposal, true)?;
-                if result.report.status == ReportStatus::Rejected {
-                    Ok(RuntimeReceipt::rejected(result.report))
-                } else {
-                    Ok(RuntimeReceipt::proposal_submitted(result))
-                }
+                let proposal_sequence = self.assign_proposal_sequence();
+                let proposal = proposal_from_current_view_semantic_action(
+                    ProposalId::new(format!("proposal_runtime_{}", proposal_sequence.value()))
+                        .expect("runtime proposal ids are generated from numeric sequences"),
+                    actor_id,
+                    self.scheduler.current_tick(),
+                    &entry,
+                    source_view.as_ref(),
+                    &controller_id,
+                );
+                let uses_world_step = entry.action_id.as_str() == "wait";
+                let result =
+                    self.run_semantic_proposal(controller_id, proposal, uses_world_step)?;
+                Ok(RuntimeReceipt::action_submitted(
+                    RuntimeActionReceipt::from(result),
+                ))
             }
             RuntimeCommandKind::ContinueUntil {
                 controller_id,

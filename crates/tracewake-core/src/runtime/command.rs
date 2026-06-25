@@ -1,7 +1,7 @@
-use crate::actions::Proposal;
 use crate::debug_capability::DebugCapability;
 use crate::ids::{ActorId, ControllerId};
 use crate::scheduler::WorldAdvanceOrigin;
+use crate::view_models::{EmbodiedViewModel, SemanticActionEntry};
 
 /// Closed runtime command token.
 ///
@@ -14,9 +14,11 @@ pub struct RuntimeCommand {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum RuntimeCommandKind {
-    SubmitProposal {
+    SubmitSemanticAction {
         controller_id: ControllerId,
-        proposal: Proposal,
+        actor_id: ActorId,
+        entry: SemanticActionEntry,
+        source_view: Box<EmbodiedViewModel>,
     },
     OneTickWait {
         origin: WorldAdvanceOrigin,
@@ -49,11 +51,18 @@ pub(crate) enum RuntimeCommandKind {
 }
 
 impl RuntimeCommand {
-    pub fn submit_proposal(controller_id: ControllerId, proposal: Proposal) -> Self {
+    pub fn submit_semantic_action(
+        controller_id: ControllerId,
+        actor_id: ActorId,
+        entry: SemanticActionEntry,
+        source_view: EmbodiedViewModel,
+    ) -> Self {
         Self {
-            kind: RuntimeCommandKind::SubmitProposal {
+            kind: RuntimeCommandKind::SubmitSemanticAction {
                 controller_id,
-                proposal,
+                actor_id,
+                entry,
+                source_view: Box::new(source_view),
             },
         }
     }
@@ -131,26 +140,16 @@ impl RuntimeCommand {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ids::{ActionId, ProposalId};
-    use crate::time::SimTick;
 
     #[test]
     fn command_constructors_do_not_accept_runtime_authority() {
-        let controller_id = ControllerId::new("controller_human").unwrap();
-        let actor_id = ActorId::new("actor_mara").unwrap();
-        let proposal = Proposal::new(
-            ProposalId::new("proposal_wait").unwrap(),
-            crate::actions::ProposalOrigin::Human,
-            Some(actor_id),
-            ActionId::new("action_wait").unwrap(),
-            SimTick::ZERO,
-        );
-
-        let command = RuntimeCommand::submit_proposal(controller_id, proposal);
+        let command = RuntimeCommand::one_tick_wait(WorldAdvanceOrigin::Controller(
+            ControllerId::new("controller_human").unwrap(),
+        ));
 
         match command.kind {
-            RuntimeCommandKind::SubmitProposal { .. } => {}
-            _ => panic!("submit_proposal constructor returned wrong command kind"),
+            RuntimeCommandKind::OneTickWait { .. } => {}
+            _ => panic!("one_tick_wait constructor returned wrong command kind"),
         }
     }
 }

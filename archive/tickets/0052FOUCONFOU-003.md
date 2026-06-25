@@ -1,6 +1,6 @@
 # 0052FOUCONFOU-003: F4-02 — closed runtime command boundary (atomic cutover)
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — replaces the `advance_world_after_acceptance` boolean / raw proposal route with the closed typed command family; moves proposal-sequence allocation inside the runtime
@@ -84,3 +84,20 @@ Rewrite `submit_entry` / `submit_entry_with_world_advance` to submit the real ty
 
 1. `cargo test -p tracewake-tui --test command_loop_session`
 2. `cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-25
+
+Implemented the closed runtime command boundary for TUI semantic submissions. `RuntimeCommand::submit_semantic_action` now carries actor-filtered semantic intent and source-view context, while `LoadedWorldRuntime::submit_command` constructs proposals, allocates runtime proposal IDs/sequences, and applies the core-owned wait/non-wait time policy. The previous public proposal sequence allocator, raw proposal submission constructor, and TUI-selected world-advance boolean route were removed from the client boundary.
+
+TUI action submission now consumes `RuntimeActionReceipt` instead of raw `PipelineResult`, and `TuiApp::advance_until` routes continue/pause through `RuntimeCommand::continue_until`. The current-view proposal-source guard was retargeted to the runtime dispatcher, and a TUI acceptance regression now proves runtime-minted proposal ordering plus wait-vs-non-wait time policy through the production command path.
+
+Deviation: `AdvanceUntilResult` remains the internal continued-receipt payload shape exposed by `RuntimeReceiptKind::Continued` while the TUI no longer calls `LoadedWorldRuntime::advance_until` directly. The broader sealed continue receipt can be tightened in a later boundary hardening step without reintroducing the command bypass this ticket removed.
+
+Verification:
+
+1. `cargo fmt --all --check`
+2. `cargo clippy --workspace --all-targets -- -D warnings`
+3. `cargo build --workspace --all-targets --locked`
+4. `cargo test --workspace`
