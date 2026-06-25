@@ -341,6 +341,7 @@ fn generated_cases_enter_through_loaded_runtime_constructor() {
                     "seed={seed} runtime command must advance time"
                 );
             }
+            other => panic!("seed={seed} expected one-tick receipt, got {other:?}"),
         }
         assert!(
             !runtime.event_log().events().is_empty(),

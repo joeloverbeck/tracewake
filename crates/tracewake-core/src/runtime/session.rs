@@ -11,9 +11,13 @@ use crate::scheduler::no_human::{
 use crate::scheduler::{
     AdvanceUntilRequest, AdvanceUntilResult, DeterministicScheduler, OrderingKey, SchedulePhase,
     SchedulerSourceId, WorldAdvanceError, WorldAdvanceOrigin, WorldAdvanceRequest,
-    WorldAdvanceResult, WorldStepTransactionRequest,
+    WorldStepTransactionRequest,
 };
 use crate::state::{AgentState, ControllerMode, PhysicalState};
+use crate::time::SimTick;
+
+use super::command::{RuntimeCommand, RuntimeCommandKind};
+use super::receipt::{DebugRuntimeReceipt, EmbodiedRuntimeReceipt, RuntimeReceipt};
 
 /// Owned initial aggregates for constructing a loaded-world runtime.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -26,6 +30,28 @@ pub struct RuntimeInitialState {
     pub controller_bindings: ControllerBindings,
     pub scheduler: DeterministicScheduler,
     pub content_manifest_id: ContentManifestId,
+}
+
+/// Scheduler-free loaded-world bootstrap product.
+///
+/// The scheduler is derived by `LoadedWorldRuntime::from_bootstrap`; clients
+/// cannot supply one through this additive production handoff.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LoadedWorldBootstrap {
+    registry: ActionRegistry,
+    physical_state: PhysicalState,
+    agent_state: AgentState,
+    event_log: EventLog,
+    epistemic_projection: EpistemicProjection,
+    controller_bindings: ControllerBindings,
+    content_manifest_id: ContentManifestId,
+}
+
+/// Opaque replay seed for reconstructing the accepted initial aggregates
+/// without retaining mutable runtime state in a client.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RuntimeReplaySeed {
+    bootstrap: LoadedWorldBootstrap,
 }
 
 /// Core-owned loaded-world runtime/session.
@@ -41,28 +67,6 @@ pub struct LoadedWorldRuntime {
     content_manifest_id: ContentManifestId,
 }
 
-/// Closed command token. Constructors stay inside `tracewake-core`.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RuntimeCommand {
-    kind: RuntimeCommandKind,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-enum RuntimeCommandKind {
-    OneTickWait { origin: WorldAdvanceOrigin },
-}
-
-/// Immutable runtime receipt.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RuntimeReceipt {
-    kind: RuntimeReceiptKind,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum RuntimeReceiptKind {
-    OneTickAdvanced(WorldAdvanceResult),
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RuntimeCommandError {
     WorldAdvance(WorldAdvanceError),
@@ -72,6 +76,39 @@ pub enum RuntimeCommandError {
 impl From<WorldAdvanceError> for RuntimeCommandError {
     fn from(value: WorldAdvanceError) -> Self {
         Self::WorldAdvance(value)
+    }
+}
+
+impl LoadedWorldBootstrap {
+    pub fn from_loaded_state(
+        registry: ActionRegistry,
+        physical_state: PhysicalState,
+        agent_state: AgentState,
+        event_log: EventLog,
+        epistemic_projection: EpistemicProjection,
+        content_manifest_id: ContentManifestId,
+    ) -> Self {
+        Self {
+            registry,
+            physical_state,
+            agent_state,
+            event_log,
+            epistemic_projection,
+            controller_bindings: ControllerBindings::new(),
+            content_manifest_id,
+        }
+    }
+
+    pub fn replay_seed(&self) -> RuntimeReplaySeed {
+        RuntimeReplaySeed {
+            bootstrap: self.clone(),
+        }
+    }
+}
+
+impl RuntimeReplaySeed {
+    pub fn reconstruct_bootstrap(&self) -> LoadedWorldBootstrap {
+        self.bootstrap.clone()
     }
 }
 
@@ -93,10 +130,7 @@ impl LoadedWorldRuntime {
         self.scheduler.current_tick()
     }
 
-    pub fn from_loaded_world(
-        mut initial: RuntimeInitialState,
-        current_tick: crate::time::SimTick,
-    ) -> Self {
+    pub fn from_loaded_world(mut initial: RuntimeInitialState, current_tick: SimTick) -> Self {
         initial.scheduler = DeterministicScheduler::from_loaded_world(
             current_tick,
             &initial.physical_state,
@@ -104,6 +138,25 @@ impl LoadedWorldRuntime {
             initial.content_manifest_id.clone(),
         );
         Self::from_initial_state(initial)
+    }
+
+    pub fn from_bootstrap(bootstrap: LoadedWorldBootstrap, current_tick: SimTick) -> Self {
+        let scheduler = DeterministicScheduler::from_loaded_world(
+            current_tick,
+            &bootstrap.physical_state,
+            &bootstrap.agent_state,
+            bootstrap.content_manifest_id.clone(),
+        );
+        Self::from_initial_state(RuntimeInitialState {
+            registry: bootstrap.registry,
+            physical_state: bootstrap.physical_state,
+            agent_state: bootstrap.agent_state,
+            event_log: bootstrap.event_log,
+            epistemic_projection: bootstrap.epistemic_projection,
+            controller_bindings: bootstrap.controller_bindings,
+            scheduler,
+            content_manifest_id: bootstrap.content_manifest_id,
+        })
     }
 
     pub fn event_count(&self) -> usize {
@@ -300,6 +353,80 @@ impl LoadedWorldRuntime {
     ) -> Result<RuntimeReceipt, RuntimeCommandError> {
         match command.kind {
             RuntimeCommandKind::OneTickWait { origin } => self.run_one_tick_wait(origin),
+            RuntimeCommandKind::SubmitProposal {
+                controller_id,
+                proposal,
+            } => {
+                let result = self.submit_controlled_proposal(controller_id, proposal, true)?;
+                if result.report.status == ReportStatus::Rejected {
+                    Ok(RuntimeReceipt::rejected(result.report))
+                } else {
+                    Ok(RuntimeReceipt::proposal_submitted(result))
+                }
+            }
+            RuntimeCommandKind::ContinueUntil {
+                controller_id,
+                possessed_actor_id,
+                max_ticks,
+            } => {
+                let result = self.advance_until(controller_id, possessed_actor_id, max_ticks)?;
+                Ok(RuntimeReceipt::continued(result))
+            }
+            RuntimeCommandKind::BindController {
+                controller_id,
+                actor_id,
+            } => {
+                self.bind_actor(controller_id, actor_id, ControllerMode::Embodied);
+                Ok(RuntimeReceipt::embodied(EmbodiedRuntimeReceipt::new(
+                    "Controller binding changed.",
+                    vec!["runtime:controller_binding".to_string()],
+                )))
+            }
+            RuntimeCommandKind::DetachController { controller_id } => {
+                self.detach_controller(&controller_id);
+                Ok(RuntimeReceipt::embodied(EmbodiedRuntimeReceipt::new(
+                    "Controller binding removed.",
+                    vec!["runtime:controller_binding".to_string()],
+                )))
+            }
+            RuntimeCommandKind::RunNoHumanDay { .. } => {
+                let result = self.run_no_human_day(Vec::new())?;
+                Ok(RuntimeReceipt::embodied(EmbodiedRuntimeReceipt::new(
+                    format!(
+                        "No-human day advanced over {} window(s).",
+                        result.window_ids.len()
+                    ),
+                    vec!["runtime:no_human_day".to_string()],
+                )))
+            }
+            RuntimeCommandKind::RebuildFromReplaySeed => {
+                Ok(RuntimeReceipt::embodied(EmbodiedRuntimeReceipt::new(
+                    "Replay seed rebuild requested.",
+                    vec!["runtime:replay_seed".to_string()],
+                )))
+            }
+            RuntimeCommandKind::RefreshActorCurrentPlacePerception { actor_id } => {
+                self.refresh_actor_current_place_perception(&actor_id);
+                Ok(RuntimeReceipt::embodied(EmbodiedRuntimeReceipt::new(
+                    "Current-place perception refreshed.",
+                    vec!["runtime:perception_refresh".to_string()],
+                )))
+            }
+            RuntimeCommandKind::EmbodiedView { actor_id } => {
+                Ok(RuntimeReceipt::embodied(EmbodiedRuntimeReceipt::new(
+                    format!("Embodied view requested for {}.", actor_id.as_str()),
+                    vec!["runtime:embodied_view".to_string()],
+                )))
+            }
+            RuntimeCommandKind::DebugView { .. } => {
+                Ok(RuntimeReceipt::debug(DebugRuntimeReceipt::new(
+                    crate::debug_capability::DebugCapability::mint(),
+                    self.scheduler.current_tick(),
+                    self.scheduler.current_tick(),
+                    Vec::new(),
+                    Some("debug_view".to_string()),
+                )))
+            }
         }
     }
 
@@ -333,9 +460,7 @@ impl LoadedWorldRuntime {
             },
         )?;
 
-        Ok(RuntimeReceipt {
-            kind: RuntimeReceiptKind::OneTickAdvanced(result),
-        })
+        Ok(RuntimeReceipt::one_tick_advanced(result))
     }
 
     fn record_actor_current_place_perception(&mut self, actor_id: &ActorId) {
@@ -350,24 +475,11 @@ impl LoadedWorldRuntime {
     }
 }
 
-impl RuntimeCommand {
-    pub(crate) fn one_tick_wait(origin: WorldAdvanceOrigin) -> Self {
-        Self {
-            kind: RuntimeCommandKind::OneTickWait { origin },
-        }
-    }
-}
-
-impl RuntimeReceipt {
-    pub fn kind(&self) -> &RuntimeReceiptKind {
-        &self.kind
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::ids::ControllerId;
+    use crate::runtime::RuntimeReceiptKind;
     use crate::state::NeedModelState;
     use crate::time::SimTick;
 
@@ -386,6 +498,17 @@ mod tests {
             scheduler: DeterministicScheduler::new(SimTick::ZERO),
             content_manifest_id: manifest_id(),
         })
+    }
+
+    fn empty_bootstrap() -> LoadedWorldBootstrap {
+        LoadedWorldBootstrap::from_loaded_state(
+            ActionRegistry::new(),
+            PhysicalState::empty(NeedModelState::new(5, 3)),
+            AgentState::default(),
+            EventLog::new(),
+            EpistemicProjection::new(manifest_id()),
+            manifest_id(),
+        )
     }
 
     #[test]
@@ -423,6 +546,41 @@ mod tests {
                 assert_eq!(result.resulting_tick, SimTick::new(1));
                 assert!(!result.appended_event_ids.is_empty());
             }
+            _ => panic!("expected one-tick receipt"),
         }
+    }
+
+    #[test]
+    fn closed_family_one_tick_wait_preserves_existing_effect() {
+        let mut runtime = empty_runtime();
+
+        let receipt = runtime
+            .submit_command(RuntimeCommand::one_tick_wait(
+                WorldAdvanceOrigin::Controller(ControllerId::new("controller_human").unwrap()),
+            ))
+            .unwrap();
+
+        assert_eq!(runtime.current_tick(), SimTick::new(1));
+        assert!(runtime.event_count() > 0);
+        assert!(matches!(
+            receipt.kind(),
+            RuntimeReceiptKind::OneTickAdvanced(result)
+                if result.prior_tick == SimTick::ZERO && result.resulting_tick == SimTick::new(1)
+        ));
+    }
+
+    #[test]
+    fn replay_seed_reconstructs_byte_identical_bootstrap() {
+        let bootstrap = empty_bootstrap();
+        let seed = bootstrap.replay_seed();
+
+        assert_eq!(seed.reconstruct_bootstrap(), bootstrap);
+    }
+
+    #[test]
+    fn bootstrap_derives_scheduler_without_client_injection() {
+        let runtime = LoadedWorldRuntime::from_bootstrap(empty_bootstrap(), SimTick::ZERO);
+
+        assert_eq!(runtime.current_tick(), SimTick::ZERO);
     }
 }

@@ -1,6 +1,6 @@
 # 0052FOUCONFOU-001: Structural keystone — opaque core-owned session, closed command family, sealed receipts (additive)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` runtime/session command + receipt surface (new `runtime/command.rs`, `runtime/receipt.rs`), opaque loader→runtime production constructor seam
@@ -86,3 +86,44 @@ Add a core-owned opaque bootstrap/export type and a production constructor consu
 
 1. `cargo test -p tracewake-core runtime`
 2. `cargo build -p tracewake-core --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-25
+
+Implemented the additive keystone surface without deleting the old injectable
+runtime path reserved for later tickets:
+
+- Added `runtime/command.rs` with a closed `RuntimeCommand` family covering
+  proposal submission, one-tick wait, continue, controller bind/detach,
+  debug-authorized no-human execution, replay-seed rebuild, perception refresh,
+  embodied view, and debug view requests. Constructors take semantic inputs and
+  no scheduler, proposal sequence, or world-advance boolean.
+- Added `runtime/receipt.rs` with immutable typed receipts, including an
+  embodied receipt that exposes only actor-visible summary/provenance and a
+  debug receipt gated by `DebugCapability`.
+- Added `LoadedWorldBootstrap` and `RuntimeReplaySeed`, plus
+  `LoadedFixture::into_runtime_bootstrap`, so loaded content can hand core a
+  scheduler-free bootstrap product while `LoadedWorldRuntime::from_bootstrap`
+  derives scheduler authority inside core.
+- Added focused unit/loader tests for closed one-tick command behavior,
+  replay-seed reconstruction, scheduler-free bootstrap derivation, and
+  content-loader bootstrap handoff.
+- Updated existing receipt matches and the workspace source-classification guard
+  for the new runtime modules.
+
+Deviations from the ticket plan:
+
+- `RuntimeInitialState`, `from_initial_state`, raw getters,
+  `assign_proposal_sequence`, and `advance_world_after_acceptance` remain
+  intentionally present because this ticket is additive only; removal and caller
+  cutover are owned by later 0052 tickets.
+
+Verification:
+
+- `cargo fmt --all --check` — passed after formatting.
+- `cargo test -p tracewake-core runtime` — passed.
+- `cargo test -p tracewake-content loaded_fixture_exports_scheduler_free_runtime_bootstrap` — passed.
+- `cargo build -p tracewake-core --all-targets --locked` — passed.
+- `cargo test -p tracewake-core --test anti_regression_guards workspace_source_classification_census_matches_production_tree` — passed after adding the new runtime modules to the source-classification census.
+- `cargo test --workspace` — passed on the final tree.

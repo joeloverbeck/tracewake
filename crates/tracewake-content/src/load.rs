@@ -8,7 +8,7 @@ use tracewake_core::events::{
 use tracewake_core::ids::{
     ActionId, ActorId, ContentManifestId, ContentVersion, EventId, PlaceId, ProcessId,
 };
-use tracewake_core::runtime::RuntimeInitialState;
+use tracewake_core::runtime::{LoadedWorldBootstrap, RuntimeInitialState};
 use tracewake_core::scheduler::DeterministicScheduler;
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use tracewake_core::time::SimTick;
@@ -54,6 +54,20 @@ pub struct LoadedFixture {
 }
 
 impl LoadedFixture {
+    pub fn into_runtime_bootstrap(
+        self,
+        registry: tracewake_core::actions::ActionRegistry,
+    ) -> LoadedWorldBootstrap {
+        LoadedWorldBootstrap::from_loaded_state(
+            registry,
+            self.canonical_world,
+            self.canonical_agent_state,
+            self.seed_event_log,
+            self.epistemic_projection,
+            self.manifest.manifest_id,
+        )
+    }
+
     pub fn into_runtime_initial_state(
         self,
         registry: tracewake_core::actions::ActionRegistry,
@@ -608,6 +622,38 @@ mod tests {
                 assert_eq!(result.due_work_summary.actor_transactions_attempted, 2);
                 assert_eq!(result.due_work_summary.world_processes_applied, 1);
             }
+            other => panic!("expected one-tick receipt, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn loaded_fixture_exports_scheduler_free_runtime_bootstrap() {
+        let bytes = serialize_fixture(&fixture());
+        let loaded = load_fixture_package(
+            ContentManifestId::new("manifest_runtime_bootstrap").unwrap(),
+            ContentVersion::new("content_v1").unwrap(),
+            vec![SourceFile {
+                path: "fixture.twf".to_string(),
+                bytes,
+            }],
+        )
+        .unwrap();
+        let bootstrap =
+            loaded.into_runtime_bootstrap(registry_for_fixture_scope(FixtureScope::Phase1));
+        let mut runtime = LoadedWorldRuntime::from_bootstrap(bootstrap, SimTick::ZERO);
+
+        let receipt = runtime
+            .wait_one_tick(WorldAdvanceOrigin::Controller(
+                ControllerId::new("controller_human").unwrap(),
+            ))
+            .unwrap();
+
+        match receipt.kind() {
+            RuntimeReceiptKind::OneTickAdvanced(result) => {
+                assert_eq!(result.due_work_summary.actor_transactions_attempted, 2);
+                assert_eq!(result.due_work_summary.world_processes_applied, 1);
+            }
+            _ => panic!("expected one-tick receipt"),
         }
     }
 }
