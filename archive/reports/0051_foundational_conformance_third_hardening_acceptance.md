@@ -39,7 +39,7 @@ Implementation, evidence, and archival changes under review:
 - `crates/tracewake-tui/src/render.rs`
 - `crates/tracewake-tui/tests/*` files touched by tickets `-007` through `-009`
 - `docs/1-architecture/*`, `docs/2-execution/*`, and `docs/3-reference/*` status/evidence rows touched by `-011`
-- `reports/0051_foundational_conformance_third_hardening_acceptance.md`
+- `archive/reports/0051_foundational_conformance_third_hardening_acceptance.md`
 
 Unrelated local worktree changes are not included.
 

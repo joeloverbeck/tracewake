@@ -33,7 +33,7 @@ Spec `0051` §7 requires an acceptance artifact that begins from a clean baselin
 
 ### 1. Assemble the acceptance artifact
 
-Author `reports/0051_foundational_conformance_third_hardening_acceptance.md` following `0003_ACCEPTANCE_ARTIFACT_TEMPLATE`. Begin from a clean baseline; name the exact implementation commit (not the proposal baseline `0429a8f`); record the four gate commands (`cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo build --workspace --all-targets --locked`, `cargo test --workspace`); reproduce the preserved focused mutation commands; record the full standing `cargo mutants` disposition (selected denominator + caught/missed/unviable/timeout); and record per-finding closure with real production-path evidence.
+Author `archive/reports/0051_foundational_conformance_third_hardening_acceptance.md` following `0003_ACCEPTANCE_ARTIFACT_TEMPLATE`. Begin from a clean baseline; name the exact implementation commit (not the proposal baseline `0429a8f`); record the four gate commands (`cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo build --workspace --all-targets --locked`, `cargo test --workspace`); reproduce the preserved focused mutation commands; record the full standing `cargo mutants` disposition (selected denominator + caught/missed/unviable/timeout); and record per-finding closure with real production-path evidence.
 
 ### 2. Re-confirm preserved properties
 
@@ -41,7 +41,7 @@ Record the §4.10 preserved-property re-runs (atomic scratch-state cutover, dura
 
 ## Files to Touch
 
-- `reports/0051_foundational_conformance_third_hardening_acceptance.md` (new)
+- `archive/reports/0051_foundational_conformance_third_hardening_acceptance.md` (new)
 
 ## Out of Scope
 
@@ -78,7 +78,9 @@ Record the §4.10 preserved-property re-runs (atomic scratch-state cutover, dura
 
 Completed: 2026-06-24
 
-Created `reports/0051_foundational_conformance_third_hardening_acceptance.md`
+Outcome amended: 2026-06-24
+
+Created `archive/reports/0051_foundational_conformance_third_hardening_acceptance.md`
 as the single scoped acceptance artifact for spec `0051`.
 
 The artifact was built from a clean temporary worktree at exact implementation
@@ -108,7 +110,7 @@ commit `a3b46c6f3f3cbd4ea02ec685a42d2d61be7ce953` and records:
 Additional verification:
 
 1. `cargo test -p tracewake-core --test acceptance_artifact_wording` -> passed.
-2. `rg -n "Phase 1 / Phase 1A third hardening|Exact implementation commit|3275 mutants|23 missed|F-0[1-9]|LoadedWorldRuntime::from_loaded_world|Forbidden wording" reports/0051_foundational_conformance_third_hardening_acceptance.md`
+2. `rg -n "Phase 1 / Phase 1A third hardening|Exact implementation commit|3275 mutants|23 missed|F-0[1-9]|LoadedWorldRuntime::from_loaded_world|Forbidden wording" archive/reports/0051_foundational_conformance_third_hardening_acceptance.md`
    -> confirmed the artifact contains the required scoped wording and evidence
    anchors.
 3. `git diff --check` -> passed.
