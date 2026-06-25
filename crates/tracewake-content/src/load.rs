@@ -64,6 +64,8 @@ impl LoadedFixture {
             self.seed_event_log,
             self.epistemic_projection,
             self.manifest.manifest_id,
+            self.manifest.fixture_id,
+            self.manifest.content_version,
         )
     }
 }

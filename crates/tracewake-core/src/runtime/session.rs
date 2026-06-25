@@ -1,11 +1,29 @@
-use crate::actions::{run_pipeline, ActionRegistry, PipelineContext, PipelineResult, ReportStatus};
-use crate::checksum::ChecksumContext;
+use crate::actions::{
+    run_pipeline, ActionRegistry, PipelineContext, PipelineResult, ReportStatus, ValidationReport,
+};
+use crate::agent::current_place_knowledge_context;
+use crate::checksum::{compute_physical_checksum, ChecksumContext, PhysicalChecksum};
 use crate::controller::ControllerBindings;
+use crate::debug_reports::{
+    action_rejection_report, controller_binding_report, item_location_report,
+    no_human_day_debug_report, phase3a_actor_report, phase3a_needs_report, phase3a_planner_report,
+    phase3a_routines_report, phase3a_stuck_report, projection_rebuild_debug_report,
+    replay_debug_report, ActionRejectionDebugReport, ControllerBindingDebugReport,
+    ItemLocationDebugReport, NoHumanDayDebugReport, Phase3ADebugReport,
+    ProjectionRebuildDebugReport, ReplayDebugReport,
+};
 use crate::epistemics::projection::EpistemicProjection;
 use crate::events::log::EventLog;
-use crate::ids::{ActorId, ContentManifestId, ControllerId, ProposalId};
-use crate::projections::proposal_from_current_view_semantic_action;
-use crate::replay::rebuild_projection;
+use crate::ids::{
+    ActorId, ContentManifestId, ContentVersion, ControllerId, DebugReportId, FixtureId, ItemId,
+    ProposalId,
+};
+use crate::projections::{
+    build_debug_event_log_view, build_embodied_view_model, build_notebook_view,
+    proposal_from_current_view_semantic_action, EmbodiedPreflightSource, EmbodiedProjectionSource,
+    EmbodiedTruthSnapshot, ProjectionError,
+};
+use crate::replay::{rebuild_projection, run_replay};
 use crate::scheduler::no_human::{
     default_day_windows, run_no_human_day, NoHumanDayConfig, NoHumanDayReport,
 };
@@ -16,6 +34,10 @@ use crate::scheduler::{
 };
 use crate::state::{AgentState, ControllerMode, PhysicalState};
 use crate::time::SimTick;
+use crate::view_models::{
+    DebugBeliefsView, DebugEpistemicsView, DebugObservationsView, EmbodiedViewModel,
+    TypedActorKnownIntervalSummary,
+};
 
 use super::command::{RuntimeCommand, RuntimeCommandKind};
 use super::receipt::{
@@ -33,6 +55,8 @@ pub(crate) struct RuntimeInitialState {
     controller_bindings: ControllerBindings,
     scheduler: DeterministicScheduler,
     content_manifest_id: ContentManifestId,
+    fixture_id: FixtureId,
+    content_version: ContentVersion,
 }
 
 /// Scheduler-free loaded-world bootstrap product.
@@ -48,6 +72,8 @@ pub struct LoadedWorldBootstrap {
     epistemic_projection: EpistemicProjection,
     controller_bindings: ControllerBindings,
     content_manifest_id: ContentManifestId,
+    fixture_id: FixtureId,
+    content_version: ContentVersion,
 }
 
 /// Opaque replay seed for reconstructing the accepted initial aggregates
@@ -68,6 +94,10 @@ pub struct LoadedWorldRuntime {
     controller_bindings: ControllerBindings,
     scheduler: DeterministicScheduler,
     content_manifest_id: ContentManifestId,
+    fixture_id: FixtureId,
+    content_version: ContentVersion,
+    initial_physical_state: PhysicalState,
+    initial_agent_state: AgentState,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -83,6 +113,7 @@ impl From<WorldAdvanceError> for RuntimeCommandError {
 }
 
 impl LoadedWorldBootstrap {
+    #[allow(clippy::too_many_arguments)]
     pub fn from_loaded_state(
         registry: ActionRegistry,
         physical_state: PhysicalState,
@@ -90,6 +121,8 @@ impl LoadedWorldBootstrap {
         event_log: EventLog,
         epistemic_projection: EpistemicProjection,
         content_manifest_id: ContentManifestId,
+        fixture_id: FixtureId,
+        content_version: ContentVersion,
     ) -> Self {
         Self {
             registry,
@@ -99,6 +132,8 @@ impl LoadedWorldBootstrap {
             epistemic_projection,
             controller_bindings: ControllerBindings::new(),
             content_manifest_id,
+            fixture_id,
+            content_version,
         }
     }
 
@@ -117,6 +152,8 @@ impl RuntimeReplaySeed {
 
 impl LoadedWorldRuntime {
     pub(crate) fn from_initial_state(initial: RuntimeInitialState) -> Self {
+        let initial_physical_state = initial.physical_state.clone();
+        let initial_agent_state = initial.agent_state.clone();
         Self {
             registry: initial.registry,
             physical_state: initial.physical_state,
@@ -126,6 +163,10 @@ impl LoadedWorldRuntime {
             controller_bindings: initial.controller_bindings,
             scheduler: initial.scheduler,
             content_manifest_id: initial.content_manifest_id,
+            fixture_id: initial.fixture_id,
+            content_version: initial.content_version,
+            initial_physical_state,
+            initial_agent_state,
         }
     }
 
@@ -149,6 +190,8 @@ impl LoadedWorldRuntime {
             controller_bindings: bootstrap.controller_bindings,
             scheduler,
             content_manifest_id: bootstrap.content_manifest_id,
+            fixture_id: bootstrap.fixture_id,
+            content_version: bootstrap.content_version,
         })
     }
 
@@ -156,40 +199,178 @@ impl LoadedWorldRuntime {
         self.event_log.events().len()
     }
 
-    pub fn registry(&self) -> &ActionRegistry {
-        &self.registry
+    pub fn actor_exists(&self, actor_id: &ActorId) -> bool {
+        self.physical_state.actors().contains_key(actor_id)
     }
 
-    pub fn physical_state(&self) -> &PhysicalState {
-        &self.physical_state
+    pub fn controller_debug_available_for(
+        &self,
+        controller_id: &ControllerId,
+        actor_id: &ActorId,
+    ) -> bool {
+        self.controller_bindings
+            .binding(controller_id)
+            .is_some_and(|binding| {
+                binding.binding.bound_actor_id.as_ref() == Some(actor_id)
+                    && matches!(binding.binding.mode, ControllerMode::Debug)
+            })
     }
 
-    pub fn agent_state(&self) -> &AgentState {
-        &self.agent_state
+    pub fn embodied_view_model(
+        &self,
+        controller_id: &ControllerId,
+        actor_id: &ActorId,
+        last_rejection: Option<&ValidationReport>,
+        actor_known_interval_summary: Option<TypedActorKnownIntervalSummary>,
+    ) -> Result<EmbodiedViewModel, ProjectionError> {
+        let context = self.current_view_context(actor_id);
+        let snapshot = EmbodiedTruthSnapshot::from_physical_state(&context, &self.physical_state);
+        let source = EmbodiedProjectionSource::from_sealed_context(
+            &context,
+            snapshot,
+            Some(&self.agent_state),
+        );
+        let preflight = EmbodiedPreflightSource::new(
+            &self.physical_state,
+            &self.registry,
+            &self.content_manifest_id,
+        );
+        let mut view = build_embodied_view_model(&context, &source, &preflight, last_rejection)?;
+        view.set_notebook(Some(build_notebook_view(
+            &self.epistemic_projection,
+            &context,
+        )));
+        view.set_actor_known_interval_summary(actor_known_interval_summary);
+        view.set_debug_available(self.controller_debug_available_for(controller_id, actor_id));
+        Ok(view)
     }
 
-    pub fn event_log(&self) -> &EventLog {
-        &self.event_log
+    pub fn physical_checksum(&self) -> PhysicalChecksum {
+        compute_physical_checksum(&self.physical_state, &self.checksum_context()).checksum
     }
 
-    pub fn epistemic_projection(&self) -> &EpistemicProjection {
-        &self.epistemic_projection
+    pub fn checksum_context(&self) -> ChecksumContext {
+        self.checksum_context_at(self.scheduler.current_tick())
     }
 
-    pub fn controller_bindings(&self) -> &ControllerBindings {
-        &self.controller_bindings
+    pub fn checksum_context_at(&self, sim_tick: SimTick) -> ChecksumContext {
+        self.checksum_context_for_log(sim_tick, &self.event_log)
     }
 
-    pub fn content_manifest_id(&self) -> &ContentManifestId {
-        &self.content_manifest_id
+    fn checksum_context_for_log(&self, sim_tick: SimTick, log: &EventLog) -> ChecksumContext {
+        ChecksumContext {
+            fixture_id: self.fixture_id.clone(),
+            content_version: self.content_version.clone(),
+            sim_tick,
+            world_stream_position_applied: Self::world_stream_position_applied_for_log(log),
+        }
     }
 
-    pub fn bind_actor(
-        &mut self,
-        controller_id: ControllerId,
-        actor_id: ActorId,
-        mode: ControllerMode,
-    ) {
+    pub fn debug_event_log_view(&self) -> crate::view_models::DebugEventLogView {
+        build_debug_event_log_view(&self.event_log)
+    }
+
+    pub fn controller_binding_debug_report(
+        &self,
+        report_id: DebugReportId,
+    ) -> ControllerBindingDebugReport {
+        controller_binding_report(report_id, &self.controller_bindings)
+    }
+
+    pub fn item_location_debug_report(
+        &self,
+        _report_id: DebugReportId,
+        item_id: &ItemId,
+    ) -> ItemLocationDebugReport {
+        item_location_report(
+            &self.physical_state,
+            &self.event_log,
+            item_id,
+            &self.checksum_context(),
+        )
+    }
+
+    pub fn action_rejection_debug_report(
+        &self,
+        report: &ValidationReport,
+    ) -> ActionRejectionDebugReport {
+        action_rejection_report(report, &self.physical_state, &self.checksum_context())
+    }
+
+    pub fn projection_rebuild_debug_report(
+        &self,
+        report_id: DebugReportId,
+    ) -> ProjectionRebuildDebugReport {
+        projection_rebuild_debug_report(
+            report_id,
+            rebuild_projection(
+                &self.initial_physical_state,
+                &self.initial_agent_state,
+                &self.event_log,
+                &self.checksum_context(),
+                Some(&self.physical_state),
+            ),
+        )
+    }
+
+    pub fn replay_debug_report(&self, report_id: DebugReportId) -> ReplayDebugReport {
+        replay_debug_report(
+            report_id,
+            run_replay(
+                &self.initial_physical_state,
+                &self.initial_agent_state,
+                &self.event_log,
+                &self.checksum_context_at(SimTick::ZERO),
+                Some(&self.physical_state),
+                None,
+                None,
+            ),
+        )
+    }
+
+    pub fn phase3a_needs_debug_report(&self) -> Phase3ADebugReport {
+        phase3a_needs_report(&self.agent_state)
+    }
+
+    pub fn phase3a_routines_debug_report(&self) -> Phase3ADebugReport {
+        phase3a_routines_report(&self.agent_state)
+    }
+
+    pub fn phase3a_planner_debug_report(&self, actor_id: &ActorId) -> Phase3ADebugReport {
+        phase3a_planner_report(&self.agent_state, actor_id)
+    }
+
+    pub fn phase3a_stuck_debug_report(&self) -> Phase3ADebugReport {
+        phase3a_stuck_report(&self.agent_state)
+    }
+
+    pub fn no_human_day_debug_report(&self) -> NoHumanDayDebugReport {
+        no_human_day_debug_report(&self.event_log)
+    }
+
+    pub fn phase3a_actor_debug_report(&self, actor_id: &ActorId) -> Phase3ADebugReport {
+        phase3a_actor_report(&self.agent_state, actor_id)
+    }
+
+    pub fn debug_epistemics_view(&self) -> DebugEpistemicsView {
+        self.epistemic_projection.debug_epistemics_view()
+    }
+
+    pub fn debug_beliefs_view(&self, actor_id: &ActorId) -> Option<DebugBeliefsView> {
+        self.actor_exists(actor_id).then(|| {
+            self.epistemic_projection
+                .debug_beliefs_view(actor_id.clone())
+        })
+    }
+
+    pub fn debug_observations_view(&self, actor_id: &ActorId) -> Option<DebugObservationsView> {
+        self.actor_exists(actor_id).then(|| {
+            self.epistemic_projection
+                .debug_observations_view(actor_id.clone())
+        })
+    }
+
+    fn bind_actor(&mut self, controller_id: ControllerId, actor_id: ActorId, mode: ControllerMode) {
         self.controller_bindings.attach(
             controller_id,
             actor_id.clone(),
@@ -201,7 +382,7 @@ impl LoadedWorldRuntime {
         self.record_actor_current_place_perception(&actor_id);
     }
 
-    pub fn detach_controller(&mut self, controller_id: &ControllerId) {
+    fn detach_controller(&mut self, controller_id: &ControllerId) {
         self.controller_bindings.detach(
             controller_id,
             self.scheduler.current_tick(),
@@ -297,32 +478,68 @@ impl LoadedWorldRuntime {
         )?)
     }
 
-    pub fn run_no_human_day(
-        &mut self,
-        actor_ids: Vec<ActorId>,
-    ) -> Result<NoHumanDayReport, RuntimeCommandError> {
+    fn run_no_human_day(&mut self) -> Result<NoHumanDayReport, RuntimeCommandError> {
         let windows = default_day_windows(self.scheduler.current_tick());
-        Ok(run_no_human_day(
-            &mut self.physical_state,
-            &mut self.agent_state,
-            &mut self.event_log,
+        let actor_ids = self.physical_state.actors().keys().cloned().collect();
+        let mut physical_state = self.physical_state.clone();
+        let mut agent_state = self.agent_state.clone();
+        let mut event_log = self.event_log.clone();
+        let report = run_no_human_day(
+            &mut physical_state,
+            &mut agent_state,
+            &mut event_log,
             &self.registry,
             self.content_manifest_id.clone(),
             NoHumanDayConfig { actor_ids, windows },
-        ))
+        );
+        let checksum_context =
+            self.checksum_context_for_log(self.scheduler.current_tick(), &event_log);
+        let rebuild = rebuild_projection(
+            &self.initial_physical_state,
+            &self.initial_agent_state,
+            &event_log,
+            &checksum_context,
+            Some(&physical_state),
+        );
+        let scheduler = DeterministicScheduler::restore_from_rebuild_report(
+            &rebuild,
+            self.content_manifest_id.clone(),
+        )
+        .ok_or(RuntimeCommandError::SchedulerRestoreFailed)?;
+        physical_state = rebuild.final_state;
+        agent_state = rebuild.final_agent_state;
+        let mut epistemic_projection = rebuild.final_epistemic_projection;
+        let bound_actor_ids = self
+            .controller_bindings
+            .debug_bindings()
+            .iter()
+            .filter_map(|binding| binding.binding.bound_actor_id.clone())
+            .collect::<Vec<_>>();
+        for actor_id in bound_actor_ids {
+            scheduler.record_actor_current_place_perception(
+                &mut physical_state,
+                &mut agent_state,
+                &mut event_log,
+                &mut epistemic_projection,
+                &actor_id,
+                &self.content_manifest_id,
+            );
+        }
+        self.physical_state = physical_state;
+        self.agent_state = agent_state;
+        self.event_log = event_log;
+        self.epistemic_projection = epistemic_projection;
+        self.scheduler = scheduler;
+        Ok(report)
     }
 
-    pub fn rebuild_from_owned_log(
-        &mut self,
-        initial_state: &PhysicalState,
-        initial_agent_state: &AgentState,
-        checksum_context: &ChecksumContext,
-    ) -> Result<(), RuntimeCommandError> {
+    fn rebuild_from_owned_log(&mut self) -> Result<(), RuntimeCommandError> {
+        let checksum_context = self.checksum_context();
         let rebuild = rebuild_projection(
-            initial_state,
-            initial_agent_state,
+            &self.initial_physical_state,
+            &self.initial_agent_state,
             &self.event_log,
-            checksum_context,
+            &checksum_context,
             Some(&self.physical_state),
         );
         self.scheduler = DeterministicScheduler::restore_from_rebuild_report(
@@ -334,10 +551,6 @@ impl LoadedWorldRuntime {
         self.agent_state = rebuild.final_agent_state;
         self.epistemic_projection = rebuild.final_epistemic_projection;
         Ok(())
-    }
-
-    pub fn refresh_actor_current_place_perception(&mut self, actor_id: &ActorId) {
-        self.record_actor_current_place_perception(actor_id);
     }
 
     pub fn submit_command(
@@ -380,8 +593,9 @@ impl LoadedWorldRuntime {
             RuntimeCommandKind::BindController {
                 controller_id,
                 actor_id,
+                mode,
             } => {
-                self.bind_actor(controller_id, actor_id, ControllerMode::Embodied);
+                self.bind_actor(controller_id, actor_id, mode);
                 Ok(RuntimeReceipt::embodied(EmbodiedRuntimeReceipt::new(
                     "Controller binding changed.",
                     vec!["runtime:controller_binding".to_string()],
@@ -395,26 +609,14 @@ impl LoadedWorldRuntime {
                 )))
             }
             RuntimeCommandKind::RunNoHumanDay { .. } => {
-                let result = self.run_no_human_day(Vec::new())?;
-                Ok(RuntimeReceipt::embodied(EmbodiedRuntimeReceipt::new(
-                    format!(
-                        "No-human day advanced over {} window(s).",
-                        result.window_ids.len()
-                    ),
-                    vec!["runtime:no_human_day".to_string()],
-                )))
+                let result = self.run_no_human_day()?;
+                Ok(RuntimeReceipt::no_human_day(result))
             }
             RuntimeCommandKind::RebuildFromReplaySeed => {
+                self.rebuild_from_owned_log()?;
                 Ok(RuntimeReceipt::embodied(EmbodiedRuntimeReceipt::new(
                     "Replay seed rebuild requested.",
                     vec!["runtime:replay_seed".to_string()],
-                )))
-            }
-            RuntimeCommandKind::RefreshActorCurrentPlacePerception { actor_id } => {
-                self.refresh_actor_current_place_perception(&actor_id);
-                Ok(RuntimeReceipt::embodied(EmbodiedRuntimeReceipt::new(
-                    "Current-place perception refreshed.",
-                    vec!["runtime:perception_refresh".to_string()],
                 )))
             }
             RuntimeCommandKind::EmbodiedView { actor_id } => {
@@ -468,6 +670,25 @@ impl LoadedWorldRuntime {
         Ok(RuntimeReceipt::one_tick_advanced(result))
     }
 
+    fn current_view_context(&self, actor_id: &ActorId) -> crate::epistemics::KnowledgeContext {
+        current_place_knowledge_context(
+            &self.physical_state,
+            Some(&self.epistemic_projection),
+            actor_id,
+            self.scheduler.current_tick(),
+            &self.content_manifest_id,
+            self.event_log.events().len() as u64,
+        )
+    }
+
+    fn world_stream_position_applied_for_log(log: &EventLog) -> u64 {
+        log.events()
+            .iter()
+            .filter(|event| event.stream == crate::events::EventStream::World)
+            .count()
+            .saturating_sub(1) as u64
+    }
+
     fn record_actor_current_place_perception(&mut self, actor_id: &ActorId) {
         self.scheduler.record_actor_current_place_perception(
             &mut self.physical_state,
@@ -492,6 +713,14 @@ mod tests {
         ContentManifestId::new("runtime_session_test").unwrap()
     }
 
+    fn fixture_id() -> FixtureId {
+        FixtureId::new("runtime_session_test").unwrap()
+    }
+
+    fn content_version() -> ContentVersion {
+        ContentVersion::new("content_v1").unwrap()
+    }
+
     fn empty_runtime() -> LoadedWorldRuntime {
         LoadedWorldRuntime::from_initial_state(RuntimeInitialState {
             registry: ActionRegistry::new(),
@@ -502,6 +731,8 @@ mod tests {
             controller_bindings: ControllerBindings::new(),
             scheduler: DeterministicScheduler::new(SimTick::ZERO),
             content_manifest_id: manifest_id(),
+            fixture_id: fixture_id(),
+            content_version: content_version(),
         })
     }
 
@@ -513,6 +744,8 @@ mod tests {
             EventLog::new(),
             EpistemicProjection::new(manifest_id()),
             manifest_id(),
+            fixture_id(),
+            content_version(),
         )
     }
 

@@ -1,31 +1,19 @@
 use tracewake_content::fixtures::{self, GoldenFixture};
 use tracewake_content::load::{load_fixture_package, LoadError};
 use tracewake_core::actions::{ActionRegistry, ReportStatus, ValidationReport};
-use tracewake_core::agent::current_place_knowledge_context;
-use tracewake_core::checksum::{compute_physical_checksum, ChecksumContext, PhysicalChecksum};
-use tracewake_core::debug_reports::{
-    action_rejection_report, controller_binding_report, item_location_report,
-    no_human_day_debug_report, phase3a_actor_report, phase3a_needs_report, phase3a_planner_report,
-    phase3a_routines_report, phase3a_stuck_report, projection_rebuild_debug_report,
-    replay_debug_report,
-};
-use tracewake_core::epistemics::KnowledgeContext;
+use tracewake_core::checksum::PhysicalChecksum;
 use tracewake_core::ids::{
-    ActorId, ContentManifestId, ContentVersion, ControllerId, DebugReportId, FixtureId, ItemId,
+    ActorId, ContentManifestId, ContentVersion, ControllerId, DebugReportId, ItemId,
     SemanticActionId,
 };
-use tracewake_core::projections::{
-    build_debug_event_log_view, build_embodied_view_model, build_notebook_view,
-    EmbodiedPreflightSource, EmbodiedProjectionSource, EmbodiedTruthSnapshot, ProjectionError,
-};
-use tracewake_core::replay::{rebuild_projection, run_replay};
+use tracewake_core::projections::ProjectionError;
 use tracewake_core::runtime::{
     LoadedWorldRuntime, RuntimeActionReceipt, RuntimeCommand, RuntimeCommandError,
     RuntimeReceiptKind,
 };
 use tracewake_core::scheduler::no_human::NoHumanDayReport;
 use tracewake_core::scheduler::{AdvanceUntilResult, WorldAdvanceError};
-use tracewake_core::state::{AgentState, ControllerMode, PhysicalState};
+use tracewake_core::state::ControllerMode;
 use tracewake_core::time::SimTick;
 use tracewake_core::view_models::{
     DebugBeliefsView, DebugEpistemicsView, DebugObservationsView, EmbodiedViewModel, NotebookView,
@@ -65,13 +53,9 @@ impl From<ProjectionError> for AppError {
 }
 
 pub struct TuiApp {
-    initial_state: PhysicalState,
-    initial_agent_state: AgentState,
     runtime: LoadedWorldRuntime,
     controller_id: ControllerId,
     bound_actor_id: Option<ActorId>,
-    fixture_id: FixtureId,
-    content_version: ContentVersion,
     last_rejection: Option<ValidationReport>,
     last_interval_summary: Option<TypedActorKnownIntervalSummary>,
 }
@@ -97,22 +81,14 @@ impl TuiApp {
         registry.register_phase3a_eat();
         registry.register_phase3a_work();
         registry.register_phase3a_continue_routine();
-        let content_version = loaded.manifest.content_version.clone();
-        let fixture_id = loaded.manifest.fixture_id.clone();
-        let initial_state = loaded.canonical_world.clone();
-        let initial_agent_state = loaded.canonical_agent_state.clone();
         let runtime = LoadedWorldRuntime::from_bootstrap(
             loaded.into_runtime_bootstrap(registry),
             SimTick::ZERO,
         );
         Ok(Self {
-            initial_state,
-            initial_agent_state,
             runtime,
             controller_id: ControllerId::new("controller_human").unwrap(),
             bound_actor_id: None,
-            fixture_id,
-            content_version,
             last_rejection: None,
             last_interval_summary: None,
         })
@@ -131,16 +107,23 @@ impl TuiApp {
         actor_id: ActorId,
         mode: ControllerMode,
     ) -> Result<(), AppError> {
-        if !self
-            .runtime
-            .physical_state()
-            .actors()
-            .contains_key(&actor_id)
-        {
+        if !self.runtime.actor_exists(&actor_id) {
             return Err(AppError::ActorNotFound(actor_id));
         }
+        let command = match mode {
+            ControllerMode::Embodied => {
+                RuntimeCommand::bind_controller(self.controller_id.clone(), actor_id.clone())
+            }
+            ControllerMode::Debug => {
+                RuntimeCommand::bind_debug_controller(self.controller_id.clone(), actor_id.clone())
+            }
+            ControllerMode::Detached => {
+                RuntimeCommand::detach_controller(self.controller_id.clone())
+            }
+        };
         self.runtime
-            .bind_actor(self.controller_id.clone(), actor_id.clone(), mode);
+            .submit_command(command)
+            .map_err(AppError::Runtime)?;
         self.bound_actor_id = Some(actor_id);
         self.last_rejection = None;
         Ok(())
@@ -151,56 +134,25 @@ impl TuiApp {
             .bound_actor_id
             .as_ref()
             .ok_or(AppError::ActorNotBound)?;
-        let context = self.current_view_context(actor_id);
-        let snapshot =
-            EmbodiedTruthSnapshot::from_physical_state(&context, self.runtime.physical_state());
-        let source = EmbodiedProjectionSource::from_sealed_context(
-            &context,
-            snapshot,
-            Some(self.runtime.agent_state()),
-        );
-        let preflight = EmbodiedPreflightSource::new(
-            self.runtime.physical_state(),
-            self.runtime.registry(),
-            self.runtime.content_manifest_id(),
-        );
-        let mut view =
-            build_embodied_view_model(&context, &source, &preflight, self.last_rejection.as_ref())
-                .map_err(AppError::from)?;
-        view.set_notebook(Some(build_notebook_view(
-            self.runtime.epistemic_projection(),
-            &context,
-        )));
-        view.set_debug_available(self.debug_available_for(actor_id));
-        view.set_actor_known_interval_summary(self.last_interval_summary.clone());
-        Ok(view)
+        self.runtime
+            .embodied_view_model(
+                &self.controller_id,
+                actor_id,
+                self.last_rejection.as_ref(),
+                self.last_interval_summary.clone(),
+            )
+            .map_err(AppError::from)
     }
 
     fn debug_available_for(&self, actor_id: &ActorId) -> bool {
         self.runtime
-            .controller_bindings()
-            .binding(&self.controller_id)
-            .is_some_and(|binding| {
-                binding.binding.bound_actor_id.as_ref() == Some(actor_id)
-                    && matches!(binding.binding.mode, ControllerMode::Debug)
-            })
+            .controller_debug_available_for(&self.controller_id, actor_id)
     }
 
     pub fn debug_available(&self) -> bool {
         self.bound_actor_id
             .as_ref()
             .is_some_and(|actor_id| self.debug_available_for(actor_id))
-    }
-
-    fn current_view_context(&self, actor_id: &ActorId) -> KnowledgeContext {
-        current_place_knowledge_context(
-            self.runtime.physical_state(),
-            Some(self.runtime.epistemic_projection()),
-            actor_id,
-            self.runtime.current_tick(),
-            self.runtime.content_manifest_id(),
-            self.runtime.event_log().events().len() as u64,
-        )
     }
 
     pub fn render_current_view(&self) -> Result<String, AppError> {
@@ -291,137 +243,83 @@ impl TuiApp {
         if !self.debug_available() {
             return Err(AppError::DebugUnavailable);
         }
-        let report = self
+        let receipt = self
             .runtime
-            .run_no_human_day(Vec::new())
+            .submit_command(RuntimeCommand::run_no_human_day())
             .map_err(AppError::Runtime)?;
-        let checksum_context = self.checksum_context();
-        self.runtime
-            .rebuild_from_owned_log(
-                &self.initial_state,
-                &self.initial_agent_state,
-                &checksum_context,
-            )
-            .map_err(AppError::Runtime)?;
-        if let Some(actor_id) = self.bound_actor_id.clone() {
-            self.runtime
-                .refresh_actor_current_place_perception(&actor_id);
-        }
+        let report = receipt
+            .into_no_human_day_report()
+            .expect("run_no_human_day command returns a no-human report");
         self.last_rejection = None;
         Ok(report)
     }
 
     pub fn physical_checksum(&self) -> PhysicalChecksum {
-        compute_physical_checksum(self.runtime.physical_state(), &self.checksum_context()).checksum
-    }
-
-    pub fn checksum_context(&self) -> ChecksumContext {
-        self.checksum_context_at(self.runtime.current_tick())
-    }
-
-    pub fn checksum_context_at(&self, sim_tick: SimTick) -> ChecksumContext {
-        ChecksumContext {
-            fixture_id: self.fixture_id.clone(),
-            content_version: self.content_version.clone(),
-            sim_tick,
-            world_stream_position_applied: self
-                .runtime
-                .event_log()
-                .events()
-                .iter()
-                .filter(|event| event.stream == tracewake_core::events::EventStream::World)
-                .count()
-                .saturating_sub(1) as u64,
-        }
+        self.runtime.physical_checksum()
     }
 
     pub fn render_debug_event_log_panel(&self) -> String {
-        render_event_log_panel(&build_debug_event_log_view(self.runtime.event_log()))
+        render_event_log_panel(&self.runtime.debug_event_log_view())
     }
 
     pub fn render_debug_controller_binding_panel(&self) -> String {
-        let report = controller_binding_report(
+        let report = self.runtime.controller_binding_debug_report(
             DebugReportId::new("debug.controller_bindings").unwrap(),
-            self.runtime.controller_bindings(),
         );
         render_controller_binding_panel(&report)
     }
 
     pub fn render_debug_item_location_panel(&self, item_id: &ItemId) -> String {
-        let report = item_location_report(
-            self.runtime.physical_state(),
-            self.runtime.event_log(),
+        let report = self.runtime.item_location_debug_report(
+            DebugReportId::new("debug.item_location").unwrap(),
             item_id,
-            &self.checksum_context(),
         );
         render_item_location_panel(&report)
     }
 
     pub fn render_debug_action_rejection_panel(&self) -> Option<String> {
         let report = self.last_rejection.as_ref()?;
-        Some(render_action_rejection_panel(&action_rejection_report(
-            report,
-            self.runtime.physical_state(),
-            &self.checksum_context(),
-        )))
+        Some(render_action_rejection_panel(
+            &self.runtime.action_rejection_debug_report(report),
+        ))
     }
 
     pub fn render_debug_projection_rebuild_panel(&self) -> String {
-        let report = rebuild_projection(
-            &self.initial_state,
-            &self.initial_agent_state,
-            self.runtime.event_log(),
-            &self.checksum_context(),
-            Some(self.runtime.physical_state()),
-        );
-        render_projection_rebuild_panel(&projection_rebuild_debug_report(
+        render_projection_rebuild_panel(&self.runtime.projection_rebuild_debug_report(
             DebugReportId::new("debug.projection_rebuild").unwrap(),
-            report,
         ))
     }
 
     pub fn render_debug_replay_panel(&self) -> String {
-        let replay_context = self.checksum_context_at(SimTick::ZERO);
-        let report = run_replay(
-            &self.initial_state,
-            &self.initial_agent_state,
-            self.runtime.event_log(),
-            &replay_context,
-            Some(self.runtime.physical_state()),
-            None,
-            None,
-        );
-        render_replay_panel(&replay_debug_report(
-            DebugReportId::new("debug.replay").unwrap(),
-            report,
-        ))
+        render_replay_panel(
+            &self
+                .runtime
+                .replay_debug_report(DebugReportId::new("debug.replay").unwrap()),
+        )
     }
 
     pub fn render_debug_needs_panel(&self) -> String {
-        render_phase3a_debug_panel(&phase3a_needs_report(self.runtime.agent_state()))
+        render_phase3a_debug_panel(&self.runtime.phase3a_needs_debug_report())
     }
 
     pub fn render_debug_routines_panel(&self) -> String {
-        render_phase3a_debug_panel(&phase3a_routines_report(self.runtime.agent_state()))
+        render_phase3a_debug_panel(&self.runtime.phase3a_routines_debug_report())
     }
 
     pub fn render_debug_planner_panel(&self, actor_id: &ActorId) -> String {
-        render_phase3a_debug_panel(&phase3a_planner_report(
-            self.runtime.agent_state(),
-            actor_id,
-        ))
+        render_phase3a_debug_panel(&self.runtime.phase3a_planner_debug_report(actor_id))
     }
 
     pub fn render_debug_stuck_panel(&self) -> String {
-        render_phase3a_debug_panel(&phase3a_stuck_report(self.runtime.agent_state()))
+        render_phase3a_debug_panel(&self.runtime.phase3a_stuck_debug_report())
     }
 
     pub fn render_debug_no_human_day_panel(&self) -> String {
-        render_no_human_day_panel(&no_human_day_debug_report(self.runtime.event_log()))
+        render_no_human_day_panel(&self.runtime.no_human_day_debug_report())
     }
 
     pub fn render_debug_actor_panel(&self, actor_id: &ActorId) -> String {
-        render_phase3a_debug_panel(&phase3a_actor_report(self.runtime.agent_state(), actor_id))
+        render_phase3a_debug_panel(&self.runtime.phase3a_actor_debug_report(actor_id))
     }
 
     pub fn notebook_view(&self) -> Result<NotebookView, AppError> {
@@ -429,45 +327,31 @@ impl TuiApp {
     }
 
     pub fn debug_epistemics_view(&self) -> DebugEpistemicsView {
-        self.runtime.epistemic_projection().debug_epistemics_view()
+        self.runtime.debug_epistemics_view()
     }
 
     pub fn debug_beliefs_view(&self, actor_id: &ActorId) -> Result<DebugBeliefsView, AppError> {
-        if !self
-            .runtime
-            .physical_state()
-            .actors()
-            .contains_key(actor_id)
-        {
-            return Err(AppError::ActorNotFound(actor_id.clone()));
-        }
-        Ok(self
-            .runtime
-            .epistemic_projection()
-            .debug_beliefs_view(actor_id.clone()))
+        self.runtime
+            .debug_beliefs_view(actor_id)
+            .ok_or_else(|| AppError::ActorNotFound(actor_id.clone()))
     }
 
     pub fn debug_observations_view(
         &self,
         actor_id: &ActorId,
     ) -> Result<DebugObservationsView, AppError> {
-        if !self
-            .runtime
-            .physical_state()
-            .actors()
-            .contains_key(actor_id)
-        {
-            return Err(AppError::ActorNotFound(actor_id.clone()));
-        }
-        Ok(self
-            .runtime
-            .epistemic_projection()
-            .debug_observations_view(actor_id.clone()))
+        self.runtime
+            .debug_observations_view(actor_id)
+            .ok_or_else(|| AppError::ActorNotFound(actor_id.clone()))
     }
 
     #[cfg(test)]
     fn detach_controller_for_test(&mut self) {
-        self.runtime.detach_controller(&self.controller_id);
+        self.runtime
+            .submit_command(RuntimeCommand::detach_controller(
+                self.controller_id.clone(),
+            ))
+            .unwrap();
     }
 }
 
@@ -511,23 +395,13 @@ mod tests {
 
         app.advance_until(0).unwrap();
         assert!(app.last_interval_summary.is_some());
-        let log_len = app.runtime.event_log().events().len();
-        let projection_checksum = app
-            .runtime
-            .epistemic_projection()
-            .compute_checksum()
-            .checksum;
+        let event_count = app.event_count();
+        let physical_checksum = app.physical_checksum();
 
         let _rendered = app.render_current_view().unwrap();
 
-        assert_eq!(app.runtime.event_log().events().len(), log_len);
-        assert_eq!(
-            app.runtime
-                .epistemic_projection()
-                .compute_checksum()
-                .checksum,
-            projection_checksum
-        );
+        assert_eq!(app.event_count(), event_count);
+        assert_eq!(app.physical_checksum(), physical_checksum);
     }
 
     #[test]

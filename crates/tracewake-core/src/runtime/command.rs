@@ -1,6 +1,7 @@
 use crate::debug_capability::DebugCapability;
 use crate::ids::{ActorId, ControllerId};
 use crate::scheduler::WorldAdvanceOrigin;
+use crate::state::ControllerMode;
 use crate::view_models::{EmbodiedViewModel, SemanticActionEntry};
 
 /// Closed runtime command token.
@@ -31,6 +32,7 @@ pub(crate) enum RuntimeCommandKind {
     BindController {
         controller_id: ControllerId,
         actor_id: ActorId,
+        mode: ControllerMode,
     },
     DetachController {
         controller_id: ControllerId,
@@ -39,9 +41,6 @@ pub(crate) enum RuntimeCommandKind {
         _capability: DebugCapability,
     },
     RebuildFromReplaySeed,
-    RefreshActorCurrentPlacePerception {
-        actor_id: ActorId,
-    },
     EmbodiedView {
         actor_id: ActorId,
     },
@@ -92,6 +91,17 @@ impl RuntimeCommand {
             kind: RuntimeCommandKind::BindController {
                 controller_id,
                 actor_id,
+                mode: ControllerMode::Embodied,
+            },
+        }
+    }
+
+    pub fn bind_debug_controller(controller_id: ControllerId, actor_id: ActorId) -> Self {
+        Self {
+            kind: RuntimeCommandKind::BindController {
+                controller_id,
+                actor_id,
+                mode: ControllerMode::Debug,
             },
         }
     }
@@ -102,10 +112,10 @@ impl RuntimeCommand {
         }
     }
 
-    pub fn run_no_human_day(capability: DebugCapability) -> Self {
+    pub fn run_no_human_day() -> Self {
         Self {
             kind: RuntimeCommandKind::RunNoHumanDay {
-                _capability: capability,
+                _capability: DebugCapability::mint(),
             },
         }
     }
@@ -113,12 +123,6 @@ impl RuntimeCommand {
     pub fn rebuild_from_replay_seed() -> Self {
         Self {
             kind: RuntimeCommandKind::RebuildFromReplaySeed,
-        }
-    }
-
-    pub fn refresh_actor_current_place_perception(actor_id: ActorId) -> Self {
-        Self {
-            kind: RuntimeCommandKind::RefreshActorCurrentPlacePerception { actor_id },
         }
     }
 

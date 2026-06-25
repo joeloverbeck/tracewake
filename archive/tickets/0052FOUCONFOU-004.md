@@ -1,6 +1,6 @@
 # 0052FOUCONFOU-004: F4-07 — complete TUI de-authority over no-human / replay / perception / view / checksum / debug (atomic cutover)
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — removes public raw aggregate getters; folds no-human/rebuild/perception/view/checksum/debug into typed commands and sealed receipts behind the existing debug capability
@@ -90,3 +90,22 @@ Rewrite `current_view` / `run_no_human_day` to submit typed commands and consume
 
 1. `cargo test -p tracewake-tui --test command_loop_session`
 2. `cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-25
+
+Implemented the TUI de-authority cutover for the runtime-owned view/debug/no-human/checksum surface. `LoadedWorldRuntime` now retains accepted initial aggregates plus fixture/version metadata, exposes core-owned facade methods for embodied view construction, checksums, debug reports, and epistemic debug views, and no longer exposes the public raw aggregate getters or public rebuild/perception mutators targeted by this ticket.
+
+No-human advancement now runs through `RuntimeCommand::run_no_human_day`, derives its actor census from the runtime-owned loaded actors, executes against scratch aggregates, restores/rebuilds scheduler/projection authority on the scratch result, refreshes bound-controller perception on the scratch result, and only then commits the runtime fields. TUI binding and no-human flow now submit typed runtime commands; TUI view/debug rendering consumes runtime-built products instead of raw state/projection/log references. The generative runtime witness was updated to prove replay/rebuild through the runtime debug rebuild receipt rather than public aggregate handles.
+
+Deviation: the facade methods return existing debug report/view types rather than a new `runtime/view_facade.rs` module; this keeps the change narrow while moving assembly ownership and public authority behind `LoadedWorldRuntime`.
+
+Verification:
+
+1. `cargo fmt --all --check`
+2. `cargo clippy --workspace --all-targets -- -D warnings`
+3. `cargo test -p tracewake-tui --test command_loop_session --locked`
+4. `cargo test -p tracewake-tui --test tui_acceptance --locked`
+5. `cargo build --workspace --all-targets --locked`
+6. `cargo test --workspace`

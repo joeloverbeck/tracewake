@@ -2,6 +2,7 @@ use crate::actions::{PipelineResult, ValidationReport};
 use crate::debug_capability::DebugCapability;
 use crate::events::EventEnvelope;
 use crate::ids::EventId;
+use crate::scheduler::no_human::NoHumanDayReport;
 use crate::scheduler::{AdvanceUntilResult, WorldAdvanceResult};
 use crate::time::SimTick;
 
@@ -16,6 +17,7 @@ pub enum RuntimeReceiptKind {
     OneTickAdvanced(WorldAdvanceResult),
     ActionSubmitted(RuntimeActionReceipt),
     Continued(AdvanceUntilResult),
+    NoHumanDay(NoHumanDayReport),
     Embodied(EmbodiedRuntimeReceipt),
     Debug(DebugRuntimeReceipt),
 }
@@ -63,6 +65,12 @@ impl RuntimeReceipt {
         }
     }
 
+    pub(crate) fn no_human_day(result: NoHumanDayReport) -> Self {
+        Self {
+            kind: RuntimeReceiptKind::NoHumanDay(result),
+        }
+    }
+
     pub(crate) fn embodied(receipt: EmbodiedRuntimeReceipt) -> Self {
         Self {
             kind: RuntimeReceiptKind::Embodied(receipt),
@@ -82,6 +90,13 @@ impl RuntimeReceipt {
     pub fn into_action_receipt(self) -> Option<RuntimeActionReceipt> {
         match self.kind {
             RuntimeReceiptKind::ActionSubmitted(receipt) => Some(receipt),
+            _ => None,
+        }
+    }
+
+    pub fn into_no_human_day_report(self) -> Option<NoHumanDayReport> {
+        match self.kind {
+            RuntimeReceiptKind::NoHumanDay(report) => Some(report),
             _ => None,
         }
     }
