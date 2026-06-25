@@ -20,9 +20,9 @@ use tracewake_core::projections::{
     EmbodiedTruthSnapshot, ProjectionError,
 };
 use tracewake_core::replay::{rebuild_projection, run_replay};
-use tracewake_core::runtime::{LoadedWorldRuntime, RuntimeCommandError, RuntimeInitialState};
+use tracewake_core::runtime::{LoadedWorldRuntime, RuntimeCommandError};
 use tracewake_core::scheduler::no_human::NoHumanDayReport;
-use tracewake_core::scheduler::{AdvanceUntilResult, DeterministicScheduler, WorldAdvanceError};
+use tracewake_core::scheduler::{AdvanceUntilResult, WorldAdvanceError};
 use tracewake_core::state::{AgentState, ControllerMode, PhysicalState};
 use tracewake_core::time::SimTick;
 use tracewake_core::view_models::{
@@ -95,21 +95,14 @@ impl TuiApp {
         registry.register_phase3a_eat();
         registry.register_phase3a_work();
         registry.register_phase3a_continue_routine();
-        let manifest_id = loaded.manifest.manifest_id;
-        let content_version = loaded.manifest.content_version;
-        let fixture_id = loaded.manifest.fixture_id;
+        let content_version = loaded.manifest.content_version.clone();
+        let fixture_id = loaded.manifest.fixture_id.clone();
         let initial_state = loaded.canonical_world.clone();
         let initial_agent_state = loaded.canonical_agent_state.clone();
-        let runtime = LoadedWorldRuntime::from_initial_state(RuntimeInitialState {
-            registry,
-            physical_state: loaded.canonical_world,
-            agent_state: loaded.canonical_agent_state,
-            event_log: loaded.seed_event_log,
-            epistemic_projection: loaded.epistemic_projection,
-            controller_bindings: tracewake_core::controller::ControllerBindings::new(),
-            scheduler: DeterministicScheduler::new(SimTick::ZERO),
-            content_manifest_id: manifest_id,
-        });
+        let runtime = LoadedWorldRuntime::from_bootstrap(
+            loaded.into_runtime_bootstrap(registry),
+            SimTick::ZERO,
+        );
         Ok(Self {
             initial_state,
             initial_agent_state,

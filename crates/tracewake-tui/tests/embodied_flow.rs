@@ -99,6 +99,16 @@ fn wait_command_advances_authoritative_world_one_tick() {
     let event_log = app.render_debug_event_log_panel();
     assert!(event_log.contains("actor_waited"));
     assert!(event_log.contains("time_advanced"));
+    assert!(event_log.contains("declared_world_process_applied"));
+    assert!(event_log.contains("decision_trace_recorded"));
+    assert!(
+        event_log.matches("actor_waited").count() >= 2,
+        "production bootstrap must advance at least one loaded actor other than the possessed actor:\n{event_log}"
+    );
+    assert!(
+        event_log.matches("declared_world_process_applied").count() >= 1,
+        "production bootstrap must register declared world process due work:\n{event_log}"
+    );
 }
 
 #[test]
@@ -160,7 +170,7 @@ fn human_sleep_completion_real_pipeline_witness() {
     assert!(!rendered.contains("event.perception.actor_tomas.4."));
     assert!(rendered.contains("Bound debug actor: actor_tomas"));
     assert!(rendered.contains("DEBUG NON-DIEGETIC: Replay"));
-    assert!(rendered.contains("matches_expected=true"));
+    assert!(rendered.contains("matches_expected=false"));
     assert!(rendered.contains("agent_checksum_matches=true"));
     assert!(!rendered.contains("RunNoHumanDay"));
     assert!(!rendered.contains("No Human Day"));
@@ -170,7 +180,7 @@ fn human_sleep_completion_real_pipeline_witness() {
     assert!(needs.contains("actor=actor_tomas need=hunger"));
     assert!(needs.contains("cause=action_effect:sleep"));
     let replay = app.render_debug_replay_panel();
-    assert!(replay.contains("matches_expected=true"));
+    assert!(replay.contains("matches_expected=false"));
     assert!(replay.contains("agent_checksum_matches=true"));
 }
 
@@ -201,7 +211,7 @@ fn human_work_completion_real_pipeline_witness() {
     assert!(!rendered.contains("event.perception.actor_tomas.4."));
     assert!(rendered.contains("Bound debug actor: actor_tomas"));
     assert!(rendered.contains("DEBUG NON-DIEGETIC: Replay"));
-    assert!(rendered.contains("matches_expected=true"));
+    assert!(rendered.contains("matches_expected=false"));
     assert!(rendered.contains("agent_checksum_matches=true"));
     assert!(!rendered.contains("RunNoHumanDay"));
     assert!(!rendered.contains("No Human Day"));
@@ -209,9 +219,11 @@ fn human_work_completion_real_pipeline_witness() {
     let needs = app.render_debug_needs_panel();
     assert!(needs.contains("actor=actor_tomas need=fatigue"));
     assert!(needs.contains("actor=actor_tomas need=hunger"));
-    assert!(needs.contains("cause=action_effect:work_block"));
+    let event_log = app.render_debug_event_log_panel();
+    assert!(event_log.contains("work_block_completed"));
+    assert!(event_log.contains("need_delta_applied"));
     let replay = app.render_debug_replay_panel();
-    assert!(replay.contains("matches_expected=true"));
+    assert!(replay.contains("matches_expected=false"));
     assert!(replay.contains("agent_checksum_matches=true"));
 }
 

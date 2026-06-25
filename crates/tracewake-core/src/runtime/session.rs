@@ -19,17 +19,17 @@ use crate::time::SimTick;
 use super::command::{RuntimeCommand, RuntimeCommandKind};
 use super::receipt::{DebugRuntimeReceipt, EmbodiedRuntimeReceipt, RuntimeReceipt};
 
-/// Owned initial aggregates for constructing a loaded-world runtime.
+/// Owned initial aggregates for crate-internal runtime construction.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RuntimeInitialState {
-    pub registry: ActionRegistry,
-    pub physical_state: PhysicalState,
-    pub agent_state: AgentState,
-    pub event_log: EventLog,
-    pub epistemic_projection: EpistemicProjection,
-    pub controller_bindings: ControllerBindings,
-    pub scheduler: DeterministicScheduler,
-    pub content_manifest_id: ContentManifestId,
+pub(crate) struct RuntimeInitialState {
+    registry: ActionRegistry,
+    physical_state: PhysicalState,
+    agent_state: AgentState,
+    event_log: EventLog,
+    epistemic_projection: EpistemicProjection,
+    controller_bindings: ControllerBindings,
+    scheduler: DeterministicScheduler,
+    content_manifest_id: ContentManifestId,
 }
 
 /// Scheduler-free loaded-world bootstrap product.
@@ -113,7 +113,7 @@ impl RuntimeReplaySeed {
 }
 
 impl LoadedWorldRuntime {
-    pub fn from_initial_state(initial: RuntimeInitialState) -> Self {
+    pub(crate) fn from_initial_state(initial: RuntimeInitialState) -> Self {
         Self {
             registry: initial.registry,
             physical_state: initial.physical_state,
@@ -128,16 +128,6 @@ impl LoadedWorldRuntime {
 
     pub fn current_tick(&self) -> crate::time::SimTick {
         self.scheduler.current_tick()
-    }
-
-    pub fn from_loaded_world(mut initial: RuntimeInitialState, current_tick: SimTick) -> Self {
-        initial.scheduler = DeterministicScheduler::from_loaded_world(
-            current_tick,
-            &initial.physical_state,
-            &initial.agent_state,
-            initial.content_manifest_id.clone(),
-        );
-        Self::from_initial_state(initial)
     }
 
     pub fn from_bootstrap(bootstrap: LoadedWorldBootstrap, current_tick: SimTick) -> Self {

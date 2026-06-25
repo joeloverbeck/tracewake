@@ -17,9 +17,9 @@ use tracewake_core::events::{EventCause, EventEnvelope, EventKind, EventStream};
 use tracewake_core::ids::{ContentVersion, ControllerId, EventId, FixtureId};
 use tracewake_core::projections::no_human_day_metrics;
 use tracewake_core::replay::{rebuild_projection, run_replay};
-use tracewake_core::runtime::{LoadedWorldRuntime, RuntimeInitialState, RuntimeReceiptKind};
+use tracewake_core::runtime::{LoadedWorldBootstrap, LoadedWorldRuntime, RuntimeReceiptKind};
 use tracewake_core::scheduler::no_human::advance_no_human;
-use tracewake_core::scheduler::{DeterministicScheduler, WorldAdvanceOrigin};
+use tracewake_core::scheduler::WorldAdvanceOrigin;
 use tracewake_core::time::SimTick;
 
 const RECORDED_GENERATIVE_MASK_DIVERSITY: usize = 7;
@@ -316,18 +316,17 @@ fn generated_cases_enter_through_loaded_runtime_constructor() {
         let case = generate_case(seed);
         let initial_state = initial_world(seed);
         let initial_agents = initial_agent_state(seed);
-        let mut runtime = LoadedWorldRuntime::from_initial_state(RuntimeInitialState {
-            registry: registry(),
-            physical_state: initial_state.clone(),
-            agent_state: initial_agents.clone(),
-            event_log: EventLog::new(),
-            epistemic_projection: tracewake_core::epistemics::projection::EpistemicProjection::new(
-                content_manifest_id(seed),
-            ),
-            controller_bindings: tracewake_core::controller::ControllerBindings::new(),
-            scheduler: DeterministicScheduler::new(case.start_tick),
-            content_manifest_id: content_manifest_id(seed),
-        });
+        let bootstrap = LoadedWorldBootstrap::from_loaded_state(
+            registry(),
+            initial_state.clone(),
+            initial_agents.clone(),
+            EventLog::new(),
+            tracewake_core::epistemics::projection::EpistemicProjection::new(content_manifest_id(
+                seed,
+            )),
+            content_manifest_id(seed),
+        );
+        let mut runtime = LoadedWorldRuntime::from_bootstrap(bootstrap, case.start_tick);
 
         let receipt = runtime
             .wait_one_tick(WorldAdvanceOrigin::Controller(

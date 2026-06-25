@@ -10,6 +10,5 @@ pub use receipt::{
     RuntimeRejectionReceipt,
 };
 pub use session::{
-    LoadedWorldBootstrap, LoadedWorldRuntime, RuntimeCommandError, RuntimeInitialState,
-    RuntimeReplaySeed,
+    LoadedWorldBootstrap, LoadedWorldRuntime, RuntimeCommandError, RuntimeReplaySeed,
 };
