@@ -104,6 +104,16 @@ core world-step boundary used by other loaded-world progression. Acceleration
 is repeated one-tick progression, not a client-side jump over intermediate
 causality.
 
+Current 0051 evidence maps this client boundary to production runtime
+construction and public command crossing: loaded fixtures enter through
+`LoadedWorldRuntime::from_loaded_world`; TUI wait/continue submissions cross
+through `TuiApp::submit_entry_with_world_advance` and command-loop world
+advance; core returns committed events, replay/projection products, and
+read-only interval summaries for rendering. `archive/tickets/0051FOUCONTHI-009.md`
+records the runtime-constructor CI witness, and
+`archive/tickets/0051FOUCONTHI-010.md` records mutation sensitivity for the
+subject-separated interval/projection evidence.
+
 Actor-facing time displays, missed-event summaries, time-to-work cues, waiting or sleeping summaries, closed-service messages, and lateness or expectation labels derive from the possessed actor's holder-known context or from modeled observations, records, public cues, or other source-bearing projections. Debug and operator panels may show exact event/replay time, due queues, and hidden temporal comparisons, but those fields are structurally non-diegetic and cannot feed embodied affordances or actor-visible reasons. Rejection and why-not output preserve the actor-visible/debug split.
 
 Actor-known interval summaries and debug step reports are separate products.

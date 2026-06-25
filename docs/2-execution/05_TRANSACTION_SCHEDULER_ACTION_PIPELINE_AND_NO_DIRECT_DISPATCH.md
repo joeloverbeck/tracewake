@@ -104,16 +104,23 @@ The no-direct-dispatch guard must prove that no TUI path, debug runner,
 scheduler shortcut, routine label, need threshold, or duration queue mutates
 world state outside this canonical step and shared pipeline.
 
-Current 0050 conformance evidence records this choreography as core-owned:
-loaded actors are discovered by `due_loaded_actor_ids`, declared processes by
-`due_process_invocations`, and `transact_world_one_tick` consumes the closed
+Current 0051 conformance evidence records this choreography as core-owned:
+`LoadedWorldRuntime::from_loaded_world` is the production constructor from
+loaded fixture/content state, loaded actors are discovered by
+`due_loaded_actor_ids`, declared processes by `due_process_invocations`, and
+`transact_world_one_tick` consumes the closed
 `ActorDecisionTransactionOutcome` plus the pipeline result instead of accepting
 caller-injected actor lists, raw process envelopes, or a parallel no-human
-append path. The production-path witnesses live in
-`crates/tracewake-core/tests/world_step_coordinator.rs`, the external boundary
-fixtures in `crates/tracewake-core/tests/negative_fixture_runner.rs`, and the
-mutation/evidence record in `archive/tickets/0050FOUCONSEC-010.md` and
-`archive/tickets/0050FOUCONSEC-011.md`.
+append path. The public command boundary is the TUI wait/continue world-advance
+path; the observed effects are committed actor/process events, restored
+eligibility, actor census changes, projection rebuilds, and replay verdicts.
+The production-path witnesses live in
+`crates/tracewake-core/tests/world_step_coordinator.rs` and
+`crates/tracewake-core/tests/generative_lock.rs`, the loaded-content handoff in
+`crates/tracewake-content`, the external boundary fixtures in
+`crates/tracewake-core/tests/negative_fixture_runner.rs`, and the current
+mutation/evidence records in `archive/tickets/0051FOUCONTHI-009.md` and
+`archive/tickets/0051FOUCONTHI-010.md`.
 
 ## Proposal ancestry
 

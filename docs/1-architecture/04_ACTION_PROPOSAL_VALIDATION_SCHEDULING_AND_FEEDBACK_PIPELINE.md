@@ -116,6 +116,18 @@ masquerade as ordinary actor actions; they authorize lifecycle progression or
 interruption through the duration seam and do not create a competing wait
 action.
 
+Current 0051 evidence names the production coordinator entry explicitly:
+`LoadedWorldRuntime::from_loaded_world` creates the runtime from loaded
+content, then the shared world step derives loaded actor work, declared process
+work, restored eligibility, process transactions, and closed actor transaction
+outcome consumption. The public client boundary is the TUI wait/continue
+command path into the same core step; observed effects are committed events,
+projection rebuilds, actor census changes, process effects, and replay
+verdicts in the core witness suites. `negative_fixture_runner.rs` supplies
+compile-fail sensitivity for authority boundaries, and
+`archive/tickets/0051FOUCONTHI-010.md` records the focused mutation sensitivity
+and the remaining standing misses.
+
 ### Affordances
 
 Objects, places, records, doors, containers, beds, tools, workplaces, notice boards, and people expose typed affordances. Affordances advertise possible proposals; they do not guarantee success.
