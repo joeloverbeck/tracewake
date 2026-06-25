@@ -77,6 +77,10 @@ impl ProposalSequenceAssigner {
         Self { next: 0 }
     }
 
+    const fn from_next(next: u64) -> Self {
+        Self { next }
+    }
+
     pub fn assign_next(&mut self) -> ProposalSequence {
         let assigned = ProposalSequence::new(self.next);
         self.next += 1;
@@ -547,32 +551,144 @@ impl DeterministicScheduler {
         agent_state: &AgentState,
         content_manifest_id: ContentManifestId,
     ) -> Option<Self> {
-        if projection.violations.is_empty() {
-            Some(Self::from_loaded_world(
-                projection.reconstructed_final_frontier,
-                state,
-                agent_state,
-                content_manifest_id,
-            ))
-        } else {
-            None
+        if !projection.violations.is_empty()
+            || !projection.scheduler_authority_violations.is_empty()
+        {
+            return None;
         }
+        Self::restore_from_replay_authority(
+            projection.reconstructed_final_frontier,
+            &projection.scheduler_authority,
+            state,
+            agent_state,
+            content_manifest_id,
+        )
     }
 
     pub fn restore_from_rebuild_report(
         report: &crate::replay::ProjectionRebuildReport,
         content_manifest_id: ContentManifestId,
     ) -> Option<Self> {
-        if report.temporal_violations.is_empty() {
-            Some(Self::from_loaded_world(
-                report.reconstructed_final_frontier,
-                &report.final_state,
-                &report.final_agent_state,
-                content_manifest_id,
-            ))
-        } else {
-            None
+        if !report.temporal_violations.is_empty()
+            || !report.scheduler_authority_violations.is_empty()
+        {
+            return None;
         }
+        Self::restore_from_replay_authority(
+            report.reconstructed_final_frontier,
+            &report.scheduler_authority,
+            &report.final_state,
+            &report.final_agent_state,
+            content_manifest_id,
+        )
+    }
+
+    fn restore_from_replay_authority(
+        reconstructed_frontier: SimTick,
+        authority: &crate::replay::SchedulerReplayAuthority,
+        state: &PhysicalState,
+        agent_state: &AgentState,
+        content_manifest_id: ContentManifestId,
+    ) -> Option<Self> {
+        let no_human_process_completed_at_frontier =
+            authority.no_human_process_frontier == Some(reconstructed_frontier);
+        if reconstructed_frontier > SimTick::ZERO
+            && authority.declared_processes.is_empty()
+            && !no_human_process_completed_at_frontier
+        {
+            return None;
+        }
+        let mut scheduler = Self {
+            current_tick: reconstructed_frontier,
+            proposal_sequences: ProposalSequenceAssigner::from_next(
+                authority.next_proposal_sequence,
+            ),
+            loaded_actor_next_decision_tick: BTreeMap::new(),
+            declared_world_processes: BTreeMap::new(),
+        };
+        let next_due_tick = reconstructed_frontier.next();
+        if authority.loaded_actor_next_decision_ticks.is_empty() {
+            if reconstructed_frontier > SimTick::ZERO
+                && state
+                    .actors()
+                    .keys()
+                    .any(|actor_id| agent_state.needs_by_actor().contains_key(actor_id))
+                && !no_human_process_completed_at_frontier
+            {
+                return None;
+            }
+            for actor_id in state.actors().keys() {
+                if agent_state.needs_by_actor().contains_key(actor_id) {
+                    scheduler
+                        .loaded_actor_next_decision_tick
+                        .insert(actor_id.clone(), next_due_tick);
+                }
+            }
+        } else {
+            for actor in &authority.loaded_actor_next_decision_ticks {
+                if !state.actors().contains_key(&actor.actor_id)
+                    || !agent_state.needs_by_actor().contains_key(&actor.actor_id)
+                {
+                    return None;
+                }
+                scheduler
+                    .loaded_actor_next_decision_tick
+                    .insert(actor.actor_id.clone(), actor.next_decision_tick);
+            }
+            for actor_id in state.actors().keys() {
+                if agent_state.needs_by_actor().contains_key(actor_id)
+                    && !scheduler
+                        .loaded_actor_next_decision_tick
+                        .contains_key(actor_id)
+                    && reconstructed_frontier > SimTick::ZERO
+                    && !no_human_process_completed_at_frontier
+                {
+                    return None;
+                }
+                if agent_state.needs_by_actor().contains_key(actor_id)
+                    && !scheduler
+                        .loaded_actor_next_decision_tick
+                        .contains_key(actor_id)
+                    && no_human_process_completed_at_frontier
+                {
+                    scheduler
+                        .loaded_actor_next_decision_tick
+                        .insert(actor_id.clone(), next_due_tick);
+                }
+            }
+        }
+        if authority.declared_processes.is_empty() {
+            if no_human_process_completed_at_frontier {
+                return Some(scheduler);
+            }
+            let loaded_world_tick_process_id = ProcessId::new("process_loaded_world_tick").ok()?;
+            scheduler.declared_world_processes.insert(
+                loaded_world_tick_process_id.clone(),
+                DeclaredWorldProcess::new_cadenced(
+                    loaded_world_tick_process_id,
+                    next_due_tick,
+                    1,
+                    Vec::new(),
+                    content_manifest_id,
+                    None,
+                ),
+            );
+            return Some(scheduler);
+        }
+        for process in &authority.declared_processes {
+            scheduler.declared_world_processes.insert(
+                process.process_id.clone(),
+                DeclaredWorldProcess::new_cadenced(
+                    process.process_id.clone(),
+                    process.first_due_tick,
+                    process.cadence_ticks,
+                    process.source_event_ids.clone(),
+                    process.content_manifest_id.clone(),
+                    process.random_provenance.clone(),
+                ),
+            );
+        }
+        Some(scheduler)
     }
 
     pub fn assign_proposal_sequence(&mut self) -> ProposalSequence {

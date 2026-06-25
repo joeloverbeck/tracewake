@@ -339,6 +339,92 @@ fn loaded_actor_next_opportunity_advances_after_due_transaction() {
 }
 
 #[test]
+fn scheduler_restore_preserves_replay_derived_proposal_sequence() {
+    let actors = [actor_id("actor_tomas")];
+    let (initial_physical, initial_agent) = loaded_world(&actors);
+    let mut physical = initial_physical.clone();
+    let mut agent = initial_agent.clone();
+    let mut log = EventLog::new();
+    let mut scheduler = DeterministicScheduler::from_loaded_world(
+        SimTick::ZERO,
+        &physical,
+        &agent,
+        content_manifest_id(),
+    );
+
+    run_loaded_tick(&mut scheduler, &mut physical, &mut agent, &mut log);
+    let rebuild = rebuild_projection(
+        &initial_physical,
+        &initial_agent,
+        &log,
+        &context(0),
+        Some(&physical),
+    );
+
+    assert!(rebuild.scheduler_authority.next_proposal_sequence > 0);
+    assert!(!rebuild
+        .scheduler_authority
+        .loaded_actor_next_decision_ticks
+        .is_empty());
+    assert!(!rebuild.scheduler_authority.declared_processes.is_empty());
+
+    let mut restored =
+        DeterministicScheduler::restore_from_rebuild_report(&rebuild, content_manifest_id())
+            .unwrap();
+
+    assert_eq!(
+        restored.assign_proposal_sequence(),
+        ProposalSequence::new(rebuild.scheduler_authority.next_proposal_sequence)
+    );
+}
+
+#[test]
+fn scheduler_restore_fails_closed_without_runtime_authority() {
+    let actors = [actor_id("actor_tomas")];
+    let (initial_physical, initial_agent) = loaded_world(&actors);
+    let mut physical = initial_physical.clone();
+    let mut agent = initial_agent.clone();
+    let mut log = EventLog::new();
+    let mut scheduler = DeterministicScheduler::from_loaded_world(
+        SimTick::ZERO,
+        &physical,
+        &agent,
+        content_manifest_id(),
+    );
+
+    run_loaded_tick(&mut scheduler, &mut physical, &mut agent, &mut log);
+    let rebuild = rebuild_projection(
+        &initial_physical,
+        &initial_agent,
+        &log,
+        &context(0),
+        Some(&physical),
+    );
+
+    let mut missing_actor_authority = rebuild.clone();
+    missing_actor_authority
+        .scheduler_authority
+        .loaded_actor_next_decision_ticks
+        .clear();
+    assert!(DeterministicScheduler::restore_from_rebuild_report(
+        &missing_actor_authority,
+        content_manifest_id()
+    )
+    .is_none());
+
+    let mut missing_process_authority = rebuild;
+    missing_process_authority
+        .scheduler_authority
+        .declared_processes
+        .clear();
+    assert!(DeterministicScheduler::restore_from_rebuild_report(
+        &missing_process_authority,
+        content_manifest_id()
+    )
+    .is_none());
+}
+
+#[test]
 fn run_replay_temporal_violation_fails_aggregate_and_reports_typed_first_divergence() {
     let initial_state = PhysicalState::empty(NeedModelState::new(0, 0));
     let initial_agent_state = AgentState::default();

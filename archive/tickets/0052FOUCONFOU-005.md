@@ -1,6 +1,6 @@
 # 0052FOUCONFOU-005: F4-03 — replay-critical runtime authority reconstruction
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — replay restore reconstructs scheduler authority (proposal sequence, actor opportunity, process declaration/cadence/source/random) instead of reseeding a default scheduler; fail-closed on missing authority
@@ -85,3 +85,23 @@ Implement the reconstruction the internal `rebuild_from_owned_log` (made interna
 
 1. `cargo test -p tracewake-core --test replay_temporal_frontier`
 2. `cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-25
+
+Implemented event-derived scheduler replay authority for restore/rebuild. `TemporalProjection` and `ProjectionRebuildReport` now carry scheduler authority plus typed authority divergences; restore rejects temporal or scheduler-authority violations and reconstructs scheduler state from the projected authority instead of reseeding through `from_loaded_world`.
+
+The authority projection now preserves the next proposal sequence, loaded actor next-decision ticks from actor-step artifacts, declared process identity/cadence/source ancestry/content/random provenance from declared-process events, and no-human process completion frontiers from no-human completion markers. Restore fails closed when post-zero actor or process authority is absent or inconsistent, with the no-human completion marker acting as the replay authority for the no-human day/advance runtime path.
+
+Focused regression coverage was added for non-vacuous proposal-sequence preservation, missing actor/process authority fail-closed behavior, and restored continuation equivalence through the replay temporal frontier tests. The existing TUI no-human runtime test also covers the marker-authority restore path.
+
+Verification:
+
+1. `cargo test -p tracewake-core --test replay_temporal_frontier --locked`
+2. `cargo test -p tracewake-core scheduler:: --locked`
+3. `cargo test -p tracewake-tui app::tests::app_runs_no_human_day_into_real_log_metrics --locked`
+4. `cargo fmt --all --check`
+5. `cargo clippy --workspace --all-targets -- -D warnings`
+6. `cargo build --workspace --all-targets --locked`
+7. `cargo test --workspace`

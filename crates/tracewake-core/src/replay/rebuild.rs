@@ -11,7 +11,10 @@ use crate::events::apply::{apply_event_stream, EventApplicationContext, EventApp
 use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind, EventStream};
 use crate::ids::{ActorId, ContentManifestId, EventId, PlaceId};
-use crate::replay::temporal::{project_temporal_frontier, TemporalDivergence};
+use crate::replay::temporal::{
+    project_temporal_frontier, SchedulerAuthorityDivergence, SchedulerReplayAuthority,
+    TemporalDivergence,
+};
 use crate::state::{AgentState, PhysicalState};
 use crate::time::SimTick;
 
@@ -30,6 +33,8 @@ pub struct ProjectionRebuildReport {
     pub final_agent_checksum_report: AgentStateChecksumReport,
     pub reconstructed_final_frontier: SimTick,
     pub temporal_violations: Vec<TemporalDivergence>,
+    pub scheduler_authority: SchedulerReplayAuthority,
+    pub scheduler_authority_violations: Vec<SchedulerAuthorityDivergence>,
     pub unsupported_versions: Vec<String>,
     pub unsupported_epistemic_versions: Vec<String>,
     pub unsupported_agent_versions: Vec<Phase3AReplayFailure>,
@@ -182,6 +187,8 @@ pub fn rebuild_projection(
         final_agent_checksum_report,
         reconstructed_final_frontier: temporal_projection.reconstructed_final_frontier,
         temporal_violations: temporal_projection.violations,
+        scheduler_authority: temporal_projection.scheduler_authority,
+        scheduler_authority_violations: temporal_projection.scheduler_authority_violations,
         unsupported_versions,
         unsupported_epistemic_versions,
         unsupported_agent_versions,
