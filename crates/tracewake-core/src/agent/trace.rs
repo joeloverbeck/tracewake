@@ -1282,6 +1282,109 @@ mod tests {
     }
 
     #[test]
+    fn stuck_diagnostic_preserves_non_empty_proposal_ancestry() {
+        let diagnostic = StuckDiagnostic::new(
+            StuckDiagnosticId::new("diagnostic_lineage").unwrap(),
+            ActorId::new("actor_mara").unwrap(),
+            SimTick::new(20),
+            SimTick::new(21),
+            Some(NeedKind::Hunger),
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(action("find_food.public_market")),
+            BlockerCategory::Knowledge,
+            "known food source unavailable",
+            "I cannot find food I know how to reach",
+            "debug-only fixture pantry empty",
+            "fallback exhausted",
+            StuckResultingStatus::Failed,
+        )
+        .with_plan_lineage(
+            "local_plan_find_food",
+            vec![
+                "proposal_ancestor_a".to_string(),
+                "proposal_ancestor_b".to_string(),
+            ],
+        );
+
+        let bytes = diagnostic.serialize_canonical_bytes();
+        let round_tripped = StuckDiagnostic::deserialize_canonical(&bytes).unwrap();
+
+        // Deleting the `!` in the `!line.is_empty()` ancestry filter would parse an
+        // empty ancestry; assert the non-empty lineage survives the round trip.
+        assert_eq!(
+            round_tripped.proposal_ancestry,
+            vec![
+                "proposal_ancestor_a".to_string(),
+                "proposal_ancestor_b".to_string(),
+            ]
+        );
+        assert_eq!(
+            round_tripped.local_plan_id.as_deref(),
+            Some("local_plan_find_food")
+        );
+        assert_eq!(round_tripped, diagnostic);
+    }
+
+    #[test]
+    fn stuck_diagnostic_parses_typed_fields_from_lineage_free_24_field_shape() {
+        let distinct_typed = TypedDiagnosticFields {
+            responsible_layer: ResponsibleLayer::ActionValidation,
+            blocker_code: BlockerCode::Knowledge,
+            input_source: "actor_known_context".to_string(),
+            actual_source: "actor_decision_transaction".to_string(),
+            hidden_truth_referenced: true,
+            remediation_hint: "inspect typed stuck fields".to_string(),
+        };
+        // Construct a diagnostic with no plan lineage and distinct typed fields.
+        let diagnostic = StuckDiagnostic::new(
+            StuckDiagnosticId::new("diagnostic_typed_24").unwrap(),
+            ActorId::new("actor_mara").unwrap(),
+            SimTick::new(20),
+            SimTick::new(21),
+            Some(NeedKind::Hunger),
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(action("find_food.public_market")),
+            BlockerCategory::Knowledge,
+            "known food source unavailable",
+            "I cannot find food I know how to reach",
+            "debug-only fixture pantry empty",
+            "fallback exhausted",
+            StuckResultingStatus::Failed,
+        )
+        .with_typed_diagnostic(distinct_typed.clone());
+
+        // `serialize_canonical` always emits the 26-field lineage form. Drop the two
+        // lineage fields (local_plan_id, proposal_ancestry) to derive the 24-field
+        // typed-but-lineage-free shape that exercises the `24 => Some(18)` arm.
+        let mut fields: Vec<String> = diagnostic
+            .serialize_canonical()
+            .split('|')
+            .map(str::to_string)
+            .collect();
+        assert_eq!(fields.len(), 26);
+        fields.remove(13);
+        fields.remove(12);
+        let canonical_24 = fields.join("|");
+        assert_eq!(canonical_24.split('|').count(), 24);
+
+        let parsed = StuckDiagnostic::deserialize_canonical(canonical_24.as_bytes()).unwrap();
+
+        // Deleting the `24 => Some(18)` arm would leave typed_index None and fall back
+        // to stuck_default typed fields; assert the distinct typed fields parse instead.
+        assert_eq!(parsed.typed_diagnostic, distinct_typed);
+        assert!(parsed.local_plan_id.is_none());
+        assert!(parsed.proposal_ancestry.is_empty());
+    }
+
+    #[test]
     fn responsible_layer_vocabulary_matches_spec() {
         let ids = ResponsibleLayer::ALL.map(ResponsibleLayer::stable_id);
         assert_eq!(

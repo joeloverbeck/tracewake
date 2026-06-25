@@ -389,6 +389,23 @@ mod tests {
     }
 
     #[test]
+    fn assign_proposal_sequence_advances_monotonically_from_runtime() {
+        use crate::scheduler::ProposalSequence;
+
+        let mut runtime = empty_runtime();
+
+        let first = runtime.assign_proposal_sequence();
+        let second = runtime.assign_proposal_sequence();
+
+        // The first assignment legitimately equals the default (sequence 0); a
+        // `-> Default::default()` mutation would also return 0 on the second call,
+        // so assert the second advances to 1 and is not the default.
+        assert_eq!(first, ProposalSequence::new(0));
+        assert_eq!(second, ProposalSequence::new(1));
+        assert_ne!(second, ProposalSequence::default());
+    }
+
+    #[test]
     fn one_tick_wait_advances_world_through_owned_runtime() {
         let mut runtime = empty_runtime();
 

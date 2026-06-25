@@ -256,7 +256,11 @@ impl TuiApp {
         let actor_id = self.bound_actor_id.clone().ok_or(AppError::ActorNotBound)?;
         let expected_tick = self.runtime.current_tick();
         let sequence = self.runtime.assign_proposal_sequence();
-        let _targeted_command = !entry.target_ids.is_empty();
+        // Deferral witness: embodied targeted-command routing is not yet wired, but the
+        // semantic-action surface already carries target_ids. Borrow it (no behavioral
+        // effect, no mutable operator to mutate) to keep the field's reachability guard
+        // satisfied until a live consumer lands.
+        let _ = &entry.target_ids;
         let proposal = proposal_from_current_view_semantic_action(
             ProposalId::new(format!("proposal_tui_{}", sequence.value())).unwrap(),
             actor_id.clone(),

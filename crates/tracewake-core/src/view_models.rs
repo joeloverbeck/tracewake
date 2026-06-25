@@ -991,6 +991,61 @@ mod tests {
     use crate::ids::{ProposalId, ValidationReportId};
 
     #[test]
+    fn typed_actor_known_interval_summary_getters_report_constructed_values() {
+        // Distinct, non-default field values so each accessor mutation
+        // (-> Default / -> 0 / -> 1 / -> true) is caught: frontiers are >=2 and
+        // unequal, ticks are non-zero and unequal, and the boolean is `false`.
+        let summary = TypedActorKnownIntervalSummary {
+            start_tick: SimTick::new(11),
+            stop_tick: SimTick::new(23),
+            start_frontier: 4,
+            stop_frontier: 9,
+            stop_reason: crate::projections::IntervalStopReason::ActorKnownSalientObservation,
+            notices: Vec::new(),
+            no_new_actor_known_information: false,
+        };
+
+        assert_eq!(summary.start_tick(), SimTick::new(11));
+        assert_eq!(summary.stop_tick(), SimTick::new(23));
+        assert_eq!(summary.start_frontier(), 4);
+        assert_eq!(summary.stop_frontier(), 9);
+        assert!(!summary.no_new_actor_known_information());
+    }
+
+    #[cfg(feature = "test-support")]
+    #[test]
+    fn embodied_view_model_reports_constructed_sim_tick() {
+        let view = EmbodiedViewModel::for_test(
+            ViewModelId::new("vm_sim_tick").unwrap(),
+            ViewMode::Embodied,
+            ActorId::new("actor_tomas").unwrap(),
+            SimTick::new(7),
+            PlaceId::new("place_test").unwrap(),
+            "Test Place".to_string(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            None,
+            None,
+            None,
+            HolderKnownContextId::new("ctx_test").unwrap(),
+            HolderKnownContextHash::from_canonical_lines(&[]),
+            3,
+            "source".to_string(),
+            None,
+            None,
+            false,
+        );
+
+        // The -> Default mutation would report SimTick(0); the constructed tick is 7.
+        assert_eq!(view.sim_tick(), SimTick::new(7));
+    }
+
+    #[test]
     fn semantic_action_id_is_stable_and_target_specific() {
         let entry = SemanticActionEntry::new(
             SemanticActionId::new("open.container.strongbox_tomas").unwrap(),
