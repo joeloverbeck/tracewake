@@ -179,6 +179,7 @@ pub struct WorldStepDueWorkSummary {
     pub open_duration_candidates: usize,
     pub duration_terminals_appended: usize,
     pub actor_transactions_attempted: usize,
+    pub world_process_markers_observed: usize,
     pub world_processes_applied: usize,
 }
 
@@ -311,6 +312,7 @@ fn rolled_back_controlled_result(
             open_duration_candidates: 0,
             duration_terminals_appended: 0,
             actor_transactions_attempted: 0,
+            world_process_markers_observed: 0,
             world_processes_applied: 0,
         },
         actor_step_summaries: Vec::new(),
@@ -898,6 +900,7 @@ impl DeterministicScheduler {
             scratch_agent_state = trial_agent_state;
         }
 
+        let mut world_process_markers_observed = 0;
         let mut world_processes_applied = 0;
         for invocation in self.due_process_invocations(resulting_tick) {
             let event = build_declared_world_process_event(
@@ -908,6 +911,7 @@ impl DeterministicScheduler {
             let appended = scratch_log
                 .append(event)
                 .map_err(WorldAdvanceError::EventAppend)?;
+            world_process_markers_observed += 1;
             let mut application_context = EventApplicationContext {
                 physical_state: &mut scratch_state,
                 agent_state: &mut scratch_agent_state,
@@ -920,7 +924,7 @@ impl DeterministicScheduler {
                         error,
                     }
                 })?;
-            if matches!(outcome, ApplyOutcome::Applied | ApplyOutcome::WorldNoOp) {
+            if matches!(outcome, ApplyOutcome::Applied) {
                 world_processes_applied += 1;
             }
         }
@@ -1255,6 +1259,7 @@ impl DeterministicScheduler {
                 open_duration_candidates,
                 duration_terminals_appended: lifecycle.duration_terminals_appended,
                 actor_transactions_attempted,
+                world_process_markers_observed,
                 world_processes_applied,
             },
             actor_step_summaries,

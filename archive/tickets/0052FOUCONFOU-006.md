@@ -1,6 +1,6 @@
 # 0052FOUCONFOU-006: F4-04 — real declared-process causal transaction
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — a due declared process performs a process-specific causal transition (or is honestly demoted to a non-`WorldNoOp` diagnostic); `world_processes_applied` counts only committed process transactions
@@ -86,3 +86,22 @@ The declared process carries concrete source-event IDs and random provenance (no
 
 1. `cargo test -p tracewake-core --test world_step_coordinator`
 2. `cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-25
+
+Implemented the §4.5 honest diagnostic fallback for this pass. Due declared-process markers remain observable replay authority, but `world_processes_applied` now increments only for `ApplyOutcome::Applied`; a `WorldNoOp` `DeclaredWorldProcessApplied` marker no longer counts as an applied process transaction. `WorldStepDueWorkSummary` now separately reports `world_process_markers_observed`, so callers and tests can distinguish a due marker from a committed process effect.
+
+Updated world-step and content bootstrap tests to assert the split explicitly: the default loaded-world process marker is observed, but it is not counted as applied while it remains a world no-op. The existing private `DueProcessInvocation` negative fixture remains in place.
+
+Deviation: this does not introduce a new content-declared process effect event. It records the weaker fallback allowed by spec §4.5/§10.5 and removes the false "applied" count for a no-op marker; future process-kind work can add real effects without reusing the no-op count path.
+
+Verification:
+
+1. `cargo test -p tracewake-core --test world_step_coordinator --locked`
+2. `cargo test -p tracewake-content load::tests::loaded_fixture_exports_scheduler_free_runtime_bootstrap --locked`
+3. `cargo fmt --all --check`
+4. `cargo clippy --workspace --all-targets -- -D warnings`
+5. `cargo build --workspace --all-targets --locked`
+6. `cargo test --workspace`

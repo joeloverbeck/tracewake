@@ -756,7 +756,7 @@ fn transactional_world_step_attempts_due_actor_decision_transaction() {
 }
 
 #[test]
-fn transactional_world_step_applies_due_world_process_event() {
+fn transactional_world_step_observes_due_world_process_marker_without_counting_application() {
     let actor = actor_id("actor_mara");
     let place = place_id("home_mara");
     let mut physical = physical_state_for(&actor, &place);
@@ -790,7 +790,8 @@ fn transactional_world_step_applies_due_world_process_event() {
         .unwrap();
 
     assert_eq!(result.resulting_tick, SimTick::new(1));
-    assert_eq!(result.due_work_summary.world_processes_applied, 1);
+    assert_eq!(result.due_work_summary.world_process_markers_observed, 1);
+    assert_eq!(result.due_work_summary.world_processes_applied, 0);
     assert!(result.appended_event_ids.contains(&process_event_id));
     assert!(log.events().iter().any(|event| {
         event.event_id == process_event_id
@@ -828,6 +829,7 @@ fn transactional_world_step_without_declared_process_applies_no_process_work() {
         )
         .unwrap();
 
+    assert_eq!(result.due_work_summary.world_process_markers_observed, 0);
     assert_eq!(result.due_work_summary.world_processes_applied, 0);
     assert_eq!(scheduler.current_tick(), SimTick::new(1));
     assert_eq!(physical, physical_before);
@@ -1153,9 +1155,9 @@ fn loaded_world_differential_passes(
     initial_agent: &AgentState,
 ) -> bool {
     if left.result.due_work_summary.actor_transactions_attempted == 0
-        || left.result.due_work_summary.world_processes_applied == 0
+        || left.result.due_work_summary.world_process_markers_observed == 0
         || right.result.due_work_summary.actor_transactions_attempted == 0
-        || right.result.due_work_summary.world_processes_applied == 0
+        || right.result.due_work_summary.world_process_markers_observed == 0
     {
         return false;
     }
@@ -1286,7 +1288,11 @@ fn authoritative_loaded_world_differential_is_non_vacuous() {
         &initial_agent
     ));
     assert_eq!(left.result.due_work_summary.actor_transactions_attempted, 1);
-    assert_eq!(left.result.due_work_summary.world_processes_applied, 1);
+    assert_eq!(
+        left.result.due_work_summary.world_process_markers_observed,
+        1
+    );
+    assert_eq!(left.result.due_work_summary.world_processes_applied, 0);
     assert_eq!(
         left.log
             .events()
