@@ -194,7 +194,7 @@ produced, but its *shape* depends on the verdict (e.g. a full spec if warranted,
 report if clean). Prefer (i) "always produce, with the verdict as a section" when the artifact's value
 survives a negative verdict (e.g. it locks already-correct properties); choose (iii) when a negative verdict
 still warrants a substantial evidence-complete document but in a *different form* than the spec; reserve
-(ii) "produce only if positive" for when a negative verdict means there is genuinely nothing to author. The
+(ii) "produce only if positive" for when a negative verdict means there is genuinely nothing to author. **For a multi-pass / lineage campaign, the predecessor passes' established production mode governs this choice over the current invocation's surface phrasing** (see §A §1 *lineage predecessor*): when every prior pass always produced a verdict-embedded report, default to (i) even though the invocation reads conditionally ("decide whether X is needed, and *if so*…") — re-open the mode only if something material changed since the predecessor. The
 §(a) determination/verdict is returned **regardless of mode** — under (ii), "nothing authored on a negative
 verdict" refers to the spec/artifact *file* only; the reasoned verdict is still surfaced as Session 2's
 response on a clean outcome (so the brief should instruct: produce the spec iff positive, otherwise return
