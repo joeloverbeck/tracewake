@@ -295,6 +295,24 @@ pub struct ActorStepSummary {
 pub enum ActorStepStatus {
     Proposed,
     Stuck,
+    Controlled,
+    NotDue,
+    DeferredReserved,
+    MissingSubstrate,
+}
+
+fn actor_step_summary_for_status(actor_id: ActorId, status: ActorStepStatus) -> ActorStepSummary {
+    ActorStepSummary {
+        actor_id,
+        status,
+        proposal_id: None,
+        decision_trace_id: None,
+        local_plan_id: None,
+        proposal_ancestry: Vec::new(),
+        pipeline_status: None,
+        committed_event_ids: Vec::new(),
+        diagnostic_event_id: None,
+    }
 }
 
 fn rolled_back_controlled_result(
@@ -1010,11 +1028,21 @@ impl DeterministicScheduler {
         }
 
         let mut actor_transactions_attempted = 0;
-        let mut actor_step_summaries = Vec::new();
+        let mut actor_step_summaries_by_actor = BTreeMap::new();
+        let loaded_actor_ids = scratch_state.actors().keys().cloned().collect::<Vec<_>>();
+        let deferred_reserved_actor_ids = loaded_actor_ids
+            .iter()
+            .filter(|actor_id| {
+                actor_has_open_body_exclusive_at(&scratch_log, actor_id, resulting_tick)
+                    .unwrap_or(false)
+            })
+            .cloned()
+            .collect::<BTreeSet<_>>();
         let due_actor_ids = self
             .due_loaded_actor_ids(&scratch_state, &scratch_agent_state, resulting_tick)
             .into_iter()
             .filter(|actor_id| !controlled_actor_ids.contains(actor_id))
+            .filter(|actor_id| !deferred_reserved_actor_ids.contains(actor_id))
             .collect::<Vec<_>>();
         let actor_frame_event_id = if due_actor_ids.is_empty() {
             None
@@ -1159,17 +1187,20 @@ impl DeterministicScheduler {
                         actor_id,
                         trace_event,
                     )?);
-                    actor_step_summaries.push(ActorStepSummary {
-                        actor_id: actor_id.clone(),
-                        status: ActorStepStatus::Proposed,
-                        proposal_id: Some(proposal_id),
-                        decision_trace_id: Some(decision_trace_record.trace_id.clone()),
-                        local_plan_id: decision_trace_record.local_plan_id.clone(),
-                        proposal_ancestry: decision_trace_record.proposal_ancestry.clone(),
-                        pipeline_status: Some(result.report.status.clone()),
-                        committed_event_ids,
-                        diagnostic_event_id: None,
-                    });
+                    actor_step_summaries_by_actor.insert(
+                        actor_id.clone(),
+                        ActorStepSummary {
+                            actor_id: actor_id.clone(),
+                            status: ActorStepStatus::Proposed,
+                            proposal_id: Some(proposal_id),
+                            decision_trace_id: Some(decision_trace_record.trace_id.clone()),
+                            local_plan_id: decision_trace_record.local_plan_id.clone(),
+                            proposal_ancestry: decision_trace_record.proposal_ancestry.clone(),
+                            pipeline_status: Some(result.report.status.clone()),
+                            committed_event_ids,
+                            diagnostic_event_id: None,
+                        },
+                    );
                 }
                 ActorDecisionTransactionOutcome::Stuck { diagnostic } => {
                     let event = build_actor_stuck_diagnostic_event(
@@ -1186,20 +1217,44 @@ impl DeterministicScheduler {
                         actor_id,
                         event,
                     )?;
-                    actor_step_summaries.push(ActorStepSummary {
-                        actor_id: actor_id.clone(),
-                        status: ActorStepStatus::Stuck,
-                        proposal_id: None,
-                        decision_trace_id: None,
-                        local_plan_id: diagnostic.local_plan_id.clone(),
-                        proposal_ancestry: diagnostic.proposal_ancestry.clone(),
-                        pipeline_status: None,
-                        committed_event_ids: vec![event_id.clone()],
-                        diagnostic_event_id: Some(event_id),
-                    });
+                    actor_step_summaries_by_actor.insert(
+                        actor_id.clone(),
+                        ActorStepSummary {
+                            actor_id: actor_id.clone(),
+                            status: ActorStepStatus::Stuck,
+                            proposal_id: None,
+                            decision_trace_id: None,
+                            local_plan_id: diagnostic.local_plan_id.clone(),
+                            proposal_ancestry: diagnostic.proposal_ancestry.clone(),
+                            pipeline_status: None,
+                            committed_event_ids: vec![event_id.clone()],
+                            diagnostic_event_id: Some(event_id),
+                        },
+                    );
                 }
             }
         }
+        for actor_id in loaded_actor_ids {
+            if actor_step_summaries_by_actor.contains_key(&actor_id) {
+                continue;
+            }
+            let status = if controlled_actor_ids.contains(&actor_id) {
+                ActorStepStatus::Controlled
+            } else if !scratch_agent_state.needs_by_actor().contains_key(&actor_id) {
+                ActorStepStatus::MissingSubstrate
+            } else if deferred_reserved_actor_ids.contains(&actor_id) {
+                ActorStepStatus::DeferredReserved
+            } else {
+                ActorStepStatus::NotDue
+            };
+            actor_step_summaries_by_actor.insert(
+                actor_id.clone(),
+                actor_step_summary_for_status(actor_id, status),
+            );
+        }
+        let actor_step_summaries = actor_step_summaries_by_actor
+            .into_values()
+            .collect::<Vec<_>>();
 
         let actor_known_interval_delta = request
             .actor_known_interval_actor_id
@@ -7692,6 +7747,48 @@ mod tests {
             reversed_scheduler.due_loaded_actor_ids(&physical, &agent, target_tick),
             scheduler.due_loaded_actor_ids(&physical, &agent, target_tick)
         );
+    }
+
+    #[test]
+    fn world_step_census_marks_loaded_actor_not_due() {
+        let actor = actor_id("actor_not_due");
+        let mut scheduler = DeterministicScheduler::new(SimTick::new(9));
+        scheduler
+            .loaded_actor_next_decision_tick
+            .insert(actor.clone(), SimTick::new(11));
+        let mut physical = physical_state_for_actor_ids(std::slice::from_ref(&actor));
+        let mut agent = agent_state_for_actor_ids(std::slice::from_ref(&actor));
+        let mut log = EventLog::new();
+        let registry = ActionRegistry::new();
+
+        let result = scheduler
+            .transact_world_one_tick(
+                &mut physical,
+                &mut agent,
+                &mut log,
+                &registry,
+                None,
+                None,
+                WorldStepTransactionRequest {
+                    advance: WorldAdvanceRequest {
+                        expected_tick: SimTick::new(9),
+                        origin: WorldAdvanceOrigin::Process(process_id("process_test")),
+                        content_manifest_id: content_manifest_id(),
+                        authorized_sleep_interruptions: Vec::new(),
+                    },
+                    controlled_proposals: Vec::new(),
+                    actor_known_interval_actor_id: None,
+                },
+            )
+            .unwrap();
+
+        assert_eq!(result.actor_step_summaries.len(), 1);
+        assert_eq!(result.actor_step_summaries[0].actor_id, actor);
+        assert_eq!(
+            result.actor_step_summaries[0].status,
+            ActorStepStatus::NotDue
+        );
+        assert_eq!(result.due_work_summary.actor_transactions_attempted, 0);
     }
 
     fn process_id(value: &str) -> ProcessId {

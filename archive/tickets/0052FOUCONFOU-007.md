@@ -1,6 +1,6 @@
 # 0052FOUCONFOU-007: F4-05 — closed exhaustive per-loaded-actor disposition census
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — a closed core-owned actor disposition assigns exactly one disposition to every loaded actor per world step, derived from the runtime-owned loaded actor set
@@ -78,3 +78,22 @@ Each disposition carries responsible layer and causal/temporal basis as typed di
 
 1. `cargo test -p tracewake-core --test world_step_coordinator`
 2. `cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-25
+
+Implemented an exhaustive per-loaded-actor world-step census in `ActorStepSummary`. `ActorStepStatus` now includes `Controlled`, `NotDue`, `DeferredReserved`, and `MissingSubstrate` alongside the existing autonomous `Proposed` and `Stuck` outcomes. World-step execution builds a stable actor-ID-keyed census from the loaded actor set, preserves full proposal/trace detail for attempted autonomous actors, and fills exactly one closed disposition row for every other loaded actor.
+
+Reserved/body-exclusive actors are filtered out of autonomous due work and reported as `DeferredReserved`; controlled actors are not autonomous in the same step; loaded actors without agent substrate report `MissingSubstrate`; future-scheduled actors report `NotDue`.
+
+Coverage now includes a coordinator receipt test proving controlled/proposed/missing/deferred rows over the derived loaded actor set, plus a focused scheduler test for the private not-due scheduling state. The existing replay temporal differential continues to compare restored actor-step summaries exactly.
+
+Verification:
+
+1. `cargo test -p tracewake-core --test world_step_coordinator --locked`
+2. `cargo test -p tracewake-core scheduler::tests::world_step_census_marks_loaded_actor_not_due --locked`
+3. `cargo fmt --all --check`
+4. `cargo clippy --workspace --all-targets -- -D warnings`
+5. `cargo build --workspace --all-targets --locked`
+6. `cargo test --workspace`

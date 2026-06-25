@@ -756,6 +756,96 @@ fn transactional_world_step_attempts_due_actor_decision_transaction() {
 }
 
 #[test]
+fn world_step_actor_census_is_exhaustive_and_closed_over_loaded_actors() {
+    let autonomous = actor_id("actor_autonomous");
+    let controlled = actor_id("actor_controlled");
+    let missing_substrate = actor_id("actor_missing_substrate");
+    let reserved = actor_id("actor_reserved");
+    let actors = [
+        autonomous.clone(),
+        controlled.clone(),
+        missing_substrate.clone(),
+        reserved.clone(),
+    ];
+    let place = place_id("home_census");
+    let mut physical = physical_state_for_actors_with_need_model(
+        actors.clone(),
+        &place,
+        NeedModelState::new(0, 0),
+    );
+    let mut agent =
+        agent_state_for_actors([autonomous.clone(), controlled.clone(), reserved.clone()]);
+    let mut log = EventLog::new();
+    log.append(sleep_start(
+        "event_sleep_started_reserved",
+        &reserved,
+        0,
+        3,
+        &SleepAffordanceId::new("sleep_mat_home").unwrap(),
+    ))
+    .unwrap();
+    let mut registry = ActionRegistry::new();
+    registry.register_phase1_inspect_wait();
+    let mut scheduler = DeterministicScheduler::from_loaded_world(
+        SimTick::ZERO,
+        &physical,
+        &agent,
+        content_manifest_id(),
+    );
+    let mut controlled_proposal = wait_proposal(
+        &controlled,
+        ProposalOrigin::Human,
+        0,
+        "proposal_controlled_census",
+    );
+    let controller_bindings = attach_human_wait_source(
+        &mut controlled_proposal,
+        &physical,
+        &controlled,
+        SimTick::ZERO,
+        log.events().len() as u64,
+    );
+
+    let result = scheduler
+        .transact_world_one_tick(
+            &mut physical,
+            &mut agent,
+            &mut log,
+            &registry,
+            Some(&controller_bindings),
+            None,
+            WorldStepTransactionRequest {
+                advance: world_advance_request(0),
+                controlled_proposals: vec![controlled_proposal],
+                actor_known_interval_actor_id: None,
+            },
+        )
+        .unwrap();
+
+    let census = result
+        .actor_step_summaries
+        .iter()
+        .map(|summary| (summary.actor_id.clone(), summary.status))
+        .collect::<BTreeMap<_, _>>();
+    assert_eq!(census.len(), actors.len());
+    assert_eq!(
+        census.keys().cloned().collect::<BTreeSet<_>>(),
+        actors.into_iter().collect::<BTreeSet<_>>()
+    );
+    assert_eq!(census.get(&autonomous), Some(&ActorStepStatus::Proposed));
+    assert_eq!(census.get(&controlled), Some(&ActorStepStatus::Controlled));
+    assert_eq!(
+        census.get(&missing_substrate),
+        Some(&ActorStepStatus::MissingSubstrate)
+    );
+    assert_eq!(
+        census.get(&reserved),
+        Some(&ActorStepStatus::DeferredReserved)
+    );
+    assert_eq!(result.due_work_summary.actor_transactions_attempted, 1);
+}
+
+#[test]
 fn transactional_world_step_observes_due_world_process_marker_without_counting_application() {
     let actor = actor_id("actor_mara");
     let place = place_id("home_mara");
