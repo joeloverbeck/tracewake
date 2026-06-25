@@ -1,6 +1,6 @@
 # 0052FOUCONFOU-009: Production-boundary conformance corpus + all-feature external negative fixtures
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — external compile-fail negative-fixture corpus (default + all supported feature combinations), production-bootstrap conformance behavior matrix, generative-lock production-constructor mode
@@ -89,3 +89,47 @@ Add labeled `include_str!`/import alarms pointing to the witnesses they protect,
 
 1. `cargo test -p tracewake-core --test negative_fixture_runner && cargo test -p tracewake-core --test generative_lock`
 2. `cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-25
+
+Implemented the production-boundary conformance corpus by extending
+`negative_fixture_runner` with an explicit all-supported-feature pass for the
+existing external production-boundary fixtures using
+`tracewake-core/test-support`. The selected corpus covers scheduler frontier and
+loaded-runtime mutation, seed mutators, pipeline-context construction, perception
+writers, due actor/process injection, debug/embodied conversion, interval
+forging, and embodied temporal/context/debug mutation. This closes the former
+single-feature fixture blind spot without adding a parallel fixture framework.
+
+The all-feature pass exposed that `test-support` was reopening exact embodied
+view and interval fields. To make the negative corpus non-vacuous, the sensitive
+`EmbodiedViewModel` and `TypedActorKnownIntervalSummary` authority fields are
+now crate-private in every feature mode, while tests and TUI code read through
+the existing accessors and use the typed test constructors where synthetic test
+views are needed.
+
+Added a secondary `anti_regression_guards` topology alarm that includes the
+negative fixture runner source, requires the all-feature lane and key
+standing-barrier fixtures to stay registered, and proves the alarm fires when a
+fixture is removed. The production-constructor/generative and behavior-matrix
+coverage remains in the existing `generative_lock`, `world_step_coordinator`,
+`command_loop_session`, and `playable_capability_parity` suites; this ticket
+strengthened their boundary evidence rather than duplicating those matrices.
+
+Deviation from the original "evidence-only" scope: one production visibility
+hardening was necessary in `crates/tracewake-core/src/view_models.rs` so
+`test-support` no longer reopens embodied exact temporal/context/debug fields.
+No runtime behavior, compatibility shim, or new public authority path was added.
+
+Verification:
+
+- `cargo test -p tracewake-core --test negative_fixture_runner --locked`
+- `cargo test -p tracewake-core --test generative_lock --locked`
+- `cargo test -p tracewake-core --test anti_regression_guards standing_barrier_negative_fixture_runner_keeps_all_feature_boundary_lane --locked`
+- `cargo test -p tracewake-tui --test command_loop_session --test playable_capability_parity --locked`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

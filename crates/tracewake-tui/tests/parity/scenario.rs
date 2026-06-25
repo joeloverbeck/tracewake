@@ -54,17 +54,19 @@ pub fn run_real_pipeline(entry: &CapabilityEntry) -> Result<ScenarioWitnesses, S
     let view = app.current_view().map_err(ScenarioError::from)?;
     let mut measured = ScenarioMeasuredEvidence {
         actor_knowledge: view
-            .holder_known_context_id
+            .holder_known_context_id()
+            .clone()
             .as_str()
             .starts_with(&format!("hkc.{}.", entry.viewer_actor))
-            && !view.holder_known_context_hash.as_str().is_empty(),
+            && !view.holder_known_context_hash().as_str().is_empty(),
         rendered: false,
         debug_or_embodied_disposition: true,
         ..ScenarioMeasuredEvidence::default()
     };
-    measured.frontier_advanced = view.holder_known_context_frontier as usize <= app.event_count();
+    measured.frontier_advanced = view.holder_known_context_frontier() as usize <= app.event_count();
     measured.actor_knowledge &= view
-        .holder_known_context_id
+        .holder_known_context_id()
+        .clone()
         .as_str()
         .starts_with(&format!("hkc.{}.", entry.viewer_actor));
 
@@ -239,10 +241,10 @@ fn measure_advance_until(
             | AdvanceUntilStopReason::ControllerSafetyBound
     );
     if let Ok(view) = app.current_view() {
-        if let Some(summary) = view.actor_known_interval_summary {
-            measured.holder_known_sources = summary.stop_frontier >= summary.start_frontier
-                && (!summary.no_new_actor_known_information || !summary.notices.is_empty());
-            measured.typed_stop_reason &= summary.stop_reason.stable_id()
+        if let Some(summary) = view.actor_known_interval_summary() {
+            measured.holder_known_sources = summary.stop_frontier() >= summary.start_frontier()
+                && (!summary.no_new_actor_known_information() || !summary.notices().is_empty());
+            measured.typed_stop_reason &= summary.stop_reason().stable_id()
                 == match result.stop_reason {
                     AdvanceUntilStopReason::PossessedDurationTerminal => {
                         "possessed_duration_terminal"

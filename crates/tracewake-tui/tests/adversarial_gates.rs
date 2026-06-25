@@ -89,7 +89,7 @@ fn adversarial_gates_debug_truth_does_not_enter_actor_surfaces() {
         .any(|target| target == "food_hidden_pantry")));
     assert!(notebook.typed_leads.is_empty());
     assert!(notebook.source_bound_beliefs.is_empty());
-    assert!(!view.holder_known_context_source_summary.contains("debug"));
+    assert!(!view.holder_known_context_source_summary().contains("debug"));
     for actor_surface in [rendered_view.as_str(), rendered_notebook.as_str()] {
         assert!(!actor_surface.contains("Knowledge context"));
         assert!(!actor_surface.contains("DEBUG NON-DIEGETIC"));
@@ -100,13 +100,13 @@ fn adversarial_gates_debug_truth_does_not_enter_actor_surfaces() {
     let artifact = AdversarialReviewArtifact {
         responsible_layer: "debug_quarantine",
         scenario_id: "debug_omniscience_excluded_001",
-        actor_id: view.viewer_actor_id.as_str().to_string(),
+        actor_id: view.viewer_actor_id().as_str().to_string(),
         controller_id: Some("controller_human"),
-        context_id: view.holder_known_context_id.as_str().to_string(),
-        context_hash: view.holder_known_context_hash.as_str().to_string(),
+        context_id: view.holder_known_context_id().as_str().to_string(),
+        context_hash: view.holder_known_context_hash().as_str().to_string(),
         semantic_id: None,
         typed_reason_codes: Vec::new(),
-        provenance_refs: vec![view.holder_known_context_source_summary],
+        provenance_refs: vec![view.holder_known_context_source_summary().to_string()],
         debug_capability_present: epistemics.debug_only(),
         actor_surfaces_checked: vec!["embodied_view", "notebook", "semantic_actions"],
         debug_surfaces_checked: vec![
@@ -141,11 +141,13 @@ fn debug_panel_does_not_change_embodied_affordances() {
         })
         .collect::<Vec<_>>();
     let before_context = (
-        before_view.view_model_id.clone(),
-        before_view.holder_known_context_id.clone(),
-        before_view.holder_known_context_hash.clone(),
-        before_view.holder_known_context_frontier,
-        before_view.holder_known_context_source_summary.clone(),
+        before_view.view_model_id().clone(),
+        before_view.holder_known_context_id().clone(),
+        before_view.holder_known_context_hash().clone(),
+        before_view.holder_known_context_frontier(),
+        before_view
+            .holder_known_context_source_summary()
+            .to_string(),
     );
 
     let _item = app.render_debug_item_location_panel(&ItemId::new("food_hidden_pantry").unwrap());
@@ -165,31 +167,32 @@ fn debug_panel_does_not_change_embodied_affordances() {
         })
         .collect::<Vec<_>>();
     let after_context = (
-        after_view.view_model_id.clone(),
-        after_view.holder_known_context_id.clone(),
-        after_view.holder_known_context_hash.clone(),
-        after_view.holder_known_context_frontier,
-        after_view.holder_known_context_source_summary.clone(),
+        after_view.view_model_id().clone(),
+        after_view.holder_known_context_id().clone(),
+        after_view.holder_known_context_hash().clone(),
+        after_view.holder_known_context_frontier(),
+        after_view.holder_known_context_source_summary().to_string(),
     );
 
     assert_eq!(after_actions, before_actions);
     assert_eq!(after_context, before_context);
     assert_eq!(app.physical_checksum(), before_checksum);
     assert!(!after_view
-        .holder_known_context_source_summary
+        .holder_known_context_source_summary()
+        .to_string()
         .contains("debug"));
 
     let artifact = AdversarialReviewArtifact {
         responsible_layer: "debug_quarantine",
         scenario_id: "debug_omniscience_excluded_001",
-        actor_id: after_view.viewer_actor_id.as_str().to_string(),
+        actor_id: after_view.viewer_actor_id().as_str().to_string(),
         controller_id: Some("controller_human"),
-        context_id: after_view.holder_known_context_id.as_str().to_string(),
-        context_hash: after_view.holder_known_context_hash.as_str().to_string(),
+        context_id: after_view.holder_known_context_id().as_str().to_string(),
+        context_hash: after_view.holder_known_context_hash().as_str().to_string(),
         semantic_id: None,
         typed_reason_codes: Vec::new(),
-        provenance_refs: vec![after_view.holder_known_context_source_summary],
-        debug_capability_present: after_view.debug_available,
+        provenance_refs: vec![after_view.holder_known_context_source_summary().to_string()],
+        debug_capability_present: after_view.debug_available(),
         actor_surfaces_checked: vec![
             "semantic_actions",
             "view_model_id",
@@ -228,14 +231,14 @@ fn adversarial_gates_forged_privileged_semantic_id_is_not_current_action() {
     let artifact = AdversarialReviewArtifact {
         responsible_layer: "tui_input_binding",
         scenario_id: "hidden_food_closed_container_001",
-        actor_id: view.viewer_actor_id.as_str().to_string(),
+        actor_id: view.viewer_actor_id().as_str().to_string(),
         controller_id: Some("controller_human"),
-        context_id: view.holder_known_context_id.as_str().to_string(),
-        context_hash: view.holder_known_context_hash.as_str().to_string(),
+        context_id: view.holder_known_context_id().as_str().to_string(),
+        context_hash: view.holder_known_context_hash().as_str().to_string(),
         semantic_id: Some(forged.as_str().to_string()),
         typed_reason_codes: vec!["semantic_action_not_current".to_string()],
-        provenance_refs: vec![view.holder_known_context_source_summary],
-        debug_capability_present: view.debug_available,
+        provenance_refs: vec![view.holder_known_context_source_summary().to_string()],
+        debug_capability_present: view.debug_available(),
         actor_surfaces_checked: vec!["current_view.semantic_actions"],
         debug_surfaces_checked: vec![],
         expected_result: "no_pipeline_submission_no_checksum_change",
@@ -291,14 +294,14 @@ fn adversarial_gates_stale_view_token_fails_after_state_change() {
     let artifact = AdversarialReviewArtifact {
         responsible_layer: "tui_input_binding",
         scenario_id: "view_model_local_actions_001",
-        actor_id: old_view.viewer_actor_id.as_str().to_string(),
+        actor_id: old_view.viewer_actor_id().as_str().to_string(),
         controller_id: Some("controller_human"),
-        context_id: old_view.holder_known_context_id.as_str().to_string(),
-        context_hash: old_view.holder_known_context_hash.as_str().to_string(),
+        context_id: old_view.holder_known_context_id().as_str().to_string(),
+        context_hash: old_view.holder_known_context_hash().as_str().to_string(),
         semantic_id: Some(stale_open.as_str().to_string()),
         typed_reason_codes: vec!["semantic_action_not_current".to_string()],
-        provenance_refs: vec![old_view.holder_known_context_source_summary],
-        debug_capability_present: old_view.debug_available,
+        provenance_refs: vec![old_view.holder_known_context_source_summary().to_string()],
+        debug_capability_present: old_view.debug_available(),
         actor_surfaces_checked: vec!["old_view.semantic_actions", "current_view.semantic_actions"],
         debug_surfaces_checked: vec![],
         expected_result: "no_pipeline_submission_no_checksum_change",
@@ -314,9 +317,9 @@ fn tui_current_view_submission_rejects_stale_selection() {
     let old_view = app.current_view().unwrap();
     let stale_open = semantic_action_for_action_id(&app, "open");
     let old_context = (
-        old_view.holder_known_context_id.clone(),
-        old_view.holder_known_context_hash.clone(),
-        old_view.holder_known_context_frontier,
+        old_view.holder_known_context_id().clone(),
+        old_view.holder_known_context_hash().clone(),
+        old_view.holder_known_context_frontier(),
     );
 
     let accepted = app.submit_semantic_action(&stale_open).unwrap();
@@ -324,9 +327,9 @@ fn tui_current_view_submission_rejects_stale_selection() {
     let new_view = app.current_view().unwrap();
     assert_ne!(
         (
-            new_view.holder_known_context_id.clone(),
-            new_view.holder_known_context_hash.clone(),
-            new_view.holder_known_context_frontier,
+            new_view.holder_known_context_id().clone(),
+            new_view.holder_known_context_hash().clone(),
+            new_view.holder_known_context_frontier(),
         ),
         old_context,
         "accepted action must advance the current-view source context"
@@ -353,14 +356,14 @@ fn tui_current_view_submission_rejects_stale_selection() {
     let artifact = AdversarialReviewArtifact {
         responsible_layer: "tui_input_binding",
         scenario_id: "view_model_local_actions_001",
-        actor_id: old_view.viewer_actor_id.as_str().to_string(),
+        actor_id: old_view.viewer_actor_id().as_str().to_string(),
         controller_id: Some("controller_human"),
-        context_id: old_view.holder_known_context_id.as_str().to_string(),
-        context_hash: old_view.holder_known_context_hash.as_str().to_string(),
+        context_id: old_view.holder_known_context_id().as_str().to_string(),
+        context_hash: old_view.holder_known_context_hash().as_str().to_string(),
         semantic_id: Some(stale_open.as_str().to_string()),
         typed_reason_codes: vec!["semantic_action_not_current".to_string()],
-        provenance_refs: vec![old_view.holder_known_context_source_summary],
-        debug_capability_present: old_view.debug_available,
+        provenance_refs: vec![old_view.holder_known_context_source_summary().to_string()],
+        debug_capability_present: old_view.debug_available(),
         actor_surfaces_checked: vec![
             "old_view.holder_known_context",
             "new_view.holder_known_context",
@@ -381,9 +384,9 @@ fn debug_command_strings_are_not_embodied_commands() {
     let before_view = app.current_view().unwrap();
     let before_actions = semantic_ids(&before_view);
     let before_context = (
-        before_view.holder_known_context_id.clone(),
-        before_view.holder_known_context_hash.clone(),
-        before_view.holder_known_context_frontier,
+        before_view.holder_known_context_id().clone(),
+        before_view.holder_known_context_hash().clone(),
+        before_view.holder_known_context_frontier(),
     );
     let before_checksum = app.physical_checksum();
     let before_events = app.event_count();
@@ -403,9 +406,9 @@ fn debug_command_strings_are_not_embodied_commands() {
     assert_eq!(semantic_ids(&after_view), before_actions);
     assert_eq!(
         (
-            after_view.holder_known_context_id.clone(),
-            after_view.holder_known_context_hash.clone(),
-            after_view.holder_known_context_frontier,
+            after_view.holder_known_context_id().clone(),
+            after_view.holder_known_context_hash().clone(),
+            after_view.holder_known_context_frontier(),
         ),
         before_context
     );
@@ -418,14 +421,14 @@ fn debug_command_strings_are_not_embodied_commands() {
     let artifact = AdversarialReviewArtifact {
         responsible_layer: "tui_input_binding",
         scenario_id: "debug_omniscience_excluded_001",
-        actor_id: after_view.viewer_actor_id.as_str().to_string(),
+        actor_id: after_view.viewer_actor_id().as_str().to_string(),
         controller_id: Some("controller_human"),
-        context_id: after_view.holder_known_context_id.as_str().to_string(),
-        context_hash: after_view.holder_known_context_hash.as_str().to_string(),
+        context_id: after_view.holder_known_context_id().as_str().to_string(),
+        context_hash: after_view.holder_known_context_hash().as_str().to_string(),
         semantic_id: Some("debug.item.food_hidden_pantry".to_string()),
         typed_reason_codes: vec!["semantic_action_not_current".to_string()],
-        provenance_refs: vec![after_view.holder_known_context_source_summary],
-        debug_capability_present: after_view.debug_available,
+        provenance_refs: vec![after_view.holder_known_context_source_summary().to_string()],
+        debug_capability_present: after_view.debug_available(),
         actor_surfaces_checked: vec!["command_loop", "semantic_actions", "holder_known_context"],
         debug_surfaces_checked: vec!["debug_item_location"],
         expected_result: "debug_command_rendered_but_not_submitted_as_action",
@@ -457,7 +460,7 @@ fn adversarial_gates_possession_rebind_does_not_transfer_notebook_or_debug_truth
     let tomas_rendered_notebook = render_notebook(&tomas_notebook);
 
     assert_eq!(app.physical_checksum(), checksum_before_rebind);
-    assert_eq!(mara_view.viewer_actor_id.as_str(), "actor_mara");
+    assert_eq!(mara_view.viewer_actor_id().as_str(), "actor_mara");
     assert!(mara_notebook.typed_leads.is_empty());
     assert!(mara_notebook.source_bound_beliefs.is_empty());
     assert!(tomas_rendered_notebook.contains("contradiction="));
@@ -482,14 +485,14 @@ fn adversarial_gates_possession_rebind_does_not_transfer_notebook_or_debug_truth
     let artifact = AdversarialReviewArtifact {
         responsible_layer: "tui_input_binding",
         scenario_id: "expectation_contradiction_001",
-        actor_id: mara_view.viewer_actor_id.as_str().to_string(),
+        actor_id: mara_view.viewer_actor_id().as_str().to_string(),
         controller_id: Some("controller_human"),
-        context_id: mara_view.holder_known_context_id.as_str().to_string(),
-        context_hash: mara_view.holder_known_context_hash.as_str().to_string(),
+        context_id: mara_view.holder_known_context_id().as_str().to_string(),
+        context_hash: mara_view.holder_known_context_hash().as_str().to_string(),
         semantic_id: None,
         typed_reason_codes: Vec::new(),
-        provenance_refs: vec![mara_view.holder_known_context_source_summary],
-        debug_capability_present: mara_view.debug_available,
+        provenance_refs: vec![mara_view.holder_known_context_source_summary().to_string()],
+        debug_capability_present: mara_view.debug_available(),
         actor_surfaces_checked: vec!["notebook", "needs", "intention", "context_id"],
         debug_surfaces_checked: vec!["debug_item_location"],
         expected_result: "rebind_changes_controller_only",
@@ -516,7 +519,7 @@ fn adversarial_gates_possession_rebind_does_not_transfer_rejection_why_not() {
     let mara_view = app.current_view().unwrap();
     let mara_rendered_view = app.render_current_view().unwrap();
 
-    assert_eq!(mara_view.viewer_actor_id.as_str(), "actor_mara");
+    assert_eq!(mara_view.viewer_actor_id().as_str(), "actor_mara");
     assert_eq!(mara_view.last_rejection_summary, None);
     assert_eq!(mara_view.last_rejection_why_not, None);
     assert!(!mara_rendered_view.contains("Why-not:"));
@@ -525,10 +528,10 @@ fn adversarial_gates_possession_rebind_does_not_transfer_rejection_why_not() {
     let artifact = AdversarialReviewArtifact {
         responsible_layer: "tui_input_binding",
         scenario_id: "expectation_contradiction_001",
-        actor_id: mara_view.viewer_actor_id.as_str().to_string(),
+        actor_id: mara_view.viewer_actor_id().as_str().to_string(),
         controller_id: Some("controller_human"),
-        context_id: mara_view.holder_known_context_id.as_str().to_string(),
-        context_hash: mara_view.holder_known_context_hash.as_str().to_string(),
+        context_id: mara_view.holder_known_context_id().as_str().to_string(),
+        context_hash: mara_view.holder_known_context_hash().as_str().to_string(),
         semantic_id: Some(blocked_action.to_string()),
         typed_reason_codes: rejected
             .report
@@ -542,7 +545,7 @@ fn adversarial_gates_possession_rebind_does_not_transfer_rejection_why_not() {
             .iter()
             .map(tracewake_core::actions::CheckedFact::render_pair)
             .collect(),
-        debug_capability_present: mara_view.debug_available,
+        debug_capability_present: mara_view.debug_available(),
         actor_surfaces_checked: vec!["embodied_view.last_rejection", "rendered_why_not"],
         debug_surfaces_checked: vec!["debug_action_rejection"],
         expected_result: "rebind_after_rejection_clears_previous_actor_why_not",
@@ -572,14 +575,14 @@ fn adversarial_gates_public_tui_boundary_rejects_direct_dispatch_shape() {
     let artifact = AdversarialReviewArtifact {
         responsible_layer: "tui_input_binding",
         scenario_id: "strongbox_001",
-        actor_id: view.viewer_actor_id.as_str().to_string(),
+        actor_id: view.viewer_actor_id().as_str().to_string(),
         controller_id: Some("controller_human"),
-        context_id: view.holder_known_context_id.as_str().to_string(),
-        context_hash: view.holder_known_context_hash.as_str().to_string(),
+        context_id: view.holder_known_context_id().as_str().to_string(),
+        context_hash: view.holder_known_context_hash().as_str().to_string(),
         semantic_id: Some("apply_event".to_string()),
         typed_reason_codes: vec!["semantic_action_not_current".to_string()],
-        provenance_refs: vec![view.holder_known_context_source_summary],
-        debug_capability_present: view.debug_available,
+        provenance_refs: vec![view.holder_known_context_source_summary().to_string()],
+        debug_capability_present: view.debug_available(),
         actor_surfaces_checked: vec!["command_loop", "current_view.semantic_actions"],
         debug_surfaces_checked: vec![],
         expected_result: "no_event_application_public_command",
@@ -607,14 +610,14 @@ fn adversarial_gates_tui_rule_inference_cannot_apply_hidden_food_target() {
     let artifact = AdversarialReviewArtifact {
         responsible_layer: "view_model",
         scenario_id: "hidden_food_unknown_route_001",
-        actor_id: view.viewer_actor_id.as_str().to_string(),
+        actor_id: view.viewer_actor_id().as_str().to_string(),
         controller_id: Some("controller_human"),
-        context_id: view.holder_known_context_id.as_str().to_string(),
-        context_hash: view.holder_known_context_hash.as_str().to_string(),
+        context_id: view.holder_known_context_id().as_str().to_string(),
+        context_hash: view.holder_known_context_hash().as_str().to_string(),
         semantic_id: Some(hidden_food.as_str().to_string()),
         typed_reason_codes: vec!["semantic_action_not_current".to_string()],
-        provenance_refs: vec![view.holder_known_context_source_summary],
-        debug_capability_present: view.debug_available,
+        provenance_refs: vec![view.holder_known_context_source_summary().to_string()],
+        debug_capability_present: view.debug_available(),
         actor_surfaces_checked: vec!["semantic_actions", "target_ids"],
         debug_surfaces_checked: vec![],
         expected_result: "hidden_food_not_promoted_to_action",
@@ -675,10 +678,10 @@ fn adversarial_gates_why_not_actor_surface_uses_typed_non_leaking_facts() {
     let artifact = AdversarialReviewArtifact {
         responsible_layer: "action_validation",
         scenario_id: "door_access_001",
-        actor_id: view.viewer_actor_id.as_str().to_string(),
+        actor_id: view.viewer_actor_id().as_str().to_string(),
         controller_id: Some("controller_human"),
-        context_id: view.holder_known_context_id.as_str().to_string(),
-        context_hash: view.holder_known_context_hash.as_str().to_string(),
+        context_id: view.holder_known_context_id().as_str().to_string(),
+        context_hash: view.holder_known_context_hash().as_str().to_string(),
         semantic_id: Some("move.to.back_room".to_string()),
         typed_reason_codes: why_not.reason_codes,
         provenance_refs: rejected
@@ -774,12 +777,17 @@ fn adversarial_gates_no_human_operator_output_stays_debug_only() {
 
     let view = app.current_view().unwrap();
     assert!(app.event_count() > before_events);
-    assert_eq!(view.holder_known_context_frontier, app.event_count() as u64);
+    assert_eq!(
+        view.holder_known_context_frontier(),
+        app.event_count() as u64
+    );
     assert!(!view
-        .holder_known_context_source_summary
+        .holder_known_context_source_summary()
+        .to_string()
         .contains("ordinary_events"));
     assert!(!view
-        .holder_known_context_source_summary
+        .holder_known_context_source_summary()
+        .to_string()
         .contains("routine_events"));
     assert!(String::from_utf8(output)
         .unwrap()
@@ -787,14 +795,14 @@ fn adversarial_gates_no_human_operator_output_stays_debug_only() {
     let artifact = AdversarialReviewArtifact {
         responsible_layer: "scheduler",
         scenario_id: "no_human_day_001",
-        actor_id: view.viewer_actor_id.as_str().to_string(),
+        actor_id: view.viewer_actor_id().as_str().to_string(),
         controller_id: Some("controller_human"),
-        context_id: view.holder_known_context_id.as_str().to_string(),
-        context_hash: view.holder_known_context_hash.as_str().to_string(),
+        context_id: view.holder_known_context_id().as_str().to_string(),
+        context_hash: view.holder_known_context_hash().as_str().to_string(),
         semantic_id: None,
         typed_reason_codes: Vec::new(),
-        provenance_refs: vec![view.holder_known_context_source_summary],
-        debug_capability_present: view.debug_available,
+        provenance_refs: vec![view.holder_known_context_source_summary().to_string()],
+        debug_capability_present: view.debug_available(),
         actor_surfaces_checked: vec!["embodied_view", "holder_known_context_frontier"],
         debug_surfaces_checked: vec!["debug_no_human_day"],
         expected_result: "operator_metrics_debug_only_actor_view_rebuilt",
@@ -820,25 +828,25 @@ fn adversarial_gates_rendering_does_not_change_typed_order_or_replay() {
 
     assert_eq!(semantic_ids(&after), before_action_ids);
     assert_eq!(
-        after.holder_known_context_hash,
-        before.holder_known_context_hash
+        after.holder_known_context_hash().clone(),
+        before.holder_known_context_hash().clone()
     );
     assert_eq!(app.physical_checksum(), before_checksum);
     assert_eq!(first_sections, second_sections);
     let artifact = AdversarialReviewArtifact {
         responsible_layer: "replay",
         scenario_id: "door_access_001",
-        actor_id: after.viewer_actor_id.as_str().to_string(),
+        actor_id: after.viewer_actor_id().as_str().to_string(),
         controller_id: Some("controller_human"),
-        context_id: after.holder_known_context_id.as_str().to_string(),
-        context_hash: after.holder_known_context_hash.as_str().to_string(),
+        context_id: after.holder_known_context_id().as_str().to_string(),
+        context_hash: after.holder_known_context_hash().as_str().to_string(),
         semantic_id: before_action_ids.first().cloned(),
         typed_reason_codes: Vec::new(),
         provenance_refs: first_sections
             .iter()
             .map(|section| section.name.clone())
             .collect(),
-        debug_capability_present: after.debug_available,
+        debug_capability_present: after.debug_available(),
         actor_surfaces_checked: vec!["semantic_action_order", "context_hash", "physical_checksum"],
         debug_surfaces_checked: vec!["debug_replay", "transcript_sections"],
         expected_result: "render_and_debug_replay_are_read_only_and_deterministic",

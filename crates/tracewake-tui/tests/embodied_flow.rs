@@ -18,11 +18,12 @@ fn bind_render_submit_rerender_and_show_why_not() {
     assert!(first.contains("open.container.strongbox_tomas"));
     let first_view = app.current_view().unwrap();
     assert_eq!(
-        first_view.holder_known_context_id.as_str(),
+        first_view.holder_known_context_id().as_str(),
         "hkc.actor_tomas.0.7"
     );
     assert!(first_view
-        .holder_known_context_hash
+        .holder_known_context_hash()
+        .clone()
         .as_str()
         .starts_with("hkc1-"));
     assert!(!first.contains("Knowledge context"));

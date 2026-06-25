@@ -48,6 +48,7 @@ const REPORT_RS: &str = include_str!("../src/replay/report.rs");
 const GENERATIVE_LOCK_RS: &str = include_str!("generative_lock.rs");
 const HIDDEN_TRUTH_GATES_RS: &str = include_str!("hidden_truth_gates.rs");
 const ANTI_REGRESSION_GUARDS_RS: &str = include_str!("anti_regression_guards.rs");
+const NEGATIVE_FIXTURE_RUNNER_RS: &str = include_str!("negative_fixture_runner.rs");
 const SUPPORT_GENERATIVE_RS: &str = include_str!("support/generative.rs");
 const SUPPORT_MOD_RS: &str = include_str!("support/mod.rs");
 const CONTENT_LOAD_RS: &str = include_str!("../../tracewake-content/src/load.rs");
@@ -2263,6 +2264,10 @@ const META_LOCK_CENSUS_EXEMPTIONS: &[MetaLockCensusExemption] = &[
     MetaLockCensusExemption {
         test_name: "generative_lock_cannot_fabricate_duration_terminals",
         rationale: "Generative harness behavior proof represented by lock_id generative_support_bans_bare_event_envelope_token and sibling support/generative guard entries.",
+    },
+    MetaLockCensusExemption {
+        test_name: "standing_barrier_negative_fixture_runner_keeps_all_feature_boundary_lane",
+        rationale: "Secondary topology alarm for the load-bearing negative_fixture_runner all-feature compile-fail lane, not a separate production source-scan lock.",
     },
 ];
 
@@ -10029,6 +10034,40 @@ fn guard_001_no_production_seed_mutation_outside_state_definition() {
         assert!(
             !source.contains("seed_"),
             "{path} uses seed construction mutators in production"
+        );
+    }
+}
+
+#[test]
+fn standing_barrier_negative_fixture_runner_keeps_all_feature_boundary_lane() {
+    assert_standing_barrier_negative_fixture_runner_registered(NEGATIVE_FIXTURE_RUNNER_RS);
+
+    let synthetic = NEGATIVE_FIXTURE_RUNNER_RS.replace(
+        "\"external_crate_cannot_mutate_embodied_temporal_fields\",",
+        "",
+    );
+    assert!(
+        std::panic::catch_unwind(|| {
+            assert_standing_barrier_negative_fixture_runner_registered(&synthetic)
+        })
+        .is_err(),
+        "standing-barrier topology alarm must fire if an all-feature fixture is removed"
+    );
+}
+
+fn assert_standing_barrier_negative_fixture_runner_registered(source: &str) {
+    for required in [
+        "TRACEWAKE_CORE_TEST_SUPPORT_FEATURE",
+        "production_boundary_negative_fixtures_fail_with_test_support_feature",
+        "ALL_FEATURE_PRODUCTION_BOUNDARY_FIXTURES",
+        "external_crate_cannot_mutate_loaded_runtime_fields",
+        "external_crate_cannot_mutate_embodied_temporal_fields",
+        "external_crate_cannot_construct_pipeline_context_with_runtime_aggregates",
+        "external_crate_cannot_assign_scheduler_frontier",
+    ] {
+        assert!(
+            source.contains(required),
+            "negative fixture runner must keep all-feature standing-barrier witness {required}"
         );
     }
 }

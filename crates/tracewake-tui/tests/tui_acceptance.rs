@@ -409,8 +409,8 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
     artifacts.push(PositiveProofArtifact {
         responsible_layer: "tracewake-tui",
         scenario_id: "view_model_local_actions_001",
-        actor_id: view.viewer_actor_id.as_str().to_string(),
-        context_id: view.holder_known_context_id.as_str().to_string(),
+        actor_id: view.viewer_actor_id().as_str().to_string(),
+        context_id: view.holder_known_context_id().as_str().to_string(),
         action_id: Some("open"),
         semantic_id: Some(semantic_id.as_str().to_string()),
         report_status: Some(accepted.report.status),
@@ -421,8 +421,8 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
             .map(|event_id| event_id.as_str().to_string())
             .collect(),
         typed_reason_codes: Vec::new(),
-        provenance: vec![view.holder_known_context_hash.as_str().to_string()],
-        debug_capability_present: view.debug_available,
+        provenance: vec![view.holder_known_context_hash().as_str().to_string()],
+        debug_capability_present: view.debug_available(),
         surfaces_checked: vec!["embodied_view", "proposal_report", "event_ids", "checksum"],
         checksum_result: "changed_after_accepted_world_event",
     });
@@ -434,8 +434,8 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
     artifacts.push(PositiveProofArtifact {
         responsible_layer: "tracewake-tui",
         scenario_id: "view_model_local_actions_001",
-        actor_id: view.viewer_actor_id.as_str().to_string(),
-        context_id: view.holder_known_context_id.as_str().to_string(),
+        actor_id: view.viewer_actor_id().as_str().to_string(),
+        context_id: view.holder_known_context_id().as_str().to_string(),
         action_id: Some("close"),
         semantic_id: Some(close_action.as_str().to_string()),
         report_status: Some(closed.report.status),
@@ -446,8 +446,8 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
             .map(|event_id| event_id.as_str().to_string())
             .collect(),
         typed_reason_codes: Vec::new(),
-        provenance: vec![view.holder_known_context_hash.as_str().to_string()],
-        debug_capability_present: view.debug_available,
+        provenance: vec![view.holder_known_context_hash().as_str().to_string()],
+        debug_capability_present: view.debug_available(),
         surfaces_checked: vec!["embodied_view", "close_semantic_action", "event_ids"],
         checksum_result: "accepted_close_event",
     });
@@ -469,8 +469,8 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
     artifacts.push(PositiveProofArtifact {
         responsible_layer: "tracewake-tui",
         scenario_id: "sleep_eat_work_001",
-        actor_id: view.viewer_actor_id.as_str().to_string(),
-        context_id: view.holder_known_context_id.as_str().to_string(),
+        actor_id: view.viewer_actor_id().as_str().to_string(),
+        context_id: view.holder_known_context_id().as_str().to_string(),
         action_id: Some("sleep"),
         semantic_id: Some(sleep_action.as_str().to_string()),
         report_status: Some(slept.report.status),
@@ -481,8 +481,8 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
             .map(|event_id| event_id.as_str().to_string())
             .collect(),
         typed_reason_codes: Vec::new(),
-        provenance: vec![view.holder_known_context_source_summary.clone()],
-        debug_capability_present: view.debug_available,
+        provenance: vec![view.holder_known_context_source_summary().to_string()],
+        debug_capability_present: view.debug_available(),
         surfaces_checked: vec!["embodied_view", "sleep_semantic_action", "event_ids"],
         checksum_result: "accepted_sleep_started_event",
     });
@@ -498,8 +498,8 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
     artifacts.push(PositiveProofArtifact {
         responsible_layer: "tracewake-tui",
         scenario_id: "no_human_day_001",
-        actor_id: view.viewer_actor_id.as_str().to_string(),
-        context_id: view.holder_known_context_id.as_str().to_string(),
+        actor_id: view.viewer_actor_id().as_str().to_string(),
+        context_id: view.holder_known_context_id().as_str().to_string(),
         action_id: Some("eat"),
         semantic_id: Some(eat_action.as_str().to_string()),
         report_status: Some(eaten.report.status),
@@ -510,8 +510,8 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
             .map(|event_id| event_id.as_str().to_string())
             .collect(),
         typed_reason_codes: Vec::new(),
-        provenance: vec![view.holder_known_context_source_summary.clone()],
-        debug_capability_present: view.debug_available,
+        provenance: vec![view.holder_known_context_source_summary().to_string()],
+        debug_capability_present: view.debug_available(),
         surfaces_checked: vec!["embodied_view", "eat_semantic_action", "event_ids"],
         checksum_result: "accepted_food_consumed_event",
     });
@@ -530,8 +530,8 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
     artifacts.push(PositiveProofArtifact {
         responsible_layer: "tracewake-tui",
         scenario_id: "embodied_workplace_believed_open_truth_closed_commit_fails_001",
-        actor_id: view.viewer_actor_id.as_str().to_string(),
-        context_id: view.holder_known_context_id.as_str().to_string(),
+        actor_id: view.viewer_actor_id().as_str().to_string(),
+        context_id: view.holder_known_context_id().as_str().to_string(),
         action_id: Some("work_block"),
         semantic_id: Some(work_action.as_str().to_string()),
         report_status: Some(worked.report.status),
@@ -542,8 +542,8 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
             .map(|event_id| event_id.as_str().to_string())
             .collect(),
         typed_reason_codes: Vec::new(),
-        provenance: vec![view.holder_known_context_source_summary.clone()],
-        debug_capability_present: view.debug_available,
+        provenance: vec![view.holder_known_context_source_summary().to_string()],
+        debug_capability_present: view.debug_available(),
         surfaces_checked: vec!["embodied_view", "work_semantic_action", "event_ids"],
         checksum_result: "accepted_work_block_failure_event",
     });
@@ -559,8 +559,8 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
     artifacts.push(PositiveProofArtifact {
         responsible_layer: "tracewake-tui",
         scenario_id: "strongbox_tomas_001",
-        actor_id: view.viewer_actor_id.as_str().to_string(),
-        context_id: view.holder_known_context_id.as_str().to_string(),
+        actor_id: view.viewer_actor_id().as_str().to_string(),
+        context_id: view.holder_known_context_id().as_str().to_string(),
         action_id: Some("wait"),
         semantic_id: Some(wait_action.as_str().to_string()),
         report_status: Some(waited.report.status),
@@ -571,8 +571,8 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
             .map(|event_id| event_id.as_str().to_string())
             .collect(),
         typed_reason_codes: Vec::new(),
-        provenance: vec![view.holder_known_context_source_summary.clone()],
-        debug_capability_present: view.debug_available,
+        provenance: vec![view.holder_known_context_source_summary().to_string()],
+        debug_capability_present: view.debug_available(),
         surfaces_checked: vec!["embodied_view", "wait_semantic_action", "event_ids"],
         checksum_result: "accepted_wait_event",
     });
@@ -592,8 +592,8 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
     artifacts.push(PositiveProofArtifact {
         responsible_layer: "tracewake-tui",
         scenario_id: "possession_does_not_reset_intention_001",
-        actor_id: view.viewer_actor_id.as_str().to_string(),
-        context_id: view.holder_known_context_id.as_str().to_string(),
+        actor_id: view.viewer_actor_id().as_str().to_string(),
+        context_id: view.holder_known_context_id().as_str().to_string(),
         action_id: Some("continue_routine"),
         semantic_id: Some(continue_action.as_str().to_string()),
         report_status: Some(continued.report.status),
@@ -604,8 +604,8 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
             .map(|event_id| event_id.as_str().to_string())
             .collect(),
         typed_reason_codes: Vec::new(),
-        provenance: vec![view.holder_known_context_source_summary.clone()],
-        debug_capability_present: view.debug_available,
+        provenance: vec![view.holder_known_context_source_summary().to_string()],
+        debug_capability_present: view.debug_available(),
         surfaces_checked: vec![
             "embodied_view",
             "continue_routine_semantic_action",
@@ -630,8 +630,8 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
     artifacts.push(PositiveProofArtifact {
         responsible_layer: "tracewake-core",
         scenario_id: "door_access_001",
-        actor_id: view.viewer_actor_id.as_str().to_string(),
-        context_id: view.holder_known_context_id.as_str().to_string(),
+        actor_id: view.viewer_actor_id().as_str().to_string(),
+        context_id: view.holder_known_context_id().as_str().to_string(),
         action_id: Some("move"),
         semantic_id: Some("move.to.back_room".to_string()),
         report_status: Some(rejected.report.status),
@@ -677,7 +677,7 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
         responsible_layer: "tracewake-core",
         scenario_id: "expectation_contradiction_001",
         actor_id: notebook_view.viewer_actor_id.as_str().to_string(),
-        context_id: view.holder_known_context_id.as_str().to_string(),
+        context_id: view.holder_known_context_id().as_str().to_string(),
         action_id: Some("check_container"),
         semantic_id: Some("check.container.strongbox_tomas".to_string()),
         report_status: Some(checked.report.status),
@@ -693,7 +693,7 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
             .iter()
             .map(|lead| format!("{}:{}", lead.source_kind, lead.source_summary))
             .collect(),
-        debug_capability_present: view.debug_available,
+        debug_capability_present: view.debug_available(),
         surfaces_checked: vec!["notebook", "typed_leads", "source_refs"],
         checksum_result: "observation_event_recorded",
     });
@@ -716,14 +716,14 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
     artifacts.push(PositiveProofArtifact {
         responsible_layer: "tracewake-tui",
         scenario_id: "debug_omniscience_excluded_001",
-        actor_id: view.viewer_actor_id.as_str().to_string(),
-        context_id: view.holder_known_context_id.as_str().to_string(),
+        actor_id: view.viewer_actor_id().as_str().to_string(),
+        context_id: view.holder_known_context_id().as_str().to_string(),
         action_id: None,
         semantic_id: None,
         report_status: None,
         event_ids: Vec::new(),
         typed_reason_codes: Vec::new(),
-        provenance: vec![view.holder_known_context_hash.as_str().to_string()],
+        provenance: vec![view.holder_known_context_hash().as_str().to_string()],
         debug_capability_present: true,
         surfaces_checked: vec!["debug_panel", "checksum", "event_count", "embodied_view"],
         checksum_result: "unchanged_after_debug_panel",
@@ -747,8 +747,8 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
     artifacts.push(PositiveProofArtifact {
         responsible_layer: "tracewake-core",
         scenario_id: "possession_parity_001",
-        actor_id: view.viewer_actor_id.as_str().to_string(),
-        context_id: view.holder_known_context_id.as_str().to_string(),
+        actor_id: view.viewer_actor_id().as_str().to_string(),
+        context_id: view.holder_known_context_id().as_str().to_string(),
         action_id: Some("take"),
         semantic_id: view
             .semantic_actions
@@ -762,8 +762,8 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
             .map(|event_id| event_id.as_str().to_string())
             .collect(),
         typed_reason_codes: Vec::new(),
-        provenance: vec![view.holder_known_context_source_summary.clone()],
-        debug_capability_present: view.debug_available,
+        provenance: vec![view.holder_known_context_source_summary().to_string()],
+        debug_capability_present: view.debug_available(),
         surfaces_checked: vec!["possession_view", "semantic_actions"],
         checksum_result: "changed_after_ordinary_take",
     });
@@ -915,7 +915,7 @@ fn tui_runs_no_human_day_and_inspects_real_post_run_panels() {
     let after_run_events = app.event_count();
     let embodied_view = app.current_view().unwrap();
     assert_eq!(
-        embodied_view.holder_known_context_frontier,
+        embodied_view.holder_known_context_frontier(),
         after_run_events as u64
     );
     let embodied = tracewake_tui::render::render_embodied_view(&embodied_view);
