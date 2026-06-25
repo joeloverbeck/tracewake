@@ -4,6 +4,29 @@ Use this reference only when the ticket/spec closeout actually involves these
 evidence shapes. Keep the main `SKILL.md` workflow authoritative for ordinary
 per-ticket and final-spec closeout.
 
+## Clean Temporary Worktree Evidence
+
+Use a clean temporary worktree when an acceptance artifact, capstone report, or
+final verification claim needs clean source/config/test/fixture evidence but
+the main checkout has unrelated dirty work that must be preserved.
+
+1. Record the main checkout status and identify the unrelated dirty paths that
+   are being excluded from the evidence package.
+2. Create the temporary worktree from the exact commit or branch state being
+   tested, preferably under `/tmp/<series-or-ticket>-acceptance`.
+3. In the temporary worktree, verify `git status --short` before running the
+   evidence commands. If the tool creates ignored output directories, record
+   that generated-evidence dirtiness separately from source-tree cleanliness.
+4. Run the required evidence commands in the temporary worktree and record the
+   tested commit as the implementation baseline or evidence/report commit, as
+   appropriate for the report.
+5. Copy only the durable summary facts back into tracked reports, tickets, or
+   specs. Do not stage scratch output from the temporary worktree unless the
+   ticket/spec explicitly requires it.
+6. Remove the temporary worktree when finished. If removal is blocked by Git
+   metadata or sandbox permissions, run or request the narrow cleanup needed,
+   such as `git worktree prune`, and report the cleanup result.
+
 ## Controlled Temporary-Break Evidence
 
 For compile-break transcripts, mutation probes, or other intentionally failing

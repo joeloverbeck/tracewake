@@ -105,6 +105,25 @@ function run(label, command, argsForCommand, expectedExitCodes = [0]) {
   return false;
 }
 
+function capture(label, command, argsForCommand, expectedExitCodes = [0]) {
+  console.log(`\n## ${label}`);
+  console.log([command, ...argsForCommand.map(shellQuote)].join(" "));
+  const result = spawnSync(command, argsForCommand, {
+    encoding: "utf8",
+    maxBuffer: 10 * 1024 * 1024,
+  });
+  if (result.stderr) {
+    process.stderr.write(result.stderr);
+  }
+  const status = result.status ?? 1;
+  const ok = expectedExitCodes.includes(status);
+  console.log(`status: ${status} (${ok ? "expected" : "unexpected"})`);
+  return {
+    ok,
+    stdout: result.stdout ?? "",
+  };
+}
+
 function testPath(label, argsForTest) {
   return run(label, "test", argsForTest, [0]);
 }
@@ -113,11 +132,46 @@ let ok = true;
 ok = run("Git status", "git", ["status", "--short"], [0]) && ok;
 ok = run("Matching active tickets", "bash", ["-lc", `rg --files tickets | rg ${shellQuote(options.ticketPrefix)}`], [1]) && ok;
 
+const archivedTicketList = capture("Archived tickets by prefix", "rg", ["--files", "archive/tickets"], [0, 1]);
+ok = archivedTicketList.ok && ok;
+const archivedTicketsByPrefix = archivedTicketList.stdout
+  .split(/\r?\n/)
+  .filter((path) => path.includes(options.ticketPrefix))
+  .sort();
+
+if (archivedTicketsByPrefix.length === 0) {
+  console.log(`No archived tickets matched prefix: ${options.ticketPrefix}`);
+  ok = false;
+} else {
+  for (const path of archivedTicketsByPrefix) {
+    console.log(path);
+  }
+}
+
+const archivedTicketPaths = Array.from(new Set([
+  ...archivedTicketsByPrefix,
+  ...options.archivedTicket,
+]));
+
 for (const path of options.activeTicket) {
   ok = testPath(`Active ticket absent: ${path}`, ["!", "-e", path]) && ok;
 }
-for (const path of options.archivedTicket) {
+for (const path of archivedTicketPaths) {
   ok = testPath(`Archived ticket present: ${path}`, ["-e", path]) && ok;
+}
+if (archivedTicketPaths.length > 0) {
+  ok = run(
+    "Archived ticket Outcome headings",
+    "rg",
+    ["--files-without-match", "^## Outcome", ...archivedTicketPaths],
+    [1],
+  ) && ok;
+  ok = run(
+    "Archived ticket Completed lines",
+    "rg",
+    ["--files-without-match", "^Completed: ", ...archivedTicketPaths],
+    [1],
+  ) && ok;
 }
 if (options.activeSpec) {
   ok = testPath(`Active spec absent: ${options.activeSpec}`, ["!", "-e", options.activeSpec]) && ok;
