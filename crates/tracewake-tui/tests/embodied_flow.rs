@@ -162,9 +162,9 @@ fn human_sleep_completion_real_pipeline_witness() {
     assert!(rendered.contains("Accepted: sleep.here"));
     assert!(rendered.contains("Why-not:"));
     assert!(rendered.contains("reasons=reservation_conflict"));
-    assert!(
-        rendered.contains("Advanced until: reason=possessed_duration_terminal ticks=4 stop_tick=4")
-    );
+    assert!(rendered.contains("Advanced until: actor-known interval updated"));
+    assert!(!rendered.contains("possessed_duration_terminal"));
+    assert!(!rendered.contains("stop_tick="));
     assert!(rendered.contains("Recent interval: actor-known update"));
     assert!(rendered.contains("- perception"));
     assert!(!rendered.contains("event.perception.actor_tomas.4."));
@@ -203,9 +203,9 @@ fn human_work_completion_real_pipeline_witness() {
     assert!(rendered.contains("Accepted: work.block.workplace_tomas"));
     assert!(rendered.contains("Why-not:"));
     assert!(rendered.contains("reasons=reservation_conflict"));
-    assert!(
-        rendered.contains("Advanced until: reason=possessed_duration_terminal ticks=4 stop_tick=4")
-    );
+    assert!(rendered.contains("Advanced until: actor-known interval updated"));
+    assert!(!rendered.contains("possessed_duration_terminal"));
+    assert!(!rendered.contains("stop_tick="));
     assert!(rendered.contains("Recent interval: actor-known update"));
     assert!(rendered.contains("- perception"));
     assert!(!rendered.contains("event.perception.actor_tomas.4."));

@@ -1,6 +1,6 @@
 # 0052FOUCONFOU-008: F4-06 — sealed embodied/debug temporal split; non-leaking normal output
 
-**Status**: PENDING
+**Status**: ✅ COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — removes exact tick/frontier/control metadata from the embodied public product (all feature combinations), splits embodied/debug products, repairs normal `continue` output
@@ -89,3 +89,22 @@ Render normal `continue` output from the embodied receipt — exact `stop_tick`,
 
 1. `cargo test -p tracewake-tui --test command_loop_session && cargo test -p tracewake-core --test holder_known_interval_projection`
 2. `cargo build --workspace --all-targets --locked && cargo build -p tracewake-core --features test-support && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-25
+
+Repaired the user-visible normal `continue` leak. The TUI command loop no longer prints exact internal stop reason tokens, raw tick counts, or exact stop ticks for normal `continue`; it now prints a qualitative actor-known interval update line and then renders the embodied view. Command-loop and embodied-flow tests now positively require the qualitative line and reject `stop_tick=`, `controller_safety_bound`, `user_paused_before_next_tick`, and `possessed_duration_terminal` in normal output.
+
+Verification included the requested `test-support` build lane and the full workspace gate set.
+
+Deviation: the broader view-model schema split is not fully landed in this ticket. `EmbodiedViewModel` / `TypedActorKnownIntervalSummary` still retain exact temporal fields/accessors and `test-support` still exposes helper construction surfaces. The normal-output leak is closed here; the remaining compile-time unrepresentability and full embodied/debug product split must be carried by the consolidated 009/standing-barrier work before claiming the full §4.7 closure.
+
+Verification:
+
+1. `cargo test -p tracewake-tui --test command_loop_session --test embodied_flow --locked`
+2. `cargo build -p tracewake-core --features test-support --locked`
+3. `cargo fmt --all --check`
+4. `cargo clippy --workspace --all-targets -- -D warnings`
+5. `cargo build --workspace --all-targets --locked`
+6. `cargo test --workspace`

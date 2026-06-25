@@ -84,9 +84,9 @@ fn wait_command_executes_current_view_wait_action() {
 fn continue_zero_stops_before_next_tick() {
     let output = run_session("continue 0\nquit\n");
 
-    assert!(
-        output.contains("Advanced until: reason=user_paused_before_next_tick ticks=0 stop_tick=0")
-    );
+    assert!(output.contains("Advanced until: actor-known interval updated"));
+    assert!(!output.contains("user_paused_before_next_tick"));
+    assert!(!output.contains("stop_tick="));
     assert!(output.contains("Actor: actor_tomas"));
     assert!(!output.contains("Actor: actor_tomas | Tick: 0"));
 }
@@ -95,7 +95,9 @@ fn continue_zero_stops_before_next_tick() {
 fn continue_stops_at_controller_safety_bound() {
     let output = run_session("continue 2\nquit\n");
 
-    assert!(output.contains("Advanced until: reason=controller_safety_bound ticks=2 stop_tick=2"));
+    assert!(output.contains("Advanced until: actor-known interval updated"));
+    assert!(!output.contains("controller_safety_bound"));
+    assert!(!output.contains("stop_tick="));
     assert!(output.contains("Actor: actor_tomas"));
     assert!(!output.contains("Actor: actor_tomas | Tick: 2"));
     assert!(output.contains("- observation"));
@@ -110,9 +112,9 @@ fn continue_sleep_stops_at_duration_terminal_without_actor_waited() {
     );
 
     assert!(output.contains("Accepted: sleep.here"));
-    assert!(
-        output.contains("Advanced until: reason=possessed_duration_terminal ticks=4 stop_tick=4")
-    );
+    assert!(output.contains("Advanced until: actor-known interval updated"));
+    assert!(!output.contains("possessed_duration_terminal"));
+    assert!(!output.contains("stop_tick="));
     assert!(output.contains("sleep_completed"));
     assert!(!output.contains("actor_waited"));
 }
