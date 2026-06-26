@@ -1,6 +1,6 @@
 # 0052FOUCONFOU-012: F4-09 — live-doc truthing (post-executable-closure)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — documentation only (live conformance/status/navigation evidence rows); no code, no doctrine altitude change
@@ -89,3 +89,35 @@ Update current commands, products, census, replay restore, and gate procedure to
 
 1. `grep -n "from_loaded_world\|submit_entry_with_world_advance" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md && grep -c "R-2[789]" docs/3-reference/01_DESIGN_RISK_REGISTER.md`
 2. `cargo test --workspace` — the doc-invariant guard suite (topology alarms) stays green.
+
+## Outcome
+
+Completed: 2026-06-26
+
+Truth-ed the live 0052 conformance/status/navigation rows after executable
+closure without changing doctrine altitude or archived historical artifacts.
+Updated the architecture, execution, and reference docs listed by this ticket to
+name the current production constructor
+`LoadedWorldRuntime::from_bootstrap(LoadedWorldBootstrap, SimTick)`, the content
+handoff through `into_runtime_bootstrap`, public TUI crossings through
+`TuiApp::submit_semantic_action`, `TuiApp::advance_until`, and command-loop
+closed `RuntimeCommand` dispatch, observed actor/process/replay/sealed-product
+effects, and the 0052 sensitivity/CI evidence in
+`archive/tickets/0052FOUCONFOU-009.md` through
+`archive/tickets/0052FOUCONFOU-011.md`.
+
+R-27/R-28/R-29 were updated for status/evidence only. The risk register count
+for `R-2[789]` stayed unchanged at `5`; no risk ID, glossary term, or new gate
+code was minted. The conformance index no longer contains
+`from_loaded_world` or `submit_entry_with_world_advance`; the remaining 0051
+references are explicitly historical context.
+
+Verification:
+
+- `grep -n "from_loaded_world\|submit_entry_with_world_advance" docs/1-architecture/00_ARCHITECTURE_INDEX_AND_CONFORMANCE.md` — no output, exit 1 as expected.
+- `grep -c "R-2[789]" docs/3-reference/01_DESIGN_RISK_REGISTER.md` — `5`.
+- `git diff --check` — passed.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.

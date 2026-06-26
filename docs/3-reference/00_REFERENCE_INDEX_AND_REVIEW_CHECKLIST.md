@@ -124,18 +124,21 @@ Use this block as a pointer to foundation `03` / `INV-112`, the architecture tem
 - Do open durations close through the shared authority for event-sourced starts and terminals, not through batch-local pending queues or client-side completion logic?
 - Is interval output positive actor-known evidence from modeled sources, not a redacted omniscient event diff or an omniscient "nothing happened" summary?
 
-Current 0051 evidence answers these prompts by constructing the runtime through
-`LoadedWorldRuntime::from_loaded_world` and routing human-origin and
-no-human-origin advancement through core-derived loaded actors, declared
-processes, closed actor transaction outcomes, fail-closed event identity,
-temporal replay verdicts, and a core-owned interval product. Reviewers should
-look for `world_step_coordinator.rs`, `generative_lock.rs`,
+Current 0052 evidence answers these prompts by constructing the runtime through
+`LoadedWorldRuntime::from_bootstrap` from a validated `LoadedWorldBootstrap` and
+routing human-origin and no-human-origin advancement through core-derived loaded
+actors, declared processes, closed actor transaction outcomes, fail-closed event
+identity, temporal replay verdicts, and a core-owned interval product.
+Reviewers should look for `world_step_coordinator.rs`, `generative_lock.rs`,
 `replay_temporal_frontier.rs`, `holder_known_interval_projection.rs`,
 `salient_stop_actor_known.rs`, `negative_fixture_runner.rs`,
-`playable_capability_parity.rs`, `parity_adversarial.rs`, public
-command-loop/TUI world-advance tests, `archive/tickets/0051FOUCONTHI-009.md`,
-and `archive/tickets/0051FOUCONTHI-010.md` before treating a
-loaded-world/time-control row as current executable evidence.
+`command_loop_session.rs`, `playable_capability_parity.rs`, `embodied_flow.rs`,
+`parity_adversarial.rs`, `archive/tickets/0052FOUCONFOU-009.md`,
+`archive/tickets/0052FOUCONFOU-010.md`, and
+`archive/tickets/0052FOUCONFOU-011.md` before treating a
+loaded-world/time-control row as current executable evidence. The required
+checks to confirm operationally are `public-boundary conformance` and `mutation
+shard reconciliation (lock layer)`.
 
 ### Ordinary-life play
 

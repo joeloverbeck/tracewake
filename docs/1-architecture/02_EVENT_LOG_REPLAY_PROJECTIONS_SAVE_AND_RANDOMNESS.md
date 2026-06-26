@@ -172,15 +172,17 @@ state or raw hidden-world diffs. Stop decisions for continuation and
 advance-until controls must replay from typed step evidence and holder-known
 salience inputs, or fail loudly as projection/replay divergence.
 
-Current 0051 evidence for this replay/projection boundary starts from
-`LoadedWorldRuntime::from_loaded_world`, advances through the same core
-world-step used by public TUI wait/continue controls, and observes
-`TimeAdvanced`, actor/process events, replay temporal verdicts, and
-subject-separated holder-known interval products. The sensitivity record is
-split deliberately: temporal replay tests cover replay divergence, negative
-fixtures cover authority boundaries, and `archive/tickets/0051FOUCONTHI-010.md`
-records the focused projection mutation kills and the non-green standing
-mutation disposition.
+Current 0052 evidence for this replay/projection boundary starts from
+`LoadedWorldRuntime::from_bootstrap(LoadedWorldBootstrap, SimTick)` after
+validated content is converted with `into_runtime_bootstrap`, advances through
+closed `RuntimeCommand` dispatch used by public TUI wait/continue controls, and
+observes `TimeAdvanced`, actor/process events, replay temporal verdicts,
+restored scheduler authority, and subject-separated holder-known interval
+products. The sensitivity record is split deliberately: temporal replay tests
+cover replay divergence, negative fixtures cover authority boundaries, and
+`archive/tickets/0052FOUCONFOU-010.md` records the standing mutation rerun with
+zero in-surface misses/timeouts plus the routed-forward `food_source` misses
+that keep the overall canonical perimeter honestly non-green.
 
 Projection errors are reportable artifacts, not console messages.
 

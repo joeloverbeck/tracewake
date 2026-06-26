@@ -245,21 +245,25 @@ embodied, debug-only, replay, no-human, parity, or observer-only, and must
 identify the source event, proposal, projection, context, or transcript
 references that make it path-under-test evidence.
 
-For the 0051 loaded-world/time-control seam, the matrix must keep five evidence
+For the 0052 loaded-world/time-control seam, the matrix must keep five evidence
 classes distinct: production behavior and runtime construction
-(`LoadedWorldRuntime::from_loaded_world`, `world_step_coordinator.rs`,
-`generative_lock.rs`, and loaded-content handoff tests), temporal replay
-verdicts (`replay_temporal_frontier.rs` and `ReplayTemporalVerdict`/`run_replay`
-integration), core-owned holder-known interval output
+(`LoadedWorldRuntime::from_bootstrap`, `world_step_coordinator.rs`,
+`generative_lock.rs`, `embodied_flow.rs`, and loaded-content handoff tests),
+temporal replay verdicts (`replay_temporal_frontier.rs` and
+`ReplayTemporalVerdict`/`run_replay` integration), core-owned holder-known interval output
 (`holder_known_interval_projection.rs` and `salient_stop_actor_known.rs`),
 compile-fail authority boundaries (`negative_fixture_runner.rs`), and TUI
 parity/adversarial rendering (`playable_capability_parity.rs`,
-`parity_adversarial.rs`, and public command-loop world-advance tests). Focused
-mutation campaigns, including preserved 0049/0050 commands and the 0051
-projection-focused command recorded in `archive/tickets/0051FOUCONTHI-010.md`,
-are mutation evidence only. The 0051 standing campaign recorded `3275`
-selected mutants, `2549` caught, `703` unviable, `23` missed, and `0` timeout,
-so it must not be cited as a green standing-perimeter certification.
+`parity_adversarial.rs`, and public command-loop world-advance tests). The
+required `public-boundary conformance` job composes those existing behavior
+tests. Focused mutation campaigns, including preserved 0049/0050 commands and
+the 0052 focused repair commands recorded in `archive/tickets/0052FOUCONFOU-010.md`,
+are mutation evidence only. The 0052 standing campaign recorded `3400` selected
+mutants, `2645` caught, `748` unviable, `7` routed-forward
+`food_source_fact_supersedes` misses, and `0` timeout. It may be cited as zero
+in-surface misses/timeouts for the 0052 surface, but not as an unqualified green
+canonical standing-perimeter certification while those food-source mutants
+survive.
 
 ## General anti-vacuity and behavior witnesses
 

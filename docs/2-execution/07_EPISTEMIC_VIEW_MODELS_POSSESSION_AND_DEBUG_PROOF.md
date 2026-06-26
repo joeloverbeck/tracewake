@@ -92,9 +92,9 @@ remain non-diegetic and excluded from actor-known context. Per-surface temporal
 rendering diagnostics are owned by
 `10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`.
 
-The accepted 0051 evidence makes the interval product a complete core result:
-`LoadedWorldRuntime::from_loaded_world` constructs the runtime, the shared
-world step captures final perception, holder-known interval delta, stop reason,
+The accepted 0052 evidence makes the interval product a complete core result:
+`LoadedWorldRuntime::from_bootstrap` constructs the runtime, the shared world
+step captures final perception, holder-known interval delta, stop reason,
 temporal verdict, and replay-facing ancestry before returning the typed result
 to the TUI. The TUI stores and renders that product read-only; it does not call
 event-appending perception helpers, rebuild holder-known context, or convert
@@ -102,10 +102,12 @@ debug step reports into embodied interval summaries. The read-only boundary is
 witnessed by `crates/tracewake-tui/src/app.rs`,
 `crates/tracewake-core/tests/holder_known_interval_projection.rs`,
 `crates/tracewake-core/tests/salient_stop_actor_known.rs`, public
-command-loop/TUI world-advance tests, and the external-crate negative fixtures
-driven by `crates/tracewake-core/tests/negative_fixture_runner.rs`. Mutation
-sensitivity for same-source observation replacement and subject-separated
-interval facts is recorded in `archive/tickets/0051FOUCONTHI-010.md`.
+command-loop/TUI world-advance tests, `embodied_flow.rs`, and the external-crate
+negative fixtures driven by `crates/tracewake-core/tests/negative_fixture_runner.rs`.
+Mutation sensitivity for same-source observation replacement and
+subject-separated interval facts is recorded in
+`archive/tickets/0052FOUCONFOU-010.md`, with required CI evidence in
+`archive/tickets/0052FOUCONFOU-011.md`.
 
 ## Observation-time snapshot proof
 

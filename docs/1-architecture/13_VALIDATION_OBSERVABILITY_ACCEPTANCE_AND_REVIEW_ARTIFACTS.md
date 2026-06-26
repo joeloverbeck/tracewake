@@ -97,14 +97,19 @@ anti-leak evidence, body-exclusive reservation-conflict evidence, and the
 standing TUI capability parity extension for time controls and interval
 summaries.
 
-For the current 0051 remediation, acceptance evidence must cite the production
-runtime constructor (`LoadedWorldRuntime::from_loaded_world`), the public TUI
-world-advance command path, the observed committed state/event/projection
-effects, and the sensitivity proof. The sensitivity proof is not a single green
-standing claim: `archive/tickets/0051FOUCONTHI-009.md` records the
-runtime-constructor CI lane, while `archive/tickets/0051FOUCONTHI-010.md`
-records focused mutation kills plus the standing disposition with remaining
-out-of-scope misses for follow-up disposition.
+For the current 0052 remediation, acceptance evidence must cite the production
+runtime constructor (`LoadedWorldRuntime::from_bootstrap` from a validated
+`LoadedWorldBootstrap`), the public TUI command path
+(`TuiApp::submit_semantic_action`, `TuiApp::advance_until`, or command-loop
+closed-command dispatch), the observed committed state/event/projection effects,
+and the sensitivity proof. The sensitivity proof is not a single unqualified
+green standing claim: `archive/tickets/0052FOUCONFOU-009.md` records the
+production-boundary corpus, `archive/tickets/0052FOUCONFOU-011.md` records the
+required `public-boundary conformance` and `mutation shard reconciliation (lock
+layer)` checks, and `archive/tickets/0052FOUCONFOU-010.md` records the standing
+mutation rerun with zero in-surface misses/timeouts plus the routed-forward
+`food_source` family that keeps the overall canonical perimeter honestly
+non-green.
 
 Fairness and starvation review artifacts record which holders or processes were
 deferred, skipped, summarized, degraded, or blocked; why; for how long or
