@@ -226,8 +226,12 @@ fn actor_known_food_sources_for_context(
     // Collapse the knowledge channels for a single food source (e.g. a seeded
     // starting belief with unknown servings plus a direct perception of the same
     // supply) into one surface so the embodied menu offers each food exactly once.
-    // A concrete perceived serving count supersedes an unknown belief; otherwise
-    // the lexically-earliest source key wins for determinism.
+    // Food-source supersession rule: source-bearing serving knowledge
+    // supersedes source-less food knowledge, source-less knowledge never
+    // replaces source-bearing knowledge, and equal serving-knowledge classes use
+    // the lexically-earliest source key. Equal source keys keep the first
+    // selected fact. This keeps the actor-known menu deterministic without
+    // promoting hidden truth.
     let mut chosen: Vec<&ActorKnownFoodSourceFact> = Vec::new();
     for fact in context.actor_known_food_sources() {
         match chosen
@@ -257,11 +261,11 @@ fn food_source_fact_supersedes(
     candidate: &ActorKnownFoodSourceFact,
     chosen: &ActorKnownFoodSourceFact,
 ) -> bool {
-    match (candidate.believed_servings(), chosen.believed_servings()) {
-        (Some(_), None) => true,
-        (None, Some(_)) => false,
-        _ => candidate.source_key() < chosen.source_key(),
-    }
+    let candidate_has_serving_knowledge = candidate.believed_servings().is_some();
+    let chosen_has_serving_knowledge = chosen.believed_servings().is_some();
+    candidate_has_serving_knowledge && !chosen_has_serving_knowledge
+        || candidate_has_serving_knowledge == chosen_has_serving_knowledge
+            && candidate.source_key() < chosen.source_key()
 }
 
 fn actor_known_sleep_affordances_for_context(context: &KnowledgeContext) -> Vec<SleepAffordanceId> {

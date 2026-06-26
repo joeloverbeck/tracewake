@@ -82,3 +82,22 @@ If a mutant proves genuinely equivalent, add a narrow `#[mutants::skip]` (or reg
 1. `cargo test -p tracewake-core --test food_source_projection`
 2. `cargo mutants -f crates/tracewake-core/src/projections.rs` — the per-ticket mutation verification boundary; this is expensive and is scoped to the one file rather than the full standing campaign (009 runs the full perimeter), so the narrow `-f` form is the correct boundary here.
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-26
+
+Implemented the §10.4 food-source supersession rule in `crates/tracewake-core/src/projections.rs`: source-bearing serving knowledge supersedes source-less food knowledge, source-less knowledge never replaces source-bearing knowledge, equal serving-knowledge classes use lexically-earliest source keys, and equal source keys keep the first selected fact. The rule is recorded in the projection code comment and remains deterministic over actor-known facts without promoting hidden truth or changing projection shape.
+
+Added public projection behavior coverage in `crates/tracewake-core/tests/food_source_projection.rs`. The tests build an embodied projection from modeled actor-known facts and assert rendered `eat.food.food_stew` affordance behavior for source-bearing empty food vs. source-less food, reversed ordering, lexically-earlier source keys, and equal-source first-selection behavior.
+
+Mutation evidence: an initial broad `cargo mutants -f crates/tracewake-core/src/projections.rs` enumerated 3420 file mutants and was stopped rather than treated as completed evidence. The rule was refactored to remove the old equivalent match-arm deletion survivors, then the bounded predicate-family run `cargo mutants -f crates/tracewake-core/src/projections.rs --re ' in food_source_fact_supersedes$'` completed with `9 mutants tested in 3m: 9 caught`. No `.cargo/mutants.toml` skip or `.cargo/mutants-baseline-misses.txt` residual entry was needed.
+
+Verification passed:
+
+1. `cargo test -p tracewake-core --test food_source_projection`
+2. `cargo mutants -f crates/tracewake-core/src/projections.rs --re ' in food_source_fact_supersedes$'`
+3. `cargo fmt --all --check`
+4. `cargo clippy --workspace --all-targets -- -D warnings`
+5. `cargo build --workspace --all-targets --locked`
+6. `cargo test --workspace`
