@@ -204,6 +204,7 @@ At every phase exit, gate exit, certification review, or expansion handoff, answ
 6. Which hidden truth was available to validators/debug but excluded from cognition, procedure selection, affordance generation, embodied TUI, institutions, leads, and LOD promotion?
 7. Which risk-register entries are active, newly escalated, or ready for retirement, and what evidence supports that status?
 8. Are archived specs or tickets being cited only as history, not as certification under post-overhaul doctrine?
+9. If the artifact claims foundational conformance closure, does its fail-closed acceptance manifest compute the stated result from `closed|open|routed-forward|pending-governance|historical-only|not-in-scope` statuses, and does branch-protection or ruleset enforcement have an API transcript rather than only workflow topology evidence?
 
 A phase or gate cannot exit on demo success alone. It needs replay evidence, no-human evidence, holder-known view/procedure evidence, negative/failure evidence, TUI or view-model evidence, fixture evidence, diagnostics, and causal explanation evidence appropriate to the live execution gate being claimed.
 

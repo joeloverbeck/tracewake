@@ -339,6 +339,41 @@ observer-only, and historical evidence must never be silently counted as a
 pass. Byte stability is not semantic truth unless the relevant behavior
 witness, replay ancestry, and checked facts prove the semantic claim.
 
+## Fail-closed acceptance manifest
+
+Foundational conformance remediation artifacts must carry a fail-closed
+acceptance manifest when they claim closure over protected authority seams. The
+manifest is machine-readable, and the artifact verdict is computed from it; prose
+cannot upgrade the result. The closed status set is
+`closed|open|routed-forward|pending-governance|historical-only|not-in-scope`.
+Each finding row records the existing finding label, status, certifying evidence
+for `closed`, and a live negative or public-boundary proof for every protected
+shortcut. The manifest also records the exact commit under test, source
+acquisition method, branch-protection/ruleset enforcement status, mutation
+evidence status, survivor list, and overall result.
+
+Overall `pass` is legal only when every required finding is `closed`, every
+required governance control is enforced by branch protection or active ruleset,
+and every standing mutation residual is killed or explicitly non-blocking under
+a bounded forcing function. `open`, `pending-governance`, unbounded
+`routed-forward`, missing governance proof, sampled evidence, observer-only
+evidence, historical results, and "pass with disposition" are not pass. A
+wording guard must fail artifacts that use pass-shaped closure language while
+the manifest computes non-pass, call the canonical standing perimeter green
+while survivors remain, cite branch-protection enforcement without an API or
+ruleset transcript, cite historical command results as current certification, or
+cite display strings, artifact existence, checksums, or source guards as sole
+evidence for behavior claims that require typed path-under-test evidence.
+
+A routed-forward residual is bounded only if it names the owning surface, why
+the current line did not close it, the next known execution move, a maximum
+number of remediation epochs or concrete trigger after which it becomes
+blocking, and the exact CI or mutation check that fails if it remains. Missing
+any forcing-function field makes the residual unbounded. Branch-protection and
+ruleset evidence must come from an API transcript or equivalent machine-readable
+repository governance evidence; workflow YAML and Rust topology guards prove job
+shape only, not merge enforcement.
+
 ## Property and random testing
 
 Randomized testing is allowed only with recorded seeds, scoped random streams, deterministic ordering, and reproducible failure artifacts. A failing generated case must be replayable by seed and input manifest.
