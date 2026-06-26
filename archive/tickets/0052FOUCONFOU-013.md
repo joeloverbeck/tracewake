@@ -8,7 +8,7 @@
 
 ## Problem
 
-Spec 0052 §8; closure-order step 12. The remediation is not accepted until one session, beginning from a clean baseline at one exact implementation commit, runs the full closure gate and records per-finding closure with real production-path evidence. This capstone produces the acceptance artifact at `reports/0052_foundational_conformance_fourth_hardening_acceptance.md` (following `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md`, the repo convention beside `reports/0048_foundational_conformance_hardening_acceptance.md`), records per-finding closure (production constructor, public command, observed effect, sensitivity proof), records the required-check names and branch-protection confirmation, and must not call the perimeter green before the standing campaign completes with zero in-surface misses/timeouts and the food-source family resolved or honestly reported.
+Spec 0052 §8; closure-order step 12. The remediation is not accepted until one session, beginning from a clean baseline at one exact implementation commit, runs the full closure gate and records per-finding closure with real production-path evidence. This capstone produces the acceptance artifact at `archive/reports/0052_foundational_conformance_fourth_hardening_acceptance.md` (following `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md`, the repo convention beside `reports/0048_foundational_conformance_hardening_acceptance.md`), records per-finding closure (production constructor, public command, observed effect, sensitivity proof), records the required-check names and branch-protection confirmation, and must not call the perimeter green before the standing campaign completes with zero in-surface misses/timeouts and the food-source family resolved or honestly reported.
 
 It introduces no new production logic; it exercises the pipeline tickets 001–012 composed and renders the verdict.
 
@@ -33,13 +33,13 @@ It introduces no new production logic; it exercises the pipeline tickets 001–0
 
 ## What to Change
 
-### 1. Acceptance artifact (`reports/0052_foundational_conformance_fourth_hardening_acceptance.md`)
+### 1. Acceptance artifact (`archive/reports/0052_foundational_conformance_fourth_hardening_acceptance.md`)
 
 Author the artifact per `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md`: name the exact implementation commit; record the full gate results; record per-finding (F4-01…F4-09) closure with real production-path evidence; reproduce the preserved focused mutation commands from the `0049MUTWIT`/`0050FOUCONSEC`/`0051FOUCONTHI` lines; record the standing campaign disposition (from 010) and the required-check names + branch-protection confirmation (from 011); state the F4-04 implementer-recorded model choice (real transition vs honest demotion); and render the scoped verdict. Do not call the perimeter green before the standing campaign completes with zero in-surface misses/timeouts and the food-source family resolved or honestly reported.
 
 ## Files to Touch
 
-- `reports/0052_foundational_conformance_fourth_hardening_acceptance.md` (new)
+- `archive/reports/0052_foundational_conformance_fourth_hardening_acceptance.md` (new)
 
 ## Out of Scope
 
@@ -75,7 +75,7 @@ Author the artifact per `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md`: nam
 
 Completed: 2026-06-26
 
-Created `reports/0052_foundational_conformance_fourth_hardening_acceptance.md`
+Created `archive/reports/0052_foundational_conformance_fourth_hardening_acceptance.md`
 as the scoped capstone acceptance artifact for spec 0052. The report names exact
 implementation commit `8e84150228e82d29dfddf2e9f52f201c3cf10c9c`, records the
 full clean-worktree gate results, maps F4-01 through F4-09 to production

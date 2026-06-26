@@ -1,6 +1,6 @@
 # 0052 Foundational Conformance Fourth Hardening: Production Bootstrap Unrepresentability, Closed Runtime Command Boundary, Replay Authority Reconstruction, Real Declared Processes, Exhaustive Actor Census, Sealed Embodied/Debug Split, TUI De-Authority Completion, and an Enforced Standing Conformance Barrier Hardening Spec
 
-**Status**: PROPOSED (staged in `specs/`; not yet implemented; not yet ledger-recorded)
+**Status**: COMPLETED
 
 This is a staged hardening spec in the parallel `specs/NNNN` series. It is staged in
 `specs/` and is promoted to `archive/specs/` on acceptance; it is never promoted to the
@@ -685,3 +685,48 @@ standing floor, the seam will reopen for a fifth pass.
 | INV-067, INV-068, INV-069, INV-093, INV-112 | aligns | §4.7/§4.8 move all authoritative mutation behind the opaque session and split sealed embodied/debug products in every feature combination, so normal output cannot leak exact replay/control time and the TUI cannot write state. |
 | INV-092, INV-093, INV-094, INV-098 | aligns | §4.9/§4.10 close in-surface survivors and make a green standing mutation perimeter plus a required public-boundary lane an enforced merge property; measured evidence replaces overclaimed closure. |
 | (all above) | N/A — no amendment | §6: doctrine already requires every property; no invariant is weakened, minted, or redefined. |
+
+## Outcome
+
+Completed: 2026-06-26
+
+Implemented by the `0052FOUCONFOU` ticket series and accepted through
+`archive/reports/0052_foundational_conformance_fourth_hardening_acceptance.md`.
+The remediation line replaced the production TUI bootstrap with
+`LoadedWorldRuntime::from_bootstrap(LoadedWorldBootstrap, SimTick)`, closed the
+public runtime command boundary around `RuntimeCommand` and sealed receipts,
+reconstructed replay authority from event-derived scheduler authority, recorded
+the declared-process no-op marker as an honest non-applied diagnostic rather
+than a fake process effect, added a closed per-loaded-actor disposition census,
+sealed normal continue output and debug/embodied products, internalized TUI
+no-human/replay/perception/view/debug authority, added the production-boundary
+conformance corpus and all-feature external negative fixtures, recorded focused
+and standing mutation disposition, wired the public-boundary conformance and
+full-surface mutation trigger workflow jobs, and truthed the live
+architecture/execution/reference evidence rows.
+
+Verification recorded in the acceptance artifact:
+
+- Clean detached worktree at exact implementation commit
+  `8e84150228e82d29dfddf2e9f52f201c3cf10c9c`.
+- `cargo fmt --all --check` - passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` - passed.
+- `cargo build --workspace --all-targets --locked` - passed.
+- `cargo test --workspace` - passed.
+- Exact `public-boundary conformance` command matrix - passed.
+- Full standing mutation rerun recorded `3400` selected, `2645` caught, `748`
+  unviable, `7` routed-forward `food_source_fact_supersedes` misses, and `0`
+  timeouts. The 0052 in-surface perimeter had zero misses/timeouts, but the
+  canonical standing perimeter is not called fully green while the routed
+  food-source family survives.
+
+Deviation / residual:
+
+- F4-04 used the honest demotion fallback: the default loaded-world process
+  marker remains observable replay authority but is not counted as an applied
+  process transaction until a future concrete process effect exists.
+- Branch-protection enforcement is not confirmed. The workflow contains the
+  required check names (`public-boundary conformance` and `mutation shard
+  reconciliation (lock layer)`), but the read-only GitHub API check returned
+  `Branch not protected (HTTP 404)` for `main`; this is recorded as a
+  governance residual, not an executable-code failure.

@@ -73,7 +73,7 @@ Implementation, evidence, and archival changes under review:
 - `tests/negative-fixtures/*` production-boundary fixtures touched by `-009`
 - `docs/1-architecture/*`, `docs/2-execution/*`, and `docs/3-reference/*`
   status/evidence rows touched by `-012`
-- `reports/0052_foundational_conformance_fourth_hardening_acceptance.md`
+- `archive/reports/0052_foundational_conformance_fourth_hardening_acceptance.md`
 
 Unrelated local worktree changes are not included.
 
