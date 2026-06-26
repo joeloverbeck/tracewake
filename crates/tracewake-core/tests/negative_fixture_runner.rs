@@ -9,6 +9,8 @@ struct NegativeFixture {
     expected_stderr: &'static str,
 }
 
+const TRACEWAKE_CORE_TEST_SUPPORT_FEATURE: &str = "tracewake-core/test-support";
+
 const FIXTURES: &[NegativeFixture] = &[
     NegativeFixture {
         name: "banned_env_var",
@@ -190,6 +192,28 @@ const FIXTURES: &[NegativeFixture] = &[
         name: "external_crate_cannot_name_due_process_invocation",
         expected_stderr: "struct `DueProcessInvocation` is private",
     },
+];
+
+const ALL_FEATURE_PRODUCTION_BOUNDARY_FIXTURES: &[&str] = &[
+    "external_crate_cannot_assign_scheduler_frontier",
+    "external_crate_cannot_call_core_perception_append_helper",
+    "external_crate_cannot_call_scheduler_perception_writer",
+    "external_crate_cannot_call_seed_mutators_after_load",
+    "external_crate_cannot_call_tui_perception_append_helper",
+    "external_crate_cannot_construct_actor_interval_summary",
+    "external_crate_cannot_construct_debug_report",
+    "external_crate_cannot_construct_pipeline_context_with_runtime_aggregates",
+    "external_crate_cannot_convert_debug_report_to_interval_summary",
+    "external_crate_cannot_forge_interval_notice",
+    "external_crate_cannot_insert_raw_epistemic_records",
+    "external_crate_cannot_mutate_embodied_temporal_fields",
+    "external_crate_cannot_mutate_loaded_runtime_fields",
+    "external_crate_cannot_name_due_process_invocation",
+    "external_crate_cannot_read_raw_epistemic_projection_maps",
+    "external_crate_cannot_reduce_actor_step_outcome_to_option",
+    "external_crate_cannot_seed_loaded_actor_or_process_eligibility",
+    "external_crate_cannot_set_world_step_due_actor_ids",
+    "external_crate_cannot_set_world_step_process_events",
 ];
 
 struct ClippyBanProof {
@@ -423,10 +447,21 @@ fn phase1_loader_registration_guard_negative_fixture_fires_on_mutation() {
     reason = "negative fixture runner must spawn cargo to assert isolated fixture failures"
 )]
 fn assert_negative_fixture_fails(fixture: &NegativeFixture) {
+    assert_negative_fixture_fails_with_features(fixture, &[]);
+}
+
+#[allow(
+    clippy::disallowed_methods,
+    reason = "negative fixture runner must spawn cargo to assert isolated fixture failures"
+)]
+fn assert_negative_fixture_fails_with_features(fixture: &NegativeFixture, features: &[&str]) {
     let root = fixture_root(fixture);
-    let output = Command::new("cargo")
-        .arg("clippy")
-        .arg("--quiet")
+    let mut command = Command::new("cargo");
+    command.arg("clippy").arg("--quiet");
+    for feature in features {
+        command.arg("--features").arg(feature);
+    }
+    let output = command
         .arg("--")
         .arg("-D")
         .arg("warnings")
@@ -464,6 +499,24 @@ fn assert_negative_fixture_fails(fixture: &NegativeFixture) {
 fn banned_api_negative_fixtures_fail_with_expected_lints() {
     for fixture in FIXTURES {
         assert_negative_fixture_fails(fixture);
+    }
+}
+
+#[test]
+#[allow(
+    clippy::disallowed_methods,
+    reason = "negative fixture runner must spawn cargo to assert feature-combination fixture failures"
+)]
+fn production_boundary_negative_fixtures_fail_with_test_support_feature() {
+    for fixture_name in ALL_FEATURE_PRODUCTION_BOUNDARY_FIXTURES {
+        let fixture = FIXTURES
+            .iter()
+            .find(|fixture| fixture.name == *fixture_name)
+            .unwrap_or_else(|| panic!("{fixture_name} fixture is registered"));
+        assert_negative_fixture_fails_with_features(
+            fixture,
+            &[TRACEWAKE_CORE_TEST_SUPPORT_FEATURE],
+        );
     }
 }
 

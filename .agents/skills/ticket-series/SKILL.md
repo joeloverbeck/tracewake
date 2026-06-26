@@ -192,6 +192,10 @@ live spec existed for the series, continue directly to `## Ticket-Only
 Closeout`. A final ticket's local note that spec archival is out of scope,
 deferred, or left for later is not a valid stop condition unless the user
 explicitly instructed that the reference spec must remain active.
+Before the first final response or `/goal` completion, run the current-state
+deferral sweep over the relevant report, spec outcome, ticket outcomes, and
+ledger surfaces. If the closeout completed an earlier `deferred`, `pending`,
+`out of scope`, or `not run` note, amend that surface before final reporting.
 
 ## Ticket-Only Closeout
 
@@ -329,6 +333,11 @@ rg -n 'archive/specs/<spec filename>|archive/reports/<report filename>|archive/t
    leave scratch output untracked unless the ticket/spec explicitly requires it.
 6. Run the relevant final gates after the last tracked closeout edit. The gate
    evidence must cover the exact closeout tree that will be claimed complete.
+   If a temporary worktree is used for clean-source evidence because the main
+   checkout has unrelated dirty paths, read
+   `references/closeout-edge-cases.md`, record the excluded paths and tested
+   commit, copy back only durable summary facts, and remove the temporary
+   worktree or explicitly report why cleanup was blocked.
    Either:
    - run the gates before the final commit, then confirm no tracked or generated
      content changed between the gate run and the committed tree; or
@@ -445,10 +454,11 @@ rg -P -n '(?<!archive/)specs/<spec filename>|(?<!archive/)reports/<report filena
 
    Inspect command output rather than treating nonzero `rg` exits as failure by
    themselves; for absence checks, no output is usually the expected result.
-   When the ticket prefix and reference paths are known, the optional helper
-   `.agents/skills/ticket-series/scripts/closeout-audit.mjs` can produce these
-   active-path, archive-path, stale-live-path, and status checks; inspect its
-   output and still apply judgment for historical archive prose.
+   When the ticket prefix and reference paths are known, prefer running the
+   optional helper `.agents/skills/ticket-series/scripts/closeout-audit.mjs`
+   first to produce these active-path, archive-path, stale-live-path, and status
+   checks; inspect its output, run any missing focused checks manually, and still
+   apply judgment for historical archive prose.
 10. If a `/goal` is active, mark it complete only after implementation,
    verification, ticket archives, spec archive, reference repair, required final
    checks, and required commits are done. On a resumed `/goal` turn, re-run the

@@ -14,12 +14,12 @@ use tracewake_core::checksum::{
 };
 use tracewake_core::events::log::{EventLog, EventLogError};
 use tracewake_core::events::{EventCause, EventEnvelope, EventKind, EventStream};
-use tracewake_core::ids::{ContentVersion, ControllerId, EventId, FixtureId};
+use tracewake_core::ids::{ContentVersion, ControllerId, DebugReportId, EventId, FixtureId};
 use tracewake_core::projections::no_human_day_metrics;
 use tracewake_core::replay::{rebuild_projection, run_replay};
-use tracewake_core::runtime::{LoadedWorldRuntime, RuntimeInitialState, RuntimeReceiptKind};
+use tracewake_core::runtime::{LoadedWorldBootstrap, LoadedWorldRuntime, RuntimeReceiptKind};
 use tracewake_core::scheduler::no_human::advance_no_human;
-use tracewake_core::scheduler::{DeterministicScheduler, WorldAdvanceOrigin};
+use tracewake_core::scheduler::WorldAdvanceOrigin;
 use tracewake_core::time::SimTick;
 
 const RECORDED_GENERATIVE_MASK_DIVERSITY: usize = 7;
@@ -316,18 +316,19 @@ fn generated_cases_enter_through_loaded_runtime_constructor() {
         let case = generate_case(seed);
         let initial_state = initial_world(seed);
         let initial_agents = initial_agent_state(seed);
-        let mut runtime = LoadedWorldRuntime::from_initial_state(RuntimeInitialState {
-            registry: registry(),
-            physical_state: initial_state.clone(),
-            agent_state: initial_agents.clone(),
-            event_log: EventLog::new(),
-            epistemic_projection: tracewake_core::epistemics::projection::EpistemicProjection::new(
-                content_manifest_id(seed),
-            ),
-            controller_bindings: tracewake_core::controller::ControllerBindings::new(),
-            scheduler: DeterministicScheduler::new(case.start_tick),
-            content_manifest_id: content_manifest_id(seed),
-        });
+        let bootstrap = LoadedWorldBootstrap::from_loaded_state(
+            registry(),
+            initial_state.clone(),
+            initial_agents.clone(),
+            EventLog::new(),
+            tracewake_core::epistemics::projection::EpistemicProjection::new(content_manifest_id(
+                seed,
+            )),
+            content_manifest_id(seed),
+            FixtureId::new(format!("generative_runtime_{seed:x}")).unwrap(),
+            ContentVersion::new("content_v1").unwrap(),
+        );
+        let mut runtime = LoadedWorldRuntime::from_bootstrap(bootstrap, case.start_tick);
 
         let receipt = runtime
             .wait_one_tick(WorldAdvanceOrigin::Controller(
@@ -341,24 +342,17 @@ fn generated_cases_enter_through_loaded_runtime_constructor() {
                     "seed={seed} runtime command must advance time"
                 );
             }
+            other => panic!("seed={seed} expected one-tick receipt, got {other:?}"),
         }
         assert!(
-            !runtime.event_log().events().is_empty(),
+            runtime.event_count() > 0,
             "seed={seed} runtime command must append events through owned log"
         );
-        let checksum_context = ChecksumContext {
-            fixture_id: FixtureId::new(format!("generative_runtime_{seed:x}")).unwrap(),
-            content_version: ContentVersion::new("content_v1").unwrap(),
-            sim_tick: runtime.current_tick(),
-            world_stream_position_applied: runtime.event_log().events().len() as u64,
-        };
-        let rebuild = rebuild_projection(
-            &initial_state,
-            &initial_agents,
-            runtime.event_log(),
-            &checksum_context,
-            Some(runtime.physical_state()),
-        );
+        let rebuild = runtime
+            .projection_rebuild_debug_report(
+                DebugReportId::new(format!("debug.generative_runtime_{seed:x}")).unwrap(),
+            )
+            .rebuild;
         assert!(
             rebuild.epistemic_application_errors.is_empty()
                 && rebuild.agent_application_errors.is_empty()

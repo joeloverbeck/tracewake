@@ -316,45 +316,45 @@ mod tests {
         actor_known_interval_summary: Option<TypedActorKnownIntervalSummary>,
     ) -> EmbodiedViewModel {
         let context = context();
-        EmbodiedViewModel {
-            view_model_id: ViewModelId::new("view.actor_lina.0").unwrap(),
-            mode: ViewMode::Embodied,
-            viewer_actor_id: ActorId::new("actor_lina").unwrap(),
-            sim_tick: SimTick::new(4),
-            place_id: PlaceId::new("market_stall").unwrap(),
-            place_label: "Market stall".to_string(),
-            visible_exits: Vec::new(),
-            visible_doors: Vec::new(),
-            visible_containers: Vec::new(),
-            visible_items: Vec::new(),
-            carried_items: Vec::new(),
-            local_actors: Vec::new(),
-            semantic_actions: Vec::new(),
-            phase3a_status: None,
-            last_rejection_summary: None,
-            last_rejection_why_not: None,
-            holder_known_context_id: context.holder_known_context_id().clone(),
-            holder_known_context_hash: context.holder_known_context_hash().clone(),
-            holder_known_context_frontier: context.event_frontier(),
-            holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
+        EmbodiedViewModel::for_test(
+            ViewModelId::new("view.actor_lina.0").unwrap(),
+            ViewMode::Embodied,
+            ActorId::new("actor_lina").unwrap(),
+            SimTick::new(4),
+            PlaceId::new("market_stall").unwrap(),
+            "Market stall".to_string(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            None,
+            None,
+            None,
+            context.holder_known_context_id().clone(),
+            context.holder_known_context_hash().clone(),
+            context.event_frontier(),
+            "allowed=5 provenance=5".to_string(),
             actor_known_interval_summary,
-            notebook: None,
-            debug_available: false,
-        }
+            None,
+            true,
+        )
     }
 
     #[test]
     fn renderer_prints_actor_known_interval_summary() {
         let no_new = render_embodied_view(&minimal_view_with_interval(Some(
-            TypedActorKnownIntervalSummary {
-                start_tick: SimTick::ZERO,
-                stop_tick: SimTick::new(2),
-                start_frontier: 0,
-                stop_frontier: 2,
-                stop_reason: IntervalStopReason::ControllerSafetyBound,
-                notices: Vec::new(),
-                no_new_actor_known_information: true,
-            },
+            TypedActorKnownIntervalSummary::for_test(
+                SimTick::ZERO,
+                SimTick::new(2),
+                0,
+                2,
+                IntervalStopReason::ControllerSafetyBound,
+                Vec::new(),
+                true,
+            ),
         )));
         assert!(no_new.contains("Recent interval: actor-known update"));
         assert!(!no_new.contains("controller_safety_bound"));
@@ -363,15 +363,15 @@ mod tests {
         assert!(!no_new.contains("nothing happened"));
 
         let with_notice = render_embodied_view(&minimal_view_with_interval(Some(
-            TypedActorKnownIntervalSummary {
-                start_tick: SimTick::ZERO,
-                stop_tick: SimTick::new(4),
-                start_frontier: 0,
-                stop_frontier: 4,
-                stop_reason: IntervalStopReason::PossessedDurationTerminal,
-                notices: Vec::new(),
-                no_new_actor_known_information: true,
-            },
+            TypedActorKnownIntervalSummary::for_test(
+                SimTick::ZERO,
+                SimTick::new(4),
+                0,
+                4,
+                IntervalStopReason::PossessedDurationTerminal,
+                Vec::new(),
+                true,
+            ),
         )));
         assert!(with_notice.contains("Recent interval: actor-known update"));
         assert!(!with_notice.contains("possessed_duration_terminal"));
@@ -381,39 +381,15 @@ mod tests {
 
     #[test]
     fn renderer_prints_semantic_action_ids() {
-        let context = context();
-        let view = EmbodiedViewModel {
-            view_model_id: ViewModelId::new("view.actor_lina.0").unwrap(),
-            mode: ViewMode::Embodied,
-            viewer_actor_id: ActorId::new("actor_lina").unwrap(),
-            sim_tick: SimTick::ZERO,
-            place_id: PlaceId::new("market_stall").unwrap(),
-            place_label: "Market stall".to_string(),
-            visible_exits: Vec::new(),
-            visible_doors: Vec::new(),
-            visible_containers: Vec::new(),
-            visible_items: Vec::new(),
-            carried_items: Vec::new(),
-            local_actors: Vec::new(),
-            semantic_actions: vec![SemanticActionEntry::new(
-                SemanticActionId::new("open.door.door_market_store").unwrap(),
-                ActionId::new("open").unwrap(),
-                vec!["door_market_store".to_string()],
-                "open door_market_store",
-                true,
-                None,
-            )],
-            phase3a_status: None,
-            last_rejection_summary: None,
-            last_rejection_why_not: None,
-            holder_known_context_id: context.holder_known_context_id().clone(),
-            holder_known_context_hash: context.holder_known_context_hash().clone(),
-            holder_known_context_frontier: context.event_frontier(),
-            holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
-            actor_known_interval_summary: None,
-            notebook: None,
-            debug_available: true,
-        };
+        let mut view = minimal_view_with_interval(None);
+        view.semantic_actions = vec![SemanticActionEntry::new(
+            SemanticActionId::new("open.door.door_market_store").unwrap(),
+            ActionId::new("open").unwrap(),
+            vec!["door_market_store".to_string()],
+            "open door_market_store",
+            true,
+            None,
+        )];
 
         let rendered = render_embodied_view(&view);
 
@@ -424,46 +400,24 @@ mod tests {
 
     #[test]
     fn renderer_prints_door_endpoints_and_item_sources() {
-        let context = context();
-        let view = EmbodiedViewModel {
-            view_model_id: ViewModelId::new("view.actor_lina.0").unwrap(),
-            mode: ViewMode::Embodied,
-            viewer_actor_id: ActorId::new("actor_lina").unwrap(),
-            sim_tick: SimTick::ZERO,
-            place_id: PlaceId::new("market_stall").unwrap(),
-            place_label: "Market stall".to_string(),
-            visible_exits: Vec::new(),
-            visible_doors: vec![VisibleDoor {
-                door_id: DoorId::new("door_market_store").unwrap(),
-                endpoint_a: PlaceId::new("market_stall").unwrap(),
-                endpoint_b: PlaceId::new("store_room").unwrap(),
-                is_open: false,
-                is_locked: true,
-            }],
-            visible_containers: Vec::new(),
-            visible_items: vec![VisibleItem {
-                item_id: ItemId::new("apple_01").unwrap(),
-                source: VisibleItemSource::Container("crate_01".parse().unwrap()),
-                portable: true,
-            }],
-            carried_items: vec![VisibleItem {
-                item_id: ItemId::new("coin_01").unwrap(),
-                source: VisibleItemSource::Carried,
-                portable: true,
-            }],
-            local_actors: Vec::new(),
-            semantic_actions: Vec::new(),
-            phase3a_status: None,
-            last_rejection_summary: None,
-            last_rejection_why_not: None,
-            holder_known_context_id: context.holder_known_context_id().clone(),
-            holder_known_context_hash: context.holder_known_context_hash().clone(),
-            holder_known_context_frontier: context.event_frontier(),
-            holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
-            actor_known_interval_summary: None,
-            notebook: None,
-            debug_available: true,
-        };
+        let mut view = minimal_view_with_interval(None);
+        view.visible_doors = vec![VisibleDoor {
+            door_id: DoorId::new("door_market_store").unwrap(),
+            endpoint_a: PlaceId::new("market_stall").unwrap(),
+            endpoint_b: PlaceId::new("store_room").unwrap(),
+            is_open: false,
+            is_locked: true,
+        }];
+        view.visible_items = vec![VisibleItem {
+            item_id: ItemId::new("apple_01").unwrap(),
+            source: VisibleItemSource::Container("crate_01".parse().unwrap()),
+            portable: true,
+        }];
+        view.carried_items = vec![VisibleItem {
+            item_id: ItemId::new("coin_01").unwrap(),
+            source: VisibleItemSource::Carried,
+            portable: true,
+        }];
 
         let rendered = render_embodied_view(&view);
 
@@ -476,43 +430,19 @@ mod tests {
 
     #[test]
     fn renderer_prints_debug_only_action_diagnostics_when_present() {
-        let context = context();
-        let view = EmbodiedViewModel {
-            view_model_id: ViewModelId::new("view.actor_lina.0").unwrap(),
-            mode: ViewMode::Embodied,
-            viewer_actor_id: ActorId::new("actor_lina").unwrap(),
-            sim_tick: SimTick::ZERO,
-            place_id: PlaceId::new("market_stall").unwrap(),
-            place_label: "Market stall".to_string(),
-            visible_exits: Vec::new(),
-            visible_doors: Vec::new(),
-            visible_containers: Vec::new(),
-            visible_items: Vec::new(),
-            carried_items: Vec::new(),
-            local_actors: Vec::new(),
-            semantic_actions: vec![SemanticActionEntry::with_availability(
-                SemanticActionId::new("open.door_market_store").unwrap(),
-                ActionId::new("open").unwrap(),
-                vec!["door_market_store".to_string()],
-                "open door_market_store",
-                ActionAvailability::disabled(
-                    vec![ReasonCode::DoorClosedBlocksMovement],
-                    "The door is closed.",
-                    Vec::new(),
-                    vec!["validator_fact=door_closed".to_string()],
-                ),
-            )],
-            phase3a_status: None,
-            last_rejection_summary: None,
-            last_rejection_why_not: None,
-            holder_known_context_id: context.holder_known_context_id().clone(),
-            holder_known_context_hash: context.holder_known_context_hash().clone(),
-            holder_known_context_frontier: context.event_frontier(),
-            holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
-            actor_known_interval_summary: None,
-            notebook: None,
-            debug_available: true,
-        };
+        let mut view = minimal_view_with_interval(None);
+        view.semantic_actions = vec![SemanticActionEntry::with_availability(
+            SemanticActionId::new("open.door_market_store").unwrap(),
+            ActionId::new("open").unwrap(),
+            vec!["door_market_store".to_string()],
+            "open door_market_store",
+            ActionAvailability::disabled(
+                vec![ReasonCode::DoorClosedBlocksMovement],
+                "The door is closed.",
+                Vec::new(),
+                vec!["validator_fact=door_closed".to_string()],
+            ),
+        )];
 
         let rendered = render_embodied_view(&view);
         let overlay = render_debug_overlay(&view);
@@ -524,40 +454,17 @@ mod tests {
 
     #[test]
     fn renderer_prints_typed_why_not_facts_from_view_model() {
-        let context = context();
-        let view = EmbodiedViewModel {
-            view_model_id: ViewModelId::new("view.actor_lina.0").unwrap(),
-            mode: ViewMode::Embodied,
-            viewer_actor_id: ActorId::new("actor_lina").unwrap(),
-            sim_tick: SimTick::ZERO,
-            place_id: PlaceId::new("market_stall").unwrap(),
-            place_label: "Market stall".to_string(),
-            visible_exits: Vec::new(),
-            visible_doors: Vec::new(),
-            visible_containers: Vec::new(),
-            visible_items: Vec::new(),
-            carried_items: Vec::new(),
-            local_actors: Vec::new(),
-            semantic_actions: Vec::new(),
-            phase3a_status: None,
-            last_rejection_summary: Some("fallback summary must not win".to_string()),
-            last_rejection_why_not: Some(WhyNotView {
-                failure_kind: WhyNotFailureKind::Access,
-                actor_known_summary: "Door door_market_store is closed.".to_string(),
-                reason_codes: vec!["door_closed_blocks_movement".to_string()],
-                actor_visible_facts: vec![
-                    "door_id=door_market_store".to_string(),
-                    "to_place_id=store_room".to_string(),
-                ],
-            }),
-            holder_known_context_id: context.holder_known_context_id().clone(),
-            holder_known_context_hash: context.holder_known_context_hash().clone(),
-            holder_known_context_frontier: context.event_frontier(),
-            holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
-            actor_known_interval_summary: None,
-            notebook: None,
-            debug_available: true,
-        };
+        let mut view = minimal_view_with_interval(None);
+        view.last_rejection_summary = Some("fallback summary must not win".to_string());
+        view.last_rejection_why_not = Some(WhyNotView {
+            failure_kind: WhyNotFailureKind::Access,
+            actor_known_summary: "Door door_market_store is closed.".to_string(),
+            reason_codes: vec!["door_closed_blocks_movement".to_string()],
+            actor_visible_facts: vec![
+                "door_id=door_market_store".to_string(),
+                "to_place_id=store_room".to_string(),
+            ],
+        });
 
         let rendered = render_embodied_view(&view);
 
@@ -609,35 +516,11 @@ mod tests {
 
     #[test]
     fn renderer_prints_visible_exit_blocker_summary() {
-        let context = context();
-        let view = EmbodiedViewModel {
-            view_model_id: ViewModelId::new("view.actor_lina.0").unwrap(),
-            mode: ViewMode::Embodied,
-            viewer_actor_id: ActorId::new("actor_lina").unwrap(),
-            sim_tick: SimTick::ZERO,
-            place_id: PlaceId::new("market_stall").unwrap(),
-            place_label: "Market stall".to_string(),
-            visible_exits: vec![VisibleExit {
-                destination_place_id: PlaceId::new("store_room").unwrap(),
-                blocker_summary: Some("door door_market_store is closed and locked".to_string()),
-            }],
-            visible_doors: Vec::new(),
-            visible_containers: Vec::new(),
-            visible_items: Vec::new(),
-            carried_items: Vec::new(),
-            local_actors: Vec::new(),
-            semantic_actions: Vec::new(),
-            phase3a_status: None,
-            last_rejection_summary: None,
-            last_rejection_why_not: None,
-            holder_known_context_id: context.holder_known_context_id().clone(),
-            holder_known_context_hash: context.holder_known_context_hash().clone(),
-            holder_known_context_frontier: context.event_frontier(),
-            holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
-            actor_known_interval_summary: None,
-            notebook: None,
-            debug_available: true,
-        };
+        let mut view = minimal_view_with_interval(None);
+        view.visible_exits = vec![VisibleExit {
+            destination_place_id: PlaceId::new("store_room").unwrap(),
+            blocker_summary: Some("door door_market_store is closed and locked".to_string()),
+        }];
 
         let rendered = render_embodied_view(&view);
 
@@ -648,40 +531,17 @@ mod tests {
 
     #[test]
     fn renderer_prints_carried_items_under_inventory_not_items() {
-        let context = context();
-        let view = EmbodiedViewModel {
-            view_model_id: ViewModelId::new("view.actor_lina.0").unwrap(),
-            mode: ViewMode::Embodied,
-            viewer_actor_id: ActorId::new("actor_lina").unwrap(),
-            sim_tick: SimTick::ZERO,
-            place_id: PlaceId::new("market_stall").unwrap(),
-            place_label: "Market stall".to_string(),
-            visible_exits: Vec::new(),
-            visible_doors: Vec::new(),
-            visible_containers: Vec::new(),
-            visible_items: vec![VisibleItem {
-                item_id: ItemId::new("loose_coin_01").unwrap(),
-                source: VisibleItemSource::Place,
-                portable: true,
-            }],
-            carried_items: vec![VisibleItem {
-                item_id: ItemId::new("coin_stack_01").unwrap(),
-                source: VisibleItemSource::Carried,
-                portable: true,
-            }],
-            local_actors: Vec::new(),
-            semantic_actions: Vec::new(),
-            phase3a_status: None,
-            last_rejection_summary: None,
-            last_rejection_why_not: None,
-            holder_known_context_id: context.holder_known_context_id().clone(),
-            holder_known_context_hash: context.holder_known_context_hash().clone(),
-            holder_known_context_frontier: context.event_frontier(),
-            holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
-            actor_known_interval_summary: None,
-            notebook: None,
-            debug_available: true,
-        };
+        let mut view = minimal_view_with_interval(None);
+        view.visible_items = vec![VisibleItem {
+            item_id: ItemId::new("loose_coin_01").unwrap(),
+            source: VisibleItemSource::Place,
+            portable: true,
+        }];
+        view.carried_items = vec![VisibleItem {
+            item_id: ItemId::new("coin_stack_01").unwrap(),
+            source: VisibleItemSource::Carried,
+            portable: true,
+        }];
 
         let rendered = render_embodied_view(&view);
         let items_index = rendered.find("Items:").unwrap();
@@ -696,39 +556,15 @@ mod tests {
 
     #[test]
     fn renderer_prints_phase3a_salient_interruption() {
-        let context = context();
-        let view = EmbodiedViewModel {
-            view_model_id: ViewModelId::new("view.actor_lina.0").unwrap(),
-            mode: ViewMode::Embodied,
-            viewer_actor_id: ActorId::new("actor_lina").unwrap(),
-            sim_tick: SimTick::ZERO,
-            place_id: PlaceId::new("market_stall").unwrap(),
-            place_label: "Market stall".to_string(),
-            visible_exits: Vec::new(),
-            visible_doors: Vec::new(),
-            visible_containers: Vec::new(),
-            visible_items: Vec::new(),
-            carried_items: Vec::new(),
-            local_actors: Vec::new(),
-            semantic_actions: Vec::new(),
-            phase3a_status: Some(Phase3AEmbodiedStatus {
-                need_summaries: Vec::new(),
-                intention_summary: None,
-                routine_summary: None,
-                salient_interruption: Some(
-                    "sleep_interrupted at tick 8: Sleep interrupted by hunger".to_string(),
-                ),
-            }),
-            last_rejection_summary: None,
-            last_rejection_why_not: None,
-            holder_known_context_id: context.holder_known_context_id().clone(),
-            holder_known_context_hash: context.holder_known_context_hash().clone(),
-            holder_known_context_frontier: context.event_frontier(),
-            holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
-            actor_known_interval_summary: None,
-            notebook: None,
-            debug_available: true,
-        };
+        let mut view = minimal_view_with_interval(None);
+        view.phase3a_status = Some(Phase3AEmbodiedStatus {
+            need_summaries: Vec::new(),
+            intention_summary: None,
+            routine_summary: None,
+            salient_interruption: Some(
+                "sleep_interrupted at tick 8: Sleep interrupted by hunger".to_string(),
+            ),
+        });
 
         let rendered = render_embodied_view(&view);
 
@@ -738,32 +574,7 @@ mod tests {
 
     #[test]
     fn renderer_keeps_debug_tokens_out_of_embodied_view() {
-        let context = context();
-        let view = EmbodiedViewModel {
-            view_model_id: ViewModelId::new("view.actor_lina.0").unwrap(),
-            mode: ViewMode::Embodied,
-            viewer_actor_id: ActorId::new("actor_lina").unwrap(),
-            sim_tick: SimTick::ZERO,
-            place_id: PlaceId::new("market_stall").unwrap(),
-            place_label: "Market stall".to_string(),
-            visible_exits: Vec::new(),
-            visible_doors: Vec::new(),
-            visible_containers: Vec::new(),
-            visible_items: Vec::new(),
-            carried_items: Vec::new(),
-            local_actors: Vec::new(),
-            semantic_actions: Vec::new(),
-            phase3a_status: None,
-            last_rejection_summary: None,
-            last_rejection_why_not: None,
-            holder_known_context_id: context.holder_known_context_id().clone(),
-            holder_known_context_hash: context.holder_known_context_hash().clone(),
-            holder_known_context_frontier: context.event_frontier(),
-            holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
-            actor_known_interval_summary: None,
-            notebook: None,
-            debug_available: true,
-        };
+        let view = minimal_view_with_interval(None);
 
         let rendered = render_embodied_view(&view);
 
@@ -772,32 +583,7 @@ mod tests {
 
     #[test]
     fn renderer_debug_token_negative_extends_from_token_source() {
-        let context = context();
-        let view = EmbodiedViewModel {
-            view_model_id: ViewModelId::new("view.actor_lina.0").unwrap(),
-            mode: ViewMode::Embodied,
-            viewer_actor_id: ActorId::new("actor_lina").unwrap(),
-            sim_tick: SimTick::ZERO,
-            place_id: PlaceId::new("market_stall").unwrap(),
-            place_label: "Market stall".to_string(),
-            visible_exits: Vec::new(),
-            visible_doors: Vec::new(),
-            visible_containers: Vec::new(),
-            visible_items: Vec::new(),
-            carried_items: Vec::new(),
-            local_actors: Vec::new(),
-            semantic_actions: Vec::new(),
-            phase3a_status: None,
-            last_rejection_summary: None,
-            last_rejection_why_not: None,
-            holder_known_context_id: context.holder_known_context_id().clone(),
-            holder_known_context_hash: context.holder_known_context_hash().clone(),
-            holder_known_context_frontier: context.event_frontier(),
-            holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
-            actor_known_interval_summary: None,
-            notebook: None,
-            debug_available: true,
-        };
+        let view = minimal_view_with_interval(None);
         let rendered = render_embodied_view(&view);
         let tokens = DEBUG_TOKENS
             .iter()
@@ -810,32 +596,7 @@ mod tests {
 
     #[test]
     fn debug_overlay_marks_knowledge_context_frontier_non_diegetic() {
-        let context = context();
-        let view = EmbodiedViewModel {
-            view_model_id: ViewModelId::new("view.actor_lina.0").unwrap(),
-            mode: ViewMode::Embodied,
-            viewer_actor_id: ActorId::new("actor_lina").unwrap(),
-            sim_tick: SimTick::ZERO,
-            place_id: PlaceId::new("market_stall").unwrap(),
-            place_label: "Market stall".to_string(),
-            visible_exits: Vec::new(),
-            visible_doors: Vec::new(),
-            visible_containers: Vec::new(),
-            visible_items: Vec::new(),
-            carried_items: Vec::new(),
-            local_actors: Vec::new(),
-            semantic_actions: Vec::new(),
-            phase3a_status: None,
-            last_rejection_summary: None,
-            last_rejection_why_not: None,
-            holder_known_context_id: context.holder_known_context_id().clone(),
-            holder_known_context_hash: context.holder_known_context_hash().clone(),
-            holder_known_context_frontier: context.event_frontier(),
-            holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
-            actor_known_interval_summary: None,
-            notebook: None,
-            debug_available: true,
-        };
+        let view = minimal_view_with_interval(None);
 
         let rendered = render_debug_overlay(&view);
 

@@ -178,20 +178,20 @@ mod tests {
     fn view() -> EmbodiedViewModel {
         let context =
             KnowledgeContext::embodied(ActorId::new("actor_tomas").unwrap(), SimTick::ZERO);
-        EmbodiedViewModel {
-            view_model_id: ViewModelId::new("view.actor_tomas.0").unwrap(),
-            mode: ViewMode::Embodied,
-            viewer_actor_id: ActorId::new("actor_tomas").unwrap(),
-            sim_tick: SimTick::ZERO,
-            place_id: "house_tomas".parse().unwrap(),
-            place_label: "House".to_string(),
-            visible_exits: Vec::new(),
-            visible_doors: Vec::new(),
-            visible_containers: Vec::new(),
-            visible_items: Vec::new(),
-            carried_items: Vec::new(),
-            local_actors: Vec::new(),
-            semantic_actions: vec![
+        EmbodiedViewModel::for_test(
+            ViewModelId::new("view.actor_tomas.0").unwrap(),
+            ViewMode::Embodied,
+            ActorId::new("actor_tomas").unwrap(),
+            SimTick::ZERO,
+            "house_tomas".parse().unwrap(),
+            "House".to_string(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            vec![
                 SemanticActionEntry::new(
                     SemanticActionId::new("open.container.strongbox_tomas").unwrap(),
                     ActionId::new("open").unwrap(),
@@ -209,17 +209,17 @@ mod tests {
                     None,
                 ),
             ],
-            phase3a_status: None,
-            last_rejection_summary: None,
-            last_rejection_why_not: None,
-            holder_known_context_id: context.holder_known_context_id().clone(),
-            holder_known_context_hash: context.holder_known_context_hash().clone(),
-            holder_known_context_frontier: context.event_frontier(),
-            holder_known_context_source_summary: "allowed=5 provenance=5".to_string(),
-            actor_known_interval_summary: None,
-            notebook: None,
-            debug_available: true,
-        }
+            None,
+            None,
+            None,
+            context.holder_known_context_id().clone(),
+            context.holder_known_context_hash().clone(),
+            context.event_frontier(),
+            "allowed=5 provenance=5".to_string(),
+            None,
+            None,
+            true,
+        )
     }
 
     #[test]

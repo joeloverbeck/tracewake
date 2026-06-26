@@ -200,6 +200,19 @@ decision_trace:
 
 The missing-property/no-human ordinary-life proof must show unpossessed actors eating, sleeping, working, waiting, failing, or replanning through this transaction. It fails if ordinary day behavior is produced by direct scheduler mutation, routine labels, workplace truth, hidden food truth, or display-string evidence.
 
+Current 0052 evidence for this actor transaction boundary starts from
+`LoadedWorldRuntime::from_bootstrap` with a validated `LoadedWorldBootstrap`,
+crosses public client control through `TuiApp::submit_semantic_action`,
+`TuiApp::advance_until`, and command-loop dispatch to closed `RuntimeCommand`
+values, and observes committed actor/process events, transaction ancestry,
+actor census changes, sealed embodied/debug receipts, and replay verdicts. The
+behavior witnesses are `world_step_coordinator.rs`, `generative_lock.rs`,
+`command_loop_session.rs`, `embodied_flow.rs`, `parity_adversarial.rs`, and
+`negative_fixture_runner.rs`; sensitivity and operational barriers are recorded
+in `archive/tickets/0052FOUCONFOU-009.md`,
+`archive/tickets/0052FOUCONFOU-010.md`, and
+`archive/tickets/0052FOUCONFOU-011.md`.
+
 ## Anti-patterns
 
 - “Hunger above threshold dispatches `eat`.”

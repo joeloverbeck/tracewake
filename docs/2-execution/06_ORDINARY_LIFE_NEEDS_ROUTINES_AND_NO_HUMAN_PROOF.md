@@ -139,13 +139,13 @@ processes advance through the same owning seams. A proof that exercises only a
 private possessed-actor tick or only the debug no-human runner does not satisfy
 human-driven ordinary-life acceptance.
 
-The current 0051 evidence names the executable basis for this comparison:
-`LoadedWorldRuntime::from_loaded_world` constructs the loaded runtime, core
-derives loaded actor work and declared process work, then commits actor
-transaction artifacts through the same `transact_world_one_tick` path for
-human-origin and no-human-origin advancement. Acceptance rows must cite the
-production mixed-schedule and adversarial witnesses in
-`crates/tracewake-core/tests/world_step_coordinator.rs`,
+The current 0052 evidence names the executable basis for this comparison:
+`LoadedWorldRuntime::from_bootstrap` constructs the loaded runtime from a
+validated `LoadedWorldBootstrap`, core derives loaded actor work and declared
+process work, then commits actor transaction artifacts through the same
+`transact_world_one_tick` path for human-origin and no-human-origin advancement.
+Acceptance rows must cite the production mixed-schedule and adversarial
+witnesses in `crates/tracewake-core/tests/world_step_coordinator.rs`,
 `crates/tracewake-core/tests/generative_lock.rs`, and
 `crates/tracewake-tui/tests/parity_adversarial.rs`, plus the TUI command-loop
 world-advance witness for public client crossing, not the historical 0048

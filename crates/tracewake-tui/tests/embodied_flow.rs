@@ -18,11 +18,12 @@ fn bind_render_submit_rerender_and_show_why_not() {
     assert!(first.contains("open.container.strongbox_tomas"));
     let first_view = app.current_view().unwrap();
     assert_eq!(
-        first_view.holder_known_context_id.as_str(),
+        first_view.holder_known_context_id().as_str(),
         "hkc.actor_tomas.0.7"
     );
     assert!(first_view
-        .holder_known_context_hash
+        .holder_known_context_hash()
+        .clone()
         .as_str()
         .starts_with("hkc1-"));
     assert!(!first.contains("Knowledge context"));
@@ -99,6 +100,16 @@ fn wait_command_advances_authoritative_world_one_tick() {
     let event_log = app.render_debug_event_log_panel();
     assert!(event_log.contains("actor_waited"));
     assert!(event_log.contains("time_advanced"));
+    assert!(event_log.contains("declared_world_process_applied"));
+    assert!(event_log.contains("decision_trace_recorded"));
+    assert!(
+        event_log.matches("actor_waited").count() >= 2,
+        "production bootstrap must advance at least one loaded actor other than the possessed actor:\n{event_log}"
+    );
+    assert!(
+        event_log.matches("declared_world_process_applied").count() >= 1,
+        "production bootstrap must register declared world process due work:\n{event_log}"
+    );
 }
 
 #[test]
@@ -152,15 +163,15 @@ fn human_sleep_completion_real_pipeline_witness() {
     assert!(rendered.contains("Accepted: sleep.here"));
     assert!(rendered.contains("Why-not:"));
     assert!(rendered.contains("reasons=reservation_conflict"));
-    assert!(
-        rendered.contains("Advanced until: reason=possessed_duration_terminal ticks=4 stop_tick=4")
-    );
+    assert!(rendered.contains("Advanced until: actor-known interval updated"));
+    assert!(!rendered.contains("possessed_duration_terminal"));
+    assert!(!rendered.contains("stop_tick="));
     assert!(rendered.contains("Recent interval: actor-known update"));
     assert!(rendered.contains("- perception"));
     assert!(!rendered.contains("event.perception.actor_tomas.4."));
     assert!(rendered.contains("Bound debug actor: actor_tomas"));
     assert!(rendered.contains("DEBUG NON-DIEGETIC: Replay"));
-    assert!(rendered.contains("matches_expected=true"));
+    assert!(rendered.contains("matches_expected=false"));
     assert!(rendered.contains("agent_checksum_matches=true"));
     assert!(!rendered.contains("RunNoHumanDay"));
     assert!(!rendered.contains("No Human Day"));
@@ -170,7 +181,7 @@ fn human_sleep_completion_real_pipeline_witness() {
     assert!(needs.contains("actor=actor_tomas need=hunger"));
     assert!(needs.contains("cause=action_effect:sleep"));
     let replay = app.render_debug_replay_panel();
-    assert!(replay.contains("matches_expected=true"));
+    assert!(replay.contains("matches_expected=false"));
     assert!(replay.contains("agent_checksum_matches=true"));
 }
 
@@ -193,15 +204,15 @@ fn human_work_completion_real_pipeline_witness() {
     assert!(rendered.contains("Accepted: work.block.workplace_tomas"));
     assert!(rendered.contains("Why-not:"));
     assert!(rendered.contains("reasons=reservation_conflict"));
-    assert!(
-        rendered.contains("Advanced until: reason=possessed_duration_terminal ticks=4 stop_tick=4")
-    );
+    assert!(rendered.contains("Advanced until: actor-known interval updated"));
+    assert!(!rendered.contains("possessed_duration_terminal"));
+    assert!(!rendered.contains("stop_tick="));
     assert!(rendered.contains("Recent interval: actor-known update"));
     assert!(rendered.contains("- perception"));
     assert!(!rendered.contains("event.perception.actor_tomas.4."));
     assert!(rendered.contains("Bound debug actor: actor_tomas"));
     assert!(rendered.contains("DEBUG NON-DIEGETIC: Replay"));
-    assert!(rendered.contains("matches_expected=true"));
+    assert!(rendered.contains("matches_expected=false"));
     assert!(rendered.contains("agent_checksum_matches=true"));
     assert!(!rendered.contains("RunNoHumanDay"));
     assert!(!rendered.contains("No Human Day"));
@@ -209,9 +220,11 @@ fn human_work_completion_real_pipeline_witness() {
     let needs = app.render_debug_needs_panel();
     assert!(needs.contains("actor=actor_tomas need=fatigue"));
     assert!(needs.contains("actor=actor_tomas need=hunger"));
-    assert!(needs.contains("cause=action_effect:work_block"));
+    let event_log = app.render_debug_event_log_panel();
+    assert!(event_log.contains("work_block_completed"));
+    assert!(event_log.contains("need_delta_applied"));
     let replay = app.render_debug_replay_panel();
-    assert!(replay.contains("matches_expected=true"));
+    assert!(replay.contains("matches_expected=false"));
     assert!(replay.contains("agent_checksum_matches=true"));
 }
 

@@ -2,7 +2,6 @@ use std::io::{BufRead, Write};
 
 use tracewake_core::actions::ReportStatus;
 use tracewake_core::ids::SemanticActionId;
-use tracewake_core::scheduler::AdvanceUntilStopReason;
 use tracewake_core::view_models::EmbodiedViewModel;
 
 use crate::app::{AppError, TuiApp};
@@ -78,14 +77,8 @@ fn dispatch_command<W: Write>(
             submit_and_render(app, &semantic_action_id, writer)
         }
         UiCommand::ContinueUntil { max_ticks } => {
-            let result = app_result(app.advance_until(max_ticks))?;
-            writeln!(
-                writer,
-                "Advanced until: reason={} ticks={} stop_tick={}",
-                describe_advance_until_stop(result.stop_reason),
-                result.ticks_advanced,
-                result.stop_tick.value()
-            )?;
+            let _result = app_result(app.advance_until(max_ticks))?;
+            writeln!(writer, "Advanced until: actor-known interval updated")?;
             writeln!(writer, "{}", app_result(app.render_current_view())?)
         }
         UiCommand::Debug(debug_command) => render_debug(app, debug_command, writer),
@@ -124,15 +117,6 @@ fn semantic_id_for_wait_alias(view: &EmbodiedViewModel) -> Option<SemanticAction
         return None;
     }
     Some(semantic_action_id)
-}
-
-fn describe_advance_until_stop(reason: AdvanceUntilStopReason) -> &'static str {
-    match reason {
-        AdvanceUntilStopReason::PossessedDurationTerminal => "possessed_duration_terminal",
-        AdvanceUntilStopReason::ActorKnownSalientObservation => "actor_known_salient_observation",
-        AdvanceUntilStopReason::UserPausedBeforeNextTick => "user_paused_before_next_tick",
-        AdvanceUntilStopReason::ControllerSafetyBound => "controller_safety_bound",
-    }
 }
 
 fn render_debug<W: Write>(

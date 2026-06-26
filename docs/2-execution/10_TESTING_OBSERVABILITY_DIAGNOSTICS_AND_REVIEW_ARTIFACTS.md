@@ -245,21 +245,25 @@ embodied, debug-only, replay, no-human, parity, or observer-only, and must
 identify the source event, proposal, projection, context, or transcript
 references that make it path-under-test evidence.
 
-For the 0051 loaded-world/time-control seam, the matrix must keep five evidence
+For the 0052 loaded-world/time-control seam, the matrix must keep five evidence
 classes distinct: production behavior and runtime construction
-(`LoadedWorldRuntime::from_loaded_world`, `world_step_coordinator.rs`,
-`generative_lock.rs`, and loaded-content handoff tests), temporal replay
-verdicts (`replay_temporal_frontier.rs` and `ReplayTemporalVerdict`/`run_replay`
-integration), core-owned holder-known interval output
+(`LoadedWorldRuntime::from_bootstrap`, `world_step_coordinator.rs`,
+`generative_lock.rs`, `embodied_flow.rs`, and loaded-content handoff tests),
+temporal replay verdicts (`replay_temporal_frontier.rs` and
+`ReplayTemporalVerdict`/`run_replay` integration), core-owned holder-known interval output
 (`holder_known_interval_projection.rs` and `salient_stop_actor_known.rs`),
 compile-fail authority boundaries (`negative_fixture_runner.rs`), and TUI
 parity/adversarial rendering (`playable_capability_parity.rs`,
-`parity_adversarial.rs`, and public command-loop world-advance tests). Focused
-mutation campaigns, including preserved 0049/0050 commands and the 0051
-projection-focused command recorded in `archive/tickets/0051FOUCONTHI-010.md`,
-are mutation evidence only. The 0051 standing campaign recorded `3275`
-selected mutants, `2549` caught, `703` unviable, `23` missed, and `0` timeout,
-so it must not be cited as a green standing-perimeter certification.
+`parity_adversarial.rs`, and public command-loop world-advance tests). The
+required `public-boundary conformance` job composes those existing behavior
+tests. Focused mutation campaigns, including preserved 0049/0050 commands and
+the 0052 focused repair commands recorded in `archive/tickets/0052FOUCONFOU-010.md`,
+are mutation evidence only. The 0052 standing campaign recorded `3400` selected
+mutants, `2645` caught, `748` unviable, `7` routed-forward
+`food_source_fact_supersedes` misses, and `0` timeout. It may be cited as zero
+in-surface misses/timeouts for the 0052 surface, but not as an unqualified green
+canonical standing-perimeter certification while those food-source mutants
+survive.
 
 ## General anti-vacuity and behavior witnesses
 
@@ -373,6 +377,8 @@ Workflow-level posture:
 | `clippy` | Runs `cargo clippy --workspace --all-targets -- -D warnings`. |
 | `test` | Runs `cargo build --workspace --all-targets --locked` and `cargo test --workspace --locked`; the locked test invocation is the documented CI superset of the local `cargo test --workspace` completion gate. |
 | `lock-layer-gates` | Runs the named lock-layer integration targets with `--locked`, including anti-regression, hidden-truth, replay, content, and TUI seam gates. |
+| `public-boundary-conformance` | Runs the required public-boundary conformance lane with `negative_fixture_runner`, `generative_lock`, `world_step_coordinator`, `command_loop_session`, `playable_capability_parity`, and `embodied_flow`, proving the production-bootstrap-to-sealed-receipt/replay matrix through existing tests rather than new doctrine gate code. |
+| `full-surface-mutation-trigger` | Runs on pull requests and pushes, detects changes to production files, tests, fixtures, negative fixtures, mutation config/baseline, CI workflow, merge/supervisor tooling, and live 0052 conformance evidence, and reports that full-surface mutation reconciliation is required before merge. |
 | `mutants-in-diff` | Runs standing certification-perimeter mutation checks for pull requests and pushes when checked-in perimeter source paths changed, using two concurrent cargo-mutants jobs and an explicit 183 second per-mutant timeout, with accepted baseline misses normalized by file, mutation, and function. |
 | `mutants-lock-layer-baseline` | Runs the scheduled or manual unmutated baseline and canonical standing-perimeter mutation census through `.cargo/mutants.toml`, recording commit, config, and toolchain fingerprints for shard reconciliation. |
 | `mutants-lock-layer` | Runs the scheduled or manual standing-perimeter mutation matrix as eight supervised shards after the baseline job, using `--baseline=skip`, two cargo-mutants jobs per shard, a 7200 second supervisor wall, 120 second grace, explicit 183 second mutant timeout, 130 minute GitHub timeout, and always-uploaded per-shard transcripts and mutation output. |
@@ -381,9 +387,9 @@ Workflow-level posture:
 Phase-entry mutation rule: clearing a scheduled-mutation `pending` status, or
 making any `ORD-LIFE-CERT` readiness claim that depends on the lock layer,
 requires a dated green scheduled mutation run where the baseline job, every
-scheduled shard, and reconciliation job are green. A report may record pending
-status honestly, but pending is not a pass and does not satisfy certification
-readiness.
+scheduled shard, and reconciliation job are green. A red scheduled mutation result is merge-blocking until repaired.
+A report may record pending status honestly, but pending is not a pass and does
+not satisfy certification readiness.
 
 ## Review artifact template
 

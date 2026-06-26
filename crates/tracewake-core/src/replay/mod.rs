@@ -7,4 +7,7 @@ pub use rebuild::{
     ProjectionRebuildReport,
 };
 pub use report::{run_replay, ReplayReport};
-pub use temporal::{project_temporal_frontier, TemporalDivergence, TemporalProjection};
+pub use temporal::{
+    project_temporal_frontier, DeclaredProcessReplayAuthority, LoadedActorReplayAuthority,
+    SchedulerAuthorityDivergence, SchedulerReplayAuthority, TemporalDivergence, TemporalProjection,
+};

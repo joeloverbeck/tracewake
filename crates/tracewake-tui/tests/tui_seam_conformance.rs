@@ -262,7 +262,7 @@ fn tui_epistemic_debug_uses_core_builder_not_raw_projection_storage() {
     let app_source = include_str!("../src/app.rs");
 
     assert!(
-        app_source.contains("self.runtime.epistemic_projection().debug_epistemics_view()"),
+        app_source.contains("self.runtime.debug_epistemics_view()"),
         "TUI debug epistemics must be built by core, not from raw projection storage"
     );
     for forbidden in [

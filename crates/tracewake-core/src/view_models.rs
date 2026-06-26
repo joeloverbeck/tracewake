@@ -17,21 +17,9 @@ pub enum ViewMode {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EmbodiedViewModel {
-    #[cfg(feature = "test-support")]
-    pub view_model_id: ViewModelId,
-    #[cfg(not(feature = "test-support"))]
     pub(crate) view_model_id: ViewModelId,
-    #[cfg(feature = "test-support")]
-    pub mode: ViewMode,
-    #[cfg(not(feature = "test-support"))]
     pub(crate) mode: ViewMode,
-    #[cfg(feature = "test-support")]
-    pub viewer_actor_id: ActorId,
-    #[cfg(not(feature = "test-support"))]
     pub(crate) viewer_actor_id: ActorId,
-    #[cfg(feature = "test-support")]
-    pub sim_tick: SimTick,
-    #[cfg(not(feature = "test-support"))]
     pub(crate) sim_tick: SimTick,
     pub place_id: PlaceId,
     pub place_label: String,
@@ -45,30 +33,12 @@ pub struct EmbodiedViewModel {
     pub phase3a_status: Option<Phase3AEmbodiedStatus>,
     pub last_rejection_summary: Option<String>,
     pub last_rejection_why_not: Option<WhyNotView>,
-    #[cfg(feature = "test-support")]
-    pub holder_known_context_id: HolderKnownContextId,
-    #[cfg(not(feature = "test-support"))]
     pub(crate) holder_known_context_id: HolderKnownContextId,
-    #[cfg(feature = "test-support")]
-    pub holder_known_context_hash: HolderKnownContextHash,
-    #[cfg(not(feature = "test-support"))]
     pub(crate) holder_known_context_hash: HolderKnownContextHash,
-    #[cfg(feature = "test-support")]
-    pub holder_known_context_frontier: u64,
-    #[cfg(not(feature = "test-support"))]
     pub(crate) holder_known_context_frontier: u64,
-    #[cfg(feature = "test-support")]
-    pub holder_known_context_source_summary: String,
-    #[cfg(not(feature = "test-support"))]
     pub(crate) holder_known_context_source_summary: String,
-    #[cfg(feature = "test-support")]
-    pub actor_known_interval_summary: Option<TypedActorKnownIntervalSummary>,
-    #[cfg(not(feature = "test-support"))]
     pub(crate) actor_known_interval_summary: Option<TypedActorKnownIntervalSummary>,
     pub notebook: Option<NotebookView>,
-    #[cfg(feature = "test-support")]
-    pub debug_available: bool,
-    #[cfg(not(feature = "test-support"))]
     pub(crate) debug_available: bool,
 }
 
@@ -185,33 +155,12 @@ impl EmbodiedViewModel {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TypedActorKnownIntervalSummary {
-    #[cfg(feature = "test-support")]
-    pub start_tick: SimTick,
-    #[cfg(not(feature = "test-support"))]
     pub(crate) start_tick: SimTick,
-    #[cfg(feature = "test-support")]
-    pub stop_tick: SimTick,
-    #[cfg(not(feature = "test-support"))]
     pub(crate) stop_tick: SimTick,
-    #[cfg(feature = "test-support")]
-    pub start_frontier: u64,
-    #[cfg(not(feature = "test-support"))]
     pub(crate) start_frontier: u64,
-    #[cfg(feature = "test-support")]
-    pub stop_frontier: u64,
-    #[cfg(not(feature = "test-support"))]
     pub(crate) stop_frontier: u64,
-    #[cfg(feature = "test-support")]
-    pub stop_reason: crate::projections::IntervalStopReason,
-    #[cfg(not(feature = "test-support"))]
     pub(crate) stop_reason: crate::projections::IntervalStopReason,
-    #[cfg(feature = "test-support")]
-    pub notices: Vec<crate::projections::VerifiedActorKnownIntervalNotice>,
-    #[cfg(not(feature = "test-support"))]
     pub(crate) notices: Vec<crate::projections::VerifiedActorKnownIntervalNotice>,
-    #[cfg(feature = "test-support")]
-    pub no_new_actor_known_information: bool,
-    #[cfg(not(feature = "test-support"))]
     pub(crate) no_new_actor_known_information: bool,
 }
 

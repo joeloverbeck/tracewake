@@ -41,12 +41,14 @@ const WORK_RS: &str = include_str!("../src/actions/defs/work.rs");
 const ACTIONS_REGISTRY_RS: &str = include_str!("../src/actions/registry.rs");
 const ACTIONS_REPORT_RS: &str = include_str!("../src/actions/report.rs");
 const PROJECTIONS_RS: &str = include_str!("../src/projections.rs");
+const RUNTIME_SESSION_RS: &str = include_str!("../src/runtime/session.rs");
 const VIEW_MODELS_RS: &str = include_str!("../src/view_models.rs");
 const REBUILD_RS: &str = include_str!("../src/replay/rebuild.rs");
 const REPORT_RS: &str = include_str!("../src/replay/report.rs");
 const GENERATIVE_LOCK_RS: &str = include_str!("generative_lock.rs");
 const HIDDEN_TRUTH_GATES_RS: &str = include_str!("hidden_truth_gates.rs");
 const ANTI_REGRESSION_GUARDS_RS: &str = include_str!("anti_regression_guards.rs");
+const NEGATIVE_FIXTURE_RUNNER_RS: &str = include_str!("negative_fixture_runner.rs");
 const SUPPORT_GENERATIVE_RS: &str = include_str!("support/generative.rs");
 const SUPPORT_MOD_RS: &str = include_str!("support/mod.rs");
 const CONTENT_LOAD_RS: &str = include_str!("../../tracewake-content/src/load.rs");
@@ -1486,7 +1488,9 @@ const WORKSPACE_SOURCE_CLASSIFICATIONS: &[WorkspaceSourceClassification] = &[
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/replay/rebuild.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/replay/report.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/replay/temporal.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/runtime/command.rs", class: WorkspaceSourceClass::GuardedLayer },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/runtime/mod.rs", class: WorkspaceSourceClass::GuardedLayer },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/runtime/receipt.rs", class: WorkspaceSourceClass::GuardedLayer },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/runtime/session.rs", class: WorkspaceSourceClass::GuardedLayer },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/scheduler.rs", class: WorkspaceSourceClass::GuardedLayer },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/state.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
@@ -2260,6 +2264,10 @@ const META_LOCK_CENSUS_EXEMPTIONS: &[MetaLockCensusExemption] = &[
     MetaLockCensusExemption {
         test_name: "generative_lock_cannot_fabricate_duration_terminals",
         rationale: "Generative harness behavior proof represented by lock_id generative_support_bans_bare_event_envelope_token and sibling support/generative guard entries.",
+    },
+    MetaLockCensusExemption {
+        test_name: "standing_barrier_negative_fixture_runner_keeps_all_feature_boundary_lane",
+        rationale: "Secondary topology alarm for the load-bearing negative_fixture_runner all-feature compile-fail lane, not a separate production source-scan lock.",
     },
 ];
 
@@ -6506,10 +6514,16 @@ fn embodied_projection_never_uses_unfiltered_checked_facts_as_actor_provenance()
 fn privileged_tui_proposal_requires_current_view_source_context() {
     let app = production(TUI_APP_RS);
     assert!(
-        app.contains("proposal_from_current_view_semantic_action"),
-        "TUI semantic-action submission must use the current-view source-context constructor"
+        app.contains("RuntimeCommand::submit_semantic_action"),
+        "TUI semantic-action submission must use the runtime command boundary"
     );
-    assert_absent(app, "proposal_from_semantic_action_entry");
+
+    let runtime_session = production(RUNTIME_SESSION_RS);
+    assert!(
+        runtime_session.contains("proposal_from_current_view_semantic_action"),
+        "runtime semantic-action submission must use the current-view source-context constructor"
+    );
+    assert_absent(runtime_session, "proposal_from_semantic_action_entry");
 
     let projections = production(PROJECTIONS_RS);
     assert!(
@@ -10020,6 +10034,40 @@ fn guard_001_no_production_seed_mutation_outside_state_definition() {
         assert!(
             !source.contains("seed_"),
             "{path} uses seed construction mutators in production"
+        );
+    }
+}
+
+#[test]
+fn standing_barrier_negative_fixture_runner_keeps_all_feature_boundary_lane() {
+    assert_standing_barrier_negative_fixture_runner_registered(NEGATIVE_FIXTURE_RUNNER_RS);
+
+    let synthetic = NEGATIVE_FIXTURE_RUNNER_RS.replace(
+        "\"external_crate_cannot_mutate_embodied_temporal_fields\",",
+        "",
+    );
+    assert!(
+        std::panic::catch_unwind(|| {
+            assert_standing_barrier_negative_fixture_runner_registered(&synthetic)
+        })
+        .is_err(),
+        "standing-barrier topology alarm must fire if an all-feature fixture is removed"
+    );
+}
+
+fn assert_standing_barrier_negative_fixture_runner_registered(source: &str) {
+    for required in [
+        "TRACEWAKE_CORE_TEST_SUPPORT_FEATURE",
+        "production_boundary_negative_fixtures_fail_with_test_support_feature",
+        "ALL_FEATURE_PRODUCTION_BOUNDARY_FIXTURES",
+        "external_crate_cannot_mutate_loaded_runtime_fields",
+        "external_crate_cannot_mutate_embodied_temporal_fields",
+        "external_crate_cannot_construct_pipeline_context_with_runtime_aggregates",
+        "external_crate_cannot_assign_scheduler_frontier",
+    ] {
+        assert!(
+            source.contains(required),
+            "negative fixture runner must keep all-feature standing-barrier witness {required}"
         );
     }
 }

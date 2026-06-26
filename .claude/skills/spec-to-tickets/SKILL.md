@@ -114,7 +114,7 @@ Parse the spec's metadata (Spec ID, Phase, Status if present, Date, authority or
 
 ## Step 2: Codebase Validation
 
-**Load `references/codebase-validation.md`.** Validate the spec's assumptions against the current codebase and doctrine, surface Issues, and obtain a per-Issue disposition before Step 3. A spec that was reassessed via `/reassess-spec` earlier this session with all findings resolved qualifies for the abbreviated spot-check path documented in the reference — which abbreviates the validation *work*, not the reference read or its output: still load `references/codebase-validation.md`, run its (a)–(g) spot-checks, and emit the compact `Spot-checks: (a) ✓, (b) ✓, … (g) ✓` inline list before Step 3. Naming the abbreviated path is not a license to skip the reference.
+**Load `references/codebase-validation.md`.** Validate the spec's assumptions against the current codebase and doctrine, surface Issues, and obtain a per-Issue disposition before Step 3. A spec that was reassessed via `/reassess-spec` earlier this session with all findings resolved qualifies for the abbreviated spot-check path documented in the reference — which abbreviates the validation *work*, not the reference read or its output: still load `references/codebase-validation.md`, run its (a)–(h) spot-checks, and emit the compact `Spot-checks: (a) ✓, (b) ✓, … (h) ✓` inline list before Step 3. Naming the abbreviated path is not a license to skip the reference.
 
 ## Step 3: Decompose the Spec
 
