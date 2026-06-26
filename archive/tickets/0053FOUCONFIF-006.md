@@ -102,3 +102,39 @@ Add `external_crate_cannot_submit_debug_command_without_token` importing `tracew
 1. `cargo test -p tracewake-core --test negative_fixture_runner`
 2. `cargo test -p tracewake-tui`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-26
+
+Implemented token-gated debug/operator authority by adding
+`DebugSessionAuthority`, a public-but-unforgeable runtime-minted token. Core now
+mints that token only from debug controller binding state via
+`LoadedWorldRuntime::debug_session_authority_for`, and
+`RuntimeCommand::run_no_human_day` / `RuntimeCommand::debug_view` require the
+token instead of self-minting.
+
+Resealed debug receipt/view construction so `DebugRuntimeReceipt::new` and the
+public `Debug*View::new` family require `DebugSessionAuthority`; production
+constructors no longer call `DebugCapability::mint()` directly. Runtime-owned
+debug APIs still mint internally after the runtime boundary has established
+authority. The TUI now obtains and presents the runtime-minted token for
+no-human-day execution, while the existing command-loop non-debug rejection and
+debug-mode success tests cover the behavior path.
+
+Added and registered
+`external_crate_cannot_submit_debug_command_without_token`, which fails under
+default and `tracewake-core/test-support` feature runs when an external crate
+tries to call `run_no_human_day` without a token, mint
+`DebugSessionAuthority`, or construct debug views without authority. The grep
+guard found public debug constructors now requiring an authority argument and no
+`DebugCapability::mint()` calls in `view_models.rs` or `runtime/command.rs`.
+
+Verification:
+
+- `cargo test -p tracewake-core --test negative_fixture_runner`
+- `cargo test -p tracewake-tui`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

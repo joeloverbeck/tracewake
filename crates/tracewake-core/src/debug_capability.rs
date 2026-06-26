@@ -23,6 +23,15 @@ pub struct DebugCapability {
     marker: &'static str,
 }
 
+/// Runtime-minted authority for debug/operator commands and views.
+///
+/// The token can be named by clients, but only core runtime/controller binding
+/// state can mint it in production.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DebugSessionAuthority {
+    capability: DebugCapability,
+}
+
 impl DebugCapability {
     pub(crate) const fn mint() -> Self {
         Self {
@@ -43,6 +52,27 @@ impl DebugCapability {
         Self {
             marker: "NOT DEBUG",
         }
+    }
+}
+
+impl DebugSessionAuthority {
+    pub(crate) const fn mint() -> Self {
+        Self {
+            capability: DebugCapability::mint(),
+        }
+    }
+
+    pub(crate) fn capability(&self) -> DebugCapability {
+        self.capability.clone()
+    }
+
+    pub fn debug_only(&self) -> bool {
+        self.capability.debug_only()
+    }
+
+    #[cfg(feature = "test-support")]
+    pub fn for_test() -> Self {
+        Self::mint()
     }
 }
 

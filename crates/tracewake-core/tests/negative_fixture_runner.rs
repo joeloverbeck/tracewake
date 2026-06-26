@@ -193,6 +193,10 @@ const FIXTURES: &[NegativeFixture] = &[
         expected_stderr: "no field named `world_process_events`",
     },
     NegativeFixture {
+        name: "external_crate_cannot_submit_debug_command_without_token",
+        expected_stderr: "this function takes 1 argument",
+    },
+    NegativeFixture {
         name: "external_crate_cannot_name_due_process_invocation",
         expected_stderr: "struct `DueProcessInvocation` is private",
     },
@@ -219,6 +223,7 @@ const ALL_FEATURE_PRODUCTION_BOUNDARY_FIXTURES: &[&str] = &[
     "external_crate_cannot_seed_loaded_actor_or_process_eligibility",
     "external_crate_cannot_set_world_step_due_actor_ids",
     "external_crate_cannot_set_world_step_process_events",
+    "external_crate_cannot_submit_debug_command_without_token",
 ];
 
 struct ClippyBanProof {

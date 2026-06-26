@@ -1,5 +1,5 @@
 use crate::actions::{PipelineResult, ValidationReport};
-use crate::debug_capability::DebugCapability;
+use crate::debug_capability::{DebugCapability, DebugSessionAuthority};
 use crate::events::EventEnvelope;
 use crate::ids::EventId;
 use crate::scheduler::no_human::NoHumanDayReport;
@@ -167,14 +167,14 @@ impl EmbodiedRuntimeReceipt {
 
 impl DebugRuntimeReceipt {
     pub(crate) fn new(
-        capability: DebugCapability,
+        authority: &DebugSessionAuthority,
         prior_tick: SimTick,
         resulting_tick: SimTick,
         event_ids: Vec<EventId>,
         stop_reason: Option<String>,
     ) -> Self {
         Self {
-            capability,
+            capability: authority.capability(),
             prior_tick,
             resulting_tick,
             event_ids,
@@ -227,8 +227,9 @@ mod tests {
             EventId::new("event.debug.one").unwrap(),
             EventId::new("event.debug.two").unwrap(),
         ];
+        let authority = DebugSessionAuthority::mint();
         let receipt = DebugRuntimeReceipt::new(
-            DebugCapability::mint(),
+            &authority,
             SimTick::new(7),
             SimTick::new(9),
             event_ids.clone(),
@@ -241,13 +242,13 @@ mod tests {
         assert_eq!(receipt.event_ids(), event_ids.as_slice());
         assert_eq!(receipt.stop_reason(), Some("test"));
 
-        let non_debug = DebugRuntimeReceipt::new(
-            DebugCapability::test_non_debug(),
-            SimTick::new(7),
-            SimTick::new(9),
+        let non_debug = DebugRuntimeReceipt {
+            capability: DebugCapability::test_non_debug(),
+            prior_tick: SimTick::new(7),
+            resulting_tick: SimTick::new(9),
             event_ids,
-            Some("test".to_string()),
-        );
+            stop_reason: Some("test".to_string()),
+        };
         assert!(!non_debug.debug_only());
     }
 }

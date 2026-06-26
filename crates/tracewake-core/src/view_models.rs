@@ -1,6 +1,6 @@
 use crate::actions::report::{ReasonCode, ValidationReport};
 use crate::checksum::HolderKnownContextHash;
-use crate::debug_capability::DebugCapability;
+use crate::debug_capability::{DebugCapability, DebugSessionAuthority};
 use crate::events::{EventEnvelope, EventStream};
 use crate::ids::{
     ActionId, ActorId, ContainerId, DoorId, HolderKnownContextId, ItemId, PlaceId,
@@ -674,9 +674,13 @@ pub struct DebugTruthBeliefMismatchView {
 }
 
 impl DebugControllerBindingView {
-    pub fn new(current_binding: Option<String>, binding_history: Vec<String>) -> Self {
+    pub fn new(
+        authority: &DebugSessionAuthority,
+        current_binding: Option<String>,
+        binding_history: Vec<String>,
+    ) -> Self {
         Self {
-            debug_capability: DebugCapability::mint(),
+            debug_capability: authority.capability(),
             current_binding,
             binding_history,
         }
@@ -688,9 +692,9 @@ impl DebugControllerBindingView {
 }
 
 impl DebugEventLogView {
-    pub fn new(events: Vec<DebugEventSummary>) -> Self {
+    pub fn new(authority: &DebugSessionAuthority, events: Vec<DebugEventSummary>) -> Self {
         Self {
-            debug_capability: DebugCapability::mint(),
+            debug_capability: authority.capability(),
             events,
         }
     }
@@ -701,9 +705,13 @@ impl DebugEventLogView {
 }
 
 impl DebugItemLocationView {
-    pub fn new(item_id: ItemId, location_summary: impl Into<String>) -> Self {
+    pub fn new(
+        authority: &DebugSessionAuthority,
+        item_id: ItemId,
+        location_summary: impl Into<String>,
+    ) -> Self {
         Self {
-            debug_capability: DebugCapability::mint(),
+            debug_capability: authority.capability(),
             item_id,
             location_summary: location_summary.into(),
         }
@@ -715,9 +723,9 @@ impl DebugItemLocationView {
 }
 
 impl DebugActionRejectionView {
-    pub fn new(report: ValidationReport) -> Self {
+    pub fn new(authority: &DebugSessionAuthority, report: ValidationReport) -> Self {
         Self {
-            debug_capability: DebugCapability::mint(),
+            debug_capability: authority.capability(),
             report,
         }
     }
@@ -728,9 +736,9 @@ impl DebugActionRejectionView {
 }
 
 impl DebugProjectionRebuildView {
-    pub fn new(summary: impl Into<String>) -> Self {
+    pub fn new(authority: &DebugSessionAuthority, summary: impl Into<String>) -> Self {
         Self {
-            debug_capability: DebugCapability::mint(),
+            debug_capability: authority.capability(),
             summary: summary.into(),
         }
     }
@@ -741,9 +749,9 @@ impl DebugProjectionRebuildView {
 }
 
 impl DebugReplayReportView {
-    pub fn new(summary: impl Into<String>) -> Self {
+    pub fn new(authority: &DebugSessionAuthority, summary: impl Into<String>) -> Self {
         Self {
-            debug_capability: DebugCapability::mint(),
+            debug_capability: authority.capability(),
             summary: summary.into(),
         }
     }
@@ -755,6 +763,7 @@ impl DebugReplayReportView {
 
 impl DebugEpistemicsView {
     pub fn new(
+        authority: &DebugSessionAuthority,
         context_mode: impl Into<String>,
         observations: Vec<DebugObservationEntry>,
         beliefs_by_holder: Vec<DebugHolderBeliefs>,
@@ -763,7 +772,7 @@ impl DebugEpistemicsView {
         projection_summary: impl Into<String>,
     ) -> Self {
         Self {
-            debug_capability: DebugCapability::mint(),
+            debug_capability: authority.capability(),
             context_mode: context_mode.into(),
             observations,
             beliefs_by_holder,
@@ -783,9 +792,13 @@ impl DebugEpistemicsView {
 }
 
 impl DebugBeliefsView {
-    pub fn new(holder_actor_id: ActorId, beliefs: Vec<DebugBeliefEntry>) -> Self {
+    pub fn new(
+        authority: &DebugSessionAuthority,
+        holder_actor_id: ActorId,
+        beliefs: Vec<DebugBeliefEntry>,
+    ) -> Self {
         Self {
-            debug_capability: DebugCapability::mint(),
+            debug_capability: authority.capability(),
             holder_actor_id,
             beliefs,
         }
@@ -801,9 +814,13 @@ impl DebugBeliefsView {
 }
 
 impl DebugObservationsView {
-    pub fn new(observer_actor_id: ActorId, observations: Vec<DebugObservationEntry>) -> Self {
+    pub fn new(
+        authority: &DebugSessionAuthority,
+        observer_actor_id: ActorId,
+        observations: Vec<DebugObservationEntry>,
+    ) -> Self {
         Self {
-            debug_capability: DebugCapability::mint(),
+            debug_capability: authority.capability(),
             observer_actor_id,
             observations,
         }
@@ -820,13 +837,14 @@ impl DebugObservationsView {
 
 impl DebugTruthBeliefMismatchView {
     pub fn new(
+        authority: &DebugSessionAuthority,
         item_id: ItemId,
         ground_truth_location: impl Into<String>,
         held_belief_summary: impl Into<String>,
         mismatch_summary: impl Into<String>,
     ) -> Self {
         Self {
-            debug_capability: DebugCapability::mint(),
+            debug_capability: authority.capability(),
             item_id,
             ground_truth_location: ground_truth_location.into(),
             held_belief_summary: held_belief_summary.into(),
@@ -1075,7 +1093,10 @@ mod tests {
 
     #[test]
     fn debug_and_embodied_view_models_are_distinct_types() {
-        let debug = DebugViewModel::ProjectionRebuild(DebugProjectionRebuildView::new("rebuilt"));
+        let authority = DebugSessionAuthority::mint();
+        let debug = DebugViewModel::ProjectionRebuild(DebugProjectionRebuildView::new(
+            &authority, "rebuilt",
+        ));
 
         match debug {
             DebugViewModel::ProjectionRebuild(view) => assert!(view.debug_only()),
@@ -1121,7 +1142,9 @@ mod tests {
 
     #[test]
     fn debug_epistemics_view_is_non_diegetic_and_lists_all_holders() {
+        let authority = DebugSessionAuthority::mint();
         let view = DebugEpistemicsView::new(
+            &authority,
             "debug",
             vec![DebugObservationEntry {
                 observation_id: "obs_tomas_checked_strongbox".to_string(),
@@ -1173,9 +1196,14 @@ mod tests {
 
     #[test]
     fn focused_debug_views_are_marked_non_diegetic() {
-        let beliefs = DebugBeliefsView::new(ActorId::new("actor_tomas").unwrap(), Vec::new());
-        let observations =
-            DebugObservationsView::new(ActorId::new("actor_tomas").unwrap(), Vec::new());
+        let authority = DebugSessionAuthority::mint();
+        let beliefs =
+            DebugBeliefsView::new(&authority, ActorId::new("actor_tomas").unwrap(), Vec::new());
+        let observations = DebugObservationsView::new(
+            &authority,
+            ActorId::new("actor_tomas").unwrap(),
+            Vec::new(),
+        );
 
         assert!(beliefs.debug_only());
         assert!(observations.debug_only());
@@ -1185,7 +1213,9 @@ mod tests {
 
     #[test]
     fn truth_belief_mismatch_shows_truth_and_belief_side_by_side() {
+        let authority = DebugSessionAuthority::mint();
         let mismatch = DebugTruthBeliefMismatchView::new(
+            &authority,
             ItemId::new("coin_stack_01").unwrap(),
             "actor:actor_mara",
             "coin_stack_01 is missing from expected location",
@@ -1382,24 +1412,31 @@ mod tests {
     }
 
     fn minted_debug_views() -> Vec<DebugViewModel> {
+        let authority = DebugSessionAuthority::mint();
         vec![
             DebugViewModel::ControllerBinding(DebugControllerBindingView::new(
+                &authority,
                 Some("controller_human->actor_tomas".to_string()),
                 vec!["bound@0".to_string()],
             )),
-            DebugViewModel::EventLog(DebugEventLogView::new(vec![DebugEventSummary {
-                stream: EventStream::World,
-                stream_position: 0,
-                global_order: 0,
-                event_type: "actor_waited".to_string(),
-                actor_or_process: Some("actor_tomas".to_string()),
-                participants: vec!["actor_tomas".to_string()],
-            }])),
+            DebugViewModel::EventLog(DebugEventLogView::new(
+                &authority,
+                vec![DebugEventSummary {
+                    stream: EventStream::World,
+                    stream_position: 0,
+                    global_order: 0,
+                    event_type: "actor_waited".to_string(),
+                    actor_or_process: Some("actor_tomas".to_string()),
+                    participants: vec!["actor_tomas".to_string()],
+                }],
+            )),
             DebugViewModel::ItemLocation(DebugItemLocationView::new(
+                &authority,
                 ItemId::new("coin_stack_01").unwrap(),
                 "container:strongbox_tomas",
             )),
             DebugViewModel::ActionRejection(Box::new(DebugActionRejectionView::new(
+                &authority,
                 validation_report(
                     "proposal_debug_rejection",
                     "The door is closed.",
@@ -1407,10 +1444,12 @@ mod tests {
                 ),
             ))),
             DebugViewModel::ProjectionRebuild(DebugProjectionRebuildView::new(
+                &authority,
                 "projection rebuild matched",
             )),
-            DebugViewModel::ReplayReport(DebugReplayReportView::new("replay matched")),
+            DebugViewModel::ReplayReport(DebugReplayReportView::new(&authority, "replay matched")),
             DebugViewModel::Epistemics(DebugEpistemicsView::new(
+                &authority,
                 "debug",
                 Vec::new(),
                 Vec::new(),
@@ -1419,14 +1458,17 @@ mod tests {
                 "epistemic_projection_v1",
             )),
             DebugViewModel::Beliefs(DebugBeliefsView::new(
+                &authority,
                 ActorId::new("actor_tomas").unwrap(),
                 Vec::new(),
             )),
             DebugViewModel::Observations(DebugObservationsView::new(
+                &authority,
                 ActorId::new("actor_tomas").unwrap(),
                 Vec::new(),
             )),
             DebugViewModel::TruthBeliefMismatch(DebugTruthBeliefMismatchView::new(
+                &authority,
                 ItemId::new("coin_stack_01").unwrap(),
                 "container:strongbox_tomas",
                 "holder believes coin is missing",

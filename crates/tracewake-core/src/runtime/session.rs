@@ -4,6 +4,7 @@ use crate::actions::{
 use crate::agent::current_place_knowledge_context;
 use crate::checksum::{compute_physical_checksum, ChecksumContext, PhysicalChecksum};
 use crate::controller::ControllerBindings;
+use crate::debug_capability::DebugSessionAuthority;
 use crate::debug_reports::{
     action_rejection_report, controller_binding_report, item_location_report,
     no_human_day_debug_report, phase3a_actor_report, phase3a_needs_report, phase3a_planner_report,
@@ -228,6 +229,15 @@ impl LoadedWorldRuntime {
                 binding.binding.bound_actor_id.as_ref() == Some(actor_id)
                     && matches!(binding.binding.mode, ControllerMode::Debug)
             })
+    }
+
+    pub fn debug_session_authority_for(
+        &self,
+        controller_id: &ControllerId,
+        actor_id: &ActorId,
+    ) -> Option<DebugSessionAuthority> {
+        self.controller_debug_available_for(controller_id, actor_id)
+            .then(DebugSessionAuthority::mint)
     }
 
     pub fn embodied_view_model(
@@ -639,9 +649,9 @@ impl LoadedWorldRuntime {
                     vec!["runtime:embodied_view".to_string()],
                 )))
             }
-            RuntimeCommandKind::DebugView { .. } => {
+            RuntimeCommandKind::DebugView { _authority } => {
                 Ok(RuntimeReceipt::debug(DebugRuntimeReceipt::new(
-                    crate::debug_capability::DebugCapability::mint(),
+                    &_authority,
                     self.scheduler.current_tick(),
                     self.scheduler.current_tick(),
                     Vec::new(),

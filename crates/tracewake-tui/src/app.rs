@@ -2,6 +2,7 @@ use tracewake_content::fixtures::{self, GoldenFixture};
 use tracewake_content::load::{load_fixture_package, LoadError};
 use tracewake_core::actions::{ActionRegistry, ReportStatus, ValidationReport};
 use tracewake_core::checksum::PhysicalChecksum;
+use tracewake_core::debug_capability::DebugSessionAuthority;
 use tracewake_core::ids::{
     ActorId, ContentManifestId, ContentVersion, ControllerId, DebugReportId, ItemId,
     SemanticActionId,
@@ -155,6 +156,16 @@ impl TuiApp {
             .is_some_and(|actor_id| self.debug_available_for(actor_id))
     }
 
+    fn debug_authority(&self) -> Result<DebugSessionAuthority, AppError> {
+        let actor_id = self
+            .bound_actor_id
+            .as_ref()
+            .ok_or(AppError::DebugUnavailable)?;
+        self.runtime
+            .debug_session_authority_for(&self.controller_id, actor_id)
+            .ok_or(AppError::DebugUnavailable)
+    }
+
     pub fn render_current_view(&self) -> Result<String, AppError> {
         Ok(render_embodied_view(&self.current_view()?))
     }
@@ -237,12 +248,10 @@ impl TuiApp {
     }
 
     pub fn run_no_human_day(&mut self) -> Result<NoHumanDayReport, AppError> {
-        if !self.debug_available() {
-            return Err(AppError::DebugUnavailable);
-        }
+        let authority = self.debug_authority()?;
         let receipt = self
             .runtime
-            .submit_command(RuntimeCommand::run_no_human_day())
+            .submit_command(RuntimeCommand::run_no_human_day(authority))
             .map_err(AppError::Runtime)?;
         let report = receipt
             .into_no_human_day_report()

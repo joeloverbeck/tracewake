@@ -1230,7 +1230,11 @@ fn workplace_availability_provenance_refs(
 }
 
 pub fn build_debug_event_log_view(log: &EventLog) -> DebugEventLogView {
-    DebugEventLogView::new(log.events().iter().map(DebugEventSummary::from).collect())
+    let authority = crate::debug_capability::DebugSessionAuthority::mint();
+    DebugEventLogView::new(
+        &authority,
+        log.events().iter().map(DebugEventSummary::from).collect(),
+    )
 }
 
 fn visible_item_source(location: &Location) -> VisibleItemSource {

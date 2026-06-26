@@ -677,7 +677,9 @@ impl EpistemicProjection {
             .collect();
         let checksum = self.compute_checksum().checksum;
 
+        let authority = crate::debug_capability::DebugSessionAuthority::mint();
         DebugEpistemicsView::new(
+            &authority,
             "debug",
             observations,
             beliefs_by_holder,
@@ -700,7 +702,8 @@ impl EpistemicProjection {
             .filter_map(|belief_id| self.beliefs_by_id.get(belief_id))
             .map(debug_belief_entry)
             .collect();
-        DebugBeliefsView::new(actor_id, beliefs)
+        let authority = crate::debug_capability::DebugSessionAuthority::mint();
+        DebugBeliefsView::new(&authority, actor_id, beliefs)
     }
 
     pub fn debug_observations_view(&self, actor_id: ActorId) -> DebugObservationsView {
@@ -712,7 +715,8 @@ impl EpistemicProjection {
             .filter_map(|observation_id| self.observations_by_id.get(observation_id))
             .map(debug_observation_entry)
             .collect();
-        DebugObservationsView::new(actor_id, observations)
+        let authority = crate::debug_capability::DebugSessionAuthority::mint();
+        DebugObservationsView::new(&authority, actor_id, observations)
     }
 
     pub fn compute_checksum(&self) -> EpistemicProjectionChecksumReport {
