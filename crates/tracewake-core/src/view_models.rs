@@ -137,15 +137,15 @@ impl EmbodiedViewModel {
         self.debug_available
     }
 
-    pub fn set_notebook(&mut self, notebook: Option<NotebookView>) {
+    pub(crate) fn set_notebook(&mut self, notebook: Option<NotebookView>) {
         self.notebook = notebook;
     }
 
-    pub fn set_debug_available(&mut self, debug_available: bool) {
+    pub(crate) fn set_debug_available(&mut self, debug_available: bool) {
         self.debug_available = debug_available;
     }
 
-    pub fn set_actor_known_interval_summary(
+    pub(crate) fn set_actor_known_interval_summary(
         &mut self,
         summary: Option<TypedActorKnownIntervalSummary>,
     ) {
@@ -186,7 +186,9 @@ impl TypedActorKnownIntervalSummary {
         }
     }
 
-    pub fn from_actor_known_delta(delta: crate::projections::ActorKnownIntervalDelta) -> Self {
+    pub(crate) fn from_actor_known_delta(
+        delta: crate::projections::ActorKnownIntervalDelta,
+    ) -> Self {
         Self {
             start_tick: delta.start_tick(),
             stop_tick: delta.stop_tick(),
@@ -198,22 +200,27 @@ impl TypedActorKnownIntervalSummary {
         }
     }
 
+    #[cfg(any(test, feature = "test-support"))]
     pub fn start_tick(&self) -> SimTick {
         self.start_tick
     }
 
+    #[cfg(any(test, feature = "test-support"))]
     pub fn stop_tick(&self) -> SimTick {
         self.stop_tick
     }
 
+    #[cfg(any(test, feature = "test-support"))]
     pub fn start_frontier(&self) -> u64 {
         self.start_frontier
     }
 
+    #[cfg(any(test, feature = "test-support"))]
     pub fn stop_frontier(&self) -> u64 {
         self.stop_frontier
     }
 
+    #[cfg(any(test, feature = "test-support"))]
     pub fn stop_reason(&self) -> crate::projections::IntervalStopReason {
         self.stop_reason
     }

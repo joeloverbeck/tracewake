@@ -8,11 +8,11 @@ use tracewake_core::ids::{
 };
 use tracewake_core::projections::ProjectionError;
 use tracewake_core::runtime::{
-    LoadedWorldRuntime, RuntimeActionReceipt, RuntimeCommand, RuntimeCommandError,
-    RuntimeReceiptKind,
+    ContinuedRuntimeReceipt, LoadedWorldRuntime, RuntimeActionReceipt, RuntimeCommand,
+    RuntimeCommandError, RuntimeReceiptKind,
 };
 use tracewake_core::scheduler::no_human::NoHumanDayReport;
-use tracewake_core::scheduler::{AdvanceUntilResult, WorldAdvanceError};
+use tracewake_core::scheduler::WorldAdvanceError;
 use tracewake_core::state::ControllerMode;
 use tracewake_core::time::SimTick;
 use tracewake_core::view_models::{
@@ -217,7 +217,7 @@ impl TuiApp {
         self.runtime.event_count()
     }
 
-    pub fn advance_until(&mut self, max_ticks: u64) -> Result<AdvanceUntilResult, AppError> {
+    pub fn advance_until(&mut self, max_ticks: u64) -> Result<ContinuedRuntimeReceipt, AppError> {
         let actor_id = self.bound_actor_id.clone().ok_or(AppError::ActorNotBound)?;
         let receipt = self
             .runtime
@@ -231,10 +231,7 @@ impl TuiApp {
             RuntimeReceiptKind::Continued(result) => result.clone(),
             _ => panic!("continue_until command returns a continued receipt"),
         };
-        self.last_interval_summary = result
-            .actor_known_interval_delta
-            .clone()
-            .map(TypedActorKnownIntervalSummary::from_actor_known_delta);
+        self.last_interval_summary = result.actor_known_interval_summary().cloned();
         self.last_rejection = None;
         Ok(result)
     }

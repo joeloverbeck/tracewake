@@ -100,3 +100,42 @@ Extend it (M1) to cover the live path — public `Continued` receipt / `AdvanceU
 1. `cargo test -p tracewake-core --test negative_fixture_runner`
 2. `cargo test -p tracewake-tui`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-26
+
+Implemented the embodied continuation reseal by replacing
+`RuntimeReceiptKind::Continued(AdvanceUntilResult)` with a sealed
+`ContinuedRuntimeReceipt`. The new receipt exposes only actor-legible progress
+shape (`advanced`, appended event count) and the core-built
+`TypedActorKnownIntervalSummary`; it no longer exposes scheduler ticks,
+frontiers, stop reasons, replay event identifiers, or raw
+`AdvanceUntilResult.actor_known_interval_delta`.
+
+Moved interval summary construction into core by making
+`TypedActorKnownIntervalSummary::from_actor_known_delta` crate-private. Removed
+public embodied view mutators by making `set_notebook`, `set_debug_available`,
+and `set_actor_known_interval_summary` crate-private, and restricted exact
+summary getters (`start_tick`, `stop_tick`, frontiers, stop reason) to
+`test-support`/core-test access. The TUI now receives the sealed continuation
+receipt, stores the already-built summary, and no longer calls
+`from_actor_known_delta`.
+
+Extended
+`tests/negative-fixtures/external_crate_cannot_construct_actor_interval_summary`
+to cover struct-literal forging, `from_actor_known_delta`, exact getter reads,
+embodied setter calls, and raw `Continued` receipt extraction. Updated the
+negative runner and anti-regression producer census for the new core-owned
+construction path. The ticket grep checks returned no matches for
+`from_actor_known_delta` in `crates/tracewake-tui/src` and no public
+`set_*`/`from_actor_known_delta` entries in `view_models.rs`.
+
+Verification:
+
+- `cargo test -p tracewake-core --test negative_fixture_runner`
+- `cargo test -p tracewake-tui`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

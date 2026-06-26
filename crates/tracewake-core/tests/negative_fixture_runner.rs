@@ -174,7 +174,7 @@ const FIXTURES: &[NegativeFixture] = &[
     },
     NegativeFixture {
         name: "external_crate_cannot_construct_actor_interval_summary",
-        expected_stderr: "private field",
+        expected_stderr: "private",
     },
     NegativeFixture {
         name: "external_crate_cannot_mutate_embodied_temporal_fields",

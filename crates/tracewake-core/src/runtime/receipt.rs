@@ -5,6 +5,7 @@ use crate::ids::EventId;
 use crate::scheduler::no_human::NoHumanDayReport;
 use crate::scheduler::{AdvanceUntilResult, WorldAdvanceResult};
 use crate::time::SimTick;
+use crate::view_models::TypedActorKnownIntervalSummary;
 
 /// Immutable runtime receipt.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -16,7 +17,7 @@ pub struct RuntimeReceipt {
 pub enum RuntimeReceiptKind {
     OneTickAdvanced(WorldAdvanceResult),
     ActionSubmitted(RuntimeActionReceipt),
-    Continued(AdvanceUntilResult),
+    Continued(ContinuedRuntimeReceipt),
     NoHumanDay(NoHumanDayReport),
     Embodied(EmbodiedRuntimeReceipt),
     Debug(DebugRuntimeReceipt),
@@ -26,6 +27,16 @@ pub enum RuntimeReceiptKind {
 pub struct RuntimeActionReceipt {
     pub report: ValidationReport,
     pub appended_events: Vec<EventEnvelope>,
+}
+
+/// Actor-legible continuation product. It carries whether visible progress
+/// occurred and the core-built actor-known interval summary, but not exact
+/// scheduler ticks, frontiers, stop reasons, or replay event identifiers.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ContinuedRuntimeReceipt {
+    advanced: bool,
+    appended_event_count: usize,
+    actor_known_interval_summary: Option<TypedActorKnownIntervalSummary>,
 }
 
 /// Actor-legible runtime product. It intentionally carries qualitative text
@@ -61,7 +72,9 @@ impl RuntimeReceipt {
 
     pub(crate) fn continued(result: AdvanceUntilResult) -> Self {
         Self {
-            kind: RuntimeReceiptKind::Continued(result),
+            kind: RuntimeReceiptKind::Continued(
+                ContinuedRuntimeReceipt::from_advance_until_result(result),
+            ),
         }
     }
 
@@ -108,6 +121,30 @@ impl From<PipelineResult> for RuntimeActionReceipt {
             report: value.report,
             appended_events: value.appended_events,
         }
+    }
+}
+
+impl ContinuedRuntimeReceipt {
+    fn from_advance_until_result(result: AdvanceUntilResult) -> Self {
+        Self {
+            advanced: result.ticks_advanced > 0,
+            appended_event_count: result.appended_event_ids.len(),
+            actor_known_interval_summary: result
+                .actor_known_interval_delta
+                .map(TypedActorKnownIntervalSummary::from_actor_known_delta),
+        }
+    }
+
+    pub fn advanced(&self) -> bool {
+        self.advanced
+    }
+
+    pub fn appended_event_count(&self) -> usize {
+        self.appended_event_count
+    }
+
+    pub fn actor_known_interval_summary(&self) -> Option<&TypedActorKnownIntervalSummary> {
+        self.actor_known_interval_summary.as_ref()
     }
 }
 

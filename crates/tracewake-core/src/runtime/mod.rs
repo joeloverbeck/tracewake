@@ -6,8 +6,8 @@ mod session;
 
 pub use command::RuntimeCommand;
 pub use receipt::{
-    DebugRuntimeReceipt, EmbodiedRuntimeReceipt, RuntimeActionReceipt, RuntimeReceipt,
-    RuntimeReceiptKind,
+    ContinuedRuntimeReceipt, DebugRuntimeReceipt, EmbodiedRuntimeReceipt, RuntimeActionReceipt,
+    RuntimeReceipt, RuntimeReceiptKind,
 };
 pub use session::{
     LoadedWorldBootstrap, LoadedWorldRuntime, RuntimeCommandError, RuntimeReplaySeed,
