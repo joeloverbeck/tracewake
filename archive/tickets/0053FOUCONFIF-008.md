@@ -85,3 +85,18 @@ Spec 0053 §6.2: do **not** edit conformance rows first. After F5-01…F5-06 are
 1. `grep -rnE "ValidatedLoadedWorldBootstrap|DebugSessionAuthority|sealed interval" docs/1-architecture docs/2-execution docs/3-reference`
 2. `grep -rnE "from_loaded_state|pub fn from_seed_parts" crates/tracewake-core/src crates/tracewake-content/src` — must return nothing (the symbols the docs claim removed are actually gone post-implementation).
 3. A narrower command set is correct because the deliverable is conformance prose; the only code-side check is command 2 confirming the docs' removal claims match the tree.
+
+## Outcome
+
+Completed: 2026-06-26
+
+Truthed the live conformance and reference rows in the seven named docs after the upstream implementation tickets landed. The updated rows now cite `ValidatedLoadedWorldBootstrap`, `ContinuedRuntimeReceipt`, the sealed interval product, `DebugSessionAuthority`, the debug/operator no-human-day classification, the 0053 governance API-audit posture, and the closed `food_source_fact_supersedes` mutation family. No archived spec, report, or ticket was edited.
+
+Manual invariants-alignment review: each updated row names the sealed constructor/token, the public client or runtime boundary crossed, the observed event/projection/receipt effect, and the sensitivity proof via negative fixture or targeted mutation run. The rows are retrospective evidence only and introduce no simulation input, actor-known channel, serialization shape, or replay nondeterminism.
+
+Verification passed:
+
+1. `grep -rnE "ValidatedLoadedWorldBootstrap|sealed interval product|DebugSessionAuthority" docs/1-architecture/04_*.md docs/1-architecture/10_*.md docs/2-execution/05_*.md docs/2-execution/07_*.md`
+2. `grep -rnE "from_loaded_state|pub.*from_seed_parts" docs/1-architecture docs/2-execution` returned no matches.
+3. `grep -nE "no-human" docs/2-execution/06_*.md`
+4. `grep -rnE "from_loaded_state|pub fn from_seed_parts" crates/tracewake-core/src crates/tracewake-content/src` returned no matches.

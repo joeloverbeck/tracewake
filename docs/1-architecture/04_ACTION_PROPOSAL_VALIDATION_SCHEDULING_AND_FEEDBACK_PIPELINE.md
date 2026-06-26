@@ -116,20 +116,25 @@ masquerade as ordinary actor actions; they authorize lifecycle progression or
 interruption through the duration seam and do not create a competing wait
 action.
 
-Current 0052 evidence names the production coordinator entry explicitly:
-`LoadedWorldRuntime::from_bootstrap(LoadedWorldBootstrap, SimTick)` creates the
-runtime from validated content plus an action registry, then the shared world
-step derives loaded actor work, declared process work, restored eligibility,
-process transactions, and closed actor transaction outcome consumption. The
-public client boundary is `TuiApp::submit_semantic_action`,
-`TuiApp::advance_until`, and command-loop dispatch to closed `RuntimeCommand`
-values; observed effects are committed actor/process events, projection
-rebuilds, actor census changes, process ancestry, sealed receipts, and replay
-verdicts in the witness suites. `negative_fixture_runner.rs` supplies
-compile-fail sensitivity for authority boundaries, `public-boundary
-conformance` composes the production-boundary matrix, and
-`archive/tickets/0052FOUCONFOU-010.md` records the standing mutation rerun with
-zero in-surface misses/timeouts and seven routed-forward `food_source` misses.
+Current 0053 evidence names the sealed production coordinator entry explicitly:
+`LoadedWorldRuntime::from_bootstrap(ValidatedLoadedWorldBootstrap, SimTick)`
+creates the runtime only from the validated content path; external clients
+cannot call removed raw loaded-state constructors, seed-part constructors, or
+feed raw state/log parts into the runtime. The shared world step derives loaded
+actor work, declared process work, restored eligibility, process transactions,
+and closed actor transaction outcome consumption. The public client boundary is
+`TuiApp::submit_semantic_action`, `TuiApp::advance_until`, and command-loop
+dispatch to closed `RuntimeCommand` values; debug/operator commands require a
+runtime-minted `DebugSessionAuthority`. Observed effects are committed
+actor/process events, projection rebuilds, actor census changes, process
+ancestry, sealed receipts, the sealed interval product, and replay verdicts in
+the witness suites. `negative_fixture_runner.rs` supplies compile-fail
+sensitivity through `external_crate_cannot_construct_loaded_world_bootstrap_from_seed_parts`,
+`external_crate_cannot_construct_actor_interval_summary`, and
+`external_crate_cannot_submit_debug_command_without_token`; `public-boundary
+conformance` composes the production-boundary matrix; and
+`archive/tickets/0053FOUCONFIF-007.md` records the closed `food_source`
+mutation family with `9` targeted predicate mutants caught.
 
 ### Affordances
 
