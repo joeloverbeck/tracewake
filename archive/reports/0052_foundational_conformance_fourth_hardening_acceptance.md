@@ -294,8 +294,8 @@ observed effect, and sensitivity proof required by spec 0052.
   evidence, but operational enforcement is not confirmed.
 - The `food_source_fact_supersedes` family is routed forward and keeps the
   canonical standing perimeter from being called fully green.
-- Spec ledger update, report archival, and spec archival are deferred to normal
-  spec acceptance closeout and are not performed by this report ticket.
+- Spec ledger update, report archival, and spec archival were completed by the
+  archive/truthing closeout commit after this report ticket.
 
 ## Scoped certification wording
 
