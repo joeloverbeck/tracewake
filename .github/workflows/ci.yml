@@ -100,6 +100,52 @@ jobs:
           cargo test --locked -p tracewake-tui --test adversarial_gates
           cargo test --locked -p tracewake-tui --test tui_seam_conformance
 
+  public-boundary-conformance:
+    name: public-boundary conformance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cache cargo
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-public-boundary-${{ hashFiles('rust-toolchain.toml', '**/Cargo.toml', '**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-public-boundary-
+      - name: Run public-boundary conformance matrix
+        run: |
+          cargo test --locked -p tracewake-core --test negative_fixture_runner
+          cargo test --locked -p tracewake-core --test generative_lock
+          cargo test --locked -p tracewake-core --test world_step_coordinator
+          cargo test --locked -p tracewake-tui --test command_loop_session
+          cargo test --locked -p tracewake-tui --test playable_capability_parity
+          cargo test --locked -p tracewake-tui --test embodied_flow
+
+  full-surface-mutation-trigger:
+    name: full-surface mutation trigger (lock layer)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Check full-surface mutation trigger breadth
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            full_surface_range="origin/${{ github.base_ref }}...HEAD"
+          else
+            full_surface_range="HEAD^..HEAD"
+          fi
+          if git diff --name-only "$full_surface_range" | grep -E '^(\.cargo/mutants\.toml|\.cargo/mutants-baseline-misses\.txt|\.github/workflows/ci\.yml|tools/(merge-mutation-shards\.py|supervise-command\.sh)|tests/negative-fixtures/|crates/tracewake-core/(src|tests)/|crates/tracewake-content/(src|tests)/|crates/tracewake-tui/(src|tests)/|reports/0052_|archive/tickets/0052FOUCONFOU-|specs/0052_)' >/dev/null; then
+            echo "Full-surface mutation reconciliation is required for this change before merge."
+            echo "Required checks: public-boundary conformance and mutation shard reconciliation (lock layer)."
+            echo "A red scheduled mutation result is merge-blocking until repaired; pending is not a pass."
+          else
+            echo "No full-surface mutation trigger path changed."
+          fi
+
   mutants-in-diff:
     name: mutation in-diff (lock layer)
     runs-on: ubuntu-latest

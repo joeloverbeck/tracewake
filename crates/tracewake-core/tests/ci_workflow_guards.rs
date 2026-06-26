@@ -14,6 +14,12 @@ const REQUIRED_GATE_COMMANDS: &[&str] = &[
 ];
 
 const PRODUCTION_CONFORMANCE_COMMANDS: &[&str] = &[
+    "cargo test --locked -p tracewake-core --test negative_fixture_runner",
+    "cargo test --locked -p tracewake-core --test generative_lock",
+    "cargo test --locked -p tracewake-core --test world_step_coordinator",
+    "cargo test --locked -p tracewake-tui --test command_loop_session",
+    "cargo test --locked -p tracewake-tui --test playable_capability_parity",
+    "cargo test --locked -p tracewake-tui --test embodied_flow",
     "cargo test --locked -p tracewake-core --test generative_lock generated_cases_enter_through_loaded_runtime_constructor",
     "cargo test --locked -p tracewake-content load::tests::loaded_fixture_hands_off_derived_runtime_due_work",
 ];
@@ -79,6 +85,20 @@ const STANDING_MUTATION_TRIGGER_FRAGMENTS: &[&str] = &[
     "crates/tracewake-core/src/epistemics/",
     "crates/tracewake-content/src/(manifest|load|schema|serialization|validate)\\.rs",
     "crates/tracewake-tui/src/(app|debug_panels|render|transcript)\\.rs",
+];
+
+const FULL_SURFACE_MUTATION_TRIGGER_FRAGMENTS: &[&str] = &[
+    ".cargo/mutants\\.toml",
+    ".cargo/mutants-baseline-misses\\.txt",
+    ".github/workflows/ci\\.yml",
+    "tools/(merge-mutation-shards\\.py|supervise-command\\.sh)",
+    "tests/negative-fixtures/",
+    "crates/tracewake-core/(src|tests)/",
+    "crates/tracewake-content/(src|tests)/",
+    "crates/tracewake-tui/(src|tests)/",
+    "reports/0052_",
+    "archive/tickets/0052FOUCONFOU-",
+    "specs/0052_",
 ];
 
 #[test]
@@ -249,6 +269,36 @@ fn ci_workflow_guards_cover_workflow_integrity() {
             )),
         "synthetic in-diff trigger missing checkcontainer.rs must fail"
     );
+
+    let missing_public_boundary_job = CI_YML.replace(
+        "public-boundary-conformance:",
+        "public-boundary-conformance-missing:",
+    );
+    assert!(
+        ci_workflow_guard_errors(&missing_public_boundary_job, MUTANTS_TOML, DOC10)
+            .iter()
+            .any(|error| error.contains("missing public-boundary conformance job")),
+        "synthetic missing public-boundary job must fail"
+    );
+
+    let missing_full_surface_trigger = CI_YML.replace("tests/negative-fixtures/|", "");
+    assert!(
+        ci_workflow_guard_errors(&missing_full_surface_trigger, MUTANTS_TOML, DOC10)
+            .iter()
+            .any(|error| error.contains("full-surface mutation trigger omits")),
+        "synthetic full-surface trigger missing negative fixtures must fail"
+    );
+
+    let missing_scheduled_red_policy = CI_YML.replace(
+        "A red scheduled mutation result is merge-blocking until repaired; pending is not a pass.",
+        "",
+    );
+    assert!(
+        ci_workflow_guard_errors(&missing_scheduled_red_policy, MUTANTS_TOML, DOC10)
+            .iter()
+            .any(|error| error.contains("full-surface mutation trigger missing required text")),
+        "synthetic missing scheduled-red policy must fail"
+    );
 }
 
 fn ci_workflow_guard_errors(workflow: &str, mutants_config: &str, doc10: &str) -> Vec<String> {
@@ -262,7 +312,51 @@ fn ci_workflow_guard_errors(workflow: &str, mutants_config: &str, doc10: &str) -
     errors.extend(doc_workflow_parity_errors(workflow, doc10));
     errors.extend(doc_flag_posture_errors(doc10));
     errors.extend(mutation_perimeter_errors(workflow, mutants_config));
+    errors.extend(public_boundary_conformance_errors(workflow));
+    errors.extend(full_surface_mutation_trigger_errors(workflow));
     errors.extend(scheduled_mutation_lane_errors(workflow));
+    errors
+}
+
+fn public_boundary_conformance_errors(workflow: &str) -> Vec<String> {
+    let mut errors = Vec::new();
+    for required in [
+        "public-boundary-conformance:",
+        "name: public-boundary conformance",
+        "Run public-boundary conformance matrix",
+    ] {
+        if !workflow.contains(required) {
+            errors.push(format!(
+                "missing public-boundary conformance job text: {required}"
+            ));
+        }
+    }
+    errors
+}
+
+fn full_surface_mutation_trigger_errors(workflow: &str) -> Vec<String> {
+    let mut errors = Vec::new();
+    for required in [
+        "full-surface-mutation-trigger:",
+        "name: full-surface mutation trigger (lock layer)",
+        "full_surface_range=",
+        "Full-surface mutation reconciliation is required for this change before merge.",
+        "Required checks: public-boundary conformance and mutation shard reconciliation (lock layer).",
+        "A red scheduled mutation result is merge-blocking until repaired; pending is not a pass.",
+    ] {
+        if !workflow.contains(required) {
+            errors.push(format!(
+                "full-surface mutation trigger missing required text: {required}"
+            ));
+        }
+    }
+    for trigger in FULL_SURFACE_MUTATION_TRIGGER_FRAGMENTS {
+        if !workflow.contains(trigger) {
+            errors.push(format!(
+                "full-surface mutation trigger omits required fragment: {trigger}"
+            ));
+        }
+    }
     errors
 }
 
@@ -391,8 +485,11 @@ fn doc_flag_posture_errors(doc10: &str) -> Vec<String> {
         r#"RUSTFLAGS: "-D warnings""#,
         "cargo test --workspace --locked",
         "lock-layer-gates",
+        "public-boundary-conformance",
+        "full-surface-mutation-trigger",
         "mutants-lock-layer",
         "dated green scheduled mutation run",
+        "A red scheduled mutation result is merge-blocking until repaired",
     ] {
         if !doc10.contains(required) {
             errors.push(format!("doc 10 missing CI posture text: {required}"));

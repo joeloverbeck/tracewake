@@ -1,6 +1,6 @@
 # 0052FOUCONFOU-011: F4-08 — enforced standing barrier: required CI lane + branch-protection governance
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds the required public-boundary conformance CI lane and full-surface mutation trigger breadth; records required-check + branch-protection governance
@@ -79,3 +79,48 @@ Make the named conformance job and mutation reconciliation required branch-prote
 
 1. `grep -nE "conformance|mutants|workflow_dispatch|schedule" .github/workflows/ci.yml` — confirm the lane + trigger breadth + scheduled policy.
 2. `cargo build --workspace --all-targets --locked && cargo test --workspace` — the composed lane runs existing green tests.
+
+## Outcome
+
+Completed: 2026-06-26
+
+Added the required public-boundary conformance CI lane as
+`public-boundary-conformance` / `public-boundary conformance`. The job composes
+the existing 009 behavior matrix and all-feature boundary evidence without
+minting new doctrine gate code:
+
+- `cargo test --locked -p tracewake-core --test negative_fixture_runner`
+- `cargo test --locked -p tracewake-core --test generative_lock`
+- `cargo test --locked -p tracewake-core --test world_step_coordinator`
+- `cargo test --locked -p tracewake-tui --test command_loop_session`
+- `cargo test --locked -p tracewake-tui --test playable_capability_parity`
+- `cargo test --locked -p tracewake-tui --test embodied_flow`
+
+Added `full-surface-mutation-trigger` / `full-surface mutation trigger (lock
+layer)` for PR/push changes that can weaken old witnesses without touching old
+production lines. Its path detector covers production files, tests, fixtures,
+negative fixtures, mutation config/baseline, CI workflow, merge/supervisor
+tooling, and live 0052 conformance evidence. It records the required merge
+posture: `public-boundary conformance` and `mutation shard reconciliation (lock
+layer)` are the required check names for 013/governance confirmation; a red
+scheduled mutation result is merge-blocking until repaired, and pending is not a
+pass.
+
+Updated `docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`
+so the current CI job table documents both new jobs and the scheduled-red
+merge-blocking policy. Extended `ci_workflow_guards.rs` so workflow drift fails
+closed when the conformance job, conformance command matrix, full-surface trigger
+fragments, or scheduled-red policy are removed. The behavior-level synthetic
+negative remains the 009 corpus run by the lane, including
+`authoritative_loaded_world_differential_is_non_vacuous` and the external
+all-feature negative fixture pass; the new guard adds synthetic workflow
+negatives for missing job, path trigger, and scheduled-red policy.
+
+Verification passed:
+
+- `grep -nE "conformance|mutants|workflow_dispatch|schedule|full-surface|merge-blocking" .github/workflows/ci.yml`
+- `cargo test -p tracewake-core --test ci_workflow_guards --locked`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
