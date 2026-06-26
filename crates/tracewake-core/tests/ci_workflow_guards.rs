@@ -281,6 +281,17 @@ fn ci_workflow_guards_cover_workflow_integrity() {
         "synthetic missing public-boundary job must fail"
     );
 
+    let missing_governance_audit_job = CI_YML.replace(
+        "governance-required-checks-audit:",
+        "governance-required-checks-audit-missing:",
+    );
+    assert!(
+        ci_workflow_guard_errors(&missing_governance_audit_job, MUTANTS_TOML, DOC10)
+            .iter()
+            .any(|error| error.contains("missing governance audit job")),
+        "synthetic missing governance audit job must fail"
+    );
+
     let missing_full_surface_trigger = CI_YML.replace("tests/negative-fixtures/|", "");
     assert!(
         ci_workflow_guard_errors(&missing_full_surface_trigger, MUTANTS_TOML, DOC10)
@@ -314,6 +325,7 @@ fn ci_workflow_guard_errors(workflow: &str, mutants_config: &str, doc10: &str) -
     errors.extend(mutation_perimeter_errors(workflow, mutants_config));
     errors.extend(public_boundary_conformance_errors(workflow));
     errors.extend(required_check_policy_errors(workflow));
+    errors.extend(governance_audit_errors(workflow));
     errors.extend(full_surface_mutation_trigger_errors(workflow));
     errors.extend(scheduled_mutation_lane_errors(workflow));
     errors
@@ -343,6 +355,33 @@ fn required_check_policy_errors(workflow: &str) -> Vec<String> {
     ] {
         if !workflow.contains(required) {
             errors.push(format!("missing required-check policy text: {required}"));
+        }
+    }
+    errors
+}
+
+fn governance_audit_errors(workflow: &str) -> Vec<String> {
+    let mut errors = Vec::new();
+    for required in [
+        "governance-required-checks-audit:",
+        "name: governance required checks audit",
+        "branches/main/protection",
+        "rulesets?targets=branch",
+        "pending/unverified: branch-protection and ruleset APIs were unavailable.",
+        "pending/unverified: required-check governance is not proven.",
+        "branch protection does not enforce admins",
+        "pull request requirement not proven",
+        "up-to-date branch or merge queue requirement not proven",
+        "\"rustfmt\"",
+        "\"clippy\"",
+        "\"build & test\"",
+        "\"lock-layer gates\"",
+        "\"public-boundary conformance\"",
+        "\"full-surface mutation trigger (lock layer)\"",
+        "\"mutation shard reconciliation (lock layer)\"",
+    ] {
+        if !workflow.contains(required) {
+            errors.push(format!("missing governance audit job text: {required}"));
         }
     }
     errors

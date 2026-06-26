@@ -123,6 +123,118 @@ jobs:
           cargo test --locked -p tracewake-tui --test playable_capability_parity
           cargo test --locked -p tracewake-tui --test embodied_flow
 
+  governance-required-checks-audit:
+    name: governance required checks audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Audit main branch required checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          protection_json="$(gh api "repos/${GITHUB_REPOSITORY}/branches/main/protection" 2>protection.err)"
+          protection_status=$?
+          rulesets_json="$(gh api "repos/${GITHUB_REPOSITORY}/rulesets?targets=branch" 2>rulesets.err)"
+          rulesets_status=$?
+          set -e
+
+          if [ "$protection_status" -ne 0 ] && [ "$rulesets_status" -ne 0 ]; then
+            echo "pending/unverified: branch-protection and ruleset APIs were unavailable."
+            sed 's/^/branch-protection api: /' protection.err
+            sed 's/^/rulesets api: /' rulesets.err
+            exit 1
+          fi
+
+          PROTECTION_JSON="$protection_json" \
+          PROTECTION_STATUS="$protection_status" \
+          RULESETS_JSON="$rulesets_json" \
+          RULESETS_STATUS="$rulesets_status" \
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+
+          required_checks = {
+              "rustfmt",
+              "clippy",
+              "build & test",
+              "lock-layer gates",
+              "public-boundary conformance",
+              "full-surface mutation trigger (lock layer)",
+              "mutation shard reconciliation (lock layer)",
+          }
+
+          contexts = set()
+          pr_required = False
+          up_to_date_or_merge_queue = False
+          bypass_residuals = []
+          evidence = []
+
+          if os.environ["PROTECTION_STATUS"] == "0":
+              protection = json.loads(os.environ["PROTECTION_JSON"] or "{}")
+              checks = protection.get("required_status_checks") or {}
+              contexts.update(checks.get("contexts") or [])
+              contexts.update(
+                  check.get("context")
+                  for check in checks.get("checks") or []
+                  if check.get("context")
+              )
+              up_to_date_or_merge_queue = up_to_date_or_merge_queue or bool(checks.get("strict"))
+              pr_required = pr_required or bool(protection.get("required_pull_request_reviews"))
+              enforce_admins = protection.get("enforce_admins") or {}
+              if not enforce_admins.get("enabled"):
+                  bypass_residuals.append("branch protection does not enforce admins")
+              evidence.append("branches/main/protection")
+
+          if os.environ["RULESETS_STATUS"] == "0":
+              rulesets = json.loads(os.environ["RULESETS_JSON"] or "[]")
+              for ruleset in rulesets:
+                  if ruleset.get("target") != "branch":
+                      continue
+                  if ruleset.get("enforcement") != "active":
+                      continue
+                  if ruleset.get("bypass_actors"):
+                      bypass_residuals.append(
+                          f"ruleset {ruleset.get('name', '<unnamed>')} has bypass actors"
+                      )
+                  evidence.append(f"rulesets:{ruleset.get('name', '<unnamed>')}")
+                  for rule in ruleset.get("rules") or []:
+                      rule_type = rule.get("type")
+                      parameters = rule.get("parameters") or {}
+                      if rule_type == "pull_request":
+                          pr_required = True
+                      if rule_type == "required_status_checks":
+                          for check in parameters.get("required_status_checks") or []:
+                              context = check.get("context")
+                              if context:
+                                  contexts.add(context)
+                          up_to_date_or_merge_queue = up_to_date_or_merge_queue or bool(
+                              parameters.get("strict_required_status_checks_policy")
+                          )
+                      if rule_type == "merge_queue":
+                          up_to_date_or_merge_queue = True
+
+          missing = sorted(required_checks - contexts)
+          failures = []
+          if missing:
+              failures.append(f"missing required status checks: {missing}")
+          if not pr_required:
+              failures.append("pull request requirement not proven")
+          if not up_to_date_or_merge_queue:
+              failures.append("up-to-date branch or merge queue requirement not proven")
+          failures.extend(bypass_residuals)
+
+          print("Governance API evidence:", ", ".join(evidence) or "none")
+          print("Required check contexts discovered:", sorted(contexts))
+          if failures:
+              print("pending/unverified: required-check governance is not proven.")
+              for failure in failures:
+                  print(f"- {failure}")
+              sys.exit(1)
+
+          print("Governance required checks audit passed.")
+          PY
+
   full-surface-mutation-trigger:
     name: full-surface mutation trigger (lock layer)
     runs-on: ubuntu-latest

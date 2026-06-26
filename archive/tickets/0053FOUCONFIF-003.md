@@ -1,6 +1,6 @@
 # 0053FOUCONFIF-003: Merge-enforced standing barrier — branch-protection/ruleset governance audit job
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `.github/workflows/ci.yml` (new governance audit job); `crates/tracewake-core/tests/ci_workflow_guards.rs` (topology alarm extension)
@@ -78,3 +78,28 @@ Assert the new governance audit job exists with the expected required-check name
 1. `cargo test -p tracewake-core --test ci_workflow_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
 3. The branch-protection API audit cannot be dry-run locally without a scoped GitHub token; its correct verification boundary is the CI run itself plus the capstone's recorded API transcript — stated here rather than as a runnable local command.
+
+## Outcome
+
+Completed: 2026-06-26
+
+Implemented the governance required-check audit job and topology guard:
+
+- Added `.github/workflows/ci.yml` job `governance-required-checks-audit`, named `governance required checks audit`.
+- The job queries both `repos/${GITHUB_REPOSITORY}/branches/main/protection` and `repos/${GITHUB_REPOSITORY}/rulesets?targets=branch`, reports `pending/unverified` when the APIs cannot prove enforcement, and exits nonzero unless the required check contexts, pull-request requirement, up-to-date-or-merge-queue requirement, and no-bypass posture are proven.
+- The job treats only active branch rulesets as enforcement evidence; ruleset evaluation mode is not accepted as merge enforcement.
+- Extended `crates/tracewake-core/tests/ci_workflow_guards.rs` to assert the governance audit job, API endpoints, fail-closed messages, and required check context names as topology alarms only.
+- Updated `docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md` only to keep the existing "Current CI Job Set" inventory truthful for the newly added workflow job. This is not the §6.1 doctrine strengthening owned by ticket 002.
+
+Deviations:
+
+- No live branch-protection/ruleset API transcript was captured locally. Per this ticket's own Test Plan, that operational evidence is captured by the CI job / capstone artifact (ticket 010), not by a local dry run.
+
+Verification:
+
+- `cargo test -p tracewake-core --test ci_workflow_guards` passed.
+- `grep -nE "branches/main/protection|rulesets" .github/workflows/ci.yml` returned the audit job's API queries.
+- `cargo fmt --all --check` passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` passed.
+- `cargo build --workspace --all-targets --locked` passed.
+- `cargo test --workspace` passed.
