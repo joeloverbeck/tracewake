@@ -76,11 +76,20 @@ pub struct LoadedWorldBootstrap {
     content_version: ContentVersion,
 }
 
+/// Core runtime bootstrap accepted by `LoadedWorldRuntime::from_bootstrap`.
+///
+/// The wrapper makes the loaded-world runtime handoff explicit: callers cannot
+/// pass raw aggregate state directly to the runtime constructor.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ValidatedLoadedWorldBootstrap {
+    bootstrap: LoadedWorldBootstrap,
+}
+
 /// Opaque replay seed for reconstructing the accepted initial aggregates
 /// without retaining mutable runtime state in a client.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RuntimeReplaySeed {
-    bootstrap: LoadedWorldBootstrap,
+    bootstrap: ValidatedLoadedWorldBootstrap,
 }
 
 /// Core-owned loaded-world runtime/session.
@@ -112,9 +121,9 @@ impl From<WorldAdvanceError> for RuntimeCommandError {
     }
 }
 
-impl LoadedWorldBootstrap {
+impl ValidatedLoadedWorldBootstrap {
     #[allow(clippy::too_many_arguments)]
-    pub fn from_loaded_state(
+    pub fn from_validated_content(
         registry: ActionRegistry,
         physical_state: PhysicalState,
         agent_state: AgentState,
@@ -124,7 +133,7 @@ impl LoadedWorldBootstrap {
         fixture_id: FixtureId,
         content_version: ContentVersion,
     ) -> Self {
-        Self {
+        Self::from_bootstrap(LoadedWorldBootstrap {
             registry,
             physical_state,
             agent_state,
@@ -134,7 +143,7 @@ impl LoadedWorldBootstrap {
             content_manifest_id,
             fixture_id,
             content_version,
-        }
+        })
     }
 
     pub fn replay_seed(&self) -> RuntimeReplaySeed {
@@ -142,10 +151,14 @@ impl LoadedWorldBootstrap {
             bootstrap: self.clone(),
         }
     }
+
+    fn from_bootstrap(bootstrap: LoadedWorldBootstrap) -> Self {
+        Self { bootstrap }
+    }
 }
 
 impl RuntimeReplaySeed {
-    pub fn reconstruct_bootstrap(&self) -> LoadedWorldBootstrap {
+    pub fn reconstruct_bootstrap(&self) -> ValidatedLoadedWorldBootstrap {
         self.bootstrap.clone()
     }
 }
@@ -174,7 +187,8 @@ impl LoadedWorldRuntime {
         self.scheduler.current_tick()
     }
 
-    pub fn from_bootstrap(bootstrap: LoadedWorldBootstrap, current_tick: SimTick) -> Self {
+    pub fn from_bootstrap(bootstrap: ValidatedLoadedWorldBootstrap, current_tick: SimTick) -> Self {
+        let bootstrap = bootstrap.bootstrap;
         let scheduler = DeterministicScheduler::from_loaded_world(
             current_tick,
             &bootstrap.physical_state,
@@ -763,7 +777,7 @@ mod tests {
                 visibility_default: VisibilityDefault::Visible,
             },
         );
-        let physical_state = PhysicalState::from_seed_parts(
+        let physical_state = PhysicalState::from_test_seed_parts(
             actors,
             places,
             BTreeMap::new(),
@@ -774,7 +788,7 @@ mod tests {
             BTreeMap::new(),
             NeedModelState::new(5, 3),
         );
-        let agent_state = AgentState::from_seed_parts(
+        let agent_state = AgentState::from_test_seed_parts(
             BTreeMap::from([(
                 actor_id,
                 BTreeMap::from([
@@ -814,8 +828,8 @@ mod tests {
         })
     }
 
-    fn empty_bootstrap() -> LoadedWorldBootstrap {
-        LoadedWorldBootstrap::from_loaded_state(
+    fn empty_bootstrap() -> ValidatedLoadedWorldBootstrap {
+        ValidatedLoadedWorldBootstrap::from_validated_content(
             ActionRegistry::new(),
             PhysicalState::empty(NeedModelState::new(5, 3)),
             AgentState::default(),

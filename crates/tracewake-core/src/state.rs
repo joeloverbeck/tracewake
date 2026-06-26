@@ -220,7 +220,7 @@ impl PhysicalState {
         clippy::too_many_arguments,
         reason = "Seed construction mirrors authoritative state collections."
     )]
-    pub fn from_seed_parts(
+    pub fn from_validated_seed_parts(
         actors: BTreeMap<ActorId, ActorBody>,
         places: BTreeMap<PlaceId, PlaceState>,
         doors: BTreeMap<DoorId, DoorState>,
@@ -242,6 +242,35 @@ impl PhysicalState {
             sleep_affordances,
             need_model,
         }
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "Test seed construction mirrors authoritative state collections."
+    )]
+    pub fn from_test_seed_parts(
+        actors: BTreeMap<ActorId, ActorBody>,
+        places: BTreeMap<PlaceId, PlaceState>,
+        doors: BTreeMap<DoorId, DoorState>,
+        containers: BTreeMap<ContainerId, ContainerState>,
+        items: BTreeMap<ItemId, ItemState>,
+        food_supplies: BTreeMap<FoodSupplyId, FoodSupplyState>,
+        workplaces: BTreeMap<WorkplaceId, WorkplaceState>,
+        sleep_affordances: BTreeMap<SleepAffordanceId, SleepAffordanceState>,
+        need_model: NeedModelState,
+    ) -> Self {
+        Self::from_validated_seed_parts(
+            actors,
+            places,
+            doors,
+            containers,
+            items,
+            food_supplies,
+            workplaces,
+            sleep_affordances,
+            need_model,
+        )
     }
 
     pub fn actors(&self) -> &BTreeMap<ActorId, ActorBody> {
@@ -282,7 +311,7 @@ impl PhysicalState {
 }
 
 impl AgentState {
-    pub fn from_seed_parts(
+    pub fn from_validated_seed_parts(
         needs_by_actor: BTreeMap<ActorId, BTreeMap<NeedKind, NeedState>>,
         intentions: BTreeMap<IntentionId, Intention>,
         active_intention_by_actor: BTreeMap<ActorId, IntentionId>,
@@ -303,6 +332,25 @@ impl AgentState {
             candidate_goal_evaluations: BTreeMap::new(),
             continue_routine_arbitrations: BTreeMap::new(),
         }
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn from_test_seed_parts(
+        needs_by_actor: BTreeMap<ActorId, BTreeMap<NeedKind, NeedState>>,
+        intentions: BTreeMap<IntentionId, Intention>,
+        active_intention_by_actor: BTreeMap<ActorId, IntentionId>,
+        routine_executions: BTreeMap<RoutineExecutionId, RoutineExecution>,
+        decision_traces: BTreeMap<DecisionTraceId, DecisionTraceRecord>,
+        stuck_diagnostics: BTreeMap<StuckDiagnosticId, StuckDiagnosticRecord>,
+    ) -> Self {
+        Self::from_validated_seed_parts(
+            needs_by_actor,
+            intentions,
+            active_intention_by_actor,
+            routine_executions,
+            decision_traces,
+            stuck_diagnostics,
+        )
     }
 
     pub fn needs_by_actor(&self) -> &BTreeMap<ActorId, BTreeMap<NeedKind, NeedState>> {
@@ -778,7 +826,7 @@ mod tests {
                 "service_completed_placeholder",
             ),
         );
-        let state = PhysicalState::from_seed_parts(
+        let state = PhysicalState::from_test_seed_parts(
             BTreeMap::new(),
             BTreeMap::new(),
             BTreeMap::new(),

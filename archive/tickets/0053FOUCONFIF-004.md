@@ -99,3 +99,39 @@ Migrate the integration-test + in-crate-test consumers of `from_seed_parts` to t
 1. `cargo test -p tracewake-core --test negative_fixture_runner`
 2. `cargo build -p tracewake-content --all-targets && cargo test -p tracewake-content`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-26
+
+Implemented the atomic loaded-world bootstrap reseal by introducing
+`ValidatedLoadedWorldBootstrap`, changing `LoadedWorldRuntime::from_bootstrap`
+and `RuntimeReplaySeed::reconstruct_bootstrap` to use that validated product,
+and removing the public `LoadedWorldBootstrap::from_loaded_state` entry. The
+content loader now returns the validated bootstrap product through
+`ValidatedLoadedWorldBootstrap::from_validated_content`, while the existing
+positive loader/runtime test proves the real fixture path still produces a
+runtime with scheduler-free caller input.
+
+Removed the public `PhysicalState::from_seed_parts` and
+`AgentState::from_seed_parts` names, migrated content schema materialization to
+the validated seed-part entry, and migrated core tests to either the validated
+entry or `test-support`-gated `from_test_seed_parts` helpers. Added and
+registered
+`external_crate_cannot_construct_loaded_world_bootstrap_from_seed_parts`, which
+fails under default and `tracewake-core/test-support` feature runs because an
+external crate cannot call the deleted raw seed/bootstrap constructor names.
+Grep proof for
+`pub fn from_loaded_state|pub fn from_seed_parts` over
+`crates/tracewake-core/src/runtime/session.rs` and
+`crates/tracewake-core/src/state.rs` returned no matches.
+
+Verification:
+
+- `cargo test -p tracewake-core --test negative_fixture_runner`
+- `cargo build -p tracewake-content --all-targets`
+- `cargo test -p tracewake-content`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

@@ -801,7 +801,7 @@ mod tests {
             SleepAffordanceState::new(sleep_affordance_id, home, 4, 20, 2),
         );
 
-        PhysicalState::from_seed_parts(
+        PhysicalState::from_test_seed_parts(
             actors,
             places,
             BTreeMap::new(),
@@ -839,7 +839,7 @@ mod tests {
         actors.insert(actor.clone(), ActorBody::new(actor, home.clone()));
         let mut places = BTreeMap::new();
         places.insert(home.clone(), PlaceState::new(home, "Tomas home"));
-        PhysicalState::from_seed_parts(
+        PhysicalState::from_test_seed_parts(
             actors,
             places,
             BTreeMap::new(),
@@ -967,7 +967,7 @@ mod tests {
             ItemState::new(there.clone(), Location::AtPlace(elsewhere)),
         );
 
-        let state = PhysicalState::from_seed_parts(
+        let state = PhysicalState::from_test_seed_parts(
             actors,
             places,
             BTreeMap::new(),
@@ -1024,7 +1024,7 @@ mod tests {
             ItemState::new(stored.clone(), Location::InContainer(chest_id.clone())),
         );
 
-        let state = PhysicalState::from_seed_parts(
+        let state = PhysicalState::from_test_seed_parts(
             actors,
             places,
             BTreeMap::new(),
@@ -1077,7 +1077,7 @@ mod tests {
         places.insert(home, home_state);
         places.insert(misleading_visible.clone(), visible_state);
         places.insert(concealed_plain.clone(), concealed_state);
-        let state = PhysicalState::from_seed_parts(
+        let state = PhysicalState::from_test_seed_parts(
             actors,
             places,
             BTreeMap::new(),

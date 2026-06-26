@@ -1,0 +1,9 @@
+[package]
+name = "external_crate_cannot_construct_loaded_world_bootstrap_from_seed_parts"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+tracewake-core = { path = "../../../crates/tracewake-core" }
+
+[workspace]

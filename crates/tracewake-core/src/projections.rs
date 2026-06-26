@@ -2345,7 +2345,7 @@ mod tests {
                 2,
             ),
         );
-        let state = PhysicalState::from_seed_parts(
+        let state = PhysicalState::from_test_seed_parts(
             base.actors().clone(),
             base.places().clone(),
             base.doors().clone(),

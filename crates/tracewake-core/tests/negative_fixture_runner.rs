@@ -85,6 +85,10 @@ const FIXTURES: &[NegativeFixture] = &[
         expected_stderr: "no method named `schedule_loaded_actor_decision`",
     },
     NegativeFixture {
+        name: "external_crate_cannot_construct_loaded_world_bootstrap_from_seed_parts",
+        expected_stderr: "no function or associated item named `from_seed_parts`",
+    },
+    NegativeFixture {
         name: "external_crate_cannot_mutate_agent_state_seed_maps",
         expected_stderr: "no method named `seed_intentions_mut`",
     },
@@ -201,6 +205,7 @@ const ALL_FEATURE_PRODUCTION_BOUNDARY_FIXTURES: &[&str] = &[
     "external_crate_cannot_call_seed_mutators_after_load",
     "external_crate_cannot_call_tui_perception_append_helper",
     "external_crate_cannot_construct_actor_interval_summary",
+    "external_crate_cannot_construct_loaded_world_bootstrap_from_seed_parts",
     "external_crate_cannot_construct_debug_report",
     "external_crate_cannot_construct_pipeline_context_with_runtime_aggregates",
     "external_crate_cannot_convert_debug_report_to_interval_summary",

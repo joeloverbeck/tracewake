@@ -11,4 +11,5 @@ pub use receipt::{
 };
 pub use session::{
     LoadedWorldBootstrap, LoadedWorldRuntime, RuntimeCommandError, RuntimeReplaySeed,
+    ValidatedLoadedWorldBootstrap,
 };

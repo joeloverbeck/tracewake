@@ -48,7 +48,7 @@ fn checksum_context(tick: SimTick, world_stream_position_applied: u64) -> Checks
 }
 
 fn empty_agent_state() -> AgentState {
-    AgentState::from_seed_parts(
+    AgentState::from_validated_seed_parts(
         BTreeMap::new(),
         BTreeMap::new(),
         BTreeMap::new(),
@@ -446,7 +446,7 @@ fn physical_state_for_actors_with_need_model(
             "stacked_firewood",
         ),
     );
-    PhysicalState::from_seed_parts(
+    PhysicalState::from_validated_seed_parts(
         actors,
         places,
         BTreeMap::new(),
@@ -499,7 +499,7 @@ fn physical_state_for_two_actors_in_separate_places(
         sleep_affordance_id.clone(),
         SleepAffordanceState::new(sleep_affordance_id, other_place.clone(), 2, 20, 2),
     );
-    PhysicalState::from_seed_parts(
+    PhysicalState::from_validated_seed_parts(
         actors,
         places,
         BTreeMap::new(),
@@ -521,7 +521,7 @@ fn agent_state_for_actors(actor_ids: impl IntoIterator<Item = ActorId>) -> Agent
     for actor_id in actor_ids {
         needs_by_actor.insert(actor_id, initial_needs());
     }
-    AgentState::from_seed_parts(
+    AgentState::from_validated_seed_parts(
         needs_by_actor,
         BTreeMap::new(),
         BTreeMap::new(),

@@ -82,7 +82,7 @@ impl PhysicalSeed {
     }
 
     pub fn build(self) -> PhysicalState {
-        PhysicalState::from_seed_parts(
+        PhysicalState::from_validated_seed_parts(
             self.actors,
             self.places,
             self.doors,
@@ -137,7 +137,7 @@ impl AgentSeed {
     }
 
     pub fn build(self) -> AgentState {
-        AgentState::from_seed_parts(
+        AgentState::from_validated_seed_parts(
             self.needs_by_actor,
             self.intentions,
             self.active_intention_by_actor,
