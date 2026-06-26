@@ -313,6 +313,7 @@ fn ci_workflow_guard_errors(workflow: &str, mutants_config: &str, doc10: &str) -
     errors.extend(doc_flag_posture_errors(doc10));
     errors.extend(mutation_perimeter_errors(workflow, mutants_config));
     errors.extend(public_boundary_conformance_errors(workflow));
+    errors.extend(required_check_policy_errors(workflow));
     errors.extend(full_surface_mutation_trigger_errors(workflow));
     errors.extend(scheduled_mutation_lane_errors(workflow));
     errors
@@ -329,6 +330,19 @@ fn public_boundary_conformance_errors(workflow: &str) -> Vec<String> {
             errors.push(format!(
                 "missing public-boundary conformance job text: {required}"
             ));
+        }
+    }
+    errors
+}
+
+fn required_check_policy_errors(workflow: &str) -> Vec<String> {
+    let mut errors = Vec::new();
+    for required in [
+        "Required checks: public-boundary conformance and mutation shard reconciliation (lock layer).",
+        "A red scheduled mutation result is merge-blocking until repaired; pending is not a pass.",
+    ] {
+        if !workflow.contains(required) {
+            errors.push(format!("missing required-check policy text: {required}"));
         }
     }
     errors

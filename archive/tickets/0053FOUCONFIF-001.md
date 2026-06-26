@@ -1,6 +1,6 @@
 # 0053FOUCONFIF-001: Fail-closed acceptance result taxonomy — machine-checked status manifest, wording guard, forcing function
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` test/acceptance-guard surface only (new `tests/acceptance_status_manifest.rs`; extend `tests/acceptance_artifact_wording.rs` and `tests/ci_workflow_guards.rs`); no production `src/` change
@@ -90,3 +90,28 @@ Add an assertion that the operational required-check policy is named (the manife
 1. `cargo test -p tracewake-core --test acceptance_status_manifest --test acceptance_artifact_wording --test ci_workflow_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
 3. The new test target is created by this ticket; after creation, `cargo test -p tracewake-core --test acceptance_status_manifest -- --list` enumerates its cases as the narrow verification boundary.
+
+## Outcome
+
+Completed: 2026-06-26
+
+Implemented the fail-closed acceptance status mechanism for the 0053 line:
+
+- Added `crates/tracewake-core/tests/acceptance_status_manifest.rs` plus shared support parsing for fenced `tracewake-acceptance-status` blocks. The validator requires exact commit/source fields, F5-01...F5-06 status rows, branch-protection state, mutation status, and bounded forcing-function fields for routed-forward residuals or survivors.
+- Extended `acceptance_artifact_wording.rs` so a manifest-bearing artifact cannot use pass-shaped closure wording over non-pass status, cannot call the canonical perimeter green with survivors present, cannot claim branch-protection enforcement without an API/ruleset transcript marker, and cannot cite historical commands or display/artifact/checksum/source-guard-only evidence as current behavior proof.
+- Extended `ci_workflow_guards.rs` so the existing required-check policy text remains mechanically asserted.
+- Updated the anti-regression support-file census because the new shared helper lives under `tests/support/`.
+
+Deviations:
+
+- The optional future-artifact read was not added in this ticket because repo lint forbids ad hoc filesystem reads in outcome-affecting tests. The real 0053 acceptance artifact can be wired with `include_str!` when ticket 010 creates it.
+
+Verification:
+
+- `cargo test -p tracewake-core --test acceptance_status_manifest -- --list` listed the six new manifest cases.
+- `cargo test -p tracewake-core --test acceptance_status_manifest --test acceptance_artifact_wording --test ci_workflow_guards` passed.
+- `cargo test -p tracewake-core --test anti_regression_guards generative_lock_cannot_fabricate_duration_terminals` passed after updating the support census.
+- `cargo fmt --all --check` passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` passed.
+- `cargo build --workspace --all-targets --locked` passed.
+- `cargo test --workspace` passed.

@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+pub mod acceptance_status_manifest;
 pub mod generative;
 
 use std::collections::BTreeMap;

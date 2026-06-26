@@ -49,6 +49,8 @@ const GENERATIVE_LOCK_RS: &str = include_str!("generative_lock.rs");
 const HIDDEN_TRUTH_GATES_RS: &str = include_str!("hidden_truth_gates.rs");
 const ANTI_REGRESSION_GUARDS_RS: &str = include_str!("anti_regression_guards.rs");
 const NEGATIVE_FIXTURE_RUNNER_RS: &str = include_str!("negative_fixture_runner.rs");
+const SUPPORT_ACCEPTANCE_STATUS_MANIFEST_RS: &str =
+    include_str!("support/acceptance_status_manifest.rs");
 const SUPPORT_GENERATIVE_RS: &str = include_str!("support/generative.rs");
 const SUPPORT_MOD_RS: &str = include_str!("support/mod.rs");
 const CONTENT_LOAD_RS: &str = include_str!("../../tracewake-content/src/load.rs");
@@ -9398,6 +9400,10 @@ fn typed_column_closure_exemption_errors(
 fn generative_lock_cannot_fabricate_duration_terminals() {
     let sources = [
         ("generative_lock.rs", GENERATIVE_LOCK_RS),
+        (
+            "support/acceptance_status_manifest.rs",
+            SUPPORT_ACCEPTANCE_STATUS_MANIFEST_RS,
+        ),
         ("support/generative.rs", SUPPORT_GENERATIVE_RS),
         ("support/mod.rs", SUPPORT_MOD_RS),
     ];
@@ -9486,6 +9492,10 @@ fn generative_lock_cannot_fabricate_duration_terminals() {
 
 fn support_event_envelope_scan_sources() -> BTreeSet<String> {
     [
+        (
+            "support/acceptance_status_manifest.rs",
+            SUPPORT_ACCEPTANCE_STATUS_MANIFEST_RS,
+        ),
         ("support/generative.rs", SUPPORT_GENERATIVE_RS),
         ("support/mod.rs", SUPPORT_MOD_RS),
     ]
