@@ -1,6 +1,6 @@
 # 0052FOUCONFOU-010: F4-08 — standing-mutation survivor closure (focused + standing-green)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds the #17–18 `StuckDiagnostic::deserialize_canonical` witnesses; runs focused per-survivor and full standing mutation campaigns and records the disposition
@@ -75,3 +75,56 @@ Run focused per-survivor campaigns for #8–#23 (fast feedback), then the full s
 
 1. `cargo test -p tracewake-core agent::trace` then focused `cargo mutants -f crates/tracewake-core/src/agent/trace.rs --timeout 183` (per-survivor boundary).
 2. `cargo mutants --timeout 183` — full standing campaign from a clean baseline (the deliverable run; cannot be cheaply dry-run — its disposition output is the recorded evidence).
+
+## Outcome
+
+Completed: 2026-06-26
+
+Implemented the #17/#18 `StuckDiagnostic::deserialize_canonical` witnesses in
+`crates/tracewake-core/src/agent/trace.rs` with a full non-default typed
+round-trip and malformed/missing/extra/corrupted-field fail-closed cases. The
+focused trace mutation campaign passed for that surface:
+`cargo mutants --no-config -p tracewake-core -f crates/tracewake-core/src/agent/trace.rs -F 'StuckDiagnostic::deserialize_canonical' --timeout 183 -C --locked -- agent::trace`
+reported `28 mutants tested in 70s: 27 caught, 1 unviable`; the explicit
+#17/#18 shapes (`delete !` and match-arm deletion in
+`StuckDiagnostic::deserialize_canonical`) were caught.
+
+The full standing campaign initially exposed additional in-surface survivors in
+scheduler restore/replay authority, runtime receipts/session rebuilds, and TUI
+transcript determinism. Those were closed with focused witnesses in:
+`crates/tracewake-core/tests/replay_temporal_frontier.rs`,
+`crates/tracewake-core/src/runtime/receipt.rs`,
+`crates/tracewake-core/src/runtime/session.rs`, and
+`crates/tracewake-tui/src/transcript.rs`; a dead declared-process apply counter
+branch was removed from `crates/tracewake-core/src/scheduler.rs`.
+
+Focused repair evidence:
+`cargo mutants --timeout 183 -o /tmp/tracewake-mutants-0052-010-focused-repair-5 -F 'DeterministicScheduler::restore_from_|upsert_loaded_actor_authority|upsert_declared_process_authority|declared_process_authority_from_event|parse_authority_(tick|u64)|DebugRuntimeReceipt|LoadedWorldRuntime::rebuild_from_owned_log|LoadedWorldRuntime::world_stream_position_applied_for_log|capture_representative_transcript_sections'`
+reported `78 mutants tested in 24m: 72 caught, 6 unviable`.
+
+Full standing rerun evidence:
+`cargo mutants --timeout 183 -o /tmp/tracewake-mutants-0052-010-full-rerun`
+reported `3400 mutants tested in 4h: 7 missed, 2645 caught, 748 unviable`.
+`/tmp/tracewake-mutants-0052-010-full-rerun/mutants.out/timeout.txt` had zero
+lines. The seven misses were exactly the routed-forward out-of-scope
+`food_source_fact_supersedes` family in `crates/tracewake-core/src/projections.rs`
+at lines 260-263:
+
+- replace `food_source_fact_supersedes -> bool` with `true`
+- replace `food_source_fact_supersedes -> bool` with `false`
+- delete match arm `(Some(_), None)`
+- delete match arm `(None, Some(_))`
+- replace `<` with `==`
+- replace `<` with `>`
+- replace `<` with `<=`
+
+The canonical perimeter is not called green while those routed-forward
+food-source mutants survive. Within the ticket-010 surface, the standing rerun
+had zero misses and zero timeouts.
+
+Verification passed:
+
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

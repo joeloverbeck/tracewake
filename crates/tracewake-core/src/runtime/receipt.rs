@@ -186,17 +186,31 @@ mod tests {
 
     #[test]
     fn debug_receipt_is_capability_gated() {
+        let event_ids = vec![
+            EventId::new("event.debug.one").unwrap(),
+            EventId::new("event.debug.two").unwrap(),
+        ];
         let receipt = DebugRuntimeReceipt::new(
             DebugCapability::mint(),
-            SimTick::ZERO,
-            SimTick::new(1),
-            Vec::new(),
+            SimTick::new(7),
+            SimTick::new(9),
+            event_ids.clone(),
             Some("test".to_string()),
         );
 
         assert!(receipt.debug_only());
-        assert_eq!(receipt.prior_tick(), SimTick::ZERO);
-        assert_eq!(receipt.resulting_tick(), SimTick::new(1));
+        assert_eq!(receipt.prior_tick(), SimTick::new(7));
+        assert_eq!(receipt.resulting_tick(), SimTick::new(9));
+        assert_eq!(receipt.event_ids(), event_ids.as_slice());
         assert_eq!(receipt.stop_reason(), Some("test"));
+
+        let non_debug = DebugRuntimeReceipt::new(
+            DebugCapability::test_non_debug(),
+            SimTick::new(7),
+            SimTick::new(9),
+            event_ids,
+            Some("test".to_string()),
+        );
+        assert!(!non_debug.debug_only());
     }
 }

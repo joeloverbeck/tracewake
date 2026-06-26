@@ -703,10 +703,13 @@ impl LoadedWorldRuntime {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::{BTreeMap, BTreeSet};
+
     use super::*;
-    use crate::ids::ControllerId;
+    use crate::agent::{NeedChangeCause, NeedKind, NeedState};
+    use crate::ids::{ControllerId, PlaceId};
     use crate::runtime::RuntimeReceiptKind;
-    use crate::state::NeedModelState;
+    use crate::state::{ActorBody, NeedModelState, PlaceState, VisibilityDefault};
     use crate::time::SimTick;
 
     fn manifest_id() -> ContentManifestId {
@@ -730,6 +733,81 @@ mod tests {
             epistemic_projection: EpistemicProjection::new(manifest_id()),
             controller_bindings: ControllerBindings::new(),
             scheduler: DeterministicScheduler::new(SimTick::ZERO),
+            content_manifest_id: manifest_id(),
+            fixture_id: fixture_id(),
+            content_version: content_version(),
+        })
+    }
+
+    fn loaded_runtime() -> LoadedWorldRuntime {
+        let actor_id = ActorId::new("actor_runtime").unwrap();
+        let place_id = PlaceId::new("runtime_room").unwrap();
+        let mut actors = BTreeMap::new();
+        actors.insert(
+            actor_id.clone(),
+            ActorBody::new(actor_id.clone(), place_id.clone()),
+        );
+        let mut local_actor_ids = BTreeSet::new();
+        local_actor_ids.insert(actor_id.clone());
+        let mut places = BTreeMap::new();
+        places.insert(
+            place_id.clone(),
+            PlaceState {
+                place_id,
+                display_label: "Runtime room".to_string(),
+                adjacent_place_ids: BTreeSet::new(),
+                connected_door_ids: BTreeSet::new(),
+                local_container_ids: BTreeSet::new(),
+                local_item_ids: BTreeSet::new(),
+                local_actor_ids,
+                visibility_default: VisibilityDefault::Visible,
+            },
+        );
+        let physical_state = PhysicalState::from_seed_parts(
+            actors,
+            places,
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            NeedModelState::new(5, 3),
+        );
+        let agent_state = AgentState::from_seed_parts(
+            BTreeMap::from([(
+                actor_id,
+                BTreeMap::from([
+                    (
+                        NeedKind::Hunger,
+                        NeedState::initial(NeedKind::Hunger, 10, NeedChangeCause::FixtureInitial),
+                    ),
+                    (
+                        NeedKind::Fatigue,
+                        NeedState::initial(NeedKind::Fatigue, 10, NeedChangeCause::FixtureInitial),
+                    ),
+                ]),
+            )]),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+        );
+        let scheduler = DeterministicScheduler::from_loaded_world(
+            SimTick::ZERO,
+            &physical_state,
+            &agent_state,
+            manifest_id(),
+        );
+        LoadedWorldRuntime::from_initial_state(RuntimeInitialState {
+            registry: ActionRegistry::new(),
+            physical_state,
+            agent_state,
+            event_log: EventLog::new(),
+            epistemic_projection: EpistemicProjection::new(manifest_id()),
+            controller_bindings: ControllerBindings::new(),
+            scheduler,
             content_manifest_id: manifest_id(),
             fixture_id: fixture_id(),
             content_version: content_version(),
@@ -786,6 +864,47 @@ mod tests {
             }
             _ => panic!("expected one-tick receipt"),
         }
+    }
+
+    #[test]
+    fn replay_seed_command_rebuilds_scheduler_from_owned_log() {
+        let mut runtime = loaded_runtime();
+        runtime
+            .wait_one_tick(WorldAdvanceOrigin::Controller(
+                ControllerId::new("controller_human").unwrap(),
+            ))
+            .unwrap();
+        assert_eq!(runtime.current_tick(), SimTick::new(1));
+
+        runtime.scheduler = DeterministicScheduler::new(SimTick::ZERO);
+        assert_eq!(runtime.current_tick(), SimTick::ZERO);
+
+        let receipt = runtime
+            .submit_command(RuntimeCommand::rebuild_from_replay_seed())
+            .unwrap();
+
+        assert_eq!(runtime.current_tick(), SimTick::new(1));
+        assert!(matches!(receipt.kind(), RuntimeReceiptKind::Embodied(_)));
+    }
+
+    #[test]
+    fn checksum_context_uses_last_applied_world_stream_position() {
+        let mut runtime = empty_runtime();
+        assert_eq!(runtime.checksum_context().world_stream_position_applied, 0);
+
+        for _ in 0..3 {
+            runtime
+                .wait_one_tick(WorldAdvanceOrigin::Controller(
+                    ControllerId::new("controller_human").unwrap(),
+                ))
+                .unwrap();
+        }
+
+        assert_eq!(runtime.event_count(), 3);
+        assert_eq!(
+            runtime.checksum_context().world_stream_position_applied,
+            runtime.event_count() as u64 - 1
+        );
     }
 
     #[test]

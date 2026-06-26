@@ -20,7 +20,7 @@ use crate::agent::{
 use crate::controller::ControllerBindings;
 use crate::epistemics::{ActorKnownIntervalDeltaError, EpistemicProjection, KnowledgeContext};
 use crate::events::apply::{
-    apply_agent_event, apply_epistemic_event, apply_event_stream, ApplyError, ApplyOutcome,
+    apply_agent_event, apply_epistemic_event, apply_event_stream, ApplyError,
     EventApplicationContext, EventApplicationError,
 };
 use crate::events::log::{EventLog, EventLogError};
@@ -919,7 +919,6 @@ impl DeterministicScheduler {
         }
 
         let mut world_process_markers_observed = 0;
-        let mut world_processes_applied = 0;
         for invocation in self.due_process_invocations(resulting_tick) {
             let event = build_declared_world_process_event(
                 &invocation,
@@ -935,16 +934,13 @@ impl DeterministicScheduler {
                 agent_state: &mut scratch_agent_state,
                 epistemic_projection: Some(&mut scratch_projection),
             };
-            let outcome =
+            let _outcome =
                 apply_event_stream(&mut application_context, &appended).map_err(|error| {
                     WorldAdvanceError::WorldProcessApply {
                         event_id: appended.event_id.clone(),
                         error,
                     }
                 })?;
-            if matches!(outcome, ApplyOutcome::Applied) {
-                world_processes_applied += 1;
-            }
         }
 
         for proposal in post_marker_controlled_proposals {
@@ -1315,7 +1311,7 @@ impl DeterministicScheduler {
                 duration_terminals_appended: lifecycle.duration_terminals_appended,
                 actor_transactions_attempted,
                 world_process_markers_observed,
-                world_processes_applied,
+                world_processes_applied: 0,
             },
             actor_step_summaries,
             controlled_pipeline_results,

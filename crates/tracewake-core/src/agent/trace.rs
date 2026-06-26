@@ -1282,6 +1282,113 @@ mod tests {
     }
 
     #[test]
+    fn stuck_diagnostic_full_field_codec_rejects_malformed_typed_records() {
+        let diagnostic = StuckDiagnostic::new(
+            StuckDiagnosticId::new("diagnostic_full_field_codec").unwrap(),
+            ActorId::new("actor_mara").unwrap(),
+            SimTick::new(41),
+            SimTick::new(43),
+            Some(NeedKind::Safety),
+            Some(CandidateGoalId::new("goal_escape_smoke").unwrap()),
+            Some(IntentionId::new("intention_escape_smoke").unwrap()),
+            Some(RoutineTemplateId::new("routine_escape_smoke").unwrap()),
+            Some(RoutineExecutionId::new("routine_execution_escape_smoke").unwrap()),
+            Some(RoutineStep::FailWithTypedDiagnostic {
+                diagnostic: RoutineDiagnosticKind::NoSleepAffordance,
+            }),
+            Some(action("move.place.courtyard")),
+            BlockerCategory::SchedulingReservation,
+            "reserved body action blocks evacuation",
+            "I am already committed to a body-exclusive action",
+            "debug only: reservation owner is sleep block",
+            "replan after reservation clears",
+            StuckResultingStatus::Replanning,
+        )
+        .with_plan_lineage(
+            "local_plan_escape_smoke",
+            vec![
+                "proposal_wait_for_clearance".to_string(),
+                "proposal_move_courtyard".to_string(),
+            ],
+        )
+        .with_typed_diagnostic(TypedDiagnosticFields {
+            responsible_layer: ResponsibleLayer::Scheduler,
+            blocker_code: BlockerCode::SchedulingReservation,
+            input_source: "actor_known_context:reservation".to_string(),
+            actual_source: "actor_decision_transaction:reservation".to_string(),
+            hidden_truth_referenced: true,
+            remediation_hint: "inspect body-exclusive reservation ancestry".to_string(),
+        });
+        let canonical = diagnostic.serialize_canonical();
+        let fields = canonical.split('|').collect::<Vec<_>>();
+        assert_eq!(fields.len(), 26);
+
+        let parsed = StuckDiagnostic::deserialize_canonical(canonical.as_bytes()).unwrap();
+        assert_eq!(parsed, diagnostic);
+        assert_eq!(
+            parsed.routine_step,
+            Some(RoutineStep::FailWithTypedDiagnostic {
+                diagnostic: RoutineDiagnosticKind::NoSleepAffordance,
+            })
+        );
+        assert_eq!(
+            parsed.proposal_ancestry,
+            vec![
+                "proposal_wait_for_clearance".to_string(),
+                "proposal_move_courtyard".to_string(),
+            ]
+        );
+        assert!(parsed.typed_diagnostic.hidden_truth_referenced);
+        assert_eq!(parsed.serialize_canonical(), canonical);
+
+        let mut extra_field = fields.clone();
+        extra_field.push("unexpected");
+        assert_eq!(
+            StuckDiagnostic::deserialize_canonical(extra_field.join("|").as_bytes()),
+            Err(StuckDiagnosticParseError::InvalidShape)
+        );
+
+        let mut missing_field = fields.clone();
+        missing_field.pop();
+        assert_eq!(
+            StuckDiagnostic::deserialize_canonical(missing_field.join("|").as_bytes()),
+            Err(StuckDiagnosticParseError::InvalidShape)
+        );
+
+        for (index, replacement, expected) in [
+            (
+                14,
+                "not_a_blocker_category",
+                StuckDiagnosticParseError::InvalidBlockerCategory,
+            ),
+            (
+                19,
+                "not_a_status",
+                StuckDiagnosticParseError::InvalidResultingStatus,
+            ),
+            (
+                20,
+                "not_a_layer",
+                StuckDiagnosticParseError::InvalidResponsibleLayer,
+            ),
+            (
+                21,
+                "not_a_blocker_code",
+                StuckDiagnosticParseError::InvalidBlockerCode,
+            ),
+            (24, "not_bool", StuckDiagnosticParseError::InvalidBool),
+        ] {
+            let mut corrupted = fields.clone();
+            corrupted[index] = replacement;
+            assert_eq!(
+                StuckDiagnostic::deserialize_canonical(corrupted.join("|").as_bytes()),
+                Err(expected),
+                "field index {index} must reject {replacement}"
+            );
+        }
+    }
+
+    #[test]
     fn stuck_diagnostic_preserves_non_empty_proposal_ancestry() {
         let diagnostic = StuckDiagnostic::new(
             StuckDiagnosticId::new("diagnostic_lineage").unwrap(),

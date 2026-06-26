@@ -143,6 +143,11 @@ mod tests {
             .expect("representative transcript includes post-wait view");
         assert!(after_wait.body.contains("Actor: actor_sena"));
         assert!(!after_wait.body.contains("Tick: 1"));
+        let debug_event_log = first_sections
+            .iter()
+            .find(|section| section.name == "debug.event_log")
+            .expect("representative transcript includes debug event log");
+        assert!(debug_event_log.body.contains("actor_waited"));
         assert!(first.contains("== view.initial =="));
         assert!(first.contains("== action.move.to.back_room =="));
         assert!(first.contains("DEBUG NON-DIEGETIC"));
