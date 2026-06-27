@@ -2,7 +2,7 @@
 
 **Status**: COMPLETED
 **Priority**: HIGH
-**Engine Changes**: None — acceptance-only verdict artifact (`reports/0054_foundational_conformance_sixth_hardening_acceptance.md`); no new production logic
+**Engine Changes**: None — acceptance-only verdict artifact (`archive/reports/0054_foundational_conformance_sixth_hardening_acceptance.md`); no new production logic
 **Effort**: Small
 **Deps**: 0054FOUCONSIX-007, 0054FOUCONSIX-009, 0054FOUCONSIX-010, 0054FOUCONSIX-012, 0054FOUCONSIX-013
 
@@ -33,7 +33,7 @@ The spec produces no acceptance verdict itself — the implementing session must
 
 ### 1. Assemble the acceptance artifact
 
-Author `reports/0054_foundational_conformance_sixth_hardening_acceptance.md` following template `0003`, carrying the §4.4 machine-readable status manifest, per-finding closure evidence (real production-path), the required-check names, and the ruleset API transcript including approval/last-push/required-reviewer fields.
+Author `archive/reports/0054_foundational_conformance_sixth_hardening_acceptance.md` following template `0003`, carrying the §4.4 machine-readable status manifest, per-finding closure evidence (real production-path), the required-check names, and the ruleset API transcript including approval/last-push/required-reviewer fields.
 
 ### 2. Render the computed verdict
 
@@ -41,7 +41,7 @@ The artifact must not render `pass` unless the manifest computes pass. Name the 
 
 ## Files to Touch
 
-- `reports/0054_foundational_conformance_sixth_hardening_acceptance.md` (new)
+- `archive/reports/0054_foundational_conformance_sixth_hardening_acceptance.md` (new)
 
 ## Out of Scope
 
@@ -78,9 +78,9 @@ The artifact must not render `pass` unless the manifest computes pass. Name the 
 
 Completed: 2026-06-27
 
-Created `reports/0054_foundational_conformance_sixth_hardening_acceptance.md` as the capstone evidence artifact. The artifact records the current `0054` implementation evidence, the ticket `013` standing mutation rerun (`3445` denominator, `2679` caught, `766` unviable, `0` missed, `0` timeout), and a live GitHub ruleset transcript for `main-standing-conformance-barrier`.
+Created the capstone evidence artifact, now archived at `archive/reports/0054_foundational_conformance_sixth_hardening_acceptance.md`. The artifact records the current `0054` implementation evidence, the ticket `013` standing mutation rerun (`3445` denominator, `2679` caught, `766` unviable, `0` missed, `0` timeout), and a live GitHub ruleset transcript for `main-standing-conformance-barrier`.
 
-The computed verdict is `non-pass`, not `pass`: the live ruleset is active and has no bypass actors, but it still records `required_approving_review_count: 0`, `require_last_push_approval: false`, and `required_reviewers: []`. The artifact therefore sets `governance_independence: zero-approval` and renders the independent-acceptance blocker honestly rather than claiming a pass over self-accepted governance.
+Amended closeout 2026-06-28: after the live `main-standing-conformance-barrier` ruleset was updated to require one approving review with no bypass actors, the archived artifact computes `pass` with `governance_independence: independent-review`. The report keeps the ruleset transcript explicit so the verdict is still computed from current governance evidence rather than asserted in prose.
 
 Verification:
 
@@ -90,4 +90,4 @@ Verification:
 - `cargo build --workspace --all-targets --locked` — passed.
 - `cargo test --workspace` — passed.
 
-CI ingestion note: because the artifact computes `non-pass`, `TRACEWAKE_ACCEPTANCE_ARTIFACT=reports/0054_foundational_conformance_sixth_hardening_acceptance.md cargo test --locked -p tracewake-core --test acceptance_status_manifest actual_acceptance_artifact_from_ci_env_is_pass_eligible` would reject it as pass-ineligible by design. This is the expected fail-closed behavior until repository governance is changed to prove independent acceptance.
+CI ingestion note: after the 2026-06-28 governance update, `TRACEWAKE_ACCEPTANCE_ARTIFACT=../../archive/reports/0054_foundational_conformance_sixth_hardening_acceptance.md cargo test --locked -p tracewake-core --test acceptance_status_manifest actual_acceptance_artifact_from_ci_env_is_pass_eligible` accepts the archived artifact as pass-eligible.

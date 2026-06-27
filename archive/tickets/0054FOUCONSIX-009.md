@@ -108,8 +108,14 @@ Missed rows:
 
 Bounded forcing route:
 
-- Created `tickets/0054FOUCONSIX-012.md` to close the runtime receipt and TUI debug-availability survivor set with focused public-boundary tests and mutation reconciliation.
-- Updated `tickets/0054FOUCONSIX-011.md` so the capstone depends on 012. This prevents the acceptance artifact from rendering pass over known live mutation survivors.
+- Created successor ticket `0054FOUCONSIX-012`, now archived at
+  `archive/tickets/0054FOUCONSIX-012.md`, to close the runtime receipt and TUI
+  debug-availability survivor set with focused public-boundary tests and
+  mutation reconciliation.
+- Updated capstone ticket `0054FOUCONSIX-011`, now archived at
+  `archive/tickets/0054FOUCONSIX-011.md`, so the capstone depends on 012. This
+  prevents the acceptance artifact from rendering pass over known live mutation
+  survivors.
 
 No production code or mutation configuration was changed in this evidence-only ticket.
 

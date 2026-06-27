@@ -107,6 +107,11 @@ Verification run:
 - `cargo build --workspace --all-targets --locked` — passed.
 - `cargo test --workspace` — passed.
 
-Created `tickets/0054FOUCONSIX-013.md` and updated the capstone dependency so the configured standing mutation campaign is rerun at an exact post-012 commit before any acceptance artifact can render pass. This ticket closes the known survivor rows with focused proof; ticket 013 owns the current full-perimeter rerun.
+Created successor ticket `0054FOUCONSIX-013`, now archived at
+`archive/tickets/0054FOUCONSIX-013.md`, and updated the capstone dependency so
+the configured standing mutation campaign is rerun at an exact post-012 commit
+before any acceptance artifact can render pass. This ticket closes the known
+survivor rows with focused proof; ticket 013 owns the current full-perimeter
+rerun.
 
 Unrelated pre-existing dirty paths left untouched: `.claude/skills/spec-to-tickets/SKILL.md`, `.claude/skills/spec-to-tickets/references/decomposition-patterns.md`, `CLAUDE.md`, and `tools/clean-build-scratch.sh`.
