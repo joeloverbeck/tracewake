@@ -1,6 +1,6 @@
 # 0054FOUCONSIX-013: Standing mutation rerun after survivor closure
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only standing-campaign rerun after 012 survivor closure
@@ -77,3 +77,21 @@ If any missed or timeout row remains, create a bounded successor ticket and prev
 1. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
 2. `cargo mutants --list | wc -l`
 3. `cargo mutants`
+
+## Outcome
+
+Completed: 2026-06-27
+
+Ran the post-012 configured standing mutation campaign in clean detached worktree `/tmp/tracewake-mutants-6d7009f` at exact commit `6d7009f61e3f7d55f81da3be3297160c6f2fb402`.
+
+Verification:
+
+- `git status --short` was clean in the detached worktree.
+- `cargo fmt --all --check` passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` passed.
+- `cargo build --workspace --all-targets --locked` passed.
+- `cargo test --workspace` passed.
+- `cargo mutants --list | wc -l` reported `3445`.
+- `cargo mutants` completed `3445` mutants in about 4h: `2679` caught, `766` unviable, `0` missed, `0` timeout.
+
+No production code, tests, docs, or mutation configuration changed for this evidence-only rerun. No successor survivor ticket was created because the standing campaign completed with zero missed and zero timed-out mutants.
