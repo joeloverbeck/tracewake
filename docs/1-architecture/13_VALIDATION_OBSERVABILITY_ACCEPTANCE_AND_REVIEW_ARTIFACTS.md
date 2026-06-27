@@ -124,6 +124,15 @@ source guards, and workflow topology alarms are supporting evidence only; they
 cannot be the sole proof for behavior, unrepresentability, replay, or
 merge-enforced governance.
 
+Acceptance artifacts are read models over current evidence, not evidence
+themselves. A `pass` claim requires current exact-commit evidence ingestion,
+independent acceptance where required, no live survivor or pending rows, and no
+prose stronger than the computed state. Workflow source text, Rust source
+guards, manifest shape, and report wording may make regressions visible, but
+they are topology alarms unless paired with the current artifact ingestion,
+ruleset or approval evidence, mutation disposition counts, and typed
+path-under-test behavior witnesses that the artifact claims to summarize.
+
 Fairness and starvation review artifacts record which holders or processes were
 deferred, skipped, summarized, degraded, or blocked; why; for how long or
 across what source interval; the responsible layer; and what replay ancestry
@@ -200,6 +209,8 @@ A test does not pass if:
 - an acceptance artifact renders `pass` while a flagged violation, required
   governance control, or standing mutation residual remains open, pending,
   unbounded, or merely historical;
+- acceptance prose claims more than its computed status manifest supports, or
+  treats the artifact's own existence as certifying evidence;
 - a display string is the only proof;
 - replay matches final state but decision ancestry is missing;
 - an LLM output is required to make the test pass.

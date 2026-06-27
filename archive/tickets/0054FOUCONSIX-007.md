@@ -1,6 +1,6 @@
 # 0054FOUCONSIX-007: Below-foundation doctrine strengthening (operationalizing doctrine)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Engine Changes**: None — doctrine-doc edits only (`docs/1-architecture/13`, `docs/2-execution/10`, `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md`, `docs/3-reference/00`, `docs/3-reference/01`); ordinary-owner approval precondition
 **Effort**: Medium
@@ -89,3 +89,23 @@ Update the existing R-27/R-28/R-29 status/evidence rows only; mint no new risk I
 1. `grep -nE "read model|fail-closed|closed grammar|topology alarm|R-27|R-28|R-29" docs/1-architecture/13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md docs/3-reference/00_REFERENCE_INDEX_AND_REVIEW_CHECKLIST.md docs/3-reference/01_DESIGN_RISK_REGISTER.md`
 2. `! grep -rnE "INV-11[3-9]|R-3[0-9]" docs/` — confirm no new invariant or risk ID was minted by this edit.
 3. Narrower than a `cargo` run because this is a doc-only doctrine ticket: verification is grep-based landing + an invariants-alignment manual review, not a code test.
+
+## Outcome
+
+Completed: 2026-06-27
+
+Landed the below-foundation doctrine strengthening for the F6-04/F6-05/F6-06 machinery. Architecture 13 now states that acceptance artifacts are read models over current evidence, not evidence themselves, and that pass prose cannot outrun current exact-commit ingestion, independent acceptance, mutation disposition evidence, and typed path-under-test witnesses.
+
+Execution 10 now records the fail-closed taxonomy for actual-artifact ingestion, independent acceptance, mutation evidence source, denominator/disposition counts, baseline reconciliation, and topology-alarm limits. It names `mutation in-diff (lock layer)` as actual PR-blocking mutation proof for guarded changes and labels the full-surface trigger as an alarm, not proof.
+
+The acceptance artifact template now includes a closed computed-status grammar for the `tracewake-acceptance-status` block. The reference checklist adds reviewer prompts for stale negative fixtures, public-constructor composition, debug-token induction, and survivor-pass / trigger-only mutation claims. The risk register updates only existing R-27/R-28/R-29 status/evidence rows; no new invariant, gate code, risk ID, or glossary term was minted.
+
+Verification run:
+
+- `grep -nE "read model|fail-closed|closed grammar|topology alarm|R-27|R-28|R-29" docs/1-architecture/13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md docs/3-reference/00_REFERENCE_INDEX_AND_REVIEW_CHECKLIST.md docs/3-reference/01_DESIGN_RISK_REGISTER.md` — passed.
+- `! grep -rnE "INV-11[3-9]|R-3[0-9]" docs/` — passed.
+- Focused `grep` checks for the architecture read-model statement, execution fail-closed / topology-alarm / PR-blocking statements, and R-27/R-28/R-29 rows — passed.
+
+No cargo commands were run for this doc-only ticket; the executable enforcement coverage is owned by tickets 004, 005, and 006.
+
+Unrelated pre-existing dirty paths left untouched: `.claude/skills/spec-to-tickets/SKILL.md`, `.claude/skills/spec-to-tickets/references/decomposition-patterns.md`, `CLAUDE.md`, and `tools/clean-build-scratch.sh`.

@@ -349,21 +349,29 @@ cannot upgrade the result. The closed status set is
 Each finding row records the existing finding label, status, certifying evidence
 for `closed`, and a live negative or public-boundary proof for every protected
 shortcut. The manifest also records the exact commit under test, source
-acquisition method, branch-protection/ruleset enforcement status, mutation
-evidence status, survivor list, and overall result.
+acquisition method, actual-artifact ingestion status, branch-protection/ruleset
+enforcement status, independent-acceptance posture, mutation evidence source,
+mutation denominator, caught/unviable/missed/timeout disposition counts,
+baseline-miss reconciliation status, survivor list, and overall result.
 
 Overall `pass` is legal only when every required finding is `closed`, every
-required governance control is enforced by branch protection or active ruleset,
-and every standing mutation residual is killed or explicitly non-blocking under
-a bounded forcing function. `open`, `pending-governance`, unbounded
-`routed-forward`, missing governance proof, sampled evidence, observer-only
-evidence, historical results, and "pass with disposition" are not pass. A
+required governance control is enforced by branch protection or active ruleset
+and independent acceptance is proven where required, the actual artifact under
+review was ingested, and mutation evidence is current and green. Green mutation
+evidence requires an actual in-diff or current full-campaign result with
+denominator and disposition counts, zero missed mutants, zero timeouts, and
+current baseline reconciliation. `open`, `pending-governance`, zero-approval or
+status-checks-only independence gaps, self-authored-only evidence, missing
+actual-artifact ingestion, unbounded `routed-forward`, missing governance proof,
+sampled evidence, observer-only evidence, historical results, survivors,
+timeouts, stale mutation evidence, and "pass with disposition" are not pass. A
 wording guard must fail artifacts that use pass-shaped closure language while
 the manifest computes non-pass, call the canonical standing perimeter green
 while survivors remain, cite branch-protection enforcement without an API or
-ruleset transcript, cite historical command results as current certification, or
-cite display strings, artifact existence, checksums, or source guards as sole
-evidence for behavior claims that require typed path-under-test evidence.
+ruleset transcript, cite a topology trigger as mutation proof, cite historical
+command results as current certification, or cite display strings, artifact
+existence, checksums, or source guards as sole evidence for behavior claims that
+require typed path-under-test evidence.
 
 A routed-forward residual is bounded only if it names the owning surface, why
 the current line did not close it, the next known execution move, a maximum
@@ -372,7 +380,12 @@ blocking, and the exact CI or mutation check that fails if it remains. Missing
 any forcing-function field makes the residual unbounded. Branch-protection and
 ruleset evidence must come from an API transcript or equivalent machine-readable
 repository governance evidence; workflow YAML and Rust topology guards prove job
-shape only, not merge enforcement.
+shape only, not merge enforcement. Source-text guards are topology alarms only:
+they may prove that a check is wired or that a workflow says what it should say,
+but they do not prove behavior, independent acceptance, or mutation closure.
+Guarded code changes require PR-blocking actual mutation proof, such as the
+`mutation in-diff (lock layer)` check, or a current accepted full-campaign
+artifact ingested by the fail-closed manifest.
 
 ## Property and random testing
 
@@ -413,9 +426,9 @@ Workflow-level posture:
 | `test` | Runs `cargo build --workspace --all-targets --locked` and `cargo test --workspace --locked`; the locked test invocation is the documented CI superset of the local `cargo test --workspace` completion gate. |
 | `lock-layer-gates` | Runs the named lock-layer integration targets with `--locked`, including anti-regression, hidden-truth, replay, content, and TUI seam gates. |
 | `public-boundary-conformance` | Runs the required public-boundary conformance lane with `negative_fixture_runner`, `generative_lock`, `world_step_coordinator`, `command_loop_session`, `playable_capability_parity`, and `embodied_flow`, proving the production-bootstrap-to-sealed-receipt/replay matrix through existing tests rather than new doctrine gate code. |
-| `governance-required-checks-audit` | Queries the `main` branch-protection and branch-rulesets APIs and fails closed with `pending/unverified` unless the required workspace/public-boundary/mutation reconciliation checks, pull-request requirement, up-to-date-or-merge-queue requirement, and no-bypass posture are proven by repository governance settings. This is governance evidence, not a substitute for the workflow-topology alarms. |
-| `full-surface-mutation-trigger` | Runs on pull requests and pushes, detects changes to production files, tests, fixtures, negative fixtures, mutation config/baseline, CI workflow, merge/supervisor tooling, and live 0052 conformance evidence, and reports that full-surface mutation reconciliation is required before merge. |
-| `mutants-in-diff` | Runs standing certification-perimeter mutation checks for pull requests and pushes when checked-in perimeter source paths changed, using two concurrent cargo-mutants jobs and an explicit 183 second per-mutant timeout, with accepted baseline misses normalized by file, mutation, and function. |
+| `governance-required-checks-audit` | Queries the `main` branch-protection and branch-rulesets APIs and fails closed with `pending/unverified` unless the required workspace/public-boundary/mutation contexts, pull-request requirement, independent approval or last-push/required-reviewer posture, up-to-date-or-merge-queue requirement, and no-bypass posture are proven by repository governance settings. This is governance evidence, not a substitute for the workflow-topology alarms. |
+| `full-surface-mutation-trigger` | Runs on pull requests and pushes, detects changes to production files, tests, fixtures, negative fixtures, mutation config/baseline, CI workflow, merge/supervisor tooling, and live conformance evidence, and reports that full-surface mutation reconciliation is required before merge. This trigger is an alarm, not mutation proof. |
+| `mutants-in-diff` | Runs standing certification-perimeter mutation checks for pull requests and pushes when checked-in perimeter source paths changed, using two concurrent cargo-mutants jobs and an explicit 183 second per-mutant timeout, with accepted baseline misses normalized by file, mutation, and function. For guarded source changes this is the PR-blocking actual mutation-result context; it cannot be replaced by the full-surface trigger alone. |
 | `mutants-lock-layer-baseline` | Runs the scheduled or manual unmutated baseline and canonical standing-perimeter mutation census through `.cargo/mutants.toml`, recording commit, config, and toolchain fingerprints for shard reconciliation. |
 | `mutants-lock-layer` | Runs the scheduled or manual standing-perimeter mutation matrix as eight supervised shards after the baseline job, using `--baseline=skip`, two cargo-mutants jobs per shard, a 7200 second supervisor wall, 120 second grace, explicit 183 second mutant timeout, 130 minute GitHub timeout, and always-uploaded per-shard transcripts and mutation output. |
 | `mutants-lock-layer-reconcile` | Downloads the scheduled or manual baseline and shard artifacts, invokes `tools/merge-mutation-shards.py`, and fails closed for missing shards, non-normal supervisor status, tool failure, survivor floor, overlap, fingerprint drift, or a shard union that does not equal the canonical denominator. |
