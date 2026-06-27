@@ -1,6 +1,6 @@
 # 0054FOUCONSIX-008: Publicly-forced `food_source` actor-known witness
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` projection witness + public actor-known/TUI behavior tests killing the const-true/false and ordering mutants; content fixture for competing food-source facts
@@ -86,3 +86,27 @@ Confirm `.cargo/mutants.toml` / `.cargo/mutants-baseline-misses.txt` cover the p
 1. `cargo test -p tracewake-core --test food_source_projection && cargo test -p tracewake-tui`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
 3. `cargo mutants -f crates/tracewake-core/src/projections.rs` — focused campaign confirming the witness kills the const/ordering mutants (the standing campaign is ticket 009).
+
+## Outcome
+
+Completed: 2026-06-27
+
+Added the `competing_food_source_facts_001` content fixture and registered it in the fixture catalog. The fixture seeds an authored source-less known-food edge for `actor_tomas -> food_empty_bowl_tomas` while the public embodied view observes the same food source with zero servings, forcing the source-bearing serving fact to win through modeled actor-known channels.
+
+Extended `crates/tracewake-core/tests/food_source_projection.rs` so the source-bearing/source-less ordering cases assert the public disabled consequence (`You know that food source is empty.`) and confirm no debug-only diagnostics leak into the action availability. Added a TUI acceptance test proving the fixture-backed public menu renders exactly one disabled `eat.food.food_empty_bowl_tomas` action with the public reason and without source-key provenance leakage. Added the new fixture fingerprint and source-classification entries required by existing guards.
+
+Verification run:
+
+- `cargo test -p tracewake-core --test food_source_projection` — passed.
+- `cargo test -p tracewake-tui` — passed.
+- `cargo mutants --no-config -f crates/tracewake-core/src/projections.rs --list` — selected 168 projections-file mutants.
+- `cargo mutants --no-config -f crates/tracewake-core/src/projections.rs -F 'food_source_fact_supersedes|actor_known_food_sources_for_context'` — focused owned seam selected 13 mutants; 12 caught, 1 unviable, 0 missed.
+- `cargo test -p tracewake-content --test golden_fixtures_run` — passed after adding the new frozen fixture fingerprint.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
+
+The exact unfiltered `cargo mutants -f crates/tracewake-core/src/projections.rs` standing/full campaign remains owned by ticket 009; this ticket records focused mutation proof for the food-source supersession seam only.
+
+Unrelated pre-existing dirty paths left untouched: `.claude/skills/spec-to-tickets/SKILL.md`, `.claude/skills/spec-to-tickets/references/decomposition-patterns.md`, `CLAUDE.md`, and `tools/clean-build-scratch.sh`.

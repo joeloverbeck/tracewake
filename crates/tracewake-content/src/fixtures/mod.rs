@@ -1,4 +1,5 @@
 mod aged_food_record_surfaces_as_remembered_belief_not_observation_001;
+mod competing_food_source_facts_001;
 mod container_item_move_001;
 mod debug_attach_001;
 mod debug_omniscience_excluded_001;
@@ -82,6 +83,7 @@ use crate::schema::{
 use crate::serialization::serialize_fixture;
 
 pub use aged_food_record_surfaces_as_remembered_belief_not_observation_001::aged_food_record_surfaces_as_remembered_belief_not_observation_001;
+pub use competing_food_source_facts_001::competing_food_source_facts_001;
 pub use container_item_move_001::container_item_move_001;
 pub use debug_attach_001::debug_attach_001;
 pub use debug_omniscience_excluded_001::debug_omniscience_excluded_001;
@@ -232,6 +234,7 @@ pub fn all() -> Vec<GoldenFixture> {
         seeded_food_source_unknown_to_all_actors_001(),
         place_carried_item_001(),
         partial_food_source_knowledge_001(),
+        competing_food_source_facts_001(),
         no_human_day_001(),
     ]
 }

@@ -1366,6 +1366,7 @@ const WORKSPACE_DEPENDENCY_ALLOWLIST: &[(&str, &str, &str)] = &[
 
 const WORKSPACE_SOURCE_CLASSIFICATIONS: &[WorkspaceSourceClassification] = &[
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/aged_food_record_surfaces_as_remembered_belief_not_observation_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/competing_food_source_facts_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/container_item_move_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/debug_attach_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/debug_omniscience_excluded_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
