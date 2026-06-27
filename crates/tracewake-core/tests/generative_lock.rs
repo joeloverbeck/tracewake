@@ -338,12 +338,10 @@ fn generated_cases_enter_through_loaded_runtime_constructor() {
             ))
             .unwrap_or_else(|error| panic!("seed={seed} runtime command failed: {error:?}"));
         match receipt.kind() {
-            RuntimeReceiptKind::OneTickAdvanced(result) => {
-                assert!(
-                    result.resulting_tick > result.prior_tick,
-                    "seed={seed} runtime command must advance time"
-                );
-            }
+            RuntimeReceiptKind::OneTickAdvanced(result) => assert!(
+                result.advanced(),
+                "seed={seed} runtime command must advance time"
+            ),
             other => panic!("seed={seed} expected one-tick receipt, got {other:?}"),
         }
         assert!(

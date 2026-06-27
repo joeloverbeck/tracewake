@@ -1173,7 +1173,7 @@ fn replay_report_match_mismatch_pair_exposes_semantic_fingerprints() {
             Location::AtPlace(PlaceId::new("shop_front").unwrap()),
         ),
     );
-    let corrupted_expected_world = PhysicalState::from_test_seed_parts(
+    let corrupted_expected_world = PhysicalState::from_validated_content_parts(
         world.actors().clone(),
         world.places().clone(),
         world.doors().clone(),

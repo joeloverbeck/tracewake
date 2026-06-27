@@ -177,6 +177,10 @@ const FIXTURES: &[NegativeFixture] = &[
         expected_stderr: "private",
     },
     NegativeFixture {
+        name: "external_crate_cannot_read_one_tick_wait_receipt_internals",
+        expected_stderr: "no field `prior_tick`",
+    },
+    NegativeFixture {
         name: "external_crate_cannot_mutate_embodied_temporal_fields",
         expected_stderr: "private field",
     },
@@ -218,6 +222,7 @@ const ALL_FEATURE_PRODUCTION_BOUNDARY_FIXTURES: &[&str] = &[
     "external_crate_cannot_mutate_embodied_temporal_fields",
     "external_crate_cannot_mutate_loaded_runtime_fields",
     "external_crate_cannot_name_due_process_invocation",
+    "external_crate_cannot_read_one_tick_wait_receipt_internals",
     "external_crate_cannot_read_raw_epistemic_projection_maps",
     "external_crate_cannot_reduce_actor_step_outcome_to_option",
     "external_crate_cannot_seed_loaded_actor_or_process_eligibility",

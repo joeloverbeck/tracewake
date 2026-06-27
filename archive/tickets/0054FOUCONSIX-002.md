@@ -1,6 +1,6 @@
 # 0054FOUCONSIX-002: Sealed actor-legible one-tick wait receipt (atomic cutover)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` runtime-receipt/scheduler authority surface (sealed one-tick wait receipt; full `WorldAdvanceResult` confined to debug-gated path); `tracewake-tui` wait-path consumer migration; new external negative fixture + behavioral tests
@@ -96,3 +96,38 @@ New `tests/negative-fixtures/<name>/` (e.g. `external_crate_cannot_read_one_tick
 1. `cargo test -p tracewake-core --test negative_fixture_runner`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
 3. `cargo mutants -f crates/tracewake-core/src/runtime/receipt.rs -f crates/tracewake-core/src/scheduler.rs` — focused campaign over the resealed receipt path (standing campaign is ticket 009).
+
+## Outcome
+
+Completed: 2026-06-27
+
+Implemented the one-tick wait receipt reseal for F6-02:
+
+- replaced normal `RuntimeReceiptKind::OneTickAdvanced(WorldAdvanceResult)` with `RuntimeReceiptKind::OneTickAdvanced(OneTickRuntimeReceipt)`;
+- added private-field `OneTickRuntimeReceipt` accessors for actor-legible progress, appended-event count, and actor-known interval summary only;
+- kept exact ticks, event IDs, due-work summary, and actor-step summaries out of the normal receipt boundary;
+- added `LoadedWorldRuntime::wait_one_tick_debug(&DebugSessionAuthority, ...)` and a debug receipt constructor that carries the raw one-tick scheduler details behind debug authority;
+- migrated content/generative/runtime tests away from raw normal wait internals;
+- added `external_crate_cannot_read_one_tick_wait_receipt_internals` and registered it in the default and all-feature negative fixture lanes.
+
+Verification:
+
+- `cargo test -p tracewake-core --test negative_fixture_runner` — passed.
+- `cargo test -p tracewake-core --test generative_lock generated_cases_enter_through_loaded_runtime_constructor` — passed.
+- `cargo test -p tracewake-core debug_one_tick_receipt_retains_privileged_scheduler_details` — passed.
+- `cargo test -p tracewake-core one_tick_wait_advances_world_through_owned_runtime` — passed.
+- `cargo test -p tracewake-core debug_receipt_is_capability_gated` — passed.
+- `cargo test -p tracewake-content loaded_fixture_exports_scheduler_free_runtime_bootstrap` — passed.
+- `cargo fmt --all --check` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed after adding a local `RuntimeReceiptKind` enum-size lint rationale instead of changing the public enum shape.
+- `cargo test --workspace` — passed.
+- `cargo mutants --list -f crates/tracewake-core/src/runtime/receipt.rs -f crates/tracewake-core/src/scheduler.rs --no-config` — completed as a denominator check for the receipt+scheduler surface.
+
+Deviation / evidence limitation:
+
+- The exact ticket-listed mutation command `cargo mutants -f crates/tracewake-core/src/runtime/receipt.rs -f crates/tracewake-core/src/scheduler.rs` selected `3442` mutants under repository mutation configuration, i.e. standing-size scope rather than a narrow ticket-002 campaign. It was interrupted with Ctrl-C after the selection line so this ticket would not perform ticket 009's standing mutation campaign. No mutation pass is claimed for ticket 002; standing mutation proof remains owned by `0054FOUCONSIX-009`.
+
+Related archive truthing:
+
+- While verifying this ticket, the workspace compile exposed that ticket 001's integration-test helpers cannot use `#[cfg(test)]` library constructors. The archived `0054FOUCONSIX-001` outcome was amended on 2026-06-27 to record that integration tests use the validated-content handoff.

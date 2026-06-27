@@ -25,7 +25,7 @@ The 0053 negative fixture `external_crate_cannot_construct_loaded_world_bootstra
 ## Architecture Check
 
 1. Sealing "validated loaded-world bootstrap" at the **type boundary** (a sealed package/witness owned by the validated-content path, or crate-private constructors with a production assembly API) makes the bad state unrepresentable rather than merely discouraged — the cycle-breaking layer the fourth/fifth passes missed by renaming instead of resealing. A convention beside a public raw constructor is not a boundary; a sealed product type is.
-2. **Authority-topology decision (implemented 2026-06-27):** selected the narrow variant of (a): the stale public `PhysicalState::from_validated_seed_parts` / `AgentState::from_validated_seed_parts` names are crate-private, core tests use the explicit test-support constructors, and `tracewake-content` uses an explicit validated-content handoff (`from_validated_content_parts`) only after `FixtureValidationToken` has been minted by the content validation gate. This preserves the `core` ← `content` dependency direction and closes the externally-visible live-symbol attack exercised by the negative fixture. No backwards-compatibility alias or stale `from_seed_parts` route is left.
+2. **Authority-topology decision (implemented 2026-06-27):** selected the narrow variant of (a): the stale public `PhysicalState::from_validated_seed_parts` / `AgentState::from_validated_seed_parts` names are crate-private, core unit tests keep explicit test-support constructors, core integration tests and `tracewake-content` use an explicit validated-content handoff (`from_validated_content_parts`), and content schema materialization requires `FixtureValidationToken` minted by the content validation gate. This preserves the `core` ← `content` dependency direction and closes the externally-visible live-symbol attack exercised by the negative fixture. No backwards-compatibility alias or stale `from_seed_parts` route is left.
 
 ## Verification Layers
 
@@ -106,10 +106,12 @@ Rewrite `tests/negative-fixtures/external_crate_cannot_construct_loaded_world_bo
 
 Completed: 2026-06-27
 
+Outcome amended: 2026-06-27
+
 Implemented the bootstrap reseal cutover for the live F6-01 constructor attack:
 
 - made `PhysicalState::from_validated_seed_parts` and `AgentState::from_validated_seed_parts` crate-private;
-- moved in-crate test construction to `from_test_seed_parts`;
+- kept in-crate unit-test construction on `from_test_seed_parts` and moved integration-test construction to the validated-content handoff, because integration tests compile as external crates and cannot see `#[cfg(test)]` library helpers;
 - routed validated content materialization through explicit `from_validated_content_parts` handoff constructors;
 - required `FixtureValidationToken` for `FixtureSchema::to_physical_state`, matching the existing token gate on `to_agent_state`;
 - rewrote `external_crate_cannot_construct_loaded_world_bootstrap_from_seed_parts` to attack the live `from_validated_seed_parts` / `from_validated_content` composition rather than obsolete `from_seed_parts` / `from_loaded_state` names;
