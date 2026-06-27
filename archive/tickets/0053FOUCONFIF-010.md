@@ -1,6 +1,6 @@
 # 0053FOUCONFIF-010: Acceptance capstone — fail-closed status manifest and computed verdict
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — acceptance-only verdict artifact (`reports/0053_foundational_conformance_fifth_hardening_acceptance.md`); no new production logic
@@ -79,3 +79,40 @@ Render the overall result **computed** from the manifest status set. State "impl
 1. `cargo test -p tracewake-core --test acceptance_status_manifest --test acceptance_artifact_wording`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
 3. The branch-protection API transcript is captured operationally (ticket 003's audit job / `gh api`), not via a local test command — its presence in the artifact is the verification surface.
+
+## Outcome
+
+Completed: 2026-06-26
+
+Created `reports/0053_foundational_conformance_fifth_hardening_acceptance.md` as the capstone evidence artifact for spec 0053.
+
+Important result:
+
+- The artifact's machine-readable manifest computes `non-pass`, not `pass`.
+- F5-01, F5-02, F5-03, F5-05, and F5-06 are recorded closed.
+- F5-04 remains `pending-governance` because the live GitHub API transcript did not prove branch-protection/ruleset enforcement for `main`.
+
+Governance transcript captured:
+
+- `gh api repos/joeloverbeck/tracewake/branches/main/protection/required_status_checks` returned `Branch not protected (HTTP 404)`.
+- `gh api repos/joeloverbeck/tracewake/rulesets --jq '.[] | {name, target, enforcement, conditions, rules: [.rules[]? | {type, parameters}]}'` returned no rows.
+
+Mutation denominator recorded from ticket 009:
+
+- Final `cargo mutants`: `3423 mutants tested in 4h: 2666 caught, 757 unviable`.
+- Missed/survivor list: empty.
+- Timeouts: none reported.
+- Routed-forward residuals: none.
+
+Verification:
+
+- `cargo test -p tracewake-core --test acceptance_status_manifest --test acceptance_artifact_wording` passed.
+- The full workspace gates were run after the final 009 repair and before this acceptance-only report was authored:
+  - `cargo fmt --all --check` passed.
+  - `cargo clippy --workspace --all-targets -- -D warnings` passed.
+  - `cargo build --workspace --all-targets --locked` passed.
+  - `cargo test --workspace` passed.
+
+Deviation:
+
+- The ticket expected a computed verdict only if the manifest could compute it. The live governance evidence prevents `pass`; the report therefore uses "implementation evidence collected" framing and records the blocking governance residual instead of overclaiming closure.
