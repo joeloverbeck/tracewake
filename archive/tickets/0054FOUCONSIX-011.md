@@ -1,6 +1,6 @@
 # 0054FOUCONSIX-011: Acceptance capstone — fail-closed status manifest and computed verdict
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Engine Changes**: None — acceptance-only verdict artifact (`reports/0054_foundational_conformance_sixth_hardening_acceptance.md`); no new production logic
 **Effort**: Small
@@ -73,3 +73,21 @@ The artifact must not render `pass` unless the manifest computes pass. Name the 
 1. `cargo test -p tracewake-core --test acceptance_status_manifest --test acceptance_artifact_wording --test ci_workflow_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
 3. The acceptance-machinery tests are the correct verification boundary: the capstone adds no production logic, so its proof is the computed manifest verdict over the authored artifact, not a new code test.
+
+## Outcome
+
+Completed: 2026-06-27
+
+Created `reports/0054_foundational_conformance_sixth_hardening_acceptance.md` as the capstone evidence artifact. The artifact records the current `0054` implementation evidence, the ticket `013` standing mutation rerun (`3445` denominator, `2679` caught, `766` unviable, `0` missed, `0` timeout), and a live GitHub ruleset transcript for `main-standing-conformance-barrier`.
+
+The computed verdict is `non-pass`, not `pass`: the live ruleset is active and has no bypass actors, but it still records `required_approving_review_count: 0`, `require_last_push_approval: false`, and `required_reviewers: []`. The artifact therefore sets `governance_independence: zero-approval` and renders the independent-acceptance blocker honestly rather than claiming a pass over self-accepted governance.
+
+Verification:
+
+- `cargo test -p tracewake-core --test acceptance_status_manifest --test acceptance_artifact_wording --test ci_workflow_guards` — passed.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
+
+CI ingestion note: because the artifact computes `non-pass`, `TRACEWAKE_ACCEPTANCE_ARTIFACT=reports/0054_foundational_conformance_sixth_hardening_acceptance.md cargo test --locked -p tracewake-core --test acceptance_status_manifest actual_acceptance_artifact_from_ci_env_is_pass_eligible` would reject it as pass-ineligible by design. This is the expected fail-closed behavior until repository governance is changed to prove independent acceptance.
