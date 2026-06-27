@@ -89,6 +89,10 @@ const FIXTURES: &[NegativeFixture] = &[
         expected_stderr: "associated function `from_validated_seed_parts` is private",
     },
     NegativeFixture {
+        name: "external_crate_cannot_induce_debug_authority_via_public_bind",
+        expected_stderr: "this function takes 3 arguments",
+    },
+    NegativeFixture {
         name: "external_crate_cannot_mutate_agent_state_seed_maps",
         expected_stderr: "no method named `seed_intentions_mut`",
     },
@@ -218,6 +222,7 @@ const ALL_FEATURE_PRODUCTION_BOUNDARY_FIXTURES: &[&str] = &[
     "external_crate_cannot_construct_pipeline_context_with_runtime_aggregates",
     "external_crate_cannot_convert_debug_report_to_interval_summary",
     "external_crate_cannot_forge_interval_notice",
+    "external_crate_cannot_induce_debug_authority_via_public_bind",
     "external_crate_cannot_insert_raw_epistemic_records",
     "external_crate_cannot_mutate_embodied_temporal_fields",
     "external_crate_cannot_mutate_loaded_runtime_fields",

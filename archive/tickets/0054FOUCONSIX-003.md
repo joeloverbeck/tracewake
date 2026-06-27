@@ -1,6 +1,6 @@
 # 0054FOUCONSIX-003: Non-inducible debug-session authority (atomic cutover)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` runtime-command/session + debug-capability authority surface (debug entry requires an independently-held operator authority; `debug_session_authority_for` no longer mints for a self-bound controller); `tracewake-tui` debug-entry migration; new bypass-shaped external negative fixture
@@ -23,7 +23,7 @@
 ## Architecture Check
 
 1. Requiring an independently-held operator/debug authority to enter debug mode makes the induction attack unrepresentable: a caller who only holds ordinary public commands cannot reach a `DebugSessionAuthority`, so the token's value-unforgeability is no longer the *only* guard. This closes the "non-forgeable token beside a public bind that induces it" pattern the fourth/fifth passes left open.
-2. **Debug-attach model decision (implementer-recorded, §10.2):** record which of (a) remove public `bind_debug_controller` and expose debug binding only behind a separate operator/debug bootstrap token unavailable to ordinary embodied clients, (b) require an already-held operator authority to switch a controller into debug mode, or (c) make local-TUI debug attach an explicit operator entrypoint outside the embodied command surface, is chosen. Any choice must be structurally non-embodied and not mintable through ordinary public commands. No backwards-compatibility aliasing/shims.
+2. **Debug-attach model decision (implementer-recorded, §10.2):** implemented the (b)/(c) hybrid: `RuntimeCommand::bind_debug_controller` now requires an already-held `DebugSessionAuthority`, `LoadedWorldRuntime::debug_session_authority_for` validates a supplied authority and never mints from controller binding state, and the local TUI obtains its authority through the explicit `LoadedWorldRuntime::local_operator_debug_authority()` operator entrypoint before debug binding. The ordinary embodied command surface has no compatibility alias for the old two-argument bind.
 
 ## Verification Layers
 
@@ -89,3 +89,32 @@ New `tests/negative-fixtures/<name>/` (e.g. `external_crate_cannot_induce_debug_
 1. `cargo test -p tracewake-core --test negative_fixture_runner`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
 3. `cargo mutants -f crates/tracewake-core/src/runtime/command.rs -f crates/tracewake-core/src/runtime/session.rs -f crates/tracewake-core/src/debug_capability.rs` — focused campaign over the debug-authority path (standing campaign is ticket 009).
+
+## Outcome
+
+Completed: 2026-06-27
+
+Implemented the atomic debug-authority cutover. `RuntimeCommand::bind_debug_controller` now requires a pre-existing `DebugSessionAuthority`, the runtime session no longer mints a debug-session authority from a controller's debug binding state, and the TUI keeps debug entry behind a local operator entrypoint instead of inducing authority through an ordinary public command. A failed ordinary rebind no longer clears an existing debug session before actor validation, preserving the command-loop unknown-actor behavior without weakening the debug availability gate.
+
+Added `external_crate_cannot_induce_debug_authority_via_public_bind` as a bypass-shaped negative fixture. The fixture uses the old public two-argument debug bind shape and fails to compile with `this function takes 3 arguments`, making the former induction attack unrepresentable for external crates. The existing direct-mint guard remains covered by `negative_fixture_runner`.
+
+Verification run:
+
+- `cargo test -p tracewake-core --test negative_fixture_runner` — passed.
+- `cargo test -p tracewake-core debug_session_authority_requires_supplied_operator_authority` — passed.
+- `cargo test -p tracewake-tui app_runs_no_human_day_into_real_log_metrics` — passed.
+- `cargo test -p tracewake-tui run_no_human_day_refuses_intrinsically_without_debug_availability` — passed.
+- `cargo test -p tracewake-tui controller_mode_debug_availability_decision_is_explicit` — passed.
+- `cargo test -p tracewake-tui unknown_actor_arguments_are_reported_without_crashing` — passed after the failed-bind state-preservation fix.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
+- `git diff --check` — passed.
+
+Mutation evidence:
+
+- `cargo mutants --list -f crates/tracewake-core/src/runtime/command.rs -f crates/tracewake-core/src/runtime/session.rs -f crates/tracewake-core/src/debug_capability.rs --no-config` listed 82 focused mutants in the intended files.
+- The required command `cargo mutants -f crates/tracewake-core/src/runtime/command.rs -f crates/tracewake-core/src/runtime/session.rs -f crates/tracewake-core/src/debug_capability.rs` selected 3445 mutants under repository config and was interrupted after the selection line. Result recorded as incomplete; no mutation pass is claimed here. Standing mutation completion remains ticket 009 scope.
+
+Unrelated pre-existing dirty paths left untouched: `.claude/skills/spec-to-tickets/SKILL.md` and `.claude/skills/spec-to-tickets/references/decomposition-patterns.md`.

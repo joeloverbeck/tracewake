@@ -26,7 +26,7 @@ pub struct DebugCapability {
 /// Runtime-minted authority for debug/operator commands and views.
 ///
 /// The token can be named by clients, but only core runtime/controller binding
-/// state can mint it in production.
+/// operator entrypoints can mint it in production.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DebugSessionAuthority {
     capability: DebugCapability,

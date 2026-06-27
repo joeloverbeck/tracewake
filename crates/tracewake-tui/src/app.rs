@@ -57,6 +57,7 @@ pub struct TuiApp {
     runtime: LoadedWorldRuntime,
     controller_id: ControllerId,
     bound_actor_id: Option<ActorId>,
+    debug_authority: Option<DebugSessionAuthority>,
     last_rejection: Option<ValidationReport>,
     last_interval_summary: Option<TypedActorKnownIntervalSummary>,
 }
@@ -90,23 +91,26 @@ impl TuiApp {
             runtime,
             controller_id: ControllerId::new("controller_human").unwrap(),
             bound_actor_id: None,
+            debug_authority: None,
             last_rejection: None,
             last_interval_summary: None,
         })
     }
 
     pub fn bind_actor(&mut self, actor_id: ActorId) -> Result<(), AppError> {
-        self.bind_actor_with_mode(actor_id, ControllerMode::Embodied)
+        self.bind_actor_with_mode(actor_id, ControllerMode::Embodied, None)
     }
 
     pub fn bind_debug_actor(&mut self, actor_id: ActorId) -> Result<(), AppError> {
-        self.bind_actor_with_mode(actor_id, ControllerMode::Debug)
+        let authority = self.runtime.local_operator_debug_authority();
+        self.bind_actor_with_mode(actor_id, ControllerMode::Debug, Some(authority))
     }
 
     fn bind_actor_with_mode(
         &mut self,
         actor_id: ActorId,
         mode: ControllerMode,
+        authority: Option<DebugSessionAuthority>,
     ) -> Result<(), AppError> {
         if !self.runtime.actor_exists(&actor_id) {
             return Err(AppError::ActorNotFound(actor_id));
@@ -115,9 +119,13 @@ impl TuiApp {
             ControllerMode::Embodied => {
                 RuntimeCommand::bind_controller(self.controller_id.clone(), actor_id.clone())
             }
-            ControllerMode::Debug => {
-                RuntimeCommand::bind_debug_controller(self.controller_id.clone(), actor_id.clone())
-            }
+            ControllerMode::Debug => RuntimeCommand::bind_debug_controller(
+                authority
+                    .clone()
+                    .expect("debug binding requires operator authority"),
+                self.controller_id.clone(),
+                actor_id.clone(),
+            ),
             ControllerMode::Detached => {
                 RuntimeCommand::detach_controller(self.controller_id.clone())
             }
@@ -126,6 +134,7 @@ impl TuiApp {
             .submit_command(command)
             .map_err(AppError::Runtime)?;
         self.bound_actor_id = Some(actor_id);
+        self.debug_authority = authority;
         self.last_rejection = None;
         Ok(())
     }
@@ -151,9 +160,11 @@ impl TuiApp {
     }
 
     pub fn debug_available(&self) -> bool {
-        self.bound_actor_id
-            .as_ref()
-            .is_some_and(|actor_id| self.debug_available_for(actor_id))
+        self.debug_authority.is_some()
+            && self
+                .bound_actor_id
+                .as_ref()
+                .is_some_and(|actor_id| self.debug_available_for(actor_id))
     }
 
     fn debug_authority(&self) -> Result<DebugSessionAuthority, AppError> {
@@ -161,8 +172,12 @@ impl TuiApp {
             .bound_actor_id
             .as_ref()
             .ok_or(AppError::DebugUnavailable)?;
+        let authority = self
+            .debug_authority
+            .as_ref()
+            .ok_or(AppError::DebugUnavailable)?;
         self.runtime
-            .debug_session_authority_for(&self.controller_id, actor_id)
+            .debug_session_authority_for(authority, &self.controller_id, actor_id)
             .ok_or(AppError::DebugUnavailable)
     }
 

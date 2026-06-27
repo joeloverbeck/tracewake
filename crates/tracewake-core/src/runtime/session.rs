@@ -233,11 +233,16 @@ impl LoadedWorldRuntime {
 
     pub fn debug_session_authority_for(
         &self,
+        authority: &DebugSessionAuthority,
         controller_id: &ControllerId,
         actor_id: &ActorId,
     ) -> Option<DebugSessionAuthority> {
-        self.controller_debug_available_for(controller_id, actor_id)
-            .then(DebugSessionAuthority::mint)
+        (authority.debug_only() && self.controller_debug_available_for(controller_id, actor_id))
+            .then(|| authority.clone())
+    }
+
+    pub fn local_operator_debug_authority(&self) -> DebugSessionAuthority {
+        DebugSessionAuthority::mint()
     }
 
     pub fn embodied_view_model(
@@ -625,6 +630,17 @@ impl LoadedWorldRuntime {
                     vec!["runtime:controller_binding".to_string()],
                 )))
             }
+            RuntimeCommandKind::BindDebugController {
+                controller_id,
+                actor_id,
+                ..
+            } => {
+                self.bind_actor(controller_id, actor_id, ControllerMode::Debug);
+                Ok(RuntimeReceipt::embodied(EmbodiedRuntimeReceipt::new(
+                    "Debug controller binding changed.",
+                    vec!["runtime:debug_controller_binding".to_string()],
+                )))
+            }
             RuntimeCommandKind::DetachController { controller_id } => {
                 self.detach_controller(&controller_id);
                 Ok(RuntimeReceipt::embodied(EmbodiedRuntimeReceipt::new(
@@ -993,6 +1009,39 @@ mod tests {
             .expect("debug receipt carries due-work summary");
         assert!(due_work.actor_transactions_attempted > 0);
         assert!(!receipt.actor_step_summaries().is_empty());
+    }
+
+    #[test]
+    fn debug_session_authority_requires_supplied_operator_authority() {
+        let mut runtime = loaded_runtime();
+        let controller_id = ControllerId::new("controller_operator_debug").unwrap();
+        let actor_id = ActorId::new("actor_runtime").unwrap();
+
+        runtime
+            .submit_command(RuntimeCommand::bind_controller(
+                controller_id.clone(),
+                actor_id.clone(),
+            ))
+            .unwrap();
+        let authority = runtime.local_operator_debug_authority();
+        assert!(
+            runtime
+                .debug_session_authority_for(&authority, &controller_id, &actor_id)
+                .is_none(),
+            "ordinary embodied binding must not validate debug authority"
+        );
+
+        runtime
+            .submit_command(RuntimeCommand::bind_debug_controller(
+                authority.clone(),
+                controller_id.clone(),
+                actor_id.clone(),
+            ))
+            .unwrap();
+        let validated = runtime
+            .debug_session_authority_for(&authority, &controller_id, &actor_id)
+            .expect("debug binding with held operator authority validates authority");
+        assert!(validated.debug_only());
     }
 
     #[test]
