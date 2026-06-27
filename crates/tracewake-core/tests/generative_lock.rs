@@ -17,7 +17,9 @@ use tracewake_core::events::{EventCause, EventEnvelope, EventKind, EventStream};
 use tracewake_core::ids::{ContentVersion, ControllerId, DebugReportId, EventId, FixtureId};
 use tracewake_core::projections::no_human_day_metrics;
 use tracewake_core::replay::{rebuild_projection, run_replay};
-use tracewake_core::runtime::{LoadedWorldBootstrap, LoadedWorldRuntime, RuntimeReceiptKind};
+use tracewake_core::runtime::{
+    LoadedWorldRuntime, RuntimeReceiptKind, ValidatedLoadedWorldBootstrap,
+};
 use tracewake_core::scheduler::no_human::advance_no_human;
 use tracewake_core::scheduler::WorldAdvanceOrigin;
 use tracewake_core::time::SimTick;
@@ -316,7 +318,7 @@ fn generated_cases_enter_through_loaded_runtime_constructor() {
         let case = generate_case(seed);
         let initial_state = initial_world(seed);
         let initial_agents = initial_agent_state(seed);
-        let bootstrap = LoadedWorldBootstrap::from_loaded_state(
+        let bootstrap = ValidatedLoadedWorldBootstrap::from_validated_content(
             registry(),
             initial_state.clone(),
             initial_agents.clone(),

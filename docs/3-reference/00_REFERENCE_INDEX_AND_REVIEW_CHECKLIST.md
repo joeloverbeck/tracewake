@@ -124,21 +124,23 @@ Use this block as a pointer to foundation `03` / `INV-112`, the architecture tem
 - Do open durations close through the shared authority for event-sourced starts and terminals, not through batch-local pending queues or client-side completion logic?
 - Is interval output positive actor-known evidence from modeled sources, not a redacted omniscient event diff or an omniscient "nothing happened" summary?
 
-Current 0052 evidence answers these prompts by constructing the runtime through
-`LoadedWorldRuntime::from_bootstrap` from a validated `LoadedWorldBootstrap` and
-routing human-origin and no-human-origin advancement through core-derived loaded
-actors, declared processes, closed actor transaction outcomes, fail-closed event
-identity, temporal replay verdicts, and a core-owned interval product.
-Reviewers should look for `world_step_coordinator.rs`, `generative_lock.rs`,
-`replay_temporal_frontier.rs`, `holder_known_interval_projection.rs`,
-`salient_stop_actor_known.rs`, `negative_fixture_runner.rs`,
-`command_loop_session.rs`, `playable_capability_parity.rs`, `embodied_flow.rs`,
-`parity_adversarial.rs`, `archive/tickets/0052FOUCONFOU-009.md`,
-`archive/tickets/0052FOUCONFOU-010.md`, and
-`archive/tickets/0052FOUCONFOU-011.md` before treating a
-loaded-world/time-control row as current executable evidence. The required
-checks to confirm operationally are `public-boundary conformance` and `mutation
-shard reconciliation (lock layer)`.
+Current 0053 evidence answers these prompts by constructing the runtime through
+`LoadedWorldRuntime::from_bootstrap` from a validated
+`ValidatedLoadedWorldBootstrap` and routing human-origin and no-human-origin
+advancement through core-derived loaded actors, declared processes, closed actor
+transaction outcomes, fail-closed event identity, temporal replay verdicts, and
+a sealed interval product. Debug/operator no-human-day and debug-view commands
+require `DebugSessionAuthority`; the 0053 governance audit records merge
+enforcement as API-proven, pending, or unverified rather than accepting workflow
+topology alone. Reviewers should look for `world_step_coordinator.rs`,
+`generative_lock.rs`, `replay_temporal_frontier.rs`,
+`holder_known_interval_projection.rs`, `salient_stop_actor_known.rs`,
+`negative_fixture_runner.rs`, `command_loop_session.rs`,
+`playable_capability_parity.rs`, `embodied_flow.rs`, `parity_adversarial.rs`,
+`archive/tickets/0053FOUCONFIF-003.md`, `archive/tickets/0053FOUCONFIF-004.md`,
+`archive/tickets/0053FOUCONFIF-005.md`, `archive/tickets/0053FOUCONFIF-006.md`,
+and `archive/tickets/0053FOUCONFIF-007.md` before treating a
+loaded-world/time-control row as current executable evidence.
 
 ### Ordinary-life play
 
@@ -204,6 +206,7 @@ At every phase exit, gate exit, certification review, or expansion handoff, answ
 6. Which hidden truth was available to validators/debug but excluded from cognition, procedure selection, affordance generation, embodied TUI, institutions, leads, and LOD promotion?
 7. Which risk-register entries are active, newly escalated, or ready for retirement, and what evidence supports that status?
 8. Are archived specs or tickets being cited only as history, not as certification under post-overhaul doctrine?
+9. If the artifact claims foundational conformance closure, does its fail-closed acceptance manifest compute the stated result from `closed|open|routed-forward|pending-governance|historical-only|not-in-scope` statuses, and does branch-protection or ruleset enforcement have an API transcript rather than only workflow topology evidence?
 
 A phase or gate cannot exit on demo success alone. It needs replay evidence, no-human evidence, holder-known view/procedure evidence, negative/failure evidence, TUI or view-model evidence, fixture evidence, diagnostics, and causal explanation evidence appropriate to the live execution gate being claimed.
 

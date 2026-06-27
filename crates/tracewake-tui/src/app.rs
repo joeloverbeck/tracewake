@@ -2,17 +2,18 @@ use tracewake_content::fixtures::{self, GoldenFixture};
 use tracewake_content::load::{load_fixture_package, LoadError};
 use tracewake_core::actions::{ActionRegistry, ReportStatus, ValidationReport};
 use tracewake_core::checksum::PhysicalChecksum;
+use tracewake_core::debug_capability::DebugSessionAuthority;
 use tracewake_core::ids::{
     ActorId, ContentManifestId, ContentVersion, ControllerId, DebugReportId, ItemId,
     SemanticActionId,
 };
 use tracewake_core::projections::ProjectionError;
 use tracewake_core::runtime::{
-    LoadedWorldRuntime, RuntimeActionReceipt, RuntimeCommand, RuntimeCommandError,
-    RuntimeReceiptKind,
+    ContinuedRuntimeReceipt, LoadedWorldRuntime, RuntimeActionReceipt, RuntimeCommand,
+    RuntimeCommandError, RuntimeReceiptKind,
 };
 use tracewake_core::scheduler::no_human::NoHumanDayReport;
-use tracewake_core::scheduler::{AdvanceUntilResult, WorldAdvanceError};
+use tracewake_core::scheduler::WorldAdvanceError;
 use tracewake_core::state::ControllerMode;
 use tracewake_core::time::SimTick;
 use tracewake_core::view_models::{
@@ -155,6 +156,16 @@ impl TuiApp {
             .is_some_and(|actor_id| self.debug_available_for(actor_id))
     }
 
+    fn debug_authority(&self) -> Result<DebugSessionAuthority, AppError> {
+        let actor_id = self
+            .bound_actor_id
+            .as_ref()
+            .ok_or(AppError::DebugUnavailable)?;
+        self.runtime
+            .debug_session_authority_for(&self.controller_id, actor_id)
+            .ok_or(AppError::DebugUnavailable)
+    }
+
     pub fn render_current_view(&self) -> Result<String, AppError> {
         Ok(render_embodied_view(&self.current_view()?))
     }
@@ -217,7 +228,7 @@ impl TuiApp {
         self.runtime.event_count()
     }
 
-    pub fn advance_until(&mut self, max_ticks: u64) -> Result<AdvanceUntilResult, AppError> {
+    pub fn advance_until(&mut self, max_ticks: u64) -> Result<ContinuedRuntimeReceipt, AppError> {
         let actor_id = self.bound_actor_id.clone().ok_or(AppError::ActorNotBound)?;
         let receipt = self
             .runtime
@@ -231,21 +242,16 @@ impl TuiApp {
             RuntimeReceiptKind::Continued(result) => result.clone(),
             _ => panic!("continue_until command returns a continued receipt"),
         };
-        self.last_interval_summary = result
-            .actor_known_interval_delta
-            .clone()
-            .map(TypedActorKnownIntervalSummary::from_actor_known_delta);
+        self.last_interval_summary = result.actor_known_interval_summary().cloned();
         self.last_rejection = None;
         Ok(result)
     }
 
     pub fn run_no_human_day(&mut self) -> Result<NoHumanDayReport, AppError> {
-        if !self.debug_available() {
-            return Err(AppError::DebugUnavailable);
-        }
+        let authority = self.debug_authority()?;
         let receipt = self
             .runtime
-            .submit_command(RuntimeCommand::run_no_human_day())
+            .submit_command(RuntimeCommand::run_no_human_day(authority))
             .map_err(AppError::Runtime)?;
         let report = receipt
             .into_no_human_day_report()

@@ -1,7 +1,6 @@
 use tracewake_content::fixtures;
 use tracewake_core::actions::{ReasonCode, ReportStatus};
 use tracewake_core::ids::{ActionId, ActorId, SemanticActionId};
-use tracewake_core::scheduler::AdvanceUntilStopReason;
 use tracewake_tui::app::{AppError, TuiApp};
 use tracewake_tui::render::render_notebook;
 
@@ -226,37 +225,17 @@ pub fn run_real_pipeline(entry: &CapabilityEntry) -> Result<ScenarioWitnesses, S
 fn measure_advance_until(
     measured: &mut ScenarioMeasuredEvidence,
     app: &TuiApp,
-    result: &tracewake_core::scheduler::AdvanceUntilResult,
+    result: &tracewake_core::runtime::ContinuedRuntimeReceipt,
 ) {
-    measured.typed = result.ticks_advanced > 0 && !result.appended_event_ids.is_empty();
-    measured.frontier_advanced = result.stop_tick > result.start_tick;
-    measured.marker_counted = !result.appended_event_ids.is_empty();
-    measured.duration_terminal =
-        result.stop_reason == AdvanceUntilStopReason::PossessedDurationTerminal;
-    measured.typed_stop_reason = matches!(
-        result.stop_reason,
-        AdvanceUntilStopReason::PossessedDurationTerminal
-            | AdvanceUntilStopReason::ActorKnownSalientObservation
-            | AdvanceUntilStopReason::UserPausedBeforeNextTick
-            | AdvanceUntilStopReason::ControllerSafetyBound
-    );
+    measured.typed = result.advanced() && result.appended_event_count() > 0;
+    measured.frontier_advanced = result.advanced();
+    measured.marker_counted = result.appended_event_count() > 0;
+    measured.duration_terminal = result.actor_known_interval_summary().is_some();
+    measured.typed_stop_reason = result.actor_known_interval_summary().is_some();
     if let Ok(view) = app.current_view() {
         if let Some(summary) = view.actor_known_interval_summary() {
-            measured.holder_known_sources = summary.stop_frontier() >= summary.start_frontier()
-                && (!summary.no_new_actor_known_information() || !summary.notices().is_empty());
-            measured.typed_stop_reason &= summary.stop_reason().stable_id()
-                == match result.stop_reason {
-                    AdvanceUntilStopReason::PossessedDurationTerminal => {
-                        "possessed_duration_terminal"
-                    }
-                    AdvanceUntilStopReason::ActorKnownSalientObservation => {
-                        "actor_known_salient_observation"
-                    }
-                    AdvanceUntilStopReason::UserPausedBeforeNextTick => {
-                        "user_paused_before_next_tick"
-                    }
-                    AdvanceUntilStopReason::ControllerSafetyBound => "controller_safety_bound",
-                };
+            measured.holder_known_sources =
+                !summary.no_new_actor_known_information() || !summary.notices().is_empty();
         }
     }
 }

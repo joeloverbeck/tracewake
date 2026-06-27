@@ -85,6 +85,10 @@ const FIXTURES: &[NegativeFixture] = &[
         expected_stderr: "no method named `schedule_loaded_actor_decision`",
     },
     NegativeFixture {
+        name: "external_crate_cannot_construct_loaded_world_bootstrap_from_seed_parts",
+        expected_stderr: "no function or associated item named `from_seed_parts`",
+    },
+    NegativeFixture {
         name: "external_crate_cannot_mutate_agent_state_seed_maps",
         expected_stderr: "no method named `seed_intentions_mut`",
     },
@@ -170,7 +174,7 @@ const FIXTURES: &[NegativeFixture] = &[
     },
     NegativeFixture {
         name: "external_crate_cannot_construct_actor_interval_summary",
-        expected_stderr: "private field",
+        expected_stderr: "private",
     },
     NegativeFixture {
         name: "external_crate_cannot_mutate_embodied_temporal_fields",
@@ -189,6 +193,10 @@ const FIXTURES: &[NegativeFixture] = &[
         expected_stderr: "no field named `world_process_events`",
     },
     NegativeFixture {
+        name: "external_crate_cannot_submit_debug_command_without_token",
+        expected_stderr: "this function takes 1 argument",
+    },
+    NegativeFixture {
         name: "external_crate_cannot_name_due_process_invocation",
         expected_stderr: "struct `DueProcessInvocation` is private",
     },
@@ -201,6 +209,7 @@ const ALL_FEATURE_PRODUCTION_BOUNDARY_FIXTURES: &[&str] = &[
     "external_crate_cannot_call_seed_mutators_after_load",
     "external_crate_cannot_call_tui_perception_append_helper",
     "external_crate_cannot_construct_actor_interval_summary",
+    "external_crate_cannot_construct_loaded_world_bootstrap_from_seed_parts",
     "external_crate_cannot_construct_debug_report",
     "external_crate_cannot_construct_pipeline_context_with_runtime_aggregates",
     "external_crate_cannot_convert_debug_report_to_interval_summary",
@@ -214,6 +223,7 @@ const ALL_FEATURE_PRODUCTION_BOUNDARY_FIXTURES: &[&str] = &[
     "external_crate_cannot_seed_loaded_actor_or_process_eligibility",
     "external_crate_cannot_set_world_step_due_actor_ids",
     "external_crate_cannot_set_world_step_process_events",
+    "external_crate_cannot_submit_debug_command_without_token",
 ];
 
 struct ClippyBanProof {

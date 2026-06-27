@@ -1,4 +1,4 @@
-use crate::debug_capability::DebugCapability;
+use crate::debug_capability::DebugSessionAuthority;
 use crate::ids::{ActorId, ControllerId};
 use crate::scheduler::WorldAdvanceOrigin;
 use crate::state::ControllerMode;
@@ -38,14 +38,14 @@ pub(crate) enum RuntimeCommandKind {
         controller_id: ControllerId,
     },
     RunNoHumanDay {
-        _capability: DebugCapability,
+        _authority: DebugSessionAuthority,
     },
     RebuildFromReplaySeed,
     EmbodiedView {
         actor_id: ActorId,
     },
     DebugView {
-        _capability: DebugCapability,
+        _authority: DebugSessionAuthority,
     },
 }
 
@@ -112,10 +112,10 @@ impl RuntimeCommand {
         }
     }
 
-    pub fn run_no_human_day() -> Self {
+    pub fn run_no_human_day(authority: DebugSessionAuthority) -> Self {
         Self {
             kind: RuntimeCommandKind::RunNoHumanDay {
-                _capability: DebugCapability::mint(),
+                _authority: authority,
             },
         }
     }
@@ -132,10 +132,10 @@ impl RuntimeCommand {
         }
     }
 
-    pub fn debug_view(capability: DebugCapability) -> Self {
+    pub fn debug_view(authority: DebugSessionAuthority) -> Self {
         Self {
             kind: RuntimeCommandKind::DebugView {
-                _capability: capability,
+                _authority: authority,
             },
         }
     }

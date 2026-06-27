@@ -226,8 +226,12 @@ fn actor_known_food_sources_for_context(
     // Collapse the knowledge channels for a single food source (e.g. a seeded
     // starting belief with unknown servings plus a direct perception of the same
     // supply) into one surface so the embodied menu offers each food exactly once.
-    // A concrete perceived serving count supersedes an unknown belief; otherwise
-    // the lexically-earliest source key wins for determinism.
+    // Food-source supersession rule: source-bearing serving knowledge
+    // supersedes source-less food knowledge, source-less knowledge never
+    // replaces source-bearing knowledge, and equal serving-knowledge classes use
+    // the lexically-earliest source key. Equal source keys keep the first
+    // selected fact. This keeps the actor-known menu deterministic without
+    // promoting hidden truth.
     let mut chosen: Vec<&ActorKnownFoodSourceFact> = Vec::new();
     for fact in context.actor_known_food_sources() {
         match chosen
@@ -257,11 +261,11 @@ fn food_source_fact_supersedes(
     candidate: &ActorKnownFoodSourceFact,
     chosen: &ActorKnownFoodSourceFact,
 ) -> bool {
-    match (candidate.believed_servings(), chosen.believed_servings()) {
-        (Some(_), None) => true,
-        (None, Some(_)) => false,
-        _ => candidate.source_key() < chosen.source_key(),
-    }
+    let candidate_has_serving_knowledge = candidate.believed_servings().is_some();
+    let chosen_has_serving_knowledge = chosen.believed_servings().is_some();
+    candidate_has_serving_knowledge && !chosen_has_serving_knowledge
+        || candidate_has_serving_knowledge == chosen_has_serving_knowledge
+            && candidate.source_key() < chosen.source_key()
 }
 
 fn actor_known_sleep_affordances_for_context(context: &KnowledgeContext) -> Vec<SleepAffordanceId> {
@@ -1230,7 +1234,11 @@ fn workplace_availability_provenance_refs(
 }
 
 pub fn build_debug_event_log_view(log: &EventLog) -> DebugEventLogView {
-    DebugEventLogView::new(log.events().iter().map(DebugEventSummary::from).collect())
+    let authority = crate::debug_capability::DebugSessionAuthority::mint();
+    DebugEventLogView::new(
+        &authority,
+        log.events().iter().map(DebugEventSummary::from).collect(),
+    )
 }
 
 fn visible_item_source(location: &Location) -> VisibleItemSource {
@@ -2345,7 +2353,7 @@ mod tests {
                 2,
             ),
         );
-        let state = PhysicalState::from_seed_parts(
+        let state = PhysicalState::from_test_seed_parts(
             base.actors().clone(),
             base.places().clone(),
             base.doors().clone(),
@@ -3576,6 +3584,34 @@ mod tests {
         assert!(metrics.need_threshold_crossings > 0);
         assert_eq!(metrics.player_conditioned_event_count, 0);
         assert_eq!(metrics.player_conditioned_event_rate_per_1000, 0);
+    }
+
+    #[test]
+    fn interval_stop_reason_stable_ids_are_closed_and_canonical() {
+        let cases = [
+            (
+                IntervalStopReason::PossessedDurationTerminal,
+                "possessed_duration_terminal",
+            ),
+            (
+                IntervalStopReason::ActorKnownSalientObservation,
+                "actor_known_salient_observation",
+            ),
+            (
+                IntervalStopReason::UserPausedBeforeNextTick,
+                "user_paused_before_next_tick",
+            ),
+            (
+                IntervalStopReason::ControllerSafetyBound,
+                "controller_safety_bound",
+            ),
+        ];
+
+        for (reason, stable_id) in cases {
+            assert_eq!(reason.stable_id(), stable_id);
+            assert!(!reason.stable_id().is_empty());
+            assert_ne!(reason.stable_id(), "xyzzy");
+        }
     }
 
     fn door_between(id: &str, a: &str, b: &str) -> ActorKnownDoorSurface {

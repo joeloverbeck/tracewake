@@ -92,22 +92,26 @@ remain non-diegetic and excluded from actor-known context. Per-surface temporal
 rendering diagnostics are owned by
 `10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`.
 
-The accepted 0052 evidence makes the interval product a complete core result:
-`LoadedWorldRuntime::from_bootstrap` constructs the runtime, the shared world
-step captures final perception, holder-known interval delta, stop reason,
-temporal verdict, and replay-facing ancestry before returning the typed result
-to the TUI. The TUI stores and renders that product read-only; it does not call
-event-appending perception helpers, rebuild holder-known context, or convert
-debug step reports into embodied interval summaries. The read-only boundary is
-witnessed by `crates/tracewake-tui/src/app.rs`,
+The accepted 0053 evidence makes the interval product a complete core result:
+`LoadedWorldRuntime::from_bootstrap` constructs the runtime from
+`ValidatedLoadedWorldBootstrap`, the shared world step captures final
+perception, holder-known interval delta, stop reason, temporal verdict, and
+replay-facing ancestry before returning the typed result to the TUI. The TUI
+stores and renders that sealed interval product read-only through
+`ContinuedRuntimeReceipt`; it does not call event-appending perception helpers,
+rebuild holder-known context, construct `TypedActorKnownIntervalSummary`, or
+convert debug step reports into embodied interval summaries. The read-only
+boundary is witnessed by `crates/tracewake-tui/src/app.rs`,
 `crates/tracewake-core/tests/holder_known_interval_projection.rs`,
 `crates/tracewake-core/tests/salient_stop_actor_known.rs`, public
 command-loop/TUI world-advance tests, `embodied_flow.rs`, and the external-crate
-negative fixtures driven by `crates/tracewake-core/tests/negative_fixture_runner.rs`.
-Mutation sensitivity for same-source observation replacement and
-subject-separated interval facts is recorded in
-`archive/tickets/0052FOUCONFOU-010.md`, with required CI evidence in
-`archive/tickets/0052FOUCONFOU-011.md`.
+negative fixtures `external_crate_cannot_construct_actor_interval_summary`,
+`external_crate_cannot_mutate_embodied_temporal_fields`, and
+`external_crate_cannot_submit_debug_command_without_token`. Mutation sensitivity
+for same-source observation replacement, subject-separated interval facts, and
+the closed `food_source_fact_supersedes` family is recorded in
+`archive/tickets/0052FOUCONFOU-010.md` and
+`archive/tickets/0053FOUCONFIF-007.md`.
 
 ## Observation-time snapshot proof
 
@@ -160,6 +164,11 @@ ControllerMode::Embodied possession is ordinary embodied play and does not grant
 debug availability; TUI callers that need operator debug surfaces must bind the
 actor explicitly in debug mode. ControllerMode::Detached grants neither embodied
 control nor debug.
+The core command and debug-view boundary is also token-gated: public
+debug/operator constructors require `DebugSessionAuthority`, so an external
+client cannot submit `RuntimeCommand::run_no_human_day`, request
+`RuntimeCommand::debug_view`, or construct exact debug view models without the
+runtime-owned authority token.
 The `debug run no-human-day` command is an operator-proof command, not an
 embodied play verb: it may advance the loaded fixture through the no-human day
 scheduler only after the debug gate is available, and its output remains a

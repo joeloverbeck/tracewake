@@ -67,6 +67,21 @@ baseline (so the predecessor's pinned commit is an *ancestor/parent* of HEAD and
 wholesale), the predecessor's findings are the **pre-remediation baseline to re-verify, not carry
 forward** — run the SKILL.md Step 5 equivalence check to establish that non-equivalence, and make
 "assume nothing about the remediated surface's compliance" a settled intention.
+**(2b) Source-equivalence re-audit (the empty-diff-since-the-remediation-keystone case).** The §(2)
+diff is run against the *predecessor report's* pinned commit, which is pre-remediation — so it shows
+wholesale change. But also diff against the **remediation spec's keystone implementation commit** (the
+commit the prior pass's report was *implemented* as), because the source may be **byte-identical**
+between that keystone and the fetch baseline when only archival / doc-truthing / ledger / merge commits
+intervened. When `git diff --stat <remediation-keystone> <baseline>` over the §2 seams is **empty**, the
+remediated source *is* the audited source: there is no drift to reconcile, and the remediation's own
+**acceptance artifact describes the exact code at the baseline**. Frame this as an *advantage-and-trap*
+re-audit — advantage: the acceptance's per-finding closure table maps onto the baseline line-for-line;
+trap: this is precisely the recurrence being audited, so **re-verify the acceptance's own `pass` /
+qualified-`pass` rows from the code rather than inheriting them**, and record genuinely-closed properties
+as *present* while reporting any `pass` that the code does not bear out. State the dual-diff result in
+§1 (wholesale vs. the report's commit; empty vs. the keystone) so Session 2 reads the posture correctly.
+Which commit you diff against decides the posture: against the report's pre-remediation commit gauges
+how much changed since the *audit*; against the keystone decides source-equivalence vs. drift.
 
 ### 2. Read in full (authority order)
 

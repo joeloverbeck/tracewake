@@ -1,10 +1,11 @@
 use crate::actions::{PipelineResult, ValidationReport};
-use crate::debug_capability::DebugCapability;
+use crate::debug_capability::{DebugCapability, DebugSessionAuthority};
 use crate::events::EventEnvelope;
 use crate::ids::EventId;
 use crate::scheduler::no_human::NoHumanDayReport;
 use crate::scheduler::{AdvanceUntilResult, WorldAdvanceResult};
 use crate::time::SimTick;
+use crate::view_models::TypedActorKnownIntervalSummary;
 
 /// Immutable runtime receipt.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -16,7 +17,7 @@ pub struct RuntimeReceipt {
 pub enum RuntimeReceiptKind {
     OneTickAdvanced(WorldAdvanceResult),
     ActionSubmitted(RuntimeActionReceipt),
-    Continued(AdvanceUntilResult),
+    Continued(ContinuedRuntimeReceipt),
     NoHumanDay(NoHumanDayReport),
     Embodied(EmbodiedRuntimeReceipt),
     Debug(DebugRuntimeReceipt),
@@ -26,6 +27,16 @@ pub enum RuntimeReceiptKind {
 pub struct RuntimeActionReceipt {
     pub report: ValidationReport,
     pub appended_events: Vec<EventEnvelope>,
+}
+
+/// Actor-legible continuation product. It carries whether visible progress
+/// occurred and the core-built actor-known interval summary, but not exact
+/// scheduler ticks, frontiers, stop reasons, or replay event identifiers.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ContinuedRuntimeReceipt {
+    advanced: bool,
+    appended_event_count: usize,
+    actor_known_interval_summary: Option<TypedActorKnownIntervalSummary>,
 }
 
 /// Actor-legible runtime product. It intentionally carries qualitative text
@@ -61,7 +72,9 @@ impl RuntimeReceipt {
 
     pub(crate) fn continued(result: AdvanceUntilResult) -> Self {
         Self {
-            kind: RuntimeReceiptKind::Continued(result),
+            kind: RuntimeReceiptKind::Continued(
+                ContinuedRuntimeReceipt::from_advance_until_result(result),
+            ),
         }
     }
 
@@ -111,6 +124,30 @@ impl From<PipelineResult> for RuntimeActionReceipt {
     }
 }
 
+impl ContinuedRuntimeReceipt {
+    fn from_advance_until_result(result: AdvanceUntilResult) -> Self {
+        Self {
+            advanced: result.ticks_advanced > 0,
+            appended_event_count: result.appended_event_ids.len(),
+            actor_known_interval_summary: result
+                .actor_known_interval_delta
+                .map(TypedActorKnownIntervalSummary::from_actor_known_delta),
+        }
+    }
+
+    pub fn advanced(&self) -> bool {
+        self.advanced
+    }
+
+    pub fn appended_event_count(&self) -> usize {
+        self.appended_event_count
+    }
+
+    pub fn actor_known_interval_summary(&self) -> Option<&TypedActorKnownIntervalSummary> {
+        self.actor_known_interval_summary.as_ref()
+    }
+}
+
 impl EmbodiedRuntimeReceipt {
     pub(crate) fn new(actor_visible_summary: impl Into<String>, provenance: Vec<String>) -> Self {
         Self {
@@ -130,14 +167,14 @@ impl EmbodiedRuntimeReceipt {
 
 impl DebugRuntimeReceipt {
     pub(crate) fn new(
-        capability: DebugCapability,
+        authority: &DebugSessionAuthority,
         prior_tick: SimTick,
         resulting_tick: SimTick,
         event_ids: Vec<EventId>,
         stop_reason: Option<String>,
     ) -> Self {
         Self {
-            capability,
+            capability: authority.capability(),
             prior_tick,
             resulting_tick,
             event_ids,
@@ -169,6 +206,7 @@ impl DebugRuntimeReceipt {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::scheduler::AdvanceUntilStopReason;
 
     #[test]
     fn embodied_receipt_exposes_no_exact_temporal_authority() {
@@ -185,13 +223,49 @@ mod tests {
     }
 
     #[test]
+    fn continued_receipt_derives_progress_and_event_count_from_runtime_result() {
+        let stationary_with_events =
+            ContinuedRuntimeReceipt::from_advance_until_result(AdvanceUntilResult {
+                start_tick: SimTick::new(4),
+                stop_tick: SimTick::new(4),
+                ticks_advanced: 0,
+                stop_reason: AdvanceUntilStopReason::UserPausedBeforeNextTick,
+                appended_event_ids: vec![
+                    EventId::new("event.continue.marker.one").unwrap(),
+                    EventId::new("event.continue.marker.two").unwrap(),
+                ],
+                actor_known_interval_delta: None,
+            });
+
+        assert!(!stationary_with_events.advanced());
+        assert_eq!(stationary_with_events.appended_event_count(), 2);
+        assert!(stationary_with_events
+            .actor_known_interval_summary()
+            .is_none());
+
+        let advanced_without_events =
+            ContinuedRuntimeReceipt::from_advance_until_result(AdvanceUntilResult {
+                start_tick: SimTick::new(4),
+                stop_tick: SimTick::new(5),
+                ticks_advanced: 1,
+                stop_reason: AdvanceUntilStopReason::ControllerSafetyBound,
+                appended_event_ids: Vec::new(),
+                actor_known_interval_delta: None,
+            });
+
+        assert!(advanced_without_events.advanced());
+        assert_eq!(advanced_without_events.appended_event_count(), 0);
+    }
+
+    #[test]
     fn debug_receipt_is_capability_gated() {
         let event_ids = vec![
             EventId::new("event.debug.one").unwrap(),
             EventId::new("event.debug.two").unwrap(),
         ];
+        let authority = DebugSessionAuthority::mint();
         let receipt = DebugRuntimeReceipt::new(
-            DebugCapability::mint(),
+            &authority,
             SimTick::new(7),
             SimTick::new(9),
             event_ids.clone(),
@@ -204,13 +278,13 @@ mod tests {
         assert_eq!(receipt.event_ids(), event_ids.as_slice());
         assert_eq!(receipt.stop_reason(), Some("test"));
 
-        let non_debug = DebugRuntimeReceipt::new(
-            DebugCapability::test_non_debug(),
-            SimTick::new(7),
-            SimTick::new(9),
+        let non_debug = DebugRuntimeReceipt {
+            capability: DebugCapability::test_non_debug(),
+            prior_tick: SimTick::new(7),
+            resulting_tick: SimTick::new(9),
             event_ids,
-            Some("test".to_string()),
-        );
+            stop_reason: Some("test".to_string()),
+        };
         assert!(!non_debug.debug_only());
     }
 }

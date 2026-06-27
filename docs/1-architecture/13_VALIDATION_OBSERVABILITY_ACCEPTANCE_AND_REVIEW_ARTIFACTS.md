@@ -111,6 +111,19 @@ mutation rerun with zero in-surface misses/timeouts plus the routed-forward
 `food_source` family that keeps the overall canonical perimeter honestly
 non-green.
 
+Acceptance result exclusivity is mandatory for foundational conformance
+artifacts. An artifact may not render `pass` while any flagged foundational
+violation, required governance control, or standing mutation residual remains
+open, pending, unbounded, or merely historical. Acceptance must include typed
+path-under-test evidence and a live negative or sensitivity proof for every
+protected authority claim. Production-constructor evidence must include a
+negative fixture for raw bootstrap fabrication, and interval products must be
+core-constructed, immutable from the public client boundary, and exact only
+through debug/operator authority. Display text, artifact existence, checksums,
+source guards, and workflow topology alarms are supporting evidence only; they
+cannot be the sole proof for behavior, unrepresentability, replay, or
+merge-enforced governance.
+
 Fairness and starvation review artifacts record which holders or processes were
 deferred, skipped, summarized, degraded, or blocked; why; for how long or
 across what source interval; the responsible layer; and what replay ancestry
@@ -184,6 +197,9 @@ A test does not pass if:
   reviewed phenomenon;
 - an acceptance artifact exists without typed, path-under-test behavior
   evidence for the protected claim;
+- an acceptance artifact renders `pass` while a flagged violation, required
+  governance control, or standing mutation residual remains open, pending,
+  unbounded, or merely historical;
 - a display string is the only proof;
 - replay matches final state but decision ancestry is missing;
 - an LLM output is required to make the test pass.

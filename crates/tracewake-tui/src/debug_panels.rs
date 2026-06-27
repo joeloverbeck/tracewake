@@ -355,27 +355,33 @@ mod tests {
     /// core-side `minted_debug_views` helper so the TUI seam carries its own
     /// behavior witness rather than relying on the source-text seam check.
     fn minted_view_model_key_pairs() -> Vec<(DebugViewModel, &'static str)> {
+        let authority = tracewake_core::debug_capability::DebugSessionAuthority::for_test();
         vec![
             (
                 DebugViewModel::ControllerBinding(DebugControllerBindingView::new(
+                    &authority,
                     Some("controller_human->actor_tomas".to_string()),
                     vec!["bound@0".to_string()],
                 )),
                 "debug:controller_binding",
             ),
             (
-                DebugViewModel::EventLog(DebugEventLogView::new(vec![DebugEventSummary {
-                    stream: EventStream::World,
-                    stream_position: 0,
-                    global_order: 0,
-                    event_type: "actor_waited".to_string(),
-                    actor_or_process: Some("actor_tomas".to_string()),
-                    participants: vec!["actor_tomas".to_string()],
-                }])),
+                DebugViewModel::EventLog(DebugEventLogView::new(
+                    &authority,
+                    vec![DebugEventSummary {
+                        stream: EventStream::World,
+                        stream_position: 0,
+                        global_order: 0,
+                        event_type: "actor_waited".to_string(),
+                        actor_or_process: Some("actor_tomas".to_string()),
+                        participants: vec!["actor_tomas".to_string()],
+                    }],
+                )),
                 "debug:event_log",
             ),
             (
                 DebugViewModel::ItemLocation(DebugItemLocationView::new(
+                    &authority,
                     ItemId::new("coin_stack_01").unwrap(),
                     "container:strongbox_tomas",
                 )),
@@ -383,22 +389,28 @@ mod tests {
             ),
             (
                 DebugViewModel::ActionRejection(Box::new(DebugActionRejectionView::new(
+                    &authority,
                     minted_validation_report(),
                 ))),
                 "debug:action_rejection",
             ),
             (
                 DebugViewModel::ProjectionRebuild(DebugProjectionRebuildView::new(
+                    &authority,
                     "projection rebuild matched",
                 )),
                 "debug:projection_rebuild",
             ),
             (
-                DebugViewModel::ReplayReport(DebugReplayReportView::new("replay matched")),
+                DebugViewModel::ReplayReport(DebugReplayReportView::new(
+                    &authority,
+                    "replay matched",
+                )),
                 "debug:replay_report",
             ),
             (
                 DebugViewModel::Epistemics(DebugEpistemicsView::new(
+                    &authority,
                     "debug",
                     Vec::new(),
                     Vec::new(),
@@ -410,6 +422,7 @@ mod tests {
             ),
             (
                 DebugViewModel::Beliefs(DebugBeliefsView::new(
+                    &authority,
                     ActorId::new("actor_tomas").unwrap(),
                     Vec::new(),
                 )),
@@ -417,6 +430,7 @@ mod tests {
             ),
             (
                 DebugViewModel::Observations(DebugObservationsView::new(
+                    &authority,
                     ActorId::new("actor_tomas").unwrap(),
                     Vec::new(),
                 )),
@@ -424,6 +438,7 @@ mod tests {
             ),
             (
                 DebugViewModel::TruthBeliefMismatch(DebugTruthBeliefMismatchView::new(
+                    &authority,
                     ItemId::new("coin_stack_01").unwrap(),
                     "container:strongbox_tomas",
                     "holder believes coin is missing",

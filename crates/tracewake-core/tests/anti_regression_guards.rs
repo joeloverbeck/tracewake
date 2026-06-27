@@ -49,6 +49,8 @@ const GENERATIVE_LOCK_RS: &str = include_str!("generative_lock.rs");
 const HIDDEN_TRUTH_GATES_RS: &str = include_str!("hidden_truth_gates.rs");
 const ANTI_REGRESSION_GUARDS_RS: &str = include_str!("anti_regression_guards.rs");
 const NEGATIVE_FIXTURE_RUNNER_RS: &str = include_str!("negative_fixture_runner.rs");
+const SUPPORT_ACCEPTANCE_STATUS_MANIFEST_RS: &str =
+    include_str!("support/acceptance_status_manifest.rs");
 const SUPPORT_GENERATIVE_RS: &str = include_str!("support/generative.rs");
 const SUPPORT_MOD_RS: &str = include_str!("support/mod.rs");
 const CONTENT_LOAD_RS: &str = include_str!("../../tracewake-content/src/load.rs");
@@ -190,26 +192,26 @@ const EMBODIED_SURFACE_FIELD_PRODUCERS: &[EmbodiedSurfaceFieldProducer] =
         EmbodiedSurfaceFieldProducer {
             struct_name: "EmbodiedViewModel",
             field_name: "notebook",
-            source_path: "tracewake-tui/src/app.rs",
+            source_path: "tracewake-core/src/runtime/session.rs",
             producer_snippet: "view.set_notebook(Some(build_notebook_view",
             cite: "docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md",
-            rationale: "The core projection builds the embodied shell and the TUI boundary attaches the actor-known notebook from the same sealed view context.",
+            rationale: "The core runtime builds the embodied shell and attaches the actor-known notebook from the same sealed view context.",
         },
         EmbodiedSurfaceFieldProducer {
             struct_name: "EmbodiedViewModel",
             field_name: "debug_available",
-            source_path: "tracewake-tui/src/app.rs",
-            producer_snippet: "view.set_debug_available(self.debug_available_for(actor_id));",
+            source_path: "tracewake-core/src/runtime/session.rs",
+            producer_snippet: "view.set_debug_available(self.controller_debug_available_for(controller_id, actor_id));",
             cite: "specs/0021_PHASE_3A_POSSESSION_REBIND_HYGIENE_GUARD_VACUITY_CLOSURE_HARNESS_PROVENANCE_FIDELITY_AND_REJECT_LOUDLY_REPLAY_POSTURE_HARDENING_SPEC.md",
-            rationale: "Core leaves debug availability false; the TUI boundary derives it from the live controller binding for the viewed actor.",
+            rationale: "Core derives debug availability from the live controller binding for the viewed actor.",
         },
         EmbodiedSurfaceFieldProducer {
             struct_name: "EmbodiedViewModel",
             field_name: "actor_known_interval_summary",
-            source_path: "tracewake-tui/src/app.rs",
-            producer_snippet: "view.set_actor_known_interval_summary(self.last_interval_summary.clone());",
+            source_path: "tracewake-core/src/runtime/session.rs",
+            producer_snippet: "view.set_actor_known_interval_summary(actor_known_interval_summary);",
             cite: "archive/specs/0047_TUI_AUTHORITATIVE_WORLD_ADVANCE_DURATION_COMPLETION_AND_ACTOR_KNOWN_INTERVAL_SUMMARIES_SPEC.md",
-            rationale: "Core builds the sealed embodied shell; the TUI boundary attaches the last completed advance summary constructed from source-bearing interval inputs.",
+            rationale: "Core builds the sealed embodied shell and attaches the last completed advance summary constructed from source-bearing interval inputs.",
         },
         EmbodiedSurfaceFieldProducer {
             struct_name: "ActionAvailability",
@@ -9398,6 +9400,10 @@ fn typed_column_closure_exemption_errors(
 fn generative_lock_cannot_fabricate_duration_terminals() {
     let sources = [
         ("generative_lock.rs", GENERATIVE_LOCK_RS),
+        (
+            "support/acceptance_status_manifest.rs",
+            SUPPORT_ACCEPTANCE_STATUS_MANIFEST_RS,
+        ),
         ("support/generative.rs", SUPPORT_GENERATIVE_RS),
         ("support/mod.rs", SUPPORT_MOD_RS),
     ];
@@ -9486,6 +9492,10 @@ fn generative_lock_cannot_fabricate_duration_terminals() {
 
 fn support_event_envelope_scan_sources() -> BTreeSet<String> {
     [
+        (
+            "support/acceptance_status_manifest.rs",
+            SUPPORT_ACCEPTANCE_STATUS_MANIFEST_RS,
+        ),
         ("support/generative.rs", SUPPORT_GENERATIVE_RS),
         ("support/mod.rs", SUPPORT_MOD_RS),
     ]

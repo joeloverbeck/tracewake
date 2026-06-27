@@ -8,7 +8,7 @@ use tracewake_core::events::{
 use tracewake_core::ids::{
     ActionId, ActorId, ContentManifestId, ContentVersion, EventId, PlaceId, ProcessId,
 };
-use tracewake_core::runtime::LoadedWorldBootstrap;
+use tracewake_core::runtime::ValidatedLoadedWorldBootstrap;
 use tracewake_core::scheduler::{OrderingKey, ProposalSequence, SchedulePhase, SchedulerSourceId};
 use tracewake_core::time::SimTick;
 
@@ -56,8 +56,8 @@ impl LoadedFixture {
     pub fn into_runtime_bootstrap(
         self,
         registry: tracewake_core::actions::ActionRegistry,
-    ) -> LoadedWorldBootstrap {
-        LoadedWorldBootstrap::from_loaded_state(
+    ) -> ValidatedLoadedWorldBootstrap {
+        ValidatedLoadedWorldBootstrap::from_validated_content(
             registry,
             self.canonical_world,
             self.canonical_agent_state,

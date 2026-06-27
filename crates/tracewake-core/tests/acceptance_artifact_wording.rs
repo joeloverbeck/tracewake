@@ -1,3 +1,7 @@
+mod support;
+
+use support::acceptance_status_manifest::{validate_status_manifest, ComputedResult, STATUS_FENCE};
+
 const TEMPLATE: &str = include_str!("../../../docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md");
 const PHASE2A_ARTIFACT: &str =
     include_str!("../../../archive/reports/0006PHA2A_ACCEPTANCE_ARTIFACT.md");
@@ -31,6 +35,14 @@ const FORBIDDEN_RESULT_CLAIMS: &[&str] = &[
     "Archived specs are live authority.",
     "Project is P0 certified.",
     "SPINE-CERT passed.",
+];
+
+const CONDITIONAL_CLOSURE_CLAIMS: &[&str] = &[
+    "pass with",
+    "scoped pass",
+    "accepted",
+    "green canonical perimeter",
+    "canonical perimeter green",
 ];
 
 #[test]
@@ -100,6 +112,106 @@ fn acceptance_artifact_missing_scoped_phrase_fails() {
         .contains("missing scoped exact-commit wording"));
 }
 
+#[test]
+fn status_manifest_blocks_pass_shaped_wording_over_open_items() {
+    let artifact = format!(
+        "{} `<commit>`.\n\nVerdict: scoped pass accepted.\n\n{}",
+        REQUIRED_PHASE1_SCOPED_WORDING,
+        synthetic_status_manifest(
+            "non-pass",
+            "pending/unverified",
+            "open",
+            "none",
+            &open_findings(),
+            &[],
+        )
+    );
+
+    assert!(validate_acceptance_artifact_wording(&artifact)
+        .unwrap_err()
+        .contains("closure wording over non-pass status manifest"));
+}
+
+#[test]
+fn status_manifest_blocks_green_perimeter_with_survivors() {
+    let artifact = format!(
+        "{} `<commit>`.\n\nThe canonical perimeter green claim is ready.\n\n{}",
+        REQUIRED_PHASE1_SCOPED_WORDING,
+        synthetic_status_manifest(
+            "pass",
+            "enforced",
+            "non-blocking-bounded-forcing",
+            "food_source_fact_supersedes",
+            &closed_findings(),
+            &["survivor: food_source_fact_supersedes | routed-forward | owner=projection | reason=cross-cutting semantic closure | next_move=next projection remediation | max_epochs=1 | failing_check=cargo mutants -f crates/tracewake-core/src/projections.rs"],
+        )
+    );
+
+    assert!(validate_acceptance_artifact_wording(&artifact)
+        .unwrap_err()
+        .contains("green perimeter wording with mutation survivors"));
+}
+
+#[test]
+fn status_manifest_requires_branch_protection_transcript_for_enforced_claims() {
+    let artifact = format!(
+        "{} `<commit>`.\n\nBranch protection is enforced for main.\n\n{}",
+        REQUIRED_PHASE1_SCOPED_WORDING,
+        synthetic_status_manifest(
+            "pass",
+            "enforced",
+            "killed",
+            "none",
+            &closed_findings(),
+            &[],
+        )
+    );
+
+    assert!(validate_acceptance_artifact_wording(&artifact)
+        .unwrap_err()
+        .contains("branch-protection enforcement claim lacks API transcript"));
+}
+
+#[test]
+fn status_manifest_blocks_historical_results_as_current_certification() {
+    let artifact = format!(
+        "{} `<commit>`.\n\nHistorical command results certify current status.\n\nBranch-protection API transcript: gh api repos/:owner/:repo/branches/main/protection.\n\n{}",
+        REQUIRED_PHASE1_SCOPED_WORDING,
+        synthetic_status_manifest(
+            "pass",
+            "enforced",
+            "killed",
+            "none",
+            &closed_findings(),
+            &[],
+        )
+    );
+
+    assert!(validate_acceptance_artifact_wording(&artifact)
+        .unwrap_err()
+        .contains("historical command results as current certification"));
+}
+
+#[test]
+fn status_manifest_blocks_display_string_as_sole_behavior_evidence() {
+    let artifact = format!(
+        "{} `<commit>`.\n\nBranch-protection API transcript: gh api repos/:owner/:repo/branches/main/protection.\n\nEvidence row: display string as sole evidence for behavior claim.\n\n{}",
+        REQUIRED_PHASE1_SCOPED_WORDING,
+        synthetic_status_manifest(
+            "pass",
+            "enforced",
+            "killed",
+            "none",
+            &closed_findings(),
+            &[],
+        )
+    );
+
+    assert!(validate_acceptance_artifact_wording(&artifact)
+        .unwrap_err()
+        .contains("display string as sole behavior evidence"));
+}
+
 fn validate_acceptance_artifact_wording(text: &str) -> Result<(), String> {
     if !text.contains(REQUIRED_PHASE1_SCOPED_WORDING)
         && !text.contains(REQUIRED_PHASE2A_SCOPED_WORDING)
@@ -117,10 +229,89 @@ fn validate_acceptance_artifact_wording(text: &str) -> Result<(), String> {
         }
     }
 
+    if text.contains(STATUS_FENCE) {
+        let manifest = validate_status_manifest(text)?;
+        let lower_claim_text = result_claim_text.to_ascii_lowercase();
+        if manifest.computed_result == ComputedResult::NonPass
+            && CONDITIONAL_CLOSURE_CLAIMS
+                .iter()
+                .any(|claim| lower_claim_text.contains(claim))
+        {
+            return Err("closure wording over non-pass status manifest".to_string());
+        }
+        if manifest.has_mutation_survivors
+            && (lower_claim_text.contains("green canonical perimeter")
+                || lower_claim_text.contains("canonical perimeter green"))
+        {
+            return Err("green perimeter wording with mutation survivors".to_string());
+        }
+        if text.contains("Branch protection is enforced")
+            && !text.contains("Branch-protection API transcript:")
+            && !text.contains("Ruleset API transcript:")
+        {
+            return Err("branch-protection enforcement claim lacks API transcript".to_string());
+        }
+        if lower_claim_text.contains("historical command results certify current") {
+            return Err("historical command results as current certification".to_string());
+        }
+        if lower_claim_text.contains("display string as sole evidence")
+            || lower_claim_text.contains("artifact existence as sole evidence")
+            || lower_claim_text.contains("checksum as sole evidence")
+            || lower_claim_text.contains("source guard as sole evidence")
+        {
+            return Err("display string as sole behavior evidence".to_string());
+        }
+    }
+
     Ok(())
 }
 
 fn text_before_forbidden_wording_section(text: &str) -> &str {
     text.split_once(FORBIDDEN_WORDING_HEADING)
         .map_or(text, |(result_claim_text, _)| result_claim_text)
+}
+
+fn closed_findings() -> [&'static str; 6] {
+    [
+        "finding: F5-01 | closed | evidence=sealed bootstrap constructor | negative=external bootstrap negative fixture",
+        "finding: F5-02 | closed | evidence=sealed interval product | negative=external interval negative fixture",
+        "finding: F5-03 | closed | evidence=debug session authority token | negative=external debug command negative fixture",
+        "finding: F5-04 | closed | evidence=branch protection API transcript | negative=governance audit pending failure witness",
+        "finding: F5-05 | closed | evidence=food source projection behavior tests | negative=focused mutation survivor kills",
+        "finding: F5-06 | closed | evidence=manifest consumer and wording guard | negative=synthetic contradictory manifest",
+    ]
+}
+
+fn open_findings() -> [&'static str; 6] {
+    [
+        "finding: F5-01 | closed | evidence=sealed bootstrap constructor | negative=external bootstrap negative fixture",
+        "finding: F5-02 | open",
+        "finding: F5-03 | closed | evidence=debug session authority token | negative=external debug command negative fixture",
+        "finding: F5-04 | pending-governance",
+        "finding: F5-05 | closed | evidence=food source projection behavior tests | negative=focused mutation survivor kills",
+        "finding: F5-06 | closed | evidence=manifest consumer and wording guard | negative=synthetic contradictory manifest",
+    ]
+}
+
+fn synthetic_status_manifest(
+    overall_result: &str,
+    branch_protection: &str,
+    mutation_status: &str,
+    mutation_survivors: &str,
+    findings: &[&str],
+    survivors: &[&str],
+) -> String {
+    let mut lines = vec![
+        "```tracewake-acceptance-status".to_string(),
+        format!("overall_result: {overall_result}"),
+        "commit_under_test: 0123456789abcdef0123456789abcdef01234567".to_string(),
+        "source_acquisition: clean local checkout".to_string(),
+        format!("branch_protection: {branch_protection}"),
+        format!("mutation_status: {mutation_status}"),
+        format!("mutation_survivors: {mutation_survivors}"),
+    ];
+    lines.extend(findings.iter().map(|line| (*line).to_string()));
+    lines.extend(survivors.iter().map(|line| (*line).to_string()));
+    lines.push("```".to_string());
+    lines.join("\n")
 }
