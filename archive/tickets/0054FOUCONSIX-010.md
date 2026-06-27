@@ -1,6 +1,6 @@
 # 0054FOUCONSIX-010: Post-closure conformance doc-truthing (cross-cutting docs)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Engine Changes**: None — live-conformance doc edits only (`docs/1-architecture/04`, `docs/1-architecture/10`, `docs/2-execution/05`, `docs/2-execution/07`)
 **Effort**: Small
@@ -76,3 +76,18 @@ Truth the rows so a normal one-tick wait cannot expose debug-grade scheduler int
 1. `grep -nE "sealed|validated|operator|actor-legible" docs/1-architecture/04_*.md docs/1-architecture/10_*.md docs/2-execution/05_*.md docs/2-execution/07_*.md`
 2. `! grep -nE "from_loaded_state|OneTickAdvanced\(WorldAdvanceResult\)" docs/1-architecture/04_*.md docs/1-architecture/10_*.md docs/2-execution/05_*.md docs/2-execution/07_*.md`
 3. Narrower than a `cargo` run because this is a doc-only truthing ticket: verification is grep-based landing + an invariants-alignment manual review against the landed seals.
+
+## Outcome
+
+Completed: 2026-06-27
+
+Truthed the four live-conformance rows after the sixth-hardening seals and standing mutation rerun landed. The target docs now cite current `0054` evidence for the re-sealed validated bootstrap, actor-legible one-tick wait receipt, non-inducible operator debug authority, focused survivor closure, and standing mutation rerun. The rows no longer describe debug authority as ordinary public self-bind or runtime-minted through controller state.
+
+Verification:
+
+- `grep -nE "sealed|validated|negative" docs/1-architecture/04_ACTION_PROPOSAL_VALIDATION_SCHEDULING_AND_FEEDBACK_PIPELINE.md docs/2-execution/05_TRANSACTION_SCHEDULER_ACTION_PIPELINE_AND_NO_DIRECT_DISPATCH.md` passed.
+- `grep -nE "operator|actor-legible|debug" docs/1-architecture/10_POSSESSION_TUI_VIEW_MODELS_DEBUG_AND_CLIENT_BOUNDARIES.md docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md` passed.
+- `grep -nE "from_loaded_state|public raw|OneTickAdvanced\(WorldAdvanceResult\)" docs/1-architecture/04_*.md docs/1-architecture/10_*.md docs/2-execution/05_*.md docs/2-execution/07_*.md` returned no matches.
+- `git diff --check` passed.
+
+No code or archived evidence artifacts changed for this documentation-only ticket.
