@@ -86,7 +86,7 @@ const FIXTURES: &[NegativeFixture] = &[
     },
     NegativeFixture {
         name: "external_crate_cannot_construct_loaded_world_bootstrap_from_seed_parts",
-        expected_stderr: "no function or associated item named `from_seed_parts`",
+        expected_stderr: "associated function `from_validated_seed_parts` is private",
     },
     NegativeFixture {
         name: "external_crate_cannot_mutate_agent_state_seed_maps",

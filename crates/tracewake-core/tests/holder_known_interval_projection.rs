@@ -138,7 +138,7 @@ fn embodied_context_from_projection(
     tick: SimTick,
     frontier: u64,
 ) -> KnowledgeContext {
-    let state = PhysicalState::from_validated_seed_parts(
+    let state = PhysicalState::from_test_seed_parts(
         BTreeMap::from([(
             actor_id.clone(),
             ActorBody::new(actor_id.clone(), place_id()),

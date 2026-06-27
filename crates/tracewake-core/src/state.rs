@@ -220,7 +220,7 @@ impl PhysicalState {
         clippy::too_many_arguments,
         reason = "Seed construction mirrors authoritative state collections."
     )]
-    pub fn from_validated_seed_parts(
+    pub(crate) fn from_validated_seed_parts(
         actors: BTreeMap<ActorId, ActorBody>,
         places: BTreeMap<PlaceId, PlaceState>,
         doors: BTreeMap<DoorId, DoorState>,
@@ -250,6 +250,35 @@ impl PhysicalState {
         reason = "Test seed construction mirrors authoritative state collections."
     )]
     pub fn from_test_seed_parts(
+        actors: BTreeMap<ActorId, ActorBody>,
+        places: BTreeMap<PlaceId, PlaceState>,
+        doors: BTreeMap<DoorId, DoorState>,
+        containers: BTreeMap<ContainerId, ContainerState>,
+        items: BTreeMap<ItemId, ItemState>,
+        food_supplies: BTreeMap<FoodSupplyId, FoodSupplyState>,
+        workplaces: BTreeMap<WorkplaceId, WorkplaceState>,
+        sleep_affordances: BTreeMap<SleepAffordanceId, SleepAffordanceState>,
+        need_model: NeedModelState,
+    ) -> Self {
+        Self {
+            actors,
+            places,
+            doors,
+            containers,
+            items,
+            food_supplies,
+            workplaces,
+            sleep_affordances,
+            need_model,
+        }
+    }
+
+    #[doc(hidden)]
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "Validated content assembly mirrors authoritative state collections."
+    )]
+    pub fn from_validated_content_parts(
         actors: BTreeMap<ActorId, ActorBody>,
         places: BTreeMap<PlaceId, PlaceState>,
         doors: BTreeMap<DoorId, DoorState>,
@@ -311,7 +340,7 @@ impl PhysicalState {
 }
 
 impl AgentState {
-    pub fn from_validated_seed_parts(
+    pub(crate) fn from_validated_seed_parts(
         needs_by_actor: BTreeMap<ActorId, BTreeMap<NeedKind, NeedState>>,
         intentions: BTreeMap<IntentionId, Intention>,
         active_intention_by_actor: BTreeMap<ActorId, IntentionId>,
@@ -336,6 +365,30 @@ impl AgentState {
 
     #[cfg(any(test, feature = "test-support"))]
     pub fn from_test_seed_parts(
+        needs_by_actor: BTreeMap<ActorId, BTreeMap<NeedKind, NeedState>>,
+        intentions: BTreeMap<IntentionId, Intention>,
+        active_intention_by_actor: BTreeMap<ActorId, IntentionId>,
+        routine_executions: BTreeMap<RoutineExecutionId, RoutineExecution>,
+        decision_traces: BTreeMap<DecisionTraceId, DecisionTraceRecord>,
+        stuck_diagnostics: BTreeMap<StuckDiagnosticId, StuckDiagnosticRecord>,
+    ) -> Self {
+        Self {
+            needs_by_actor,
+            need_tick_charges: BTreeSet::new(),
+            intentions,
+            active_intention_by_actor,
+            routine_executions,
+            decision_traces,
+            stuck_diagnostics,
+            need_threshold_crossings: BTreeMap::new(),
+            ordinary_life_episodes: BTreeMap::new(),
+            candidate_goal_evaluations: BTreeMap::new(),
+            continue_routine_arbitrations: BTreeMap::new(),
+        }
+    }
+
+    #[doc(hidden)]
+    pub fn from_validated_content_parts(
         needs_by_actor: BTreeMap<ActorId, BTreeMap<NeedKind, NeedState>>,
         intentions: BTreeMap<IntentionId, Intention>,
         active_intention_by_actor: BTreeMap<ActorId, IntentionId>,

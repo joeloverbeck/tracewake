@@ -1,6 +1,6 @@
 # 0054FOUCONSIX-001: Re-sealed validated-bootstrap construction (atomic cutover)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` runtime/state authority surface (reseal `PhysicalState::from_validated_seed_parts` / `AgentState::from_validated_seed_parts` / `ValidatedLoadedWorldBootstrap::from_validated_content`); `tracewake-content` loader/schema assembly migration; rewritten external negative fixture
@@ -25,7 +25,7 @@ The 0053 negative fixture `external_crate_cannot_construct_loaded_world_bootstra
 ## Architecture Check
 
 1. Sealing "validated loaded-world bootstrap" at the **type boundary** (a sealed package/witness owned by the validated-content path, or crate-private constructors with a production assembly API) makes the bad state unrepresentable rather than merely discouraged — the cycle-breaking layer the fourth/fifth passes missed by renaming instead of resealing. A convention beside a public raw constructor is not a boundary; a sealed product type is.
-2. **Authority-topology decision (implementer-recorded, §10.1):** record here which of (a) crate-private/test-support-only seed-part constructors + a production assembly API that never accepts caller-built maps, (b) an unforgeable validation/assembly witness token obtainable only via the content-validation path, or (c) a content-owned sealed package type with private fields bound to schema/provenance validation, is chosen — with the boundary/dependency-direction rationale. Core must not depend on content; the sealed authority lives in `tracewake-core` (or a dedicated internal authority crate preserving the one-way direction). No backwards-compatibility aliasing/shims; a temporary internal adapter to migrate core tests, if any, is removed before closeout.
+2. **Authority-topology decision (implemented 2026-06-27):** selected the narrow variant of (a): the stale public `PhysicalState::from_validated_seed_parts` / `AgentState::from_validated_seed_parts` names are crate-private, core tests use the explicit test-support constructors, and `tracewake-content` uses an explicit validated-content handoff (`from_validated_content_parts`) only after `FixtureValidationToken` has been minted by the content validation gate. This preserves the `core` ← `content` dependency direction and closes the externally-visible live-symbol attack exercised by the negative fixture. No backwards-compatibility alias or stale `from_seed_parts` route is left.
 
 ## Verification Layers
 
@@ -101,3 +101,30 @@ Rewrite `tests/negative-fixtures/external_crate_cannot_construct_loaded_world_bo
 1. `cargo test -p tracewake-core --test negative_fixture_runner`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
 3. `cargo mutants -f crates/tracewake-core/src/runtime/session.rs -f crates/tracewake-core/src/state.rs` — focused campaign over the resealed constructors for fast feedback (the standing campaign is ticket 009).
+
+## Outcome
+
+Completed: 2026-06-27
+
+Implemented the bootstrap reseal cutover for the live F6-01 constructor attack:
+
+- made `PhysicalState::from_validated_seed_parts` and `AgentState::from_validated_seed_parts` crate-private;
+- moved in-crate test construction to `from_test_seed_parts`;
+- routed validated content materialization through explicit `from_validated_content_parts` handoff constructors;
+- required `FixtureValidationToken` for `FixtureSchema::to_physical_state`, matching the existing token gate on `to_agent_state`;
+- rewrote `external_crate_cannot_construct_loaded_world_bootstrap_from_seed_parts` to attack the live `from_validated_seed_parts` / `from_validated_content` composition rather than obsolete `from_seed_parts` / `from_loaded_state` names;
+- updated the negative fixture runner to expect the live-symbol privacy diagnostic.
+
+Verification:
+
+- `cargo test -p tracewake-core --test negative_fixture_runner` — passed.
+- `cargo test -p tracewake-content loaded_fixture_exports_scheduler_free_runtime_bootstrap` — passed; the validated content loader still constructs a runtime bootstrap and advances one tick.
+- `cargo fmt --all --check` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo test --workspace` — passed.
+- `cargo mutants --list -f crates/tracewake-core/src/runtime/session.rs -f crates/tracewake-core/src/state.rs --no-config` — completed as a denominator check for the two-file focused surface.
+
+Deviation / evidence limitation:
+
+- The exact ticket-listed focused command `cargo mutants -f crates/tracewake-core/src/runtime/session.rs -f crates/tracewake-core/src/state.rs` selected `3425` mutants under the repository mutation configuration, i.e. the standing-size perimeter rather than a narrow ticket-001 feedback campaign. It produced no progress output after the initial selection line and was interrupted with Ctrl-C before it became ticket 009's standing campaign. No mutation pass is claimed for ticket 001; the standing mutation proof remains owned by `0054FOUCONSIX-009`.

@@ -88,7 +88,7 @@ fn physical_state_with_remote_actor(
             visibility_default: VisibilityDefault::Visible,
         },
     );
-    PhysicalState::from_validated_seed_parts(
+    PhysicalState::from_test_seed_parts(
         actors,
         places,
         BTreeMap::new(),
@@ -102,7 +102,7 @@ fn physical_state_with_remote_actor(
 }
 
 fn agent_state() -> AgentState {
-    AgentState::from_validated_seed_parts(
+    AgentState::from_test_seed_parts(
         BTreeMap::new(),
         BTreeMap::new(),
         BTreeMap::new(),

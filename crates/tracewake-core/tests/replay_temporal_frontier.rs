@@ -183,7 +183,7 @@ fn loaded_world(actor_ids: &[ActorId]) -> (PhysicalState, AgentState) {
             visibility_default: VisibilityDefault::Visible,
         },
     );
-    let physical = PhysicalState::from_validated_seed_parts(
+    let physical = PhysicalState::from_test_seed_parts(
         actors,
         places,
         BTreeMap::new(),
@@ -199,7 +199,7 @@ fn loaded_world(actor_ids: &[ActorId]) -> (PhysicalState, AgentState) {
     for actor_id in actor_ids {
         needs_by_actor.insert(actor_id.clone(), initial_needs());
     }
-    let agent = AgentState::from_validated_seed_parts(
+    let agent = AgentState::from_test_seed_parts(
         needs_by_actor,
         BTreeMap::new(),
         BTreeMap::new(),
@@ -782,7 +782,7 @@ fn scheduler_restore_rejects_actor_authority_not_backed_by_loaded_actor_state() 
         actors[1].clone(),
         initial_agent.needs_by_actor()[&actors[1]].clone(),
     )]);
-    no_agent_state.final_agent_state = AgentState::from_validated_seed_parts(
+    no_agent_state.final_agent_state = AgentState::from_test_seed_parts(
         remaining_needs,
         BTreeMap::new(),
         BTreeMap::new(),
