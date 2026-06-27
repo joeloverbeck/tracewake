@@ -86,6 +86,13 @@ struct ParsedManifest {
     expected_findings: Vec<String>,
     branch_protection: String,
     governance_independence: String,
+    mutation_evidence: String,
+    mutation_denominator: String,
+    mutation_caught: String,
+    mutation_unviable: String,
+    mutation_missed: String,
+    mutation_timeout: String,
+    mutation_baseline_reconciliation: String,
     mutation_status: String,
     mutation_survivors: String,
     findings: BTreeMap<String, Finding>,
@@ -147,6 +154,13 @@ fn parse_status_block(block: &str) -> Result<ParsedManifest, String> {
             | "expected_findings"
             | "branch_protection"
             | "governance_independence"
+            | "mutation_evidence"
+            | "mutation_denominator"
+            | "mutation_caught"
+            | "mutation_unviable"
+            | "mutation_missed"
+            | "mutation_timeout"
+            | "mutation_baseline_reconciliation"
             | "mutation_status"
             | "mutation_survivors" => {
                 if scalars.insert(key.to_string(), value.to_string()).is_some() {
@@ -164,6 +178,13 @@ fn parse_status_block(block: &str) -> Result<ParsedManifest, String> {
         "expected_findings",
         "branch_protection",
         "governance_independence",
+        "mutation_evidence",
+        "mutation_denominator",
+        "mutation_caught",
+        "mutation_unviable",
+        "mutation_missed",
+        "mutation_timeout",
+        "mutation_baseline_reconciliation",
         "mutation_status",
         "mutation_survivors",
     ] {
@@ -197,6 +218,15 @@ fn parse_status_block(block: &str) -> Result<ParsedManifest, String> {
         expected_findings,
         branch_protection: scalars.remove("branch_protection").unwrap(),
         governance_independence: scalars.remove("governance_independence").unwrap(),
+        mutation_evidence: scalars.remove("mutation_evidence").unwrap(),
+        mutation_denominator: scalars.remove("mutation_denominator").unwrap(),
+        mutation_caught: scalars.remove("mutation_caught").unwrap(),
+        mutation_unviable: scalars.remove("mutation_unviable").unwrap(),
+        mutation_missed: scalars.remove("mutation_missed").unwrap(),
+        mutation_timeout: scalars.remove("mutation_timeout").unwrap(),
+        mutation_baseline_reconciliation: scalars
+            .remove("mutation_baseline_reconciliation")
+            .unwrap(),
         mutation_status: scalars.remove("mutation_status").unwrap(),
         mutation_survivors: scalars.remove("mutation_survivors").unwrap(),
         findings,
@@ -283,6 +313,7 @@ fn compute_result(parsed: &ParsedManifest) -> Result<ComputedResult, String> {
 
     match parsed.mutation_status.as_str() {
         "killed" => {
+            validate_green_mutation_evidence(parsed)?;
             if parsed.mutation_survivors != "none" || !parsed.survivors.is_empty() {
                 pass = false;
             }
@@ -307,6 +338,45 @@ fn compute_result(parsed: &ParsedManifest) -> Result<ComputedResult, String> {
     } else {
         ComputedResult::NonPass
     })
+}
+
+fn validate_green_mutation_evidence(parsed: &ParsedManifest) -> Result<(), String> {
+    if !matches!(
+        parsed.mutation_evidence.as_str(),
+        "current-in-diff" | "current-full-campaign"
+    ) {
+        return Err(format!(
+            "mutation_status killed requires current mutation evidence, got {}",
+            parsed.mutation_evidence
+        ));
+    }
+    let denominator = parse_count("mutation_denominator", &parsed.mutation_denominator)?;
+    let caught = parse_count("mutation_caught", &parsed.mutation_caught)?;
+    let unviable = parse_count("mutation_unviable", &parsed.mutation_unviable)?;
+    let missed = parse_count("mutation_missed", &parsed.mutation_missed)?;
+    let timeout = parse_count("mutation_timeout", &parsed.mutation_timeout)?;
+    if denominator == 0 {
+        return Err("mutation_denominator must be non-zero for killed status".to_string());
+    }
+    if caught + unviable + missed + timeout != denominator {
+        return Err("mutation disposition counts must sum to denominator".to_string());
+    }
+    if missed != 0 || timeout != 0 {
+        return Err("mutation_status killed cannot include missed or timeout mutants".to_string());
+    }
+    if parsed.mutation_baseline_reconciliation != "current-reconciled" {
+        return Err(format!(
+            "mutation baseline reconciliation must be current-reconciled, got {}",
+            parsed.mutation_baseline_reconciliation
+        ));
+    }
+    Ok(())
+}
+
+fn parse_count(field: &str, value: &str) -> Result<u64, String> {
+    value
+        .parse()
+        .map_err(|_| format!("{field} must be an unsigned integer, got {value:?}"))
 }
 
 fn governance_is_independent(value: &str) -> bool {

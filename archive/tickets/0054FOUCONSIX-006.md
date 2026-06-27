@@ -1,6 +1,6 @@
 # 0054FOUCONSIX-006: PR-blocking mutation proof for guarded changes
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `.github/workflows/ci.yml` (required PR contexts include actual in-diff mutation proof); `crates/tracewake-core/tests/ci_workflow_guards.rs` (required-context topology guard); `crates/tracewake-core/tests/support/acceptance_status_manifest.rs` (mutation-evidence parser); `.cargo/mutants.toml` / `.cargo/mutants-baseline-misses.txt` / `crates/tracewake-core/tests/mutation_completion_merge.rs` as needed
@@ -83,3 +83,27 @@ Extend `ci_workflow_guards.rs` to assert the required-context set and that the t
 1. `cargo test -p tracewake-core --test ci_workflow_guards --test acceptance_status_manifest`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
 3. `cargo mutants -f crates/tracewake-core/tests/support/acceptance_status_manifest.rs` — extend the parser/guard mutation campaign to the mutation-evidence parser.
+
+## Outcome
+
+Completed: 2026-06-27
+
+Promoted actual mutation proof into the guarded required-context set. The governance-required-checks audit now includes `mutation in-diff (lock layer)`, and the full-surface mutation trigger text explicitly labels itself as an alarm, not proof; it points guarded changes at public-boundary conformance, in-diff mutation, and shard reconciliation.
+
+Filled ticket 004's mutation-evidence hook in the acceptance status manifest. A `mutation_status: killed` block now requires `mutation_evidence: current-in-diff` or `current-full-campaign`, a non-zero denominator, caught/unviable/missed/timeout counts that sum to the denominator, zero missed mutants, zero timeouts, and `mutation_baseline_reconciliation: current-reconciled`. Trigger-only or stale baseline evidence fails closed. The wording guard synthetic manifest was updated to carry the new closed fields.
+
+Verification run:
+
+- `cargo test -p tracewake-core --test ci_workflow_guards --test acceptance_status_manifest` — passed.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed after `cargo clean -p tracewake-core` removed corrupt generated artifacts left by the interrupted disk-full run.
+- `cargo test --workspace` — passed after the same generated-artifact cleanup.
+
+Mutation evidence:
+
+- `cargo mutants -f crates/tracewake-core/tests/support/acceptance_status_manifest.rs --list` was run before execution and selected 3445 workspace mutants under repository config, so the exact ticket command is not a focused parser proof.
+- `cargo mutants --no-config -f crates/tracewake-core/tests/support/acceptance_status_manifest.rs --list` selected 0 mutants because the focused file is test support rather than a normal production mutation target.
+- The full configured mutation command was not run as ticket-006 proof. Standing mutation completion remains ticket 009 scope.
+
+Unrelated pre-existing dirty paths left untouched: `.claude/skills/spec-to-tickets/SKILL.md`, `.claude/skills/spec-to-tickets/references/decomposition-patterns.md`, `CLAUDE.md`, and `tools/clean-build-scratch.sh`.

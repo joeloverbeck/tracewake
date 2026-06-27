@@ -313,6 +313,13 @@ fn synthetic_status_manifest(
         "expected_findings: F6-01,F6-02,F6-03,F6-04,F6-05,F6-06".to_string(),
         format!("branch_protection: {branch_protection}"),
         "governance_independence: independent-review".to_string(),
+        "mutation_evidence: current-in-diff".to_string(),
+        "mutation_denominator: 2".to_string(),
+        "mutation_caught: 2".to_string(),
+        "mutation_unviable: 0".to_string(),
+        "mutation_missed: 0".to_string(),
+        "mutation_timeout: 0".to_string(),
+        "mutation_baseline_reconciliation: current-reconciled".to_string(),
         format!("mutation_status: {mutation_status}"),
         format!("mutation_survivors: {mutation_survivors}"),
     ];

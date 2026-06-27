@@ -235,6 +235,50 @@ fn status_checks_only_transcript_is_not_independent_acceptance() {
 }
 
 #[test]
+fn killed_mutation_status_requires_current_counted_evidence() {
+    for (field, value, expected) in [
+        (
+            "mutation_evidence",
+            "scheduled-trigger-only",
+            "requires current mutation evidence",
+        ),
+        (
+            "mutation_missed",
+            "1",
+            "cannot include missed or timeout mutants",
+        ),
+        (
+            "mutation_timeout",
+            "1",
+            "cannot include missed or timeout mutants",
+        ),
+        (
+            "mutation_baseline_reconciliation",
+            "stale-baseline",
+            "baseline reconciliation must be current-reconciled",
+        ),
+    ] {
+        let manifest = synthetic_manifest_with_mutation_override(field, value);
+        let error = validate_status_manifest(&manifest).unwrap_err();
+        assert!(
+            error.contains(expected),
+            "expected {expected:?} for {field}={value}, got {error}"
+        );
+    }
+}
+
+#[test]
+fn trigger_alarm_is_not_mutation_proof_for_pass() {
+    let error = validate_status_manifest(&synthetic_manifest_with_mutation_override(
+        "mutation_evidence",
+        "trigger-alarm",
+    ))
+    .unwrap_err();
+
+    assert!(error.contains("requires current mutation evidence"));
+}
+
+#[test]
 fn non_current_evidence_inputs_fail_closed() {
     for (field_value, expected) in [
         ("stale_method_name", "non-current or non-behavior evidence"),
@@ -329,6 +373,13 @@ fn synthetic_manifest_with_governance(
         "expected_findings: F6-01,F6-02,F6-03,F6-04,F6-05,F6-06".to_string(),
         format!("branch_protection: {branch_protection}"),
         format!("governance_independence: {governance_independence}"),
+        "mutation_evidence: current-in-diff".to_string(),
+        "mutation_denominator: 2".to_string(),
+        "mutation_caught: 2".to_string(),
+        "mutation_unviable: 0".to_string(),
+        "mutation_missed: 0".to_string(),
+        "mutation_timeout: 0".to_string(),
+        "mutation_baseline_reconciliation: current-reconciled".to_string(),
         format!("mutation_status: {mutation_status}"),
         format!("mutation_survivors: {mutation_survivors}"),
     ];
@@ -336,4 +387,37 @@ fn synthetic_manifest_with_governance(
     lines.extend(survivors.iter().map(|line| (*line).to_string()));
     lines.push("```".to_string());
     lines.join("\n")
+}
+
+fn synthetic_manifest_with_mutation_override(field: &str, value: &str) -> String {
+    let manifest = synthetic_manifest(
+        "pass",
+        "ruleset-transcript-current",
+        "killed",
+        "none",
+        &closed_findings(),
+        &[],
+    );
+    let manifest = if matches!(field, "mutation_missed" | "mutation_timeout") {
+        manifest.replace("mutation_denominator: 2", "mutation_denominator: 3")
+    } else {
+        manifest
+    };
+    manifest.replace(
+        &format!("{field}: {}", default_mutation_value(field)),
+        &format!("{field}: {value}"),
+    )
+}
+
+fn default_mutation_value(field: &str) -> &'static str {
+    match field {
+        "mutation_evidence" => "current-in-diff",
+        "mutation_denominator" => "2",
+        "mutation_caught" => "2",
+        "mutation_unviable" => "0",
+        "mutation_missed" => "0",
+        "mutation_timeout" => "0",
+        "mutation_baseline_reconciliation" => "current-reconciled",
+        _ => panic!("unknown mutation field: {field}"),
+    }
 }

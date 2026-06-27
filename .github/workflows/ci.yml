@@ -202,6 +202,7 @@ jobs:
               "lock-layer gates",
               "public-boundary conformance",
               "full-surface mutation trigger (lock layer)",
+              "mutation in-diff (lock layer)",
               "mutation shard reconciliation (lock layer)",
           }
 
@@ -330,7 +331,8 @@ jobs:
           fi
           if git diff --name-only "$full_surface_range" | grep -E '^(\.cargo/mutants\.toml|\.cargo/mutants-baseline-misses\.txt|\.github/workflows/ci\.yml|tools/(merge-mutation-shards\.py|supervise-command\.sh)|tests/negative-fixtures/|crates/tracewake-core/(src|tests)/|crates/tracewake-content/(src|tests)/|crates/tracewake-tui/(src|tests)/|reports/0052_|archive/tickets/0052FOUCONFOU-|specs/0052_)' >/dev/null; then
             echo "Full-surface mutation reconciliation is required for this change before merge."
-            echo "Required checks: public-boundary conformance and mutation shard reconciliation (lock layer)."
+            echo "Required checks: public-boundary conformance, mutation in-diff (lock layer), and mutation shard reconciliation (lock layer)."
+            echo "This trigger is an alarm, not mutation proof; actual in-diff mutation is PR-blocking for guarded changes."
             echo "A red scheduled mutation result is merge-blocking until repaired; pending is not a pass."
           else
             echo "No full-surface mutation trigger path changed."
