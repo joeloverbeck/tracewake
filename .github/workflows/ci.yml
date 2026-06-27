@@ -99,6 +99,32 @@ jobs:
           cargo test --locked -p tracewake-content --test forbidden_content
           cargo test --locked -p tracewake-tui --test adversarial_gates
           cargo test --locked -p tracewake-tui --test tui_seam_conformance
+      - name: Ingest changed acceptance artifacts
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            acceptance_range="origin/${{ github.base_ref }}...HEAD"
+          else
+            acceptance_range="HEAD^..HEAD"
+          fi
+          changed_artifacts="$(git diff --name-only "$acceptance_range" | grep -E '^(reports|archive/reports)/.*(acceptance|ACCEPTANCE).*\.md$' || true)"
+          changed_closure_paths="$(git diff --name-only "$acceptance_range" | grep -E '^(reports|archive/reports|specs|archive/specs)/' || true)"
+          if [ -z "$changed_artifacts" ]; then
+            if [ -n "$changed_closure_paths" ]; then
+              echo "Current acceptance artifact required for report/spec closure changes."
+              echo "$changed_closure_paths"
+              exit 1
+            fi
+            echo "No changed acceptance artifact to ingest."
+            exit 0
+          fi
+          for artifact in $changed_artifacts; do
+            if ! grep -q '```tracewake-acceptance-status' "$artifact"; then
+              echo "$artifact lacks tracewake-acceptance-status block."
+              exit 1
+            fi
+            TRACEWAKE_ACCEPTANCE_ARTIFACT="$artifact" \
+              cargo test --locked -p tracewake-core --test acceptance_status_manifest actual_acceptance_artifact_from_ci_env_is_pass_eligible
+          done
 
   public-boundary-conformance:
     name: public-boundary conformance

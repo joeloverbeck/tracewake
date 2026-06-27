@@ -312,6 +312,18 @@ fn ci_workflow_guards_cover_workflow_integrity() {
     );
 }
 
+#[test]
+fn acceptance_artifact_ingestion_guard_rejects_missing_job() {
+    let missing_ingestion = CI_YML.replace("Ingest changed acceptance artifacts", "");
+
+    assert!(
+        ci_workflow_guard_errors(&missing_ingestion, MUTANTS_TOML, DOC10)
+            .iter()
+            .any(|error| error.contains("acceptance artifact ingestion")),
+        "synthetic workflow without acceptance-artifact ingestion must fail"
+    );
+}
+
 fn ci_workflow_guard_errors(workflow: &str, mutants_config: &str, doc10: &str) -> Vec<String> {
     let mut errors = Vec::new();
     errors.extend(required_gate_command_errors(workflow, doc10));
@@ -326,6 +338,7 @@ fn ci_workflow_guard_errors(workflow: &str, mutants_config: &str, doc10: &str) -
     errors.extend(public_boundary_conformance_errors(workflow));
     errors.extend(required_check_policy_errors(workflow));
     errors.extend(governance_audit_errors(workflow));
+    errors.extend(acceptance_artifact_ingestion_errors(workflow));
     errors.extend(full_surface_mutation_trigger_errors(workflow));
     errors.extend(scheduled_mutation_lane_errors(workflow));
     errors
@@ -383,6 +396,26 @@ fn governance_audit_errors(workflow: &str) -> Vec<String> {
     ] {
         if !workflow.contains(required) {
             errors.push(format!("missing governance audit job text: {required}"));
+        }
+    }
+    errors
+}
+
+fn acceptance_artifact_ingestion_errors(workflow: &str) -> Vec<String> {
+    let mut errors = Vec::new();
+    for required in [
+        "Ingest changed acceptance artifacts",
+        "TRACEWAKE_ACCEPTANCE_ARTIFACT",
+        "actual_acceptance_artifact_from_ci_env_is_pass_eligible",
+        "tracewake-acceptance-status",
+        "Current acceptance artifact required for report/spec closure changes.",
+        r#"grep -E '^(reports|archive/reports)/.*(acceptance|ACCEPTANCE).*\.md$'"#,
+        r#"grep -E '^(reports|archive/reports|specs|archive/specs)/'"#,
+    ] {
+        if !workflow.contains(required) {
+            errors.push(format!(
+                "acceptance artifact ingestion missing required text: {required}"
+            ));
         }
     }
     errors

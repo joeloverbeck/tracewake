@@ -2,7 +2,6 @@ use std::collections::{BTreeMap, BTreeSet};
 
 pub const STATUS_FENCE: &str = "```tracewake-acceptance-status";
 
-const REQUIRED_FINDINGS: &[&str] = &["F5-01", "F5-02", "F5-03", "F5-04", "F5-05", "F5-06"];
 const CLOSED_STATUSES: &[&str] = &[
     "closed",
     "open",
@@ -84,6 +83,7 @@ pub fn extract_status_block(text: &str) -> Result<&str, String> {
 #[derive(Debug)]
 struct ParsedManifest {
     stated_result: ComputedResult,
+    expected_findings: Vec<String>,
     branch_protection: String,
     mutation_status: String,
     mutation_survivors: String,
@@ -93,7 +93,7 @@ struct ParsedManifest {
 
 impl ParsedManifest {
     fn has_blocking_status(&self) -> bool {
-        self.branch_protection != "enforced"
+        self.branch_protection != "ruleset-transcript-current"
             || self
                 .findings
                 .values()
@@ -125,9 +125,6 @@ fn parse_status_block(block: &str) -> Result<ParsedManifest, String> {
         match key {
             "finding" => {
                 let (label, status, fields) = parse_pipe_record(value)?;
-                if !REQUIRED_FINDINGS.contains(&label.as_str()) {
-                    return Err(format!("unknown finding label: {label}"));
-                }
                 if !CLOSED_STATUSES.contains(&status.as_str()) {
                     return Err(format!("unknown status {status:?} for {label}"));
                 }
@@ -142,8 +139,8 @@ fn parse_status_block(block: &str) -> Result<ParsedManifest, String> {
                 let (_label, _status, fields) = parse_pipe_record(value)?;
                 survivors.push(Survivor { fields });
             }
-            "overall_result" | "commit_under_test" | "source_acquisition" | "branch_protection"
-            | "mutation_status" | "mutation_survivors" => {
+            "overall_result" | "commit_under_test" | "source_acquisition" | "expected_findings"
+            | "branch_protection" | "mutation_status" | "mutation_survivors" => {
                 if scalars.insert(key.to_string(), value.to_string()).is_some() {
                     return Err(format!("duplicate scalar key: {key}"));
                 }
@@ -156,6 +153,7 @@ fn parse_status_block(block: &str) -> Result<ParsedManifest, String> {
         "overall_result",
         "commit_under_test",
         "source_acquisition",
+        "expected_findings",
         "branch_protection",
         "mutation_status",
         "mutation_survivors",
@@ -170,22 +168,47 @@ fn parse_status_block(block: &str) -> Result<ParsedManifest, String> {
     if scalars["source_acquisition"].is_empty() {
         return Err("source_acquisition must be non-empty".to_string());
     }
+    let expected_findings = parse_expected_findings(&scalars["expected_findings"])?;
+    let expected_set: BTreeSet<_> = expected_findings.iter().map(String::as_str).collect();
 
     let present: BTreeSet<_> = findings.keys().map(String::as_str).collect();
-    for required in REQUIRED_FINDINGS {
-        if !present.contains(required) {
+    for required in &expected_findings {
+        if !present.contains(required.as_str()) {
             return Err(format!("missing required finding: {required}"));
+        }
+    }
+    for present in &present {
+        if !expected_set.contains(present) {
+            return Err(format!("unknown finding label: {present}"));
         }
     }
 
     Ok(ParsedManifest {
         stated_result: ComputedResult::parse(&scalars["overall_result"])?,
+        expected_findings,
         branch_protection: scalars.remove("branch_protection").unwrap(),
         mutation_status: scalars.remove("mutation_status").unwrap(),
         mutation_survivors: scalars.remove("mutation_survivors").unwrap(),
         findings,
         survivors,
     })
+}
+
+fn parse_expected_findings(value: &str) -> Result<Vec<String>, String> {
+    let findings: Vec<_> = value
+        .split(',')
+        .map(str::trim)
+        .filter(|label| !label.is_empty())
+        .map(str::to_string)
+        .collect();
+    if findings.is_empty() {
+        return Err("expected_findings must list at least one finding".to_string());
+    }
+    let unique: BTreeSet<_> = findings.iter().map(String::as_str).collect();
+    if unique.len() != findings.len() {
+        return Err("expected_findings contains duplicate labels".to_string());
+    }
+    Ok(findings)
 }
 
 fn parse_pipe_record(value: &str) -> Result<(String, String, BTreeMap<String, String>), String> {
@@ -220,15 +243,17 @@ fn parse_pipe_record(value: &str) -> Result<(String, String, BTreeMap<String, St
 fn compute_result(parsed: &ParsedManifest) -> Result<ComputedResult, String> {
     let mut pass = true;
 
-    if parsed.branch_protection != "enforced" {
+    if parsed.branch_protection != "ruleset-transcript-current" {
+        pass = false;
+    }
+    if parsed.expected_findings.is_empty() {
         pass = false;
     }
 
     for (label, finding) in &parsed.findings {
         match finding.status.as_str() {
             "closed" => {
-                require_field(label, finding, "evidence")?;
-                require_field(label, finding, "negative")?;
+                validate_closed_finding(label, finding)?;
             }
             "routed-forward" => {
                 pass = false;
@@ -248,6 +273,7 @@ fn compute_result(parsed: &ParsedManifest) -> Result<ComputedResult, String> {
             }
         }
         "non-blocking-bounded-forcing" => {
+            pass = false;
             if parsed.mutation_survivors == "none" || parsed.survivors.is_empty() {
                 return Err(
                     "bounded-forcing mutation status requires explicit survivor rows".to_string(),
@@ -266,6 +292,45 @@ fn compute_result(parsed: &ParsedManifest) -> Result<ComputedResult, String> {
     } else {
         ComputedResult::NonPass
     })
+}
+
+fn validate_closed_finding(label: &str, finding: &Finding) -> Result<(), String> {
+    for field in [
+        "evidence_file",
+        "evidence_test",
+        "negative_file",
+        "negative_test",
+        "evidence_scope",
+        "negative_scope",
+    ] {
+        require_field(label, finding, field)?;
+    }
+    for field in ["evidence_scope", "negative_scope"] {
+        if finding.fields[field] != "current" {
+            return Err(format!(
+                "closed finding {label} has non-current {field}: {}",
+                finding.fields[field]
+            ));
+        }
+    }
+    for field in [
+        "evidence_file",
+        "evidence_test",
+        "negative_file",
+        "negative_test",
+    ] {
+        let value = &finding.fields[field];
+        if value.contains("display-only")
+            || value.contains("self-authored")
+            || value.contains("historical-only")
+            || value.contains("stale")
+        {
+            return Err(format!(
+                "closed finding {label} uses non-current or non-behavior evidence in {field}: {value}"
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn require_field(label: &str, finding: &Finding, field: &str) -> Result<(), String> {

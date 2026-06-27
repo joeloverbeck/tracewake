@@ -1,6 +1,6 @@
 # 0054FOUCONSIX-004: Fail-closed acceptance state machine (process-integrity keystone)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` test/acceptance-guard surface (expected-finding manifest, evidence-ingestion state machine, closed wording grammar, survivor-pass-hole close, parser-mutation campaign) + `.github/workflows/ci.yml` (actual-artifact ingestion); no production `src/` change
@@ -93,3 +93,29 @@ Add a focused mutation campaign over the parser/guard functions themselves.
 1. `cargo test -p tracewake-core --test acceptance_status_manifest --test acceptance_artifact_wording --test ci_workflow_guards`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
 3. `cargo mutants -f crates/tracewake-core/tests/support/acceptance_status_manifest.rs` — the parser/guard mutation campaign (a guard whose own mutants survive is decorative).
+
+## Outcome
+
+Completed: 2026-06-27
+
+Converted the acceptance-status parser from hardcoded F5 labels and self-consistency checks into a manifest-driven fail-closed state machine. Status blocks now declare `expected_findings`, the parser accepts the current F6 finding set without source-level label edits, closed rows must cite current file/test evidence plus current negative evidence, legacy scalar branch-protection claims compute `NonPass`, and `non-blocking-bounded-forcing` survivors can be recorded honestly but never compute `Pass`.
+
+Reworked the wording guard cases around the computed state: pass-shaped wording over non-pass manifests fails, green-perimeter wording with survivor rows fails, branch-protection claims without a transcript fail, historical-current conflation fails, and display-only/self-authored evidence is rejected by the parser/grammar path. CI now has an `Ingest changed acceptance artifacts` step that discovers changed acceptance artifacts, requires a `tracewake-acceptance-status` block, and feeds each actual artifact path into the same `acceptance_status_manifest` parser through `TRACEWAKE_ACCEPTANCE_ARTIFACT`; `ci_workflow_guards` now fails if that ingestion hook is removed.
+
+Verification run:
+
+- `cargo test -p tracewake-core --test acceptance_status_manifest --test acceptance_artifact_wording --test ci_workflow_guards` — passed.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
+- `git diff --check` — passed.
+
+Mutation evidence:
+
+- `cargo mutants --list -f crates/tracewake-core/tests/support/acceptance_status_manifest.rs --no-config` listed 0 focused mutants for the test-support parser file.
+- The required command `cargo mutants -f crates/tracewake-core/tests/support/acceptance_status_manifest.rs` selected 3445 mutants under repository config and was interrupted after the selection line. Result recorded as incomplete; no mutation pass is claimed here. Standing mutation completion remains ticket 009 scope.
+
+Scope note: ticket 005 still owns the full independent-governance transcript parser, and ticket 006 still owns PR-blocking mutation-context hardening. This ticket landed their fail-closed parser and CI-ingestion hooks without pulling those later ticket surfaces forward.
+
+Unrelated pre-existing dirty paths left untouched: `.claude/skills/spec-to-tickets/SKILL.md` and `.claude/skills/spec-to-tickets/references/decomposition-patterns.md`.
