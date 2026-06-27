@@ -277,6 +277,11 @@ impl DebugRuntimeReceipt {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ids::ActorId;
+    use crate::projections::{
+        ActorKnownIntervalDelta, IntervalNoticeKind, IntervalSalience, IntervalStopReason,
+        VerifiedActorKnownIntervalNotice,
+    };
     use crate::scheduler::AdvanceUntilStopReason;
 
     #[test]
@@ -326,6 +331,63 @@ mod tests {
 
         assert!(advanced_without_events.advanced());
         assert_eq!(advanced_without_events.appended_event_count(), 0);
+    }
+
+    #[test]
+    fn one_tick_receipt_derives_actor_visible_fields_from_world_advance_result() {
+        let interval_delta = ActorKnownIntervalDelta::from_verified(
+            ActorId::new("actor_tomas").unwrap(),
+            SimTick::new(9),
+            SimTick::new(9),
+            12,
+            14,
+            IntervalStopReason::UserPausedBeforeNextTick,
+            IntervalSalience::NovelActorKnownFact,
+            vec![VerifiedActorKnownIntervalNotice::from_verified(
+                IntervalNoticeKind::Observation,
+                EventId::new("event_actor_known_notice").unwrap(),
+                "observation.food_empty_bowl_tomas",
+            )],
+        );
+        let receipt = OneTickRuntimeReceipt::from_world_advance_result(WorldAdvanceResult {
+            prior_tick: SimTick::new(9),
+            resulting_tick: SimTick::new(9),
+            appended_event_ids: vec![
+                EventId::new("event_one_tick_visible_one").unwrap(),
+                EventId::new("event_one_tick_visible_two").unwrap(),
+            ],
+            actor_known_interval_delta: Some(interval_delta),
+            due_duration_candidates: Vec::new(),
+            due_work_summary: WorldStepDueWorkSummary {
+                open_duration_candidates: 0,
+                duration_terminals_appended: 0,
+                actor_transactions_attempted: 0,
+                world_process_markers_observed: 0,
+                world_processes_applied: 0,
+            },
+            actor_step_summaries: Vec::new(),
+            controlled_pipeline_results: Vec::new(),
+        });
+
+        assert!(
+            !receipt.advanced(),
+            "equal prior/result ticks must remain actor-legible non-advance"
+        );
+        assert_eq!(
+            receipt.appended_event_count(),
+            2,
+            "one-tick receipt must preserve the public appended-event count"
+        );
+        let summary = receipt
+            .actor_known_interval_summary()
+            .expect("one-tick receipt must preserve the actor-known interval summary");
+        assert_eq!(summary.start_frontier(), 12);
+        assert_eq!(summary.stop_frontier(), 14);
+        assert_eq!(
+            summary.stop_reason(),
+            IntervalStopReason::UserPausedBeforeNextTick
+        );
+        assert_eq!(summary.notices().len(), 1);
     }
 
     #[test]

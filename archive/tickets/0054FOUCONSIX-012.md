@@ -1,6 +1,6 @@
 # 0054FOUCONSIX-012: Standing mutation survivor closure — runtime receipt and debug availability
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — focused tests for runtime one-tick receipt semantics and TUI debug-availability authority
@@ -89,3 +89,24 @@ Rerun focused mutation proof for the six named survivors. If the focused proof i
 1. `cargo test -p tracewake-core <focused receipt test selector> && cargo test -p tracewake-tui <focused debug availability selector>`
 2. `cargo mutants -F 'OneTickRuntimeReceipt::from_world_advance_result|OneTickRuntimeReceipt::advanced|OneTickRuntimeReceipt::appended_event_count|OneTickRuntimeReceipt::actor_known_interval_summary|TuiApp::debug_available_for|TuiApp::debug_available'`
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-27
+
+Closed the six standing mutation survivors from ticket 009 with focused public-boundary tests. `crates/tracewake-core/src/runtime/receipt.rs` now has a one-tick receipt test that constructs a stationary `WorldAdvanceResult` with two appended events and a non-empty actor-known interval delta, forcing the `advanced`, `appended_event_count`, and `actor_known_interval_summary` accessors plus the equal-tick boundary. `crates/tracewake-tui/src/app.rs` now asserts debug availability remains false after detaching a debug-bound controller and that a debug-bound controller does not grant debug availability for a different actor.
+
+Verification run:
+
+- `cargo test -p tracewake-core runtime::receipt::tests::one_tick_receipt_derives_actor_visible_fields_from_world_advance_result` — passed.
+- `cargo test -p tracewake-tui app::tests::controller_mode_debug_availability_decision_is_explicit` — passed.
+- `cargo mutants -F 'runtime/receipt\\.rs:.*OneTickRuntimeReceipt::(from_world_advance_result|advanced|appended_event_count|actor_known_interval_summary)|tracewake-tui/src/app\\.rs:.*TuiApp::debug_available' --list` — selected 16 mutants. The filter included the six ticket-009 survivors plus adjacent same-function/accessor mutants and one unrelated replay row; no production perimeter was changed.
+- `cargo mutants -F 'runtime/receipt\\.rs:.*OneTickRuntimeReceipt::(from_world_advance_result|advanced|appended_event_count|actor_known_interval_summary)|tracewake-tui/src/app\\.rs:.*TuiApp::debug_available'` — completed with 16 tested: 14 caught, 2 unviable, 0 missed, 0 timeouts.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
+
+Created `tickets/0054FOUCONSIX-013.md` and updated the capstone dependency so the configured standing mutation campaign is rerun at an exact post-012 commit before any acceptance artifact can render pass. This ticket closes the known survivor rows with focused proof; ticket 013 owns the current full-perimeter rerun.
+
+Unrelated pre-existing dirty paths left untouched: `.claude/skills/spec-to-tickets/SKILL.md`, `.claude/skills/spec-to-tickets/references/decomposition-patterns.md`, `CLAUDE.md`, and `tools/clean-build-scratch.sh`.

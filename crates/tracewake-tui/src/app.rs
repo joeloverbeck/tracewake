@@ -612,17 +612,21 @@ mod tests {
     fn controller_mode_debug_availability_decision_is_explicit() {
         let mut app = TuiApp::load_default().unwrap();
         let actor_id = ActorId::new("actor_tomas").unwrap();
+        let other_actor_id = ActorId::new("actor_elena").unwrap();
 
         app.bind_actor(actor_id.clone()).unwrap();
         assert!(!app.current_view().unwrap().debug_available());
         assert!(!app.debug_available());
+        assert!(!app.debug_available_for(&actor_id));
 
         app.bind_debug_actor(actor_id.clone()).unwrap();
         assert!(app.current_view().unwrap().debug_available());
         assert!(app.debug_available());
+        assert!(!app.debug_available_for(&other_actor_id));
 
         app.detach_controller_for_test();
         assert!(!app.current_view().unwrap().debug_available());
+        assert!(!app.debug_available());
 
         let docs = include_str!(
             "../../../docs/2-execution/07_EPISTEMIC_VIEW_MODELS_POSSESSION_AND_DEBUG_PROOF.md"
