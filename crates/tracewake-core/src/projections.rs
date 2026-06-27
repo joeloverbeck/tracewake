@@ -3586,6 +3586,34 @@ mod tests {
         assert_eq!(metrics.player_conditioned_event_rate_per_1000, 0);
     }
 
+    #[test]
+    fn interval_stop_reason_stable_ids_are_closed_and_canonical() {
+        let cases = [
+            (
+                IntervalStopReason::PossessedDurationTerminal,
+                "possessed_duration_terminal",
+            ),
+            (
+                IntervalStopReason::ActorKnownSalientObservation,
+                "actor_known_salient_observation",
+            ),
+            (
+                IntervalStopReason::UserPausedBeforeNextTick,
+                "user_paused_before_next_tick",
+            ),
+            (
+                IntervalStopReason::ControllerSafetyBound,
+                "controller_safety_bound",
+            ),
+        ];
+
+        for (reason, stable_id) in cases {
+            assert_eq!(reason.stable_id(), stable_id);
+            assert!(!reason.stable_id().is_empty());
+            assert_ne!(reason.stable_id(), "xyzzy");
+        }
+    }
+
     fn door_between(id: &str, a: &str, b: &str) -> ActorKnownDoorSurface {
         let door = DoorState::new(DoorId::new(id).unwrap(), place_id(a), place_id(b));
         ActorKnownDoorSurface {

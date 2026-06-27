@@ -1,6 +1,6 @@
 # 0053FOUCONFIF-009: Standing mutation campaign — full run + denominator record
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: None — evidence-only standing-campaign run; denominators handed to the capstone (010)
@@ -74,3 +74,51 @@ Hand the recorded disposition (selected, caught, missed, unviable, timeout, surv
 1. `cargo mutants` — the configured standing campaign over the `.cargo/mutants.toml` perimeter (long-running; the correct verification boundary is the full campaign, not a narrow `-f`, since this ticket proves the whole perimeter; CI runs it via `full-surface-mutation-trigger` / `mutants-lock-layer-reconcile`).
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace` — clean baseline before the run.
 3. This ticket runs no narrow command: its boundary is the full standing campaign to completion, which cannot be meaningfully dry-run; the recorded disposition is the deliverable.
+
+## Outcome
+
+Completed: 2026-06-26
+
+The standing mutation campaign did not remain evidence-only: the first full run exposed missing sensitivity in the debug authority, interval stop reason, and continuation receipt surfaces. Those misses were repaired with targeted regression tests in `debug_capability.rs`, `projections.rs`, and `runtime/receipt.rs`, then rechecked with focused `cargo mutants` runs before the full campaign was restarted.
+
+Baseline gates after the final repair:
+
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
+
+Initial full standing campaign:
+
+- `cargo mutants` selected 3423 mutants and the unmutated baseline passed (`12s build + 75s test`; auto timeout 377s).
+- The run was interrupted after actionable survivors were printed:
+  - `crates/tracewake-core/src/debug_capability.rs:70:9`: `DebugSessionAuthority::debug_only -> bool` replaced with `true` and `false`.
+  - `crates/tracewake-core/src/projections.rs:770:9`: `IntervalStopReason::stable_id -> &'static str` replaced with `""` and `"xyzzy"`.
+
+Focused repair proof for the first survivor set:
+
+- `cargo mutants -f crates/tracewake-core/src/debug_capability.rs --re 'DebugSessionAuthority::debug_only'` — `3 mutants tested in 2m: 3 caught`.
+- `cargo mutants -f crates/tracewake-core/src/projections.rs --re 'IntervalStopReason::stable_id'` — `3 mutants tested in 2m: 3 caught`.
+
+Second full standing campaign:
+
+- `cargo mutants` again selected 3423 mutants and the unmutated baseline passed (`12s build + 75s test`; auto timeout 377s).
+- The run was interrupted after actionable continuation-receipt survivors were printed:
+  - `crates/tracewake-core/src/runtime/receipt.rs:130:45`: `ticks_advanced > 0` replaced with `>=`.
+  - `crates/tracewake-core/src/runtime/receipt.rs:139:9`: `ContinuedRuntimeReceipt::advanced -> bool` replaced with `true`.
+  - `crates/tracewake-core/src/runtime/receipt.rs:143:9`: `ContinuedRuntimeReceipt::appended_event_count -> usize` replaced with `1`.
+
+Focused repair proof for the continuation-receipt survivor set:
+
+- `cargo test -p tracewake-core continued_receipt_derives_progress_and_event_count_from_runtime_result` — passed.
+- `cargo mutants -f crates/tracewake-core/src/runtime/receipt.rs --re 'ContinuedRuntimeReceipt'` — `12 mutants tested in 3m: 9 caught, 3 unviable`.
+
+Final full standing campaign:
+
+- `cargo mutants` selected 3423 mutants and the unmutated baseline passed (`12s build + 78s test`; auto timeout 392s).
+- Final disposition: `3423 mutants tested in 4h: 2666 caught, 757 unviable`.
+- Missed/survivor list: empty.
+- Timeouts: none reported.
+- Routed-forward residuals: none.
+
+This denominator is the input for the 010 capstone manifest: selected 3423, caught 2666, missed 0, unviable 757, timeouts 0, survivors empty.

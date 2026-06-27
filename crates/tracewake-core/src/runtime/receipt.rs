@@ -206,6 +206,7 @@ impl DebugRuntimeReceipt {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::scheduler::AdvanceUntilStopReason;
 
     #[test]
     fn embodied_receipt_exposes_no_exact_temporal_authority() {
@@ -219,6 +220,41 @@ mod tests {
             "The world changes around you."
         );
         assert_eq!(receipt.provenance(), ["event:actor_visible_interval"]);
+    }
+
+    #[test]
+    fn continued_receipt_derives_progress_and_event_count_from_runtime_result() {
+        let stationary_with_events =
+            ContinuedRuntimeReceipt::from_advance_until_result(AdvanceUntilResult {
+                start_tick: SimTick::new(4),
+                stop_tick: SimTick::new(4),
+                ticks_advanced: 0,
+                stop_reason: AdvanceUntilStopReason::UserPausedBeforeNextTick,
+                appended_event_ids: vec![
+                    EventId::new("event.continue.marker.one").unwrap(),
+                    EventId::new("event.continue.marker.two").unwrap(),
+                ],
+                actor_known_interval_delta: None,
+            });
+
+        assert!(!stationary_with_events.advanced());
+        assert_eq!(stationary_with_events.appended_event_count(), 2);
+        assert!(stationary_with_events
+            .actor_known_interval_summary()
+            .is_none());
+
+        let advanced_without_events =
+            ContinuedRuntimeReceipt::from_advance_until_result(AdvanceUntilResult {
+                start_tick: SimTick::new(4),
+                stop_tick: SimTick::new(5),
+                ticks_advanced: 1,
+                stop_reason: AdvanceUntilStopReason::ControllerSafetyBound,
+                appended_event_ids: Vec::new(),
+                actor_known_interval_delta: None,
+            });
+
+        assert!(advanced_without_events.advanced());
+        assert_eq!(advanced_without_events.appended_event_count(), 0);
     }
 
     #[test]

@@ -87,4 +87,15 @@ mod tests {
         assert!(capability.debug_only());
         assert_eq!(capability.marker(), DEBUG_NON_DIEGETIC_MARKER);
     }
+
+    #[test]
+    fn session_authority_debug_only_delegates_to_capability_marker() {
+        let authority = DebugSessionAuthority::mint();
+        assert!(authority.debug_only());
+
+        let forged_non_debug = DebugSessionAuthority {
+            capability: DebugCapability::test_non_debug(),
+        };
+        assert!(!forged_non_debug.debug_only());
+    }
 }
