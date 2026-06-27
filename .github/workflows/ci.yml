@@ -208,6 +208,9 @@ jobs:
           contexts = set()
           pr_required = False
           up_to_date_or_merge_queue = False
+          max_required_approvals = 0
+          require_last_push_approval = False
+          required_reviewers = []
           bypass_residuals = []
           evidence = []
 
@@ -221,7 +224,15 @@ jobs:
                   if check.get("context")
               )
               up_to_date_or_merge_queue = up_to_date_or_merge_queue or bool(checks.get("strict"))
-              pr_required = pr_required or bool(protection.get("required_pull_request_reviews"))
+              reviews = protection.get("required_pull_request_reviews") or {}
+              pr_required = pr_required or bool(reviews)
+              max_required_approvals = max(
+                  max_required_approvals,
+                  int(reviews.get("required_approving_review_count") or 0),
+              )
+              require_last_push_approval = require_last_push_approval or bool(
+                  reviews.get("require_last_push_approval")
+              )
               enforce_admins = protection.get("enforce_admins") or {}
               if not enforce_admins.get("enabled"):
                   bypass_residuals.append("branch protection does not enforce admins")
@@ -253,6 +264,14 @@ jobs:
                       parameters = rule.get("parameters") or {}
                       if rule_type == "pull_request":
                           pr_required = True
+                          max_required_approvals = max(
+                              max_required_approvals,
+                              int(parameters.get("required_approving_review_count") or 0),
+                          )
+                          require_last_push_approval = require_last_push_approval or bool(
+                              parameters.get("require_last_push_approval")
+                          )
+                          required_reviewers.extend(parameters.get("required_reviewers") or [])
                       if rule_type == "required_status_checks":
                           for check in parameters.get("required_status_checks") or []:
                               context = check.get("context")
@@ -270,12 +289,21 @@ jobs:
               failures.append(f"missing required status checks: {missing}")
           if not pr_required:
               failures.append("pull request requirement not proven")
+          independent_review = max_required_approvals >= 1
+          last_push_required_reviewer = require_last_push_approval and bool(required_reviewers)
+          if not independent_review and not last_push_required_reviewer:
+              failures.append(
+                  "independent acceptor constraint not proven: required_approving_review_count, require_last_push_approval, or required_reviewers are insufficient"
+              )
           if not up_to_date_or_merge_queue:
               failures.append("up-to-date branch or merge queue requirement not proven")
           failures.extend(bypass_residuals)
 
           print("Governance API evidence:", ", ".join(evidence) or "none")
           print("Required check contexts discovered:", sorted(contexts))
+          print("Max required approving review count:", max_required_approvals)
+          print("Require last-push approval:", require_last_push_approval)
+          print("Required reviewers discovered:", required_reviewers)
           if failures:
               print("pending/unverified: required-check governance is not proven.")
               for failure in failures:

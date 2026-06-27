@@ -312,6 +312,7 @@ fn synthetic_status_manifest(
         "source_acquisition: clean local checkout".to_string(),
         "expected_findings: F6-01,F6-02,F6-03,F6-04,F6-05,F6-06".to_string(),
         format!("branch_protection: {branch_protection}"),
+        "governance_independence: independent-review".to_string(),
         format!("mutation_status: {mutation_status}"),
         format!("mutation_survivors: {mutation_survivors}"),
     ];

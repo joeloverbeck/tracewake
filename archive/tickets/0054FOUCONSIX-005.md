@@ -1,6 +1,6 @@
 # 0054FOUCONSIX-005: Independent-acceptance governance
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `.github/workflows/ci.yml` (governance audit parses approval/last-push/reviewer fields); `crates/tracewake-core/tests/ci_workflow_guards.rs` (synthetic zero-approval assertions); `crates/tracewake-core/tests/support/acceptance_status_manifest.rs` (governance computed from transcript)
@@ -80,3 +80,29 @@ Extend `ci_workflow_guards.rs` so synthetic zero-approval / missing-reviewer rul
 1. `cargo test -p tracewake-core --test ci_workflow_guards --test acceptance_status_manifest`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
 3. `cargo mutants -f crates/tracewake-core/tests/support/acceptance_status_manifest.rs` — extend the parser/guard mutation campaign to the governance computation.
+
+## Outcome
+
+Completed: 2026-06-27
+
+Filled the independent-acceptance governance hook from ticket 004. The status manifest now requires `governance_independence` and only pass-enables `independent-review` or `last-push-required-reviewer`; `pending-governance`, `status-checks-only`, and `zero-approval` compute `NonPass`, so active status checks cannot stand in for independent acceptance.
+
+Hardened `.github/workflows/ci.yml` governance audit parsing. The audit now extracts `required_approving_review_count`, `require_last_push_approval`, and `required_reviewers` from branch-protection/ruleset transcript data, reports those fields, and fails unless it proves at least one required approval or last-push approval plus a required reviewer/team rule. `ci_workflow_guards` now pins those transcript fields and contains synthetic removal checks for approval-count, last-push, and required-reviewer parsing.
+
+Verification run:
+
+- `cargo test -p tracewake-core --test ci_workflow_guards --test acceptance_status_manifest` — passed.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
+- `git diff --check` — passed.
+
+Mutation evidence:
+
+- `cargo mutants --list -f crates/tracewake-core/tests/support/acceptance_status_manifest.rs --no-config` listed 0 focused mutants for the test-support parser file.
+- The required command `cargo mutants -f crates/tracewake-core/tests/support/acceptance_status_manifest.rs` selected 3445 mutants under repository config and was interrupted after the selection line. Result recorded as incomplete; no mutation pass is claimed here. Standing mutation completion remains ticket 009 scope.
+
+Scope note: ticket 006 still owns PR-blocking mutation proof; this ticket only hardened the independent-acceptance governance transcript and manifest computation.
+
+Unrelated pre-existing dirty paths left untouched: `.claude/skills/spec-to-tickets/SKILL.md` and `.claude/skills/spec-to-tickets/references/decomposition-patterns.md`.

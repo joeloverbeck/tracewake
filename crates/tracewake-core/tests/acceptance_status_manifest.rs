@@ -189,6 +189,52 @@ fn scalar_branch_protection_without_ruleset_transcript_is_non_pass() {
 }
 
 #[test]
+fn zero_approval_governance_transcript_computes_non_pass() {
+    let manifest = validate_status_manifest(&synthetic_manifest_with_governance(
+        "non-pass",
+        "ruleset-transcript-current",
+        "zero-approval",
+        "killed",
+        "none",
+        &closed_findings(),
+        &[],
+    ))
+    .expect("zero-approval transcript is valid but non-pass");
+
+    assert_eq!(manifest.computed_result, ComputedResult::NonPass);
+    assert!(manifest.has_blocking_status);
+}
+
+#[test]
+fn status_checks_only_transcript_is_not_independent_acceptance() {
+    let manifest = validate_status_manifest(&synthetic_manifest_with_governance(
+        "non-pass",
+        "ruleset-transcript-current",
+        "status-checks-only",
+        "killed",
+        "none",
+        &closed_findings(),
+        &[],
+    ))
+    .expect("status-checks-only transcript is valid but non-pass");
+
+    assert_eq!(manifest.computed_result, ComputedResult::NonPass);
+    assert!(manifest.has_blocking_status);
+
+    let error = validate_status_manifest(&synthetic_manifest_with_governance(
+        "pass",
+        "ruleset-transcript-current",
+        "status-checks-only",
+        "killed",
+        "none",
+        &closed_findings(),
+        &[],
+    ))
+    .unwrap_err();
+    assert!(error.contains("does not match computed result"));
+}
+
+#[test]
 fn non_current_evidence_inputs_fail_closed() {
     for (field_value, expected) in [
         ("stale_method_name", "non-current or non-behavior evidence"),
@@ -254,6 +300,26 @@ fn synthetic_manifest(
     findings: &[&str],
     survivors: &[&str],
 ) -> String {
+    synthetic_manifest_with_governance(
+        overall_result,
+        branch_protection,
+        "independent-review",
+        mutation_status,
+        mutation_survivors,
+        findings,
+        survivors,
+    )
+}
+
+fn synthetic_manifest_with_governance(
+    overall_result: &str,
+    branch_protection: &str,
+    governance_independence: &str,
+    mutation_status: &str,
+    mutation_survivors: &str,
+    findings: &[&str],
+    survivors: &[&str],
+) -> String {
     let mut lines = vec![
         "# Synthetic 0053 acceptance artifact".to_string(),
         "```tracewake-acceptance-status".to_string(),
@@ -262,6 +328,7 @@ fn synthetic_manifest(
         "source_acquisition: clean local checkout".to_string(),
         "expected_findings: F6-01,F6-02,F6-03,F6-04,F6-05,F6-06".to_string(),
         format!("branch_protection: {branch_protection}"),
+        format!("governance_independence: {governance_independence}"),
         format!("mutation_status: {mutation_status}"),
         format!("mutation_survivors: {mutation_survivors}"),
     ];

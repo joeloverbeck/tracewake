@@ -85,6 +85,7 @@ struct ParsedManifest {
     stated_result: ComputedResult,
     expected_findings: Vec<String>,
     branch_protection: String,
+    governance_independence: String,
     mutation_status: String,
     mutation_survivors: String,
     findings: BTreeMap<String, Finding>,
@@ -94,6 +95,7 @@ struct ParsedManifest {
 impl ParsedManifest {
     fn has_blocking_status(&self) -> bool {
         self.branch_protection != "ruleset-transcript-current"
+            || !governance_is_independent(&self.governance_independence)
             || self
                 .findings
                 .values()
@@ -139,8 +141,14 @@ fn parse_status_block(block: &str) -> Result<ParsedManifest, String> {
                 let (_label, _status, fields) = parse_pipe_record(value)?;
                 survivors.push(Survivor { fields });
             }
-            "overall_result" | "commit_under_test" | "source_acquisition" | "expected_findings"
-            | "branch_protection" | "mutation_status" | "mutation_survivors" => {
+            "overall_result"
+            | "commit_under_test"
+            | "source_acquisition"
+            | "expected_findings"
+            | "branch_protection"
+            | "governance_independence"
+            | "mutation_status"
+            | "mutation_survivors" => {
                 if scalars.insert(key.to_string(), value.to_string()).is_some() {
                     return Err(format!("duplicate scalar key: {key}"));
                 }
@@ -155,6 +163,7 @@ fn parse_status_block(block: &str) -> Result<ParsedManifest, String> {
         "source_acquisition",
         "expected_findings",
         "branch_protection",
+        "governance_independence",
         "mutation_status",
         "mutation_survivors",
     ] {
@@ -187,6 +196,7 @@ fn parse_status_block(block: &str) -> Result<ParsedManifest, String> {
         stated_result: ComputedResult::parse(&scalars["overall_result"])?,
         expected_findings,
         branch_protection: scalars.remove("branch_protection").unwrap(),
+        governance_independence: scalars.remove("governance_independence").unwrap(),
         mutation_status: scalars.remove("mutation_status").unwrap(),
         mutation_survivors: scalars.remove("mutation_survivors").unwrap(),
         findings,
@@ -246,6 +256,11 @@ fn compute_result(parsed: &ParsedManifest) -> Result<ComputedResult, String> {
     if parsed.branch_protection != "ruleset-transcript-current" {
         pass = false;
     }
+    match parsed.governance_independence.as_str() {
+        "independent-review" | "last-push-required-reviewer" => {}
+        "pending-governance" | "status-checks-only" | "zero-approval" => pass = false,
+        other => return Err(format!("unknown governance_independence: {other}")),
+    }
     if parsed.expected_findings.is_empty() {
         pass = false;
     }
@@ -292,6 +307,10 @@ fn compute_result(parsed: &ParsedManifest) -> Result<ComputedResult, String> {
     } else {
         ComputedResult::NonPass
     })
+}
+
+fn governance_is_independent(value: &str) -> bool {
+    matches!(value, "independent-review" | "last-push-required-reviewer")
 }
 
 fn validate_closed_finding(label: &str, finding: &Finding) -> Result<(), String> {

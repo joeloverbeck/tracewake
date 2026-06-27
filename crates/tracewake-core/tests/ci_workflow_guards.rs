@@ -310,6 +310,30 @@ fn ci_workflow_guards_cover_workflow_integrity() {
             .any(|error| error.contains("full-surface mutation trigger missing required text")),
         "synthetic missing scheduled-red policy must fail"
     );
+
+    let missing_approval_count_parse = CI_YML.replace("required_approving_review_count", "");
+    assert!(
+        ci_workflow_guard_errors(&missing_approval_count_parse, MUTANTS_TOML, DOC10)
+            .iter()
+            .any(|error| error.contains("required_approving_review_count")),
+        "synthetic governance audit without approval-count parsing must fail"
+    );
+
+    let missing_last_push_parse = CI_YML.replace("require_last_push_approval", "");
+    assert!(
+        ci_workflow_guard_errors(&missing_last_push_parse, MUTANTS_TOML, DOC10)
+            .iter()
+            .any(|error| error.contains("require_last_push_approval")),
+        "synthetic governance audit without last-push parsing must fail"
+    );
+
+    let missing_reviewer_parse = CI_YML.replace("required_reviewers", "");
+    assert!(
+        ci_workflow_guard_errors(&missing_reviewer_parse, MUTANTS_TOML, DOC10)
+            .iter()
+            .any(|error| error.contains("required_reviewers")),
+        "synthetic governance audit without required-reviewer parsing must fail"
+    );
 }
 
 #[test]
@@ -385,6 +409,13 @@ fn governance_audit_errors(workflow: &str) -> Vec<String> {
         "pending/unverified: required-check governance is not proven.",
         "branch protection does not enforce admins",
         "pull request requirement not proven",
+        "required_approving_review_count",
+        "require_last_push_approval",
+        "required_reviewers",
+        "independent acceptor constraint not proven",
+        "Max required approving review count:",
+        "Require last-push approval:",
+        "Required reviewers discovered:",
         "up-to-date branch or merge queue requirement not proven",
         "\"rustfmt\"",
         "\"clippy\"",
