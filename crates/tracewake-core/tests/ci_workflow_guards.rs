@@ -367,6 +367,7 @@ fn governance_audit_errors(workflow: &str) -> Vec<String> {
         "name: governance required checks audit",
         "branches/main/protection",
         "rulesets?targets=branch",
+        "repos/${GITHUB_REPOSITORY}/rulesets/${ruleset_id}",
         "pending/unverified: branch-protection and ruleset APIs were unavailable.",
         "pending/unverified: required-check governance is not proven.",
         "branch protection does not enforce admins",

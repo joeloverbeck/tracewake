@@ -134,8 +134,23 @@ jobs:
           set +e
           protection_json="$(gh api "repos/${GITHUB_REPOSITORY}/branches/main/protection" 2>protection.err)"
           protection_status=$?
-          rulesets_json="$(gh api "repos/${GITHUB_REPOSITORY}/rulesets?targets=branch" 2>rulesets.err)"
+          ruleset_ids="$(gh api "repos/${GITHUB_REPOSITORY}/rulesets?targets=branch" --jq '.[].id' 2>rulesets.err)"
           rulesets_status=$?
+          # The rulesets list endpoint returns summaries only (no rules or
+          # bypass_actors); fetch each ruleset's full definition so required-check
+          # governance and bypass residuals can be proven from the rules array.
+          rulesets_json=""
+          if [ "$rulesets_status" -eq 0 ]; then
+            for ruleset_id in $ruleset_ids; do
+              ruleset_detail="$(gh api "repos/${GITHUB_REPOSITORY}/rulesets/${ruleset_id}" 2>>rulesets.err)"
+              ruleset_detail_status=$?
+              if [ "$ruleset_detail_status" -ne 0 ]; then
+                rulesets_status="$ruleset_detail_status"
+                continue
+              fi
+              rulesets_json="${rulesets_json}${ruleset_detail}"
+            done
+          fi
           set -e
 
           if [ "$protection_status" -ne 0 ] && [ "$rulesets_status" -ne 0 ]; then
@@ -187,7 +202,16 @@ jobs:
               evidence.append("branches/main/protection")
 
           if os.environ["RULESETS_STATUS"] == "0":
-              rulesets = json.loads(os.environ["RULESETS_JSON"] or "[]")
+              decoder = json.JSONDecoder()
+              text = (os.environ["RULESETS_JSON"] or "").strip()
+              rulesets = []
+              index = 0
+              while index < len(text):
+                  ruleset, end = decoder.raw_decode(text, index)
+                  rulesets.append(ruleset)
+                  index = end
+                  while index < len(text) and text[index].isspace():
+                      index += 1
               for ruleset in rulesets:
                   if ruleset.get("target") != "branch":
                       continue
