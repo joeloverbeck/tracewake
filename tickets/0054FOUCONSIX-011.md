@@ -4,7 +4,7 @@
 **Priority**: HIGH
 **Engine Changes**: None — acceptance-only verdict artifact (`reports/0054_foundational_conformance_sixth_hardening_acceptance.md`); no new production logic
 **Effort**: Small
-**Deps**: 0054FOUCONSIX-007, 0054FOUCONSIX-009, 0054FOUCONSIX-010
+**Deps**: 0054FOUCONSIX-007, 0054FOUCONSIX-009, 0054FOUCONSIX-010, 0054FOUCONSIX-012
 
 ## Problem
 

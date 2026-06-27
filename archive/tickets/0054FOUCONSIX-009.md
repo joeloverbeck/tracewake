@@ -1,6 +1,6 @@
 # 0054FOUCONSIX-009: Standing mutation campaign — full run + denominator record
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: None — evidence-only standing-campaign run; denominators and disposition handed to the capstone (011)
@@ -76,3 +76,41 @@ Hand the denominators/disposition to the capstone artifact (011). Route any run-
 1. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
 2. `cargo mutants` (the configured standing campaign per `.cargo/mutants.toml`) — record denominator + caught/missed/unviable/timeout + baseline-miss reconciliation.
 3. The standing campaign is the correct verification boundary here (not a focused `-f` run): only a full-perimeter run at one commit can certify the canonical perimeter for the capstone.
+
+## Outcome
+
+Completed: 2026-06-27
+
+Ran the pre-mutation gate set and the configured standing mutation campaign from a clean detached worktree at exact commit `30678b6e420db98b32cd8edfa8d112f3aad9a07c` (`/tmp/tracewake-mutants-30678b6`). The main checkout retained unrelated pre-existing dirty files; the detached worktree was clean before the evidence run.
+
+Pre-mutation clean-worktree gates:
+
+- `git status --short` — clean.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
+
+Configured standing mutation campaign:
+
+- `cargo mutants --list | wc -l` — selected 3445 mutants.
+- `cargo mutants` — completed in about 4h with 3445 mutants tested: 2673 caught, 766 unviable, 6 missed, 0 timeouts. Command exited non-zero because survivors were present.
+- `.cargo/mutants-baseline-misses.txt` is empty, so there are no preapproved baseline-miss rows to reconcile. The six missed rows are live survivors, not green standing evidence.
+
+Missed rows:
+
+- `crates/tracewake-core/src/runtime/receipt.rs:151:45: replace > with >= in OneTickRuntimeReceipt::from_world_advance_result`
+- `crates/tracewake-core/src/runtime/receipt.rs:160:9: replace OneTickRuntimeReceipt::advanced -> bool with true`
+- `crates/tracewake-core/src/runtime/receipt.rs:164:9: replace OneTickRuntimeReceipt::appended_event_count -> usize with 1`
+- `crates/tracewake-core/src/runtime/receipt.rs:168:9: replace OneTickRuntimeReceipt::actor_known_interval_summary -> Option<&TypedActorKnownIntervalSummary> with None`
+- `crates/tracewake-tui/src/app.rs:158:9: replace TuiApp::debug_available_for -> bool with true`
+- `crates/tracewake-tui/src/app.rs:164:13: replace && with || in TuiApp::debug_available`
+
+Bounded forcing route:
+
+- Created `tickets/0054FOUCONSIX-012.md` to close the runtime receipt and TUI debug-availability survivor set with focused public-boundary tests and mutation reconciliation.
+- Updated `tickets/0054FOUCONSIX-011.md` so the capstone depends on 012. This prevents the acceptance artifact from rendering pass over known live mutation survivors.
+
+No production code or mutation configuration was changed in this evidence-only ticket.
+
+Unrelated pre-existing dirty paths left untouched in the main checkout: `.claude/skills/spec-to-tickets/SKILL.md`, `.claude/skills/spec-to-tickets/references/decomposition-patterns.md`, `CLAUDE.md`, and `tools/clean-build-scratch.sh`.
