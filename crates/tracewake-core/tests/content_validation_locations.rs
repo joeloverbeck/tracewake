@@ -132,3 +132,51 @@ fn container_contents_and_item_locations_must_agree() {
             && error.code == "container_item_mismatch"
     }));
 }
+
+#[test]
+fn authored_state_invariants_are_required_for_valid_fixtures() {
+    let mut fixture = fixture();
+    fixture
+        .initial_needs
+        .retain(|need| need.kind != NeedKind::Safety);
+    fixture.doors[0].is_locked = true;
+    fixture.doors[0].is_open = true;
+    fixture.containers[0].is_locked = true;
+    fixture.containers[0].is_open = true;
+
+    let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+    assert!(report.errors.iter().any(|error| {
+        error.phase == ValidationPhase::State
+            && error.path == "initial_needs.actor_tomas.safety"
+            && error.code == "missing_actor_need_seed"
+    }));
+    assert!(report.errors.iter().any(|error| {
+        error.phase == ValidationPhase::State
+            && error.path == "doors[0]"
+            && error.code == "locked_open_state"
+    }));
+    assert!(report.errors.iter().any(|error| {
+        error.phase == ValidationPhase::State
+            && error.path == "containers[0]"
+            && error.code == "locked_open_state"
+    }));
+}
+
+#[test]
+fn locked_closed_and_unlocked_open_states_remain_valid() {
+    let mut locked_closed = fixture();
+    locked_closed.doors[0].is_locked = true;
+    locked_closed.doors[0].is_open = false;
+    locked_closed.containers[0].is_locked = true;
+    locked_closed.containers[0].is_open = false;
+    validate_fixture(&locked_closed, &registry())
+        .expect("locked but closed doors and containers remain valid authored state");
+
+    let mut unlocked_open = fixture();
+    unlocked_open.doors[0].is_locked = false;
+    unlocked_open.doors[0].is_open = true;
+    unlocked_open.containers[0].is_locked = false;
+    unlocked_open.containers[0].is_open = true;
+    validate_fixture(&unlocked_open, &registry())
+        .expect("open but unlocked doors and containers remain valid authored state");
+}
