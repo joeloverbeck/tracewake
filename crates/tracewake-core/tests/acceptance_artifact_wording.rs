@@ -45,6 +45,14 @@ const CONDITIONAL_CLOSURE_CLAIMS: &[&str] = &[
     "canonical perimeter green",
 ];
 
+const VERDICT_BEARING_PROSE_CLAIMS: &[&str] = &[
+    "approved",
+    "validated",
+    "ready to merge",
+    "no blockers remain",
+    "all required evidence is satisfied",
+];
+
 #[test]
 fn acceptance_artifact_template_requires_scoped_exact_commit_wording() {
     validate_acceptance_artifact_wording(TEMPLATE).expect("template wording is scoped");
@@ -115,7 +123,7 @@ fn acceptance_artifact_missing_scoped_phrase_fails() {
 #[test]
 fn status_manifest_blocks_pass_shaped_wording_over_open_items() {
     let artifact = format!(
-        "{} `<commit>`.\n\nVerdict: scoped pass accepted.\n\n{}",
+        "{} `<commit>`.\n\nComputed result: non-pass\n\nVerdict: scoped pass accepted.\n\n{}",
         REQUIRED_PHASE1_SCOPED_WORDING,
         synthetic_status_manifest(
             "non-pass",
@@ -133,7 +141,7 @@ fn status_manifest_blocks_pass_shaped_wording_over_open_items() {
 #[test]
 fn status_manifest_blocks_green_perimeter_with_survivors() {
     let artifact = format!(
-        "{} `<commit>`.\n\nThe canonical perimeter green claim is ready.\n\n{}",
+        "{} `<commit>`.\n\nComputed result: non-pass\n\nThe canonical perimeter green claim is ready.\n\n{}",
         REQUIRED_PHASE1_SCOPED_WORDING,
         synthetic_status_manifest(
             "non-pass",
@@ -151,7 +159,7 @@ fn status_manifest_blocks_green_perimeter_with_survivors() {
 #[test]
 fn status_manifest_requires_branch_protection_transcript_for_enforced_claims() {
     let artifact = format!(
-        "{} `<commit>`.\n\nBranch protection is enforced for main.\n\n{}",
+        "{} `<commit>`.\n\nComputed result: non-pass\n\nBranch protection is enforced for main.\n\n{}",
         REQUIRED_PHASE1_SCOPED_WORDING,
         synthetic_status_manifest(
             "non-pass",
@@ -172,7 +180,7 @@ fn status_manifest_requires_branch_protection_transcript_for_enforced_claims() {
 #[test]
 fn status_manifest_blocks_historical_results_as_current_certification() {
     let artifact = format!(
-        "{} `<commit>`.\n\nHistorical command results certify current status.\n\nBranch-protection API transcript: gh api repos/:owner/:repo/branches/main/protection.\n\n{}",
+        "{} `<commit>`.\n\nComputed result: pass\n\nHistorical command results certify current status.\n\nBranch-protection API transcript: gh api repos/:owner/:repo/branches/main/protection.\n\n{}",
         REQUIRED_PHASE1_SCOPED_WORDING,
         synthetic_status_manifest(
             "pass",
@@ -193,7 +201,7 @@ fn status_manifest_blocks_historical_results_as_current_certification() {
 #[test]
 fn status_manifest_blocks_display_string_as_sole_behavior_evidence() {
     let artifact = format!(
-        "{} `<commit>`.\n\nBranch-protection API transcript: gh api repos/:owner/:repo/branches/main/protection.\n\nEvidence row: display string as sole evidence for behavior claim.\n\n{}",
+        "{} `<commit>`.\n\nComputed result: pass\n\nBranch-protection API transcript: gh api repos/:owner/:repo/branches/main/protection.\n\nEvidence row: display string as sole evidence for behavior claim.\n\n{}",
         REQUIRED_PHASE1_SCOPED_WORDING,
         synthetic_status_manifest(
             "pass",
@@ -206,6 +214,105 @@ fn status_manifest_blocks_display_string_as_sole_behavior_evidence() {
     );
 
     assert_wording_error_contains(&artifact, "display string as sole behavior evidence");
+}
+
+#[test]
+fn status_manifest_accepts_matching_computed_result_line() {
+    let artifact = format!(
+        "{} `<commit>`.\n\nComputed result: pass\n\n{}",
+        REQUIRED_PHASE1_SCOPED_WORDING,
+        synthetic_status_manifest(
+            "pass",
+            "ruleset-transcript-current",
+            "killed",
+            "none",
+            &closed_findings(),
+            &[],
+        )
+    );
+
+    validate_acceptance_artifact_wording(&artifact)
+        .expect("computed result line matches the closed status manifest");
+}
+
+#[test]
+fn status_manifest_requires_computed_result_line() {
+    let artifact = format!(
+        "{} `<commit>`.\n\n{}",
+        REQUIRED_PHASE1_SCOPED_WORDING,
+        synthetic_status_manifest(
+            "pass",
+            "ruleset-transcript-current",
+            "killed",
+            "none",
+            &closed_findings(),
+            &[],
+        )
+    );
+
+    assert_wording_error_contains(&artifact, "missing computed result line");
+}
+
+#[test]
+fn status_manifest_rejects_mismatched_computed_result_line() {
+    let artifact = format!(
+        "{} `<commit>`.\n\nComputed result: pass\n\n{}",
+        REQUIRED_PHASE1_SCOPED_WORDING,
+        synthetic_status_manifest(
+            "non-pass",
+            "pending/unverified",
+            "open",
+            "none",
+            &open_findings(),
+            &[],
+        )
+    );
+
+    assert_wording_error_contains(
+        &artifact,
+        "computed result line pass does not match non-pass",
+    );
+}
+
+#[test]
+fn status_manifest_rejects_multiple_computed_result_lines() {
+    let artifact = format!(
+        "{} `<commit>`.\n\nComputed result: pass\nComputed result: pass\n\n{}",
+        REQUIRED_PHASE1_SCOPED_WORDING,
+        synthetic_status_manifest(
+            "pass",
+            "ruleset-transcript-current",
+            "killed",
+            "none",
+            &closed_findings(),
+            &[],
+        )
+    );
+
+    assert_wording_error_contains(&artifact, "multiple computed result lines");
+}
+
+#[test]
+fn status_manifest_rejects_verdict_paraphrases_outside_computed_line() {
+    for paraphrase in VERDICT_BEARING_PROSE_CLAIMS {
+        let artifact = format!(
+            "{} `<commit>`.\n\nComputed result: pass\n\nThis artifact is {paraphrase}.\n\n{}",
+            REQUIRED_PHASE1_SCOPED_WORDING,
+            synthetic_status_manifest(
+                "pass",
+                "ruleset-transcript-current",
+                "killed",
+                "none",
+                &closed_findings(),
+                &[],
+            )
+        );
+
+        assert_wording_error_contains(
+            &artifact,
+            "verdict-bearing prose outside computed result line",
+        );
+    }
 }
 
 fn assert_wording_error_contains(artifact: &str, expected: &str) {
@@ -235,6 +342,7 @@ fn validate_acceptance_artifact_wording(text: &str) -> Result<(), String> {
 
     if text.contains(STATUS_FENCE) {
         let manifest = validate_status_manifest(text)?;
+        validate_computed_result_line(text, manifest.computed_result)?;
         let lower_claim_text = result_claim_text.to_ascii_lowercase();
         if text.contains("Branch protection is enforced")
             && !text.contains("Branch-protection API transcript:")
@@ -265,9 +373,99 @@ fn validate_acceptance_artifact_wording(text: &str) -> Result<(), String> {
         {
             return Err("closure wording over non-pass status manifest".to_string());
         }
+        let verdict_claim_text = verdict_claim_scan_text(result_claim_text).to_ascii_lowercase();
+        if let Some(claim) = VERDICT_BEARING_PROSE_CLAIMS
+            .iter()
+            .find(|claim| verdict_claim_text.contains(**claim))
+        {
+            return Err(format!(
+                "verdict-bearing prose outside computed result line: {claim}"
+            ));
+        }
     }
 
     Ok(())
+}
+
+fn validate_computed_result_line(text: &str, expected: ComputedResult) -> Result<(), String> {
+    let mut result_lines = Vec::new();
+    for (line_index, line) in text.lines().enumerate() {
+        if let Some(value) = computed_result_line_value(line) {
+            let computed = parse_computed_result_line_value(value)?;
+            result_lines.push((line_index + 1, computed));
+        }
+    }
+
+    match result_lines.as_slice() {
+        [] => Err("missing computed result line".to_string()),
+        [(_, actual)] if *actual == expected => Ok(()),
+        [(_, actual)] => Err(format!(
+            "computed result line {} does not match {}",
+            computed_result_label(*actual),
+            computed_result_label(expected)
+        )),
+        _ => Err("multiple computed result lines".to_string()),
+    }
+}
+
+fn computed_result_line_value(line: &str) -> Option<&str> {
+    let line = line.trim();
+    let line = line.strip_prefix("- ").unwrap_or(line);
+    line.strip_prefix("Computed result:").map(str::trim)
+}
+
+fn parse_computed_result_line_value(value: &str) -> Result<ComputedResult, String> {
+    let Some(result_token) = value.split_whitespace().next() else {
+        return Err("computed result line is missing pass or non-pass".to_string());
+    };
+    match result_token {
+        "pass" => Ok(ComputedResult::Pass),
+        "non-pass" => Ok(ComputedResult::NonPass),
+        _ => Err(format!(
+            "computed result line must be pass or non-pass, got {result_token:?}"
+        )),
+    }
+}
+
+fn computed_result_label(result: ComputedResult) -> &'static str {
+    match result {
+        ComputedResult::Pass => "pass",
+        ComputedResult::NonPass => "non-pass",
+    }
+}
+
+fn verdict_claim_scan_text(text: &str) -> String {
+    let mut scan_text = String::new();
+    let mut in_status_block = false;
+    for line in text.lines() {
+        if line.trim() == STATUS_FENCE {
+            in_status_block = true;
+            continue;
+        }
+        if in_status_block {
+            if line.trim() == "```" {
+                in_status_block = false;
+            }
+            continue;
+        }
+        if computed_result_line_value(line).is_some() {
+            continue;
+        }
+
+        let mut line = line.to_string();
+        for scoped_wording in [
+            REQUIRED_PHASE1_SCOPED_WORDING,
+            REQUIRED_PHASE2A_SCOPED_WORDING,
+            REQUIRED_P0_CERT_SCOPED_WORDING,
+            REQUIRED_SPINE_CERT_SCOPED_WORDING,
+            REQUIRED_FIRST_PROOF_CERT_SCOPED_WORDING,
+        ] {
+            line = line.replace(scoped_wording, "");
+        }
+        scan_text.push_str(&line);
+        scan_text.push('\n');
+    }
+    scan_text
 }
 
 fn text_before_forbidden_wording_section(text: &str) -> &str {

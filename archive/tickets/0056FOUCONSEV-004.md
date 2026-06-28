@@ -1,6 +1,6 @@
 # 0056FOUCONSEV-004: Closed verdict grammar (replace the phrase denylist)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` acceptance-artifact wording guard and its support
@@ -78,3 +78,31 @@ Retain `FORBIDDEN_RESULT_CLAIMS` / `CONDITIONAL_CLOSURE_CLAIMS` as a secondary a
 
 1. `cargo test --locked -p tracewake-core --test acceptance_artifact_wording`
 2. `cargo test --locked -p tracewake-core`
+
+## Outcome
+
+Completed: 2026-06-28
+
+Implemented a manifest-keyed closed verdict grammar in
+`crates/tracewake-core/tests/acceptance_artifact_wording.rs`. Acceptance
+artifacts with a `tracewake-acceptance-status` block now must include exactly
+one `Computed result:` line, and that line must parse as `pass` or `non-pass`
+consistent with the manifest's computed result.
+
+The existing forbidden/conditional wording alarms remain in place as secondary
+checks. Added closed-grammar coverage for:
+
+- accepted well-formed `Computed result: pass`;
+- missing, duplicated, and mismatched computed-result lines;
+- the named paraphrase bypasses: `approved`, `validated`, `ready to merge`,
+  `no blockers remain`, and `all required evidence is satisfied`.
+
+Deviations from original plan: none. The template/doctrine documentation sync
+and mutation hardening remain assigned to later 0056 tickets.
+
+Verification:
+
+- `cargo fmt --all --check` — passed.
+- `cargo test --locked -p tracewake-core --test acceptance_artifact_wording` —
+  passed.
+- `cargo test --locked -p tracewake-core` — passed.
