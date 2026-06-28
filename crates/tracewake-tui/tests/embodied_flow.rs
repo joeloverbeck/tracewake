@@ -38,7 +38,7 @@ fn bind_render_submit_rerender_and_show_why_not() {
     assert!(second.contains("strongbox_tomas"));
     assert!(second.contains("coin_stack_01"));
 
-    let mut door_app = TuiApp::from_golden(fixtures::door_access_001()).unwrap();
+    let mut door_app = TuiApp::from_golden_operator_debug(fixtures::door_access_001()).unwrap();
     door_app
         .bind_actor(ActorId::new("actor_sena").unwrap())
         .unwrap();
@@ -59,7 +59,7 @@ fn bind_render_submit_rerender_and_show_why_not() {
 
 #[test]
 fn phase3a_embodied_view_renders_needs_routine_affordances_without_hidden_truth() {
-    let mut app = TuiApp::from_golden(fixtures::no_human_day_001()).unwrap();
+    let mut app = TuiApp::from_golden_operator_debug(fixtures::no_human_day_001()).unwrap();
     app.bind_actor(ActorId::new("actor_tomas").unwrap())
         .unwrap();
 
@@ -147,14 +147,14 @@ fn wait_command_during_sleep_is_reservation_conflict_without_world_advance() {
 
 #[test]
 fn human_sleep_completion_real_pipeline_witness() {
-    let mut app = TuiApp::from_golden(fixtures::sleep_eat_work_001()).unwrap();
-    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+    let mut app = TuiApp::from_golden_operator_debug(fixtures::sleep_eat_work_001()).unwrap();
+    app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())
         .unwrap();
     let mut output = Vec::new();
 
     run_command_loop(
         &mut app,
-        b"do sleep.here\nwait\ncontinue\nbind-debug actor_tomas\ndebug replay\nquit\n".as_slice(),
+        b"do sleep.here\nwait\ncontinue\ndebug replay\nquit\n".as_slice(),
         &mut output,
     )
     .unwrap();
@@ -169,7 +169,6 @@ fn human_sleep_completion_real_pipeline_witness() {
     assert!(rendered.contains("Recent interval: actor-known update"));
     assert!(rendered.contains("- perception"));
     assert!(!rendered.contains("event.perception.actor_tomas.4."));
-    assert!(rendered.contains("Bound debug actor: actor_tomas"));
     assert!(rendered.contains("DEBUG NON-DIEGETIC: Replay"));
     assert!(rendered.contains("matches_expected=false"));
     assert!(rendered.contains("agent_checksum_matches=true"));
@@ -187,14 +186,14 @@ fn human_sleep_completion_real_pipeline_witness() {
 
 #[test]
 fn human_work_completion_real_pipeline_witness() {
-    let mut app = TuiApp::from_golden(fixtures::ordinary_workday_001()).unwrap();
-    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+    let mut app = TuiApp::from_golden_operator_debug(fixtures::ordinary_workday_001()).unwrap();
+    app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())
         .unwrap();
     let mut output = Vec::new();
 
     run_command_loop(
         &mut app,
-        b"do move.to.workshop_tomas\ndo work.block.workplace_tomas\nwait\ncontinue\nbind-debug actor_tomas\ndebug replay\nquit\n".as_slice(),
+        b"do move.to.workshop_tomas\ndo work.block.workplace_tomas\nwait\ncontinue\ndebug replay\nquit\n".as_slice(),
         &mut output,
     )
     .unwrap();
@@ -210,7 +209,6 @@ fn human_work_completion_real_pipeline_witness() {
     assert!(rendered.contains("Recent interval: actor-known update"));
     assert!(rendered.contains("- perception"));
     assert!(!rendered.contains("event.perception.actor_tomas.4."));
-    assert!(rendered.contains("Bound debug actor: actor_tomas"));
     assert!(rendered.contains("DEBUG NON-DIEGETIC: Replay"));
     assert!(rendered.contains("matches_expected=false"));
     assert!(rendered.contains("agent_checksum_matches=true"));

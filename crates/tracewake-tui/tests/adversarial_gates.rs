@@ -63,7 +63,8 @@ impl AdversarialReviewArtifact {
 
 #[test]
 fn adversarial_gates_debug_truth_does_not_enter_actor_surfaces() {
-    let mut app = TuiApp::from_golden(fixtures::debug_omniscience_excluded_001()).unwrap();
+    let mut app =
+        TuiApp::from_golden_operator_debug(fixtures::debug_omniscience_excluded_001()).unwrap();
     app.bind_actor(ActorId::new("actor_mara").unwrap()).unwrap();
     let before_checksum = app.physical_checksum();
 
@@ -124,7 +125,8 @@ fn adversarial_gates_debug_truth_does_not_enter_actor_surfaces() {
 
 #[test]
 fn debug_panel_does_not_change_embodied_affordances() {
-    let mut app = TuiApp::from_golden(fixtures::debug_omniscience_excluded_001()).unwrap();
+    let mut app =
+        TuiApp::from_golden_operator_debug(fixtures::debug_omniscience_excluded_001()).unwrap();
     app.bind_debug_actor(ActorId::new("actor_mara").unwrap())
         .unwrap();
     let before_view = app.current_view().unwrap();
@@ -378,7 +380,8 @@ fn tui_current_view_submission_rejects_stale_selection() {
 
 #[test]
 fn debug_command_strings_are_not_embodied_commands() {
-    let mut app = TuiApp::from_golden(fixtures::debug_omniscience_excluded_001()).unwrap();
+    let mut app =
+        TuiApp::from_golden_operator_debug(fixtures::debug_omniscience_excluded_001()).unwrap();
     app.bind_debug_actor(ActorId::new("actor_mara").unwrap())
         .unwrap();
     let before_view = app.current_view().unwrap();
@@ -439,7 +442,8 @@ fn debug_command_strings_are_not_embodied_commands() {
 
 #[test]
 fn adversarial_gates_possession_rebind_does_not_transfer_notebook_or_debug_truth() {
-    let mut app = TuiApp::from_golden(fixtures::expectation_contradiction_001()).unwrap();
+    let mut app =
+        TuiApp::from_golden_operator_debug(fixtures::expectation_contradiction_001()).unwrap();
     app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())
         .unwrap();
     app.submit_semantic_action(&SemanticActionId::new("open.container.strongbox_tomas").unwrap())
@@ -503,7 +507,8 @@ fn adversarial_gates_possession_rebind_does_not_transfer_notebook_or_debug_truth
 
 #[test]
 fn adversarial_gates_possession_rebind_does_not_transfer_rejection_why_not() {
-    let mut app = TuiApp::from_golden(fixtures::expectation_contradiction_001()).unwrap();
+    let mut app =
+        TuiApp::from_golden_operator_debug(fixtures::expectation_contradiction_001()).unwrap();
     app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())
         .unwrap();
     let blocked_action = SemanticActionId::new("check.container.strongbox_tomas").unwrap();
@@ -628,7 +633,7 @@ fn adversarial_gates_tui_rule_inference_cannot_apply_hidden_food_target() {
 
 #[test]
 fn adversarial_gates_why_not_actor_surface_uses_typed_non_leaking_facts() {
-    let mut app = TuiApp::from_golden(fixtures::door_access_001()).unwrap();
+    let mut app = TuiApp::from_golden_operator_debug(fixtures::door_access_001()).unwrap();
     app.bind_actor(ActorId::new("actor_sena").unwrap()).unwrap();
     let view = app.current_view().unwrap();
     let rejected = app
@@ -762,7 +767,7 @@ fn adversarial_gates_typed_diagnostics_are_independent_of_display_text() {
 
 #[test]
 fn adversarial_gates_no_human_operator_output_stays_debug_only() {
-    let mut app = TuiApp::from_golden(fixtures::no_human_day_001()).unwrap();
+    let mut app = TuiApp::from_golden_operator_debug(fixtures::no_human_day_001()).unwrap();
     app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())
         .unwrap();
     let before_events = app.event_count();
@@ -813,7 +818,7 @@ fn adversarial_gates_no_human_operator_output_stays_debug_only() {
 
 #[test]
 fn adversarial_gates_rendering_does_not_change_typed_order_or_replay() {
-    let mut app = TuiApp::from_golden(fixtures::door_access_001()).unwrap();
+    let mut app = TuiApp::from_golden_operator_debug(fixtures::door_access_001()).unwrap();
     app.bind_debug_actor(ActorId::new("actor_sena").unwrap())
         .unwrap();
     let before = app.current_view().unwrap();

@@ -8,7 +8,12 @@ fn main() {
         }
     };
 
-    let tracewake_tui::launch::Launch::Run { golden, actor_id } = launch else {
+    let tracewake_tui::launch::Launch::Run {
+        golden,
+        actor_id,
+        mode,
+    } = launch
+    else {
         match launch {
             tracewake_tui::launch::Launch::List => {
                 println!("{}", tracewake_tui::launch::render_catalog());
@@ -21,9 +26,20 @@ fn main() {
         return;
     };
 
-    let mut app = tracewake_tui::app::TuiApp::from_golden(*golden).expect("fixture loads");
-    app.bind_debug_actor(actor_id)
-        .expect("selected actor exists");
+    let mut app = match mode {
+        tracewake_tui::launch::LaunchMode::Embodied => {
+            let mut app = tracewake_tui::app::TuiApp::from_golden(*golden).expect("fixture loads");
+            app.bind_actor(actor_id).expect("selected actor exists");
+            app
+        }
+        tracewake_tui::launch::LaunchMode::OperatorDebug => {
+            let mut app = tracewake_tui::app::TuiApp::from_golden_operator_debug(*golden)
+                .expect("fixture loads");
+            app.bind_debug_actor(actor_id)
+                .expect("selected actor exists");
+            app
+        }
+    };
     println!("{}", tracewake_tui::startup_message());
     tracewake_tui::run::run_command_loop(
         &mut app,

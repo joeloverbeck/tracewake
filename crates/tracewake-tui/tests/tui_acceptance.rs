@@ -44,7 +44,7 @@ impl PositiveProofArtifact {
 #[test]
 fn embodied_view_lists_each_container_once_after_opening_in_same_tick() {
     let mut app = TuiApp::load_default().unwrap();
-    app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
         .unwrap();
 
     let view = app.current_view().unwrap();
@@ -171,7 +171,8 @@ fn contradicted_belief_links_its_contradiction_in_the_notebook() {
     // After tomas checks a strongbox he expected to hold a coin, the absence is a
     // typed contradiction. The newly recorded "item missing" belief must carry that
     // contradiction id so the notebook shows the link instead of contradictions=none.
-    let mut app = TuiApp::from_golden(fixtures::expectation_contradiction_001()).unwrap();
+    let mut app =
+        TuiApp::from_golden_operator_debug(fixtures::expectation_contradiction_001()).unwrap();
     app.bind_actor(ActorId::new("actor_tomas").unwrap())
         .unwrap();
 
@@ -212,7 +213,7 @@ fn carried_item_is_not_also_listed_among_place_items_in_same_tick() {
     // the embodied view must not show the same item both in the place and in the
     // inventory (an item has exactly one location).
     let mut app = TuiApp::load_default().unwrap();
-    app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
         .unwrap();
 
     for semantic in [
@@ -383,7 +384,8 @@ fn tui_sources_do_not_call_event_application_directly() {
 
 #[test]
 fn tui_semantic_submissions_use_runtime_allocated_ordering_and_time_policy() {
-    let mut app = TuiApp::from_golden(fixtures::expectation_contradiction_001()).unwrap();
+    let mut app =
+        TuiApp::from_golden_operator_debug(fixtures::expectation_contradiction_001()).unwrap();
     app.bind_actor(ActorId::new("actor_tomas").unwrap())
         .unwrap();
 
@@ -531,7 +533,7 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
         checksum_result: "accepted_sleep_started_event",
     });
 
-    let mut eat = TuiApp::from_golden(fixtures::no_human_day_001()).unwrap();
+    let mut eat = TuiApp::from_golden_operator_debug(fixtures::no_human_day_001()).unwrap();
     eat.bind_actor(ActorId::new("actor_tomas").unwrap())
         .unwrap();
     let view = eat.current_view().unwrap();
@@ -658,7 +660,7 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
         checksum_result: "accepted_continue_routine_event",
     });
 
-    let mut why_not = TuiApp::from_golden(fixtures::door_access_001()).unwrap();
+    let mut why_not = TuiApp::from_golden_operator_debug(fixtures::door_access_001()).unwrap();
     why_not
         .bind_actor(ActorId::new("actor_sena").unwrap())
         .unwrap();
@@ -702,7 +704,8 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
         checksum_result: "unchanged_after_rejection",
     });
 
-    let mut notebook = TuiApp::from_golden(fixtures::expectation_contradiction_001()).unwrap();
+    let mut notebook =
+        TuiApp::from_golden_operator_debug(fixtures::expectation_contradiction_001()).unwrap();
     notebook
         .bind_actor(ActorId::new("actor_tomas").unwrap())
         .unwrap();
@@ -742,7 +745,8 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
         checksum_result: "observation_event_recorded",
     });
 
-    let mut debug = TuiApp::from_golden(fixtures::debug_omniscience_excluded_001()).unwrap();
+    let mut debug =
+        TuiApp::from_golden_operator_debug(fixtures::debug_omniscience_excluded_001()).unwrap();
     debug
         .bind_actor(ActorId::new("actor_mara").unwrap())
         .unwrap();
@@ -891,7 +895,7 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
 
 #[test]
 fn phase3a_debug_surfaces_render_deterministically_and_read_only() {
-    let mut app = TuiApp::from_golden(fixtures::no_human_day_001()).unwrap();
+    let mut app = TuiApp::from_golden_operator_debug(fixtures::no_human_day_001()).unwrap();
     app.bind_actor(ActorId::new("actor_tomas").unwrap())
         .unwrap();
     let before_view = app.render_current_view().unwrap();
@@ -950,7 +954,7 @@ fn phase3a_debug_surfaces_render_deterministically_and_read_only() {
 
 #[test]
 fn tui_runs_no_human_day_and_inspects_real_post_run_panels() {
-    let mut app = TuiApp::from_golden(fixtures::no_human_day_001()).unwrap();
+    let mut app = TuiApp::from_golden_operator_debug(fixtures::no_human_day_001()).unwrap();
     app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())
         .unwrap();
     let before_events = app.event_count();
@@ -1007,7 +1011,7 @@ fn tui_runs_no_human_day_and_inspects_real_post_run_panels() {
     assert_eq!(app.event_count(), after_debug_events);
     assert_eq!(app.physical_checksum(), before_debug_checksum);
 
-    let mut command_app = TuiApp::from_golden(fixtures::no_human_day_001()).unwrap();
+    let mut command_app = TuiApp::from_golden_operator_debug(fixtures::no_human_day_001()).unwrap();
     command_app
         .bind_debug_actor(ActorId::new("actor_tomas").unwrap())
         .unwrap();
@@ -1054,7 +1058,7 @@ fn leakage_debug_truth_does_not_enter_embodied_view() {
 
 #[test]
 fn tui_playability_reaches_action_rejection_wait_and_debug() {
-    let mut app = TuiApp::from_golden(fixtures::door_access_001()).unwrap();
+    let mut app = TuiApp::from_golden_operator_debug(fixtures::door_access_001()).unwrap();
     app.bind_actor(ActorId::new("actor_sena").unwrap()).unwrap();
     assert!(app
         .render_current_view()
@@ -1085,7 +1089,8 @@ fn tui_playability_reaches_action_rejection_wait_and_debug() {
 
 #[test]
 fn phase2a_tui_transcript_discovers_absence_without_culprit_leak() {
-    let mut app = TuiApp::from_golden(fixtures::expectation_contradiction_001()).unwrap();
+    let mut app =
+        TuiApp::from_golden_operator_debug(fixtures::expectation_contradiction_001()).unwrap();
     app.bind_actor(ActorId::new("actor_tomas").unwrap())
         .unwrap();
 

@@ -1,6 +1,6 @@
 # 0056FOUCONSEV-002: Operator-gated, non-embodied debug authority
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` debug-authority API reseal, `tracewake-tui` launch-mode split and command-loop gating, the debug-authority negative fixture, and ordinary-mode noninducibility tests
@@ -100,3 +100,66 @@ Retarget `tests/negative-fixtures/external_crate_cannot_induce_debug_authority_v
 1. `cargo test --locked -p tracewake-tui` — command-loop noninducibility + operator-launch tests.
 2. `cargo test --locked -p tracewake-core --test negative_fixture_runner`
 3. `cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-28
+
+Implemented the F7-02 operator/debug boundary by removing
+`LoadedWorldRuntime::local_operator_debug_authority()` from the public runtime
+API and introducing `LocalOperatorDebugAuthority` as the explicit launch/session
+setup capability that can mint a `DebugSessionAuthority`. `TuiApp::from_golden`
+now constructs an ordinary embodied app with no held operator capability;
+`TuiApp::from_golden_operator_debug` constructs the explicit local operator
+debug app. `bind_debug_actor` no longer mints authority from the runtime and
+fails with `DebugUnavailable` unless the app was created through the operator
+path.
+
+Chosen operator UX: `cargo run -p tracewake-tui -- --operator-debug <fixture_id>
+[actor_id]`. Ordinary launches keep `bind <actor_id>` and all play commands,
+but the ordinary parser no longer recognizes `bind-debug`. The rejected
+alternative was preserving `bind-debug` as an in-band command with a runtime
+check; that would have left the embodied command surface capable of requesting
+debug authority. README and the active human-wait reproduction report were
+updated to point debug inspection at the operator/debug launch instead.
+
+Acceptance coverage:
+
+- Ordinary-mode noninducibility is covered by
+  `run::tests::ordinary_command_loop_cannot_induce_debug_authority`, which
+  submits `bind-debug actor_tomas`, `debug overlay`, and `debug log` through the
+  public command loop and verifies no debug view is produced, no "Bound debug
+  actor" output appears, debug remains unavailable, and ordinary `wait`
+  continues to work.
+- Positive operator reachability is covered by the `--operator-debug` launch
+  resolver test, binary command-loop tests using `--operator-debug`, README
+  sample smoke, and existing debug-panel/TUI acceptance tests migrated to the
+  explicit operator constructor.
+- The debug-authority negative fixture now attacks the removed
+  `LoadedWorldRuntime::local_operator_debug_authority()` symbol and the runner
+  expects the missing-method diagnostic.
+
+Deviations from the original file list: `runtime/command.rs` and
+`debug_panels.rs` did not need production edits because existing
+`DebugSessionAuthority` token gates and debug-panel non-diegetic markers already
+held after the launch/parser split. The active report
+`reports/tui-human-wait-runs-simulation-issue.md` was updated because it was a
+live reproduction note still instructing users to type `bind-debug`.
+
+Verification:
+
+- `cargo test --locked -p tracewake-tui` — passed.
+- `cargo test --locked -p tracewake-core --test negative_fixture_runner` —
+  passed.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+- `cargo test --workspace` — passed.
+
+Source/reference sweep:
+
+- Active production source no longer defines or dispatches `UiCommand::BindDebugActor`
+  and no longer defines `LoadedWorldRuntime::local_operator_debug_authority`.
+- Remaining `bind-debug` references are the ordinary-mode negative behavioral
+  test, its parser-unit assertion that the command is unknown, historical F7-02
+  problem statements, and this ticket's provenance.

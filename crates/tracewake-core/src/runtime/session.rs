@@ -265,10 +265,6 @@ impl LoadedWorldRuntime {
             .then(|| authority.clone())
     }
 
-    pub fn local_operator_debug_authority(&self) -> DebugSessionAuthority {
-        DebugSessionAuthority::mint()
-    }
-
     pub fn embodied_view_model(
         &self,
         controller_id: &ControllerId,
@@ -1047,7 +1043,7 @@ mod tests {
                 actor_id.clone(),
             ))
             .unwrap();
-        let authority = runtime.local_operator_debug_authority();
+        let authority = DebugSessionAuthority::mint();
         assert!(
             runtime
                 .debug_session_authority_for(&authority, &controller_id, &actor_id)

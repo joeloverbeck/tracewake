@@ -32,6 +32,17 @@ pub struct DebugSessionAuthority {
     capability: DebugCapability,
 }
 
+/// Explicit local-operator proof for non-diegetic debug sessions.
+///
+/// This capability is created by launch/session setup code, outside ordinary
+/// embodied command input. It can be named by clients, but its fields remain
+/// private so ordinary parsers cannot fabricate a debug session authority from
+/// actor input or controller binding state.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LocalOperatorDebugAuthority {
+    authority: DebugSessionAuthority,
+}
+
 impl DebugCapability {
     pub(crate) const fn mint() -> Self {
         Self {
@@ -76,6 +87,22 @@ impl DebugSessionAuthority {
     }
 }
 
+impl LocalOperatorDebugAuthority {
+    pub fn for_local_operator_launch() -> Self {
+        Self {
+            authority: DebugSessionAuthority::mint(),
+        }
+    }
+
+    pub fn session_authority(&self) -> DebugSessionAuthority {
+        self.authority.clone()
+    }
+
+    pub fn debug_only(&self) -> bool {
+        self.authority.debug_only()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -97,5 +124,13 @@ mod tests {
             capability: DebugCapability::test_non_debug(),
         };
         assert!(!forged_non_debug.debug_only());
+    }
+
+    #[test]
+    fn local_operator_authority_mints_debug_session_authority() {
+        let operator = LocalOperatorDebugAuthority::for_local_operator_launch();
+
+        assert!(operator.debug_only());
+        assert!(operator.session_authority().debug_only());
     }
 }

@@ -94,6 +94,12 @@ Select another fixture, and optionally an actor, with:
 cargo run -p tracewake-tui -- <fixture_id> [actor_id]
 ```
 
+Launch an explicit non-diegetic operator/debug session with:
+
+```text
+cargo run -p tracewake-tui -- --operator-debug <fixture_id> [actor_id]
+```
+
 List the authored fixture catalog and actor ids with:
 
 ```text
@@ -101,7 +107,7 @@ cargo run -p tracewake-tui -- --list
 ```
 
 If no actor id is supplied, the TUI binds the first authored actor in the fixture. No-human
-fixtures such as `no_human_day_001` can be advanced after launch with
+fixtures such as `no_human_day_001` can be advanced from an operator/debug launch with
 `debug run no-human-day`, then inspected through the non-diegetic debug panels, including
 `debug no-human-day` and `debug planner <actor_id>`.
 
@@ -114,7 +120,6 @@ epistemic, and ordinary-life slices, not a graphical client.
 help                         show command help
 view                         re-render the current embodied view
 bind <actor_id>              bind the controller to an actor
-bind-debug <actor_id>        bind the controller to an actor with explicit debug availability
 <n>                          submit the action at the 1-based menu position from the current view
 do <semantic_action_id>      submit a stable semantic action ID shown in the action menu
 notebook                     show the current actor's source-backed notebook projection

@@ -7,7 +7,6 @@ pub enum UiCommand {
     View,
     Notebook,
     BindActor(ActorId),
-    BindDebugActor(ActorId),
     SelectSemanticAction(SemanticActionId),
     SelectByMenuIndex(usize),
     WaitOneTick,
@@ -90,11 +89,6 @@ pub fn parse_command(input: &str) -> Result<UiCommand, InputError> {
     if let Some(actor_id) = trimmed.strip_prefix("bind ") {
         return ActorId::new(actor_id.to_string())
             .map(UiCommand::BindActor)
-            .map_err(|_| InputError::BadActorId(actor_id.to_string()));
-    }
-    if let Some(actor_id) = trimmed.strip_prefix("bind-debug ") {
-        return ActorId::new(actor_id.to_string())
-            .map(UiCommand::BindDebugActor)
             .map_err(|_| InputError::BadActorId(actor_id.to_string()));
     }
     if let Some(semantic_action_id) = trimmed.strip_prefix("do ") {
@@ -246,8 +240,10 @@ mod tests {
         assert_eq!(parse_command("view").unwrap(), UiCommand::View);
         assert_eq!(parse_command("notebook").unwrap(), UiCommand::Notebook);
         assert_eq!(
-            parse_command("bind-debug actor_tomas").unwrap(),
-            UiCommand::BindDebugActor(ActorId::new("actor_tomas").unwrap())
+            parse_command("bind-debug actor_tomas"),
+            Err(InputError::UnknownCommand(
+                "bind-debug actor_tomas".to_string()
+            ))
         );
         assert_eq!(parse_command("wait").unwrap(), UiCommand::WaitOneTick);
         assert_eq!(parse_command("w").unwrap(), UiCommand::WaitOneTick);

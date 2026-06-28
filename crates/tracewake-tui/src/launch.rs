@@ -9,9 +9,16 @@ pub enum Launch {
     Run {
         golden: Box<GoldenFixture>,
         actor_id: ActorId,
+        mode: LaunchMode,
     },
     List,
     Help,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum LaunchMode {
+    Embodied,
+    OperatorDebug,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -40,16 +47,49 @@ pub fn resolve(args: &[String]) -> Result<Launch, LaunchError> {
             Ok(Launch::Run {
                 golden: Box::new(golden),
                 actor_id,
+                mode: LaunchMode::Embodied,
             })
         }
         [flag] if flag == "--list" || flag == "-l" => Ok(Launch::List),
         [flag] if flag == "--help" || flag == "-h" => Ok(Launch::Help),
+        [flag, fixture_id] if flag == "--operator-debug" => {
+            let golden = resolve_fixture(fixture_id)?;
+            let actor_id = first_actor(&golden).expect("golden fixtures must author actors");
+            Ok(Launch::Run {
+                golden: Box::new(golden),
+                actor_id,
+                mode: LaunchMode::OperatorDebug,
+            })
+        }
+        [flag, fixture_id, actor_id] if flag == "--operator-debug" => {
+            let golden = resolve_fixture(fixture_id)?;
+            let actor_id = ActorId::new(actor_id.clone())
+                .map_err(|err| LaunchError::BadActorId(err.to_string()))?;
+            if !golden
+                .fixture
+                .actors
+                .iter()
+                .any(|actor| actor.actor_id == actor_id)
+            {
+                return Err(LaunchError::UnknownActor {
+                    fixture_id: fixture_id.clone(),
+                    actor_id: actor_id.to_string(),
+                    available: actor_ids(&golden),
+                });
+            }
+            Ok(Launch::Run {
+                golden: Box::new(golden),
+                actor_id,
+                mode: LaunchMode::OperatorDebug,
+            })
+        }
         [fixture_id] => {
             let golden = resolve_fixture(fixture_id)?;
             let actor_id = first_actor(&golden).expect("golden fixtures must author actors");
             Ok(Launch::Run {
                 golden: Box::new(golden),
                 actor_id,
+                mode: LaunchMode::Embodied,
             })
         }
         [fixture_id, actor_id] => {
@@ -71,6 +111,7 @@ pub fn resolve(args: &[String]) -> Result<Launch, LaunchError> {
             Ok(Launch::Run {
                 golden: Box::new(golden),
                 actor_id,
+                mode: LaunchMode::Embodied,
             })
         }
         _ => Err(LaunchError::TooManyArgs),
@@ -96,6 +137,7 @@ pub fn usage() -> String {
         "Usage:",
         "  cargo run -p tracewake-tui",
         "  cargo run -p tracewake-tui -- <fixture_id> [actor_id]",
+        "  cargo run -p tracewake-tui -- --operator-debug <fixture_id> [actor_id]",
         "  cargo run -p tracewake-tui -- --list",
         "  cargo run -p tracewake-tui -- --help",
     ]
@@ -158,9 +200,14 @@ mod tests {
         let launch = resolve(&[]).unwrap();
 
         match launch {
-            Launch::Run { golden, actor_id } => {
+            Launch::Run {
+                golden,
+                actor_id,
+                mode,
+            } => {
                 assert_eq!(golden.fixture.fixture_id.as_str(), "strongbox_001");
                 assert_eq!(actor_id.as_str(), "actor_tomas");
+                assert_eq!(mode, LaunchMode::Embodied);
             }
             other => panic!("expected run launch, got {other:?}"),
         }
@@ -171,9 +218,14 @@ mod tests {
         let launch = resolve(&args(&["ordinary_workday_001"])).unwrap();
 
         match launch {
-            Launch::Run { golden, actor_id } => {
+            Launch::Run {
+                golden,
+                actor_id,
+                mode,
+            } => {
                 assert_eq!(golden.fixture.fixture_id.as_str(), "ordinary_workday_001");
                 assert_eq!(actor_id, golden.fixture.actors.first().unwrap().actor_id);
+                assert_eq!(mode, LaunchMode::Embodied);
             }
             other => panic!("expected run launch, got {other:?}"),
         }
@@ -184,9 +236,37 @@ mod tests {
         let launch = resolve(&args(&["debug_attach_001", "actor_jules"])).unwrap();
 
         match launch {
-            Launch::Run { golden, actor_id } => {
+            Launch::Run {
+                golden,
+                actor_id,
+                mode,
+            } => {
                 assert_eq!(golden.fixture.fixture_id.as_str(), "debug_attach_001");
                 assert_eq!(actor_id.as_str(), "actor_jules");
+                assert_eq!(mode, LaunchMode::Embodied);
+            }
+            other => panic!("expected run launch, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn resolve_operator_debug_fixture_and_actor_binds_named_actor() {
+        let launch = resolve(&args(&[
+            "--operator-debug",
+            "debug_attach_001",
+            "actor_jules",
+        ]))
+        .unwrap();
+
+        match launch {
+            Launch::Run {
+                golden,
+                actor_id,
+                mode,
+            } => {
+                assert_eq!(golden.fixture.fixture_id.as_str(), "debug_attach_001");
+                assert_eq!(actor_id.as_str(), "actor_jules");
+                assert_eq!(mode, LaunchMode::OperatorDebug);
             }
             other => panic!("expected run launch, got {other:?}"),
         }

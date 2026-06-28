@@ -50,13 +50,6 @@ fn dispatch_command<W: Write>(
             }
             Err(error) => writeln!(writer, "Error: {}", describe_app_error(&error)),
         },
-        UiCommand::BindDebugActor(actor_id) => match app.bind_debug_actor(actor_id.clone()) {
-            Ok(()) => {
-                writeln!(writer, "Bound debug actor: {}", actor_id.as_str())?;
-                writeln!(writer, "{}", app_result(app.render_current_view())?)
-            }
-            Err(error) => writeln!(writer, "Error: {}", describe_app_error(&error)),
-        },
         UiCommand::SelectSemanticAction(semantic_action_id) => {
             submit_and_render(app, &semantic_action_id, writer)
         }
@@ -230,7 +223,7 @@ fn describe_input_error(error: &InputError) -> String {
 }
 
 fn help_text() -> &'static str {
-    "Commands: help, view, notebook, bind <actor_id>, bind-debug <actor_id>, do <semantic_action_id>, <n>, wait, w, continue, c, continue <max_ticks>, debug overlay, debug log, debug bindings, debug item <item_id>, debug rejection, debug projection, debug replay, debug epistemics, debug beliefs <actor_id>, debug observations <actor_id>, debug needs, debug routines, debug planner <actor_id>, debug stuck, debug no-human-day, debug run no-human-day, debug actor <actor_id>, quit, q"
+    "Commands: help, view, notebook, bind <actor_id>, do <semantic_action_id>, <n>, wait, w, continue, c, continue <max_ticks>, debug overlay, debug log, debug bindings, debug item <item_id>, debug rejection, debug projection, debug replay, debug epistemics, debug beliefs <actor_id>, debug observations <actor_id>, debug needs, debug routines, debug planner <actor_id>, debug stuck, debug no-human-day, debug run no-human-day, debug actor <actor_id>, quit, q"
 }
 
 #[cfg(test)]
@@ -240,7 +233,7 @@ mod tests {
 
     #[test]
     fn scripted_loop_dispatches_commands_and_exits_cleanly() {
-        let mut app = TuiApp::load_default().unwrap();
+        let mut app = TuiApp::load_default_operator_debug().unwrap();
         app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())
             .unwrap();
         let script =
@@ -268,7 +261,7 @@ mod tests {
 
     #[test]
     fn out_of_range_menu_selection_is_reported_without_crashing() {
-        let mut app = TuiApp::load_default().unwrap();
+        let mut app = TuiApp::load_default_operator_debug().unwrap();
         app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())
             .unwrap();
         // 999 parses as a valid index but exceeds the menu; it must be reported as
@@ -290,30 +283,27 @@ mod tests {
     }
 
     #[test]
-    fn unknown_actor_arguments_are_reported_without_crashing() {
+    fn ordinary_command_loop_cannot_induce_debug_authority() {
         let mut app = TuiApp::load_default().unwrap();
-        app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())
+        app.bind_actor(ActorId::new("actor_tomas").unwrap())
             .unwrap();
-        // Each of these names a syntactically valid but absent actor; every one must
-        // be reported as an input error and leave the existing binding intact so the
-        // loop keeps running.
-        let script = b"bind actor_ghost\nbind-debug actor_ghost\ndebug beliefs actor_ghost\ndebug observations actor_ghost\nwait\nquit\n";
+        let before_events = app.event_count();
+        let script = b"bind-debug actor_tomas\ndebug overlay\ndebug log\nwait\nquit\n";
         let mut output = Vec::new();
 
         run_command_loop(&mut app, &script[..], &mut output).unwrap();
 
         let rendered = String::from_utf8(output).unwrap();
-        assert_eq!(
-            rendered
-                .matches("Error: no such actor: actor_ghost")
-                .count(),
-            4,
-            "every unknown-actor command must be reported as an input error: {rendered}"
-        );
+        assert!(rendered.contains("Error: unknown command: bind-debug actor_tomas"));
+        assert_eq!(rendered.matches("Error: debug unavailable").count(), 2);
+        assert!(!rendered.contains("Bound debug actor"));
+        assert!(!rendered.contains("DEBUG NON-DIEGETIC"));
+        assert!(!app.debug_available());
         assert!(
             rendered.contains("Accepted: wait.1_tick"),
-            "the existing binding must survive so the loop keeps running: {rendered}"
+            "the ordinary command loop must keep running after refused debug input: {rendered}"
         );
+        assert!(app.event_count() > before_events);
     }
 
     #[test]
@@ -337,7 +327,7 @@ mod tests {
 
     #[test]
     fn wait_alias_resolves_only_from_current_view_actions() {
-        let mut app = TuiApp::load_default().unwrap();
+        let mut app = TuiApp::load_default_operator_debug().unwrap();
         app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())
             .unwrap();
         let view = app.current_view().unwrap();
@@ -370,7 +360,6 @@ mod tests {
             "view",
             "notebook",
             "bind <actor_id>",
-            "bind-debug <actor_id>",
             "do <semantic_action_id>",
             "<n>",
             "wait",

@@ -28,8 +28,7 @@ This contradicts the foundational TUI doctrine that **"Waiting runs the simulati
 ## 2. Reproduction
 
 ```
-$ cargo run -p tracewake-tui -- sleep_eat_work_001 actor_tomas
-tracewake> bind-debug actor_tomas      # to read numeric needs via debug
+$ cargo run -p tracewake-tui -- --operator-debug sleep_eat_work_001 actor_tomas
 tracewake> debug needs                 # actor_tomas fatigue value=620 band=urgent cause=fixture_initial
 tracewake> do sleep.here
 Accepted: sleep.here

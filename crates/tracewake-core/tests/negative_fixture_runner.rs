@@ -90,7 +90,7 @@ const FIXTURES: &[NegativeFixture] = &[
     },
     NegativeFixture {
         name: "external_crate_cannot_induce_debug_authority_via_public_bind",
-        expected_stderr: "this function takes 3 arguments",
+        expected_stderr: "no method named `local_operator_debug_authority`",
     },
     NegativeFixture {
         name: "external_crate_cannot_mutate_agent_state_seed_maps",
