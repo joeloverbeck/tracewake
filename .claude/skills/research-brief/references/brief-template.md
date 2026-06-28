@@ -87,6 +87,17 @@ commit and a separate commit-under-test, with only a governance- or doc-only fix
 the **commit-under-test** (the broadest implementation state the acceptance certifies); if it and the
 capstone-code commit diverge over the §2 seams, diff both and state which commit the source-equivalence claim
 rests on (an empty diff against either is sufficient when they agree).
+**Mixed delta (code identical, an adjacent layer changed by an *intervening* spec).** Distinct from the
+"more than one implementation commit" case above (where the gov/doc fix sits *between* two commits the same
+acceptance names): here a **separate later spec** changed an adjacent layer after the keystone, and that
+changed layer is itself an in-scope live audit surface. When the keystone→baseline diff is **empty over the
+primary (code) seams** but **non-empty over that adjacent layer** (e.g. governance/CI or a doctrine tier
+amended by an intervening spec — not archival / doc-truthing / merge noise), the posture is **mixed**, not a
+clean source-equivalence. Partition the §2 seams and hold both halves at once: re-verify the code as
+source-equivalent (inherit nothing) **and** treat the changed layer as the **live delta to measure against
+current HEAD**, not against the keystone. State both halves of the dual-diff in §1 (empty over code seams;
+what the intervening spec changed), and encode the changed layer's audit boundary — including any dimension
+that intervening spec *settled* (route it through §3 as a negative settled intention) — explicitly.
 **(3) Evolving distinctive axis (multi-pass campaign).** A recurring re-audit campaign typically gives each
 pass a *distinctive axis* beyond the standing re-verification (e.g. one pass adds a process-integrity /
 verification-honesty contribution). When the immediately-prior pass's recommendation was **implemented** in
@@ -127,6 +138,13 @@ The decisions the interview resolved — the heart of why Session 2 is *locked*.
 as a committed decision, not an option. This section pre-empts every clarifying question
 Session 2 might otherwise ask. Carry any early-exit gaps here as `assumption: <X>` lines so
 they read as defaults the user can override, not as open questions.
+
+When the interview settles a dimension **out of scope** — a decision the user has already made elsewhere
+(e.g. a prior spec or an upstream session) — state it as a *negative* settled intention: name the
+dimension, cite what settled it, and instruct Session 2 not to re-open it; reinforce it in §6 as a scope
+guard. A locked Session 2 will otherwise re-raise exactly what a prior pass flagged (especially in a
+recurring campaign, where the very thing one pass treated as a finding is what an unprompted re-audit
+surfaces again), so the exclusion must be explicit, never implied by silence.
 
 ### 4. The task
 
