@@ -132,5 +132,12 @@ mod tests {
 
         assert!(operator.debug_only());
         assert!(operator.session_authority().debug_only());
+
+        let forged_non_debug = LocalOperatorDebugAuthority {
+            authority: DebugSessionAuthority {
+                capability: DebugCapability::test_non_debug(),
+            },
+        };
+        assert!(!forged_non_debug.debug_only());
     }
 }
