@@ -17,6 +17,9 @@ findings.
   for a single matching `SKILL.md` under `<path>*` and then `<path>**`.
   Use a single unique match and report the path correction. Stop on zero or
   multiple plausible matches.
+- If the target is `.agents/skills/skill-audit`, apply this workflow once to the
+  live skill itself. Treat it as a process/tooling audit unless product behavior
+  is directly affected, and do not recursively audit the self-audit report.
 
 ## Audit Workflow
 
@@ -131,6 +134,8 @@ findings.
 - "Implement all", "implement recommended", and "implement suggestions" mean
   apply every numbered finding except those explicitly marked skip,
   informational, or no-change-needed.
+- If higher-priority runtime instructions require citations or appendices, append
+  them after the audit report and do not count them as findings.
 - Double-check the final severity and category counts before presenting.
 
 ## Follow-Up Implementation
@@ -144,6 +149,9 @@ Use this phase only when the user asks to implement audit findings.
    - Treat "implement all" and "implement recommended" as all untagged findings.
 2. Re-evaluate current state:
    - Re-read files that will be edited.
+   - Run `git status --short` before editing. Classify target-skill changes
+     separately from unrelated dirty or untracked files, and preserve unrelated
+     work unless the user explicitly broadens scope.
    - If a file changed since the audit or a premise is now false, adapt or
      discard that finding and tell the user.
 3. Edit with Codex discipline:
@@ -163,6 +171,9 @@ Use this phase only when the user asks to implement audit findings.
    - Confirm headings, numbering, paths, and cross-references are coherent.
    - Confirm YAML frontmatter and `agents/openai.yaml`, if touched, parse as
      valid YAML.
+   - Run `git diff --check -- <edited skill paths>`.
+   - When available and useful, run the local skill validator, for example
+     `python /home/joeloverbeck/.codex/skills/.system/skill-creator/scripts/quick_validate.py <skill-dir>`.
 6. Summarize per finding:
    - `implemented`
    - `adapted - <reason>`

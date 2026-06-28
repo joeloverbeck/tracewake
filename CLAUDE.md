@@ -56,3 +56,19 @@ Run the TUI: `cargo run -p tracewake-tui`.
 
 - No backwards-compatibility shims or alias paths in new work.
 - If current code and a ticket/spec diverge, correct the ticket/spec first, then implement.
+
+## Disk hygiene
+
+Local `cargo mutants` runs are the main disk hazard: each parallel build job copies
+the whole workspace (with its own `target/`) into `$TMPDIR` and deletes it only on a
+clean exit, so an interrupted run (Ctrl-C / OOM / timeout) leaks multi-GB scratch
+dirs. Stale `/tmp` git worktrees and compile-fail fixture `target/` dirs add to it.
+
+- Reclaim leaked scratch with `tools/clean-build-scratch.sh` (dry-run by default;
+  `--force` to delete).
+- **WSL2**: the ext4 `.vhdx` grows to its high-water mark and never shrinks on its
+  own, so freeing space inside WSL does not return it to `C:`. Reclaiming `C:`
+  requires a **manual, human-run** Windows-side compact that first shuts WSL down —
+  this is NOT an agent action (it would kill every running WSL session). Do not run
+  `wsl --shutdown` or `diskpart`/`Optimize-VHD` from a session; the recipe for the
+  human is in `tools/clean-build-scratch.sh --help`.
