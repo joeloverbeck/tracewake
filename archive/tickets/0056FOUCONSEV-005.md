@@ -1,6 +1,6 @@
 # 0056FOUCONSEV-005: Taxonomy self-mutation perimeter and doctrine-complete CI-forced parser
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `.cargo/mutants.toml`, `.cargo/mutants-baseline-misses.txt`, `.github/workflows/ci.yml` mutation lanes, and `ci_workflow_guards.rs`
@@ -77,3 +77,43 @@ Extend `ci_workflow_guards.rs` so the ingestion-step topology assertion covers t
 
 1. `cargo test --locked -p tracewake-core --test ci_workflow_guards`
 2. `cargo mutants --file crates/tracewake-core/tests/support/acceptance_status_manifest.rs --file crates/tracewake-core/tests/acceptance_artifact_wording.rs` — focused self-mutation campaign over the taxonomy guards (the per-ticket verification boundary; the full standing campaign is 0056FOUCONSEV-006).
+
+## Outcome
+
+Completed: 2026-06-28
+
+Widened the standing mutation perimeter and in-diff trigger to include the
+acceptance taxonomy guard surfaces:
+
+- `crates/tracewake-core/tests/support/acceptance_status_manifest.rs`;
+- `crates/tracewake-core/tests/acceptance_status_manifest.rs`;
+- `crates/tracewake-core/tests/acceptance_artifact_wording.rs`;
+- `crates/tracewake-core/tests/ci_workflow_guards.rs`.
+
+Strengthened the lock-layer workflow so `acceptance_status_manifest` runs as an
+always-on gate beside `acceptance_artifact_wording`, and extended
+`ci_workflow_guards.rs` with topology assertions that fail if the always-run
+doctrine-complete parser gate, closed verdict grammar gate, taxonomy mutation
+perimeter, or in-diff taxonomy trigger is removed.
+
+`.cargo/mutants-baseline-misses.txt` remains unchanged and empty; no accepted
+taxonomy survivor was added.
+
+Focused mutation attempt:
+
+- `cargo mutants --file crates/tracewake-core/tests/support/acceptance_status_manifest.rs --file crates/tracewake-core/tests/acceptance_artifact_wording.rs`
+  started successfully with `cargo-mutants 27.1.0` but expanded to 3,474 mutants
+  and remained opaque after roughly 90 seconds. It was interrupted with exit
+  code 130. This is recorded as incomplete evidence, not a green mutation
+  result. The full run-and-record mutation disposition remains assigned to
+  `0056FOUCONSEV-006`.
+
+Verification:
+
+- `cargo fmt --all --check` — passed.
+- `cargo test --locked -p tracewake-core --test ci_workflow_guards` — passed.
+- `cargo test --locked -p tracewake-core --test acceptance_status_manifest` —
+  passed.
+- `cargo test --locked -p tracewake-core --test acceptance_artifact_wording` —
+  passed.
+- `cargo test --locked -p tracewake-core` — passed.

@@ -58,6 +58,10 @@ const STANDING_MUTATION_PERIMETER: &[&str] = &[
     "crates/tracewake-core/src/content/schema.rs",
     "crates/tracewake-core/src/content/serialization.rs",
     "crates/tracewake-core/src/content/validate.rs",
+    "crates/tracewake-core/tests/support/acceptance_status_manifest.rs",
+    "crates/tracewake-core/tests/acceptance_status_manifest.rs",
+    "crates/tracewake-core/tests/acceptance_artifact_wording.rs",
+    "crates/tracewake-core/tests/ci_workflow_guards.rs",
     "crates/tracewake-tui/src/app.rs",
     "crates/tracewake-tui/src/debug_panels.rs",
     "crates/tracewake-tui/src/render.rs",
@@ -84,6 +88,8 @@ const STANDING_MUTATION_TRIGGER_FRAGMENTS: &[&str] = &[
     "crates/tracewake-core/src/debug_reports\\.rs",
     "crates/tracewake-core/src/epistemics/",
     "crates/tracewake-core/src/content/(manifest|load|schema|serialization|validate)\\.rs",
+    "crates/tracewake-core/tests/support/acceptance_status_manifest\\.rs",
+    "crates/tracewake-core/tests/(acceptance_status_manifest|acceptance_artifact_wording|ci_workflow_guards)\\.rs",
     "crates/tracewake-tui/src/(app|debug_panels|render|transcript)\\.rs",
 ];
 
@@ -270,6 +276,19 @@ fn ci_workflow_guards_cover_workflow_integrity() {
         "synthetic in-diff trigger missing checkcontainer.rs must fail"
     );
 
+    let missing_taxonomy_guard_trigger = CI_YML.replace(
+        "crates/tracewake-core/tests/(acceptance_status_manifest|acceptance_artifact_wording|ci_workflow_guards)\\.rs|",
+        "",
+    );
+    assert!(
+        ci_workflow_guard_errors(&missing_taxonomy_guard_trigger, MUTANTS_TOML, DOC10)
+            .iter()
+            .any(|error| error.contains(
+                "does not cover standing perimeter path crates/tracewake-core/tests/acceptance_artifact_wording.rs"
+            )),
+        "synthetic in-diff trigger missing taxonomy guard tests must fail"
+    );
+
     let missing_public_boundary_job = CI_YML.replace(
         "public-boundary-conformance:",
         "public-boundary-conformance-missing:",
@@ -356,6 +375,42 @@ fn acceptance_artifact_ingestion_guard_rejects_missing_job() {
     );
 }
 
+#[test]
+fn acceptance_artifact_ingestion_guard_requires_doctrine_complete_parser() {
+    let missing_status_manifest_gate = CI_YML.replace(
+        "          cargo test --locked -p tracewake-core --test acceptance_status_manifest\n",
+        "",
+    );
+    assert!(
+        ci_workflow_guard_errors(&missing_status_manifest_gate, MUTANTS_TOML, DOC10)
+            .iter()
+            .any(|error| error.contains("doctrine-complete parser")),
+        "synthetic workflow without always-run acceptance_status_manifest must fail"
+    );
+
+    let missing_wording_gate = CI_YML.replace(
+        "          cargo test --locked -p tracewake-core --test acceptance_artifact_wording\n",
+        "",
+    );
+    assert!(
+        ci_workflow_guard_errors(&missing_wording_gate, MUTANTS_TOML, DOC10)
+            .iter()
+            .any(|error| error.contains("closed verdict grammar")),
+        "synthetic workflow without always-run acceptance_artifact_wording must fail"
+    );
+
+    let missing_taxonomy_mutation_perimeter = MUTANTS_TOML.replace(
+        r#"  "crates/tracewake-core/tests/support/acceptance_status_manifest.rs","#,
+        "",
+    );
+    assert!(
+        ci_workflow_guard_errors(CI_YML, &missing_taxonomy_mutation_perimeter, DOC10)
+            .iter()
+            .any(|error| error.contains("missing standing mutation perimeter path")),
+        "synthetic mutation config without taxonomy support file must fail"
+    );
+}
+
 fn ci_workflow_guard_errors(workflow: &str, mutants_config: &str, doc10: &str) -> Vec<String> {
     let mut errors = Vec::new();
     errors.extend(required_gate_command_errors(workflow, doc10));
@@ -371,6 +426,10 @@ fn ci_workflow_guard_errors(workflow: &str, mutants_config: &str, doc10: &str) -
     errors.extend(required_check_policy_errors(workflow));
     errors.extend(governance_audit_errors(workflow));
     errors.extend(acceptance_artifact_ingestion_errors(workflow));
+    errors.extend(doctrine_complete_parser_forcing_errors(
+        workflow,
+        mutants_config,
+    ));
     errors.extend(full_surface_mutation_trigger_errors(workflow));
     errors.extend(scheduled_mutation_lane_errors(workflow));
     errors
@@ -462,6 +521,40 @@ fn acceptance_artifact_ingestion_errors(workflow: &str) -> Vec<String> {
     errors
 }
 
+fn doctrine_complete_parser_forcing_errors(workflow: &str, mutants_config: &str) -> Vec<String> {
+    let mut errors = Vec::new();
+    let lock_layer_block = workflow_step_block(workflow, "Run strengthened lock-layer gates");
+    for (command, reason) in [
+        (
+            "cargo test --locked -p tracewake-core --test acceptance_status_manifest",
+            "doctrine-complete parser",
+        ),
+        (
+            "cargo test --locked -p tracewake-core --test acceptance_artifact_wording",
+            "closed verdict grammar",
+        ),
+    ] {
+        if !lock_layer_block.contains(command) {
+            errors.push(format!(
+                "acceptance artifact ingestion lacks always-run {reason} gate: {command}"
+            ));
+        }
+    }
+
+    for path in [
+        "crates/tracewake-core/tests/support/acceptance_status_manifest.rs",
+        "crates/tracewake-core/tests/acceptance_status_manifest.rs",
+        "crates/tracewake-core/tests/acceptance_artifact_wording.rs",
+    ] {
+        if !mutants_config.contains(&format!(r#""{path}""#)) {
+            errors.push(format!(
+                "doctrine-complete parser is not self-mutation-covered by {path}"
+            ));
+        }
+    }
+    errors
+}
+
 fn full_surface_mutation_trigger_errors(workflow: &str) -> Vec<String> {
     let mut errors = Vec::new();
     for required in [
@@ -488,6 +581,18 @@ fn full_surface_mutation_trigger_errors(workflow: &str) -> Vec<String> {
         }
     }
     errors
+}
+
+fn workflow_step_block<'a>(workflow: &'a str, step_name: &str) -> &'a str {
+    workflow
+        .split_once(&format!("- name: {step_name}"))
+        .map(|(_, after_name)| {
+            after_name
+                .split("\n      - name:")
+                .next()
+                .expect("split always yields first block")
+        })
+        .unwrap_or("")
 }
 
 fn production_conformance_command_errors(workflow: &str) -> Vec<String> {
@@ -805,6 +910,14 @@ fn in_diff_trigger_fragment_for_perimeter_path(path: &str) -> &'static str {
         | "crates/tracewake-core/src/content/serialization.rs"
         | "crates/tracewake-core/src/content/validate.rs" => {
             "crates/tracewake-core/src/content/(manifest|load|schema|serialization|validate)\\.rs"
+        }
+        "crates/tracewake-core/tests/support/acceptance_status_manifest.rs" => {
+            "crates/tracewake-core/tests/support/acceptance_status_manifest\\.rs"
+        }
+        "crates/tracewake-core/tests/acceptance_status_manifest.rs"
+        | "crates/tracewake-core/tests/acceptance_artifact_wording.rs"
+        | "crates/tracewake-core/tests/ci_workflow_guards.rs" => {
+            "crates/tracewake-core/tests/(acceptance_status_manifest|acceptance_artifact_wording|ci_workflow_guards)\\.rs"
         }
         "crates/tracewake-tui/src/app.rs"
         | "crates/tracewake-tui/src/debug_panels.rs"
