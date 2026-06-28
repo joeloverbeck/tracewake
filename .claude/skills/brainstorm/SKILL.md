@@ -267,6 +267,8 @@ What would you like to do next?
 4. Done for now — I'll review the design doc later
 ```
 
+**Mixed deliverable (completed inline edits *plus* a spawned spec/ticket/deferred item):** the menu above is cumulative with — not a substitute for — the inline-completion summary's two required slots, owed for the completed inline portion: (1) the **verification result** (lint/test gates green, or the reference-integrity check for moves/renames) and (2) the **`Adjacent findings:`** slot (the literal `none` when there are none). Emit both alongside the menu; `Adjacent findings:` is the easiest slot to drop. (Full semantics in the categorization paragraph above and `references/triage-and-deliverables.md` §No-source-report diagnostic case.)
+
 Adjust options to the deliverable: for a spec, offer reassess / decompose into tickets / implement / done; for tickets, offer begin-first-ticket / reassess / done. Use `AskUserQuestion` when its schema is available; inline numbered options are an acceptable fallback — and the preferred form when the deliverable write and the recommendation presentation collapsed into one turn (see `references/triage-and-deliverables.md` §Non-plan-mode fast-track, Intra-turn ordering). If the user picks an option that invokes another skill, invoke it. If they pick "done," end.
 
 **If a Step 6 option spawns a follow-up brainstorm cycle for related scope** (a next ticket alongside the just-written one, a related spec the menu surfaced — distinct from re-triaging the prior verdicts): re-enter at Step 1, not Step 2; emit the Step 1 sub-step 8 post-exploration confidence anchor for the new cycle (even when exploration is trivial); the prior cycle's context typically elevates initial confidence so the interview-skip threshold applies.
