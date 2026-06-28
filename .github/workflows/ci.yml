@@ -213,6 +213,8 @@ jobs:
           require_last_push_approval = False
           required_reviewers = []
           bypass_residuals = []
+          solo_compensating_rulesets = []
+          active_ruleset_control_summaries = []
           evidence = []
 
           if os.environ["PROTECTION_STATUS"] == "0":
@@ -255,11 +257,16 @@ jobs:
                       continue
                   if ruleset.get("enforcement") != "active":
                       continue
+                  ruleset_name = ruleset.get("name", "<unnamed>")
                   if ruleset.get("bypass_actors"):
                       bypass_residuals.append(
-                          f"ruleset {ruleset.get('name', '<unnamed>')} has bypass actors"
+                          f"ruleset {ruleset_name} has bypass actors"
                       )
-                  evidence.append(f"rulesets:{ruleset.get('name', '<unnamed>')}")
+                  evidence.append(f"rulesets:{ruleset_name}")
+                  ruleset_contexts = set()
+                  ruleset_strict_required_checks = False
+                  ruleset_has_non_fast_forward = False
+                  ruleset_has_deletion = False
                   for rule in ruleset.get("rules") or []:
                       rule_type = rule.get("type")
                       parameters = rule.get("parameters") or {}
@@ -278,11 +285,40 @@ jobs:
                               context = check.get("context")
                               if context:
                                   contexts.add(context)
+                                  ruleset_contexts.add(context)
                           up_to_date_or_merge_queue = up_to_date_or_merge_queue or bool(
+                              parameters.get("strict_required_status_checks_policy")
+                          )
+                          ruleset_strict_required_checks = bool(
                               parameters.get("strict_required_status_checks_policy")
                           )
                       if rule_type == "merge_queue":
                           up_to_date_or_merge_queue = True
+                      if rule_type == "non_fast_forward":
+                          ruleset_has_non_fast_forward = True
+                      if rule_type == "deletion":
+                          ruleset_has_deletion = True
+
+                  ruleset_missing_checks = sorted(required_checks - ruleset_contexts)
+                  ruleset_can_bypass = ruleset.get("current_user_can_bypass")
+                  ruleset_controls = {
+                      "required_checks": not ruleset_missing_checks,
+                      "no_bypass_actors": not bool(ruleset.get("bypass_actors")),
+                      "current_user_can_bypass_never": ruleset_can_bypass == "never",
+                      "non_fast_forward": ruleset_has_non_fast_forward,
+                      "deletion": ruleset_has_deletion,
+                      "strict_required_status_checks_policy": ruleset_strict_required_checks,
+                  }
+                  active_ruleset_control_summaries.append(
+                      {
+                          "name": ruleset_name,
+                          "current_user_can_bypass": ruleset_can_bypass,
+                          "missing_required_checks": ruleset_missing_checks,
+                          **ruleset_controls,
+                      }
+                  )
+                  if all(ruleset_controls.values()):
+                      solo_compensating_rulesets.append(ruleset_name)
 
           missing = sorted(required_checks - contexts)
           failures = []
@@ -292,9 +328,14 @@ jobs:
               failures.append("pull request requirement not proven")
           independent_review = max_required_approvals >= 1
           last_push_required_reviewer = require_last_push_approval and bool(required_reviewers)
-          if not independent_review and not last_push_required_reviewer:
+          solo_maintainer_compensating_control = bool(solo_compensating_rulesets)
+          if (
+              not independent_review
+              and not last_push_required_reviewer
+              and not solo_maintainer_compensating_control
+          ):
               failures.append(
-                  "independent acceptor constraint not proven: required_approving_review_count, require_last_push_approval, or required_reviewers are insufficient"
+                  "independent acceptor constraint not proven: required_approving_review_count, require_last_push_approval/required_reviewers, or solo-maintainer compensating controls are insufficient"
               )
           if not up_to_date_or_merge_queue:
               failures.append("up-to-date branch or merge queue requirement not proven")
@@ -305,6 +346,8 @@ jobs:
           print("Max required approving review count:", max_required_approvals)
           print("Require last-push approval:", require_last_push_approval)
           print("Required reviewers discovered:", required_reviewers)
+          print("Solo-maintainer compensating-control rulesets:", solo_compensating_rulesets)
+          print("Active ruleset control summaries:", json.dumps(active_ruleset_control_summaries, sort_keys=True))
           if failures:
               print("pending/unverified: required-check governance is not proven.")
               for failure in failures:

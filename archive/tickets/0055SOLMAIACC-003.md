@@ -1,6 +1,6 @@
 # 0055SOLMAIACC-003: Enact the CI governance-audit compensating-control predicate
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — CI config: amends the `governance-required-checks-audit` step in `.github/workflows/ci.yml`
@@ -84,3 +84,38 @@ Ensure the compensating-control branch passes only on positive proof of every co
 1. `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('workflow yaml ok')"` — workflow syntax sanity (dry-run verified at decomposition: prints `workflow yaml ok`).
 2. Extract the audit's `python3` predicate and run it with synthetic `PROTECTION_JSON`/`RULESETS_JSON` for each Acceptance-Criteria case (positive, the six negatives, regression), asserting exit code 0 vs non-zero.
 3. The end-to-end live-API behavior (the audit reading the real ruleset via `gh api`) is verified operationally in ticket 004's negative-control check; the predicate-over-synthetic-JSON harness is the correct local verification boundary here, since the live `gh api` calls require repository auth unavailable in local/unit context.
+
+## Outcome
+
+Completed: 2026-06-28
+
+Implemented the CI governance-audit predicate in `.github/workflows/ci.yml`
+after tickets `0055SOLMAIACC-001` and `0055SOLMAIACC-002` established the
+architecture and execution doctrine for solo-maintainer mode. The embedded audit
+now parses `current_user_can_bypass`, `non_fast_forward`, and `deletion` from
+active branch rulesets, builds a per-ruleset compensating-control summary, and
+accepts the independent-acceptor requirement at approval count `0` only when one
+active ruleset positively proves the complete control set.
+
+The existing human-approval branch remains intact: a ruleset with
+`required_approving_review_count: 1` still passes the independent-acceptor
+predicate even if the solo-mode controls are not all present. Missing or
+unproven solo-mode controls do not pass the count-0 branch.
+
+Verification:
+
+- `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/ci.yml')); print('workflow yaml ok')"` returned `workflow yaml ok`.
+- Extracted the actual embedded Python predicate from `.github/workflows/ci.yml`
+  and ran synthetic `PROTECTION_JSON` / `RULESETS_JSON` cases:
+  - positive count-0 full controls exited `0`;
+  - count-0 with `current_user_can_bypass` not `never` exited non-zero;
+  - count-0 missing `non_fast_forward` exited non-zero;
+  - count-0 missing `deletion` exited non-zero;
+  - count-0 with a bypass actor exited non-zero;
+  - count-0 missing one required check exited non-zero;
+  - count-0 with `strict_required_status_checks_policy: false` exited non-zero;
+  - count-1 human-approval regression exited `0`.
+- `grep -nE "current_user_can_bypass|non_fast_forward|deletion|solo-maintainer compensating" .github/workflows/ci.yml` returned the new parsing and failure-message lines.
+
+The live API / ruleset mutation path is intentionally left to
+`0055SOLMAIACC-004`; this ticket changed and proved only the local predicate.
