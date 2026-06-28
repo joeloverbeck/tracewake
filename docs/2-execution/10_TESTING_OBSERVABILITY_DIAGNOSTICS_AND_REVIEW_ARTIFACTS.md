@@ -353,6 +353,11 @@ acquisition method, actual-artifact ingestion status, branch-protection/ruleset
 enforcement status, independent-acceptance posture, mutation evidence source,
 mutation denominator, caught/unviable/missed/timeout disposition counts,
 baseline-miss reconciliation status, survivor list, and overall result.
+The independent-acceptance posture vocabulary includes human approving review,
+last-push approval by required reviewers where configured, and
+`solo-maintainer-compensating-control` for repositories operated by one
+maintainer when the architecture-tier compensating-control set is proven by
+machine-readable ruleset evidence.
 
 Overall `pass` is legal only when every required finding is `closed`, every
 required governance control is enforced by branch protection or active ruleset
@@ -360,18 +365,32 @@ and independent acceptance is proven where required, the actual artifact under
 review was ingested, and mutation evidence is current and green. Green mutation
 evidence requires an actual in-diff or current full-campaign result with
 denominator and disposition counts, zero missed mutants, zero timeouts, and
-current baseline reconciliation. `open`, `pending-governance`, zero-approval or
-status-checks-only independence gaps, self-authored-only evidence, missing
-actual-artifact ingestion, unbounded `routed-forward`, missing governance proof,
-sampled evidence, observer-only evidence, historical results, survivors,
-timeouts, stale mutation evidence, and "pass with disposition" are not pass. A
-wording guard must fail artifacts that use pass-shaped closure language while
-the manifest computes non-pass, call the canonical standing perimeter green
-while survivors remain, cite branch-protection enforcement without an API or
-ruleset transcript, cite a topology trigger as mutation proof, cite historical
-command results as current certification, or cite display strings, artifact
-existence, checksums, or source guards as sole evidence for behavior claims that
-require typed path-under-test evidence.
+current baseline reconciliation. In solo-maintainer mode, a
+`required_approving_review_count: 0` configuration is not an independence gap
+only when the manifest records `solo-maintainer-compensating-control` and the
+ruleset proof shows every architecture-tier compensating control: all required
+standing checks, no bypass actors, `current_user_can_bypass: never`,
+non-fast-forward and deletion protection, and up-to-date branch enforcement.
+Without that complete proof, zero-approval or status-checks-only independence is
+not pass. `open`, `pending-governance`, zero-approval or status-checks-only
+independence gaps, self-authored-only evidence, missing actual-artifact
+ingestion, unbounded `routed-forward`, missing governance proof, sampled
+evidence, observer-only evidence, historical results, survivors, timeouts,
+stale mutation evidence, and "pass with disposition" are not pass. A wording
+guard must fail artifacts that use pass-shaped closure language while the
+manifest computes non-pass, call the canonical standing perimeter green while
+survivors remain, cite branch-protection enforcement without an API or ruleset
+transcript, cite a topology trigger as mutation proof, cite historical command
+results as current certification, or cite display strings, artifact existence,
+checksums, or source guards as sole evidence for behavior claims that require
+typed path-under-test evidence.
+
+The `solo-maintainer-compensating-control` posture re-specifies the
+forward-looking standing independent-acceptance posture that spec `0054`
+hardened under a second-human interpretation. The `0054` evidence remains
+valid for its exact implementation commit; it is historical ruleset evidence,
+not a current requirement that routine solo-maintainer merges retain one
+approving review.
 
 A routed-forward residual is bounded only if it names the owning surface, why
 the current line did not close it, the next known execution move, a maximum
