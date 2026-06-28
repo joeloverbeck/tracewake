@@ -1,6 +1,6 @@
 # 0056FOUCONSEV-003: Doctrine-complete `solo-maintainer-compensating-control` manifest posture
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` acceptance-status manifest parser/support and its tests
@@ -83,3 +83,49 @@ Keep bare `zero-approval` / `status-checks-only` non-pass; continue rejecting se
 
 1. `cargo test --locked -p tracewake-core --test acceptance_status_manifest`
 2. `cargo test --locked -p tracewake-core`
+
+## Outcome
+
+Completed: 2026-06-28
+
+Implemented the doctrine-complete `solo-maintainer-compensating-control`
+manifest posture in `crates/tracewake-core/tests/support/acceptance_status_manifest.rs`.
+The manifest parser now recognizes the settled governance value and treats it as
+pass-eligible only when the machine-readable compensating-control set is present
+with exact current values:
+
+- `required_checks_present: all-standing-required`
+- `active_enforcement: active`
+- `bypass_actors: none`
+- `current_user_can_bypass: never`
+- `non_fast_forward_protection: enabled`
+- `deletion_protection: enabled`
+- `strict_required_status_checks_policy: enabled`
+
+Any missing, stale, prose-only, or otherwise unproven control computes
+`non-pass`; if an artifact states `pass` while those controls are incomplete,
+validation fails closed through the existing stated-vs-computed result check.
+Existing accepted postures `independent-review` and
+`last-push-required-reviewer` remain pass-eligible. Existing rejected postures
+`zero-approval` and `status-checks-only` remain non-pass, and the existing
+self-authored/stale/display-only evidence rejection remains unchanged.
+
+Added synthetic coverage in
+`crates/tracewake-core/tests/acceptance_status_manifest.rs` for:
+
+- fully proven solo-maintainer compensating control computing pass;
+- every required compensating-control field computing non-pass when missing or
+  unproven;
+- `last-push-required-reviewer` preserving its previous pass posture;
+- existing `zero-approval`, `status-checks-only`, and self-authored evidence
+  rejections remaining in force.
+
+Deviations from original plan: none. The docs/template synchronization remains
+out of scope for this ticket and is still assigned to later 0056 tickets.
+
+Verification:
+
+- `cargo test --locked -p tracewake-core --test acceptance_status_manifest` —
+  passed.
+- `cargo test --locked -p tracewake-core` — passed.
+- `cargo fmt --all --check` — passed.

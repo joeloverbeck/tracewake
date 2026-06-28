@@ -235,6 +235,89 @@ fn status_checks_only_transcript_is_not_independent_acceptance() {
 }
 
 #[test]
+fn existing_last_push_required_reviewer_posture_still_computes_pass() {
+    let manifest = validate_status_manifest(&synthetic_manifest_with_governance(
+        "pass",
+        "ruleset-transcript-current",
+        "last-push-required-reviewer",
+        "killed",
+        "none",
+        &closed_findings(),
+        &[],
+    ))
+    .expect("last-push required reviewer remains pass-eligible");
+
+    assert_eq!(manifest.computed_result, ComputedResult::Pass);
+    assert!(!manifest.has_blocking_status);
+}
+
+#[test]
+fn proven_solo_maintainer_compensating_control_computes_pass() {
+    let manifest = validate_status_manifest(&synthetic_manifest_with_governance_controls(
+        "pass",
+        "ruleset-transcript-current",
+        "solo-maintainer-compensating-control",
+        "killed",
+        "none",
+        &closed_findings(),
+        &[],
+        &proven_solo_maintainer_controls(),
+    ))
+    .expect("fully proven solo-maintainer controls are pass-eligible");
+
+    assert_eq!(manifest.computed_result, ComputedResult::Pass);
+    assert!(!manifest.has_blocking_status);
+}
+
+#[test]
+fn solo_maintainer_compensating_control_fails_closed_on_any_control_gap() {
+    for (field, value) in [
+        ("required_checks_present", "some-required"),
+        ("active_enforcement", "prose-says-active"),
+        ("bypass_actors", "admin"),
+        ("current_user_can_bypass", "unknown"),
+        ("non_fast_forward_protection", "disabled"),
+        ("deletion_protection", "stale-transcript"),
+        ("strict_required_status_checks_policy", "not-up-to-date"),
+    ] {
+        let mut controls = proven_solo_maintainer_controls();
+        controls.retain(|(key, _)| key != &field);
+        controls.push((field, value));
+        let error = validate_status_manifest(&synthetic_manifest_with_governance_controls(
+            "pass",
+            "ruleset-transcript-current",
+            "solo-maintainer-compensating-control",
+            "killed",
+            "none",
+            &closed_findings(),
+            &[],
+            &controls,
+        ))
+        .unwrap_err();
+        assert!(
+            error.contains("does not match computed result"),
+            "expected fail-closed result for {field}={value}, got {error}"
+        );
+    }
+
+    let mut missing_controls = proven_solo_maintainer_controls();
+    missing_controls.retain(|(key, _)| key != &"required_checks_present");
+    let manifest = validate_status_manifest(&synthetic_manifest_with_governance_controls(
+        "non-pass",
+        "ruleset-transcript-current",
+        "solo-maintainer-compensating-control",
+        "killed",
+        "none",
+        &closed_findings(),
+        &[],
+        &missing_controls,
+    ))
+    .expect("missing solo-maintainer controls compute non-pass when stated truthfully");
+    assert_eq!(manifest.computed_result, ComputedResult::NonPass);
+    assert!(manifest.has_blocking_status);
+}
+
+#[test]
 fn killed_mutation_status_requires_current_counted_evidence() {
     for (field, value, expected) in [
         (
@@ -364,6 +447,28 @@ fn synthetic_manifest_with_governance(
     findings: &[&str],
     survivors: &[&str],
 ) -> String {
+    synthetic_manifest_with_governance_controls(
+        overall_result,
+        branch_protection,
+        governance_independence,
+        mutation_status,
+        mutation_survivors,
+        findings,
+        survivors,
+        &[],
+    )
+}
+
+fn synthetic_manifest_with_governance_controls(
+    overall_result: &str,
+    branch_protection: &str,
+    governance_independence: &str,
+    mutation_status: &str,
+    mutation_survivors: &str,
+    findings: &[&str],
+    survivors: &[&str],
+    governance_controls: &[(&str, &str)],
+) -> String {
     let mut lines = vec![
         "# Synthetic 0053 acceptance artifact".to_string(),
         "```tracewake-acceptance-status".to_string(),
@@ -373,6 +478,13 @@ fn synthetic_manifest_with_governance(
         "expected_findings: F6-01,F6-02,F6-03,F6-04,F6-05,F6-06".to_string(),
         format!("branch_protection: {branch_protection}"),
         format!("governance_independence: {governance_independence}"),
+    ];
+    lines.extend(
+        governance_controls
+            .iter()
+            .map(|(field, value)| format!("{field}: {value}")),
+    );
+    lines.extend([
         "mutation_evidence: current-in-diff".to_string(),
         "mutation_denominator: 2".to_string(),
         "mutation_caught: 2".to_string(),
@@ -382,11 +494,23 @@ fn synthetic_manifest_with_governance(
         "mutation_baseline_reconciliation: current-reconciled".to_string(),
         format!("mutation_status: {mutation_status}"),
         format!("mutation_survivors: {mutation_survivors}"),
-    ];
+    ]);
     lines.extend(findings.iter().map(|line| (*line).to_string()));
     lines.extend(survivors.iter().map(|line| (*line).to_string()));
     lines.push("```".to_string());
     lines.join("\n")
+}
+
+fn proven_solo_maintainer_controls() -> Vec<(&'static str, &'static str)> {
+    vec![
+        ("required_checks_present", "all-standing-required"),
+        ("active_enforcement", "active"),
+        ("bypass_actors", "none"),
+        ("current_user_can_bypass", "never"),
+        ("non_fast_forward_protection", "enabled"),
+        ("deletion_protection", "enabled"),
+        ("strict_required_status_checks_policy", "enabled"),
+    ]
 }
 
 fn synthetic_manifest_with_mutation_override(field: &str, value: &str) -> String {
