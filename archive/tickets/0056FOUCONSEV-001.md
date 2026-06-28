@@ -1,9 +1,9 @@
 # 0056FOUCONSEV-001: Seal validated-content bootstrap construction against the live API
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
-**Engine Changes**: Yes — `tracewake-core` state/runtime sealing, `tracewake-content` load/schema/manifest authority topology, the `external_crate_cannot_construct_loaded_world_bootstrap_from_seed_parts` negative fixture, and in-workspace test-consumer migration
+**Engine Changes**: Yes — `tracewake-core` state/runtime sealing, `tracewake-content` load/schema/manifest authority topology, the `external_crate_cannot_construct_loaded_world_bootstrap_from_validated_content` negative fixture, and in-workspace test-consumer migration
 **Deps**: None
 
 ## Problem
@@ -34,7 +34,7 @@ An external crate can therefore fabricate authoritative aggregates, wrap them as
 
 ## Verification Layers
 
-1. INV-009/INV-061/INV-063 (validated provenance) -> external-crate negative fixture compile-fail: the repaired `external_crate_cannot_construct_loaded_world_bootstrap_from_seed_parts` (renamed/retargeted to the live route) imports the live symbols and fails with a privacy/unconstructability diagnostic, not a stale method-name error.
+1. INV-009/INV-061/INV-063 (validated provenance) -> external-crate negative fixture compile-fail: the repaired `external_crate_cannot_construct_loaded_world_bootstrap_from_validated_content` imports the live symbols and fails with a privacy/unconstructability diagnostic, not a stale method-name error.
 2. INV-011/INV-018/INV-092 (replay over validated state) -> positive content-loader integration test: the real loader path still loads content, materializes canonical state through the sealed topology, and derives due-work from core-owned scheduler discovery; deterministic-replay/golden coverage over the loaded world is unchanged.
 3. INV-098 (harsh acceptance) -> `public-boundary-conformance` CI job compiling the negative fixture under default and all supported feature combinations (mapped to its own proof surface, distinct from the positive loader test).
 4. Mutation sensitivity -> in-diff/standing mutation coverage of `state.rs`, `runtime/session.rs`, the content validation/materialization files, and any new sealed proof type (perimeter wiring owned by 0056FOUCONSEV-005; survivors recorded by -006).
@@ -58,7 +58,7 @@ Route `content/src/schema.rs` materialization through the chosen sealed topology
 
 ### 4. Repair the negative fixture to attack the live route (F7-07 part)
 
-Rewrite `tests/negative-fixtures/external_crate_cannot_construct_loaded_world_bootstrap_from_seed_parts/src/lib.rs` so it imports the **live** symbols and attempts the full attack: call `from_validated_content_parts` (×2); fabricate `ContentManifest` + `LoadedFixture { canonical_world, canonical_agent_state, epistemic_projection, seed_event_log, .. }` and `into_runtime_bootstrap(...)`; pass the bootstrap to `LoadedWorldRuntime::from_bootstrap(...)`. Rename the fixture if the seed-part framing no longer fits, and re-register it in `crates/tracewake-core/tests/negative_fixture_runner.rs` (`FIXTURES` + `ALL_FEATURE_PRODUCTION_BOUNDARY_FIXTURES`). The expected failure is a privacy/unconstructability diagnostic under default and all supported feature combinations.
+Rewrite `tests/negative-fixtures/external_crate_cannot_construct_loaded_world_bootstrap_from_validated_content/src/lib.rs` so it imports the **live** symbols and attempts the full attack: call `from_validated_content_parts` (×2); fabricate `ContentManifest` + `LoadedFixture { canonical_world, canonical_agent_state, epistemic_projection, seed_event_log, .. }` and `into_runtime_bootstrap(...)`; pass the bootstrap to `LoadedWorldRuntime::from_bootstrap(...)`. The expected failure is a privacy/unconstructability diagnostic under default and all supported feature combinations.
 
 ## Files to Touch
 
@@ -76,7 +76,7 @@ Rewrite `tests/negative-fixtures/external_crate_cannot_construct_loaded_world_bo
 - `crates/tracewake-core/tests/salient_stop_actor_known.rs` (modify)
 - `crates/tracewake-core/tests/event_schema_replay_gates.rs` (modify)
 - `crates/tracewake-core/tests/holder_known_interval_projection.rs` (modify)
-- `tests/negative-fixtures/external_crate_cannot_construct_loaded_world_bootstrap_from_seed_parts/src/lib.rs` (modify)
+- `tests/negative-fixtures/external_crate_cannot_construct_loaded_world_bootstrap_from_validated_content/src/lib.rs` (modify)
 - `crates/tracewake-core/tests/negative_fixture_runner.rs` (modify — re-register the repaired fixture; coordinates with 0056FOUCONSEV-002)
 
 ## Out of Scope
@@ -103,7 +103,7 @@ Rewrite `tests/negative-fixtures/external_crate_cannot_construct_loaded_world_bo
 
 ### New/Modified Tests
 
-1. `tests/negative-fixtures/external_crate_cannot_construct_loaded_world_bootstrap_from_seed_parts/src/lib.rs` — retargeted to the live `from_validated_content_parts` / `LoadedFixture` / `from_validated_content` / `from_bootstrap` attack chain.
+1. `tests/negative-fixtures/external_crate_cannot_construct_loaded_world_bootstrap_from_validated_content/src/lib.rs` — retargeted to the live `from_validated_content_parts` / `LoadedFixture` / `from_validated_content` / `from_bootstrap` attack chain.
 2. A positive content-loader integration test (in `crates/tracewake-content/tests/` or the existing loader test module) — real loader path through the sealed topology.
 
 ### Commands
@@ -111,3 +111,25 @@ Rewrite `tests/negative-fixtures/external_crate_cannot_construct_loaded_world_bo
 1. `cargo test --locked -p tracewake-core --test negative_fixture_runner`
 2. `cargo build --workspace --all-targets --locked && cargo test --workspace`
 3. `cargo test -p tracewake-content` — narrower content-loader boundary for fast iteration on the topology choice.
+
+## Outcome
+
+Completed: 2026-06-28
+
+Implemented topology (a): the content validation/materialization authority that mints loaded-world runtime bootstraps now lives under `tracewake-core::content`, while `tracewake-content` remains a fixture/re-export crate. `LoadedFixture` carries a private validation proof, `ValidatedLoadedWorldBootstrap::from_validated_content` and `PhysicalState` / `AgentState::from_validated_content_parts` are crate-private, and integration-test consumers use the `test-support` feature via the core dev-dependency.
+
+The negative fixture was renamed to `external_crate_cannot_construct_loaded_world_bootstrap_from_validated_content` and retargeted to the live attack chain: raw validated-content state constructors, forged `LoadedFixture`, raw bootstrap construction, and runtime entry. The fixture now fails through privacy/unconstructability under the negative fixture runner instead of the retired seed-part symbol.
+
+Deviations: the implementation moved the existing content loader/schema/serialization/validation code into `tracewake-core::content` and replaced the old `tracewake-content/src/{load,manifest,schema,serialization,validate}.rs` files with re-export shims. The mutation perimeter, CI guarded-diff regex, anti-regression source classifications, and content source-inspection tests were retargeted to the new core-owned paths. No `tracewake-core` production dependency was added; the self dev-dependency is only for integration tests to enable `test-support`.
+
+Verification:
+
+- `cargo test --locked -p tracewake-core --test negative_fixture_runner` — passed.
+- `cargo test --locked -p tracewake-content` — passed during implementation after the re-export move.
+- `cargo test --locked -p tracewake-core --test anti_regression_guards` — passed after retargeting source classifications and mutation perimeter paths.
+- `cargo test --locked -p tracewake-core --test ci_workflow_guards` — passed after retargeting standing mutation perimeter expectations.
+- `cargo fmt --all --check` — passed after formatting the moved content modules.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed after the final tracked edits.
+- `cargo test --workspace` — passed after the final tracked edits.
+- Source sweep `rg -n "pub fn from_validated_content_parts|#\[doc\(hidden\)\]\s*pub fn from_validated_content_parts|pub fn from_validated_content\(" crates tests` printed no paths.

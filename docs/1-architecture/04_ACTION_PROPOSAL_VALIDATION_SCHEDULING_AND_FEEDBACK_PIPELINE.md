@@ -131,7 +131,7 @@ actor/process events, projection rebuilds, actor census changes, process
 ancestry, sealed one-tick and continuation receipts, the sealed interval
 product, and replay verdicts in the witness suites. `negative_fixture_runner.rs`
 supplies compile-fail sensitivity through
-`external_crate_cannot_construct_loaded_world_bootstrap_from_seed_parts`,
+`external_crate_cannot_construct_loaded_world_bootstrap_from_validated_content`,
 `external_crate_cannot_read_one_tick_wait_receipt_internals`,
 `external_crate_cannot_induce_debug_authority_via_public_bind`,
 `external_crate_cannot_construct_actor_interval_summary`, and

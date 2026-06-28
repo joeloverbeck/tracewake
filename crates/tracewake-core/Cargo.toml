@@ -8,3 +8,6 @@ license.workspace = true
 
 [features]
 test-support = []
+
+[dev-dependencies]
+tracewake-core = { path = ".", features = ["test-support"] }

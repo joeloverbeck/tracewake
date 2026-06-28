@@ -124,7 +124,7 @@ impl From<WorldAdvanceError> for RuntimeCommandError {
 
 impl ValidatedLoadedWorldBootstrap {
     #[allow(clippy::too_many_arguments)]
-    pub fn from_validated_content(
+    pub(crate) fn from_validated_content(
         registry: ActionRegistry,
         physical_state: PhysicalState,
         agent_state: AgentState,
@@ -145,6 +145,30 @@ impl ValidatedLoadedWorldBootstrap {
             fixture_id,
             content_version,
         })
+    }
+
+    #[cfg(feature = "test-support")]
+    #[allow(clippy::too_many_arguments)]
+    pub fn from_test_content(
+        registry: ActionRegistry,
+        physical_state: PhysicalState,
+        agent_state: AgentState,
+        event_log: EventLog,
+        epistemic_projection: EpistemicProjection,
+        content_manifest_id: ContentManifestId,
+        fixture_id: FixtureId,
+        content_version: ContentVersion,
+    ) -> Self {
+        Self::from_validated_content(
+            registry,
+            physical_state,
+            agent_state,
+            event_log,
+            epistemic_projection,
+            content_manifest_id,
+            fixture_id,
+            content_version,
+        )
     }
 
     pub fn replay_seed(&self) -> RuntimeReplaySeed {

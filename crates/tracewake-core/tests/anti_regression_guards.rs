@@ -53,7 +53,7 @@ const SUPPORT_ACCEPTANCE_STATUS_MANIFEST_RS: &str =
     include_str!("support/acceptance_status_manifest.rs");
 const SUPPORT_GENERATIVE_RS: &str = include_str!("support/generative.rs");
 const SUPPORT_MOD_RS: &str = include_str!("support/mod.rs");
-const CONTENT_LOAD_RS: &str = include_str!("../../tracewake-content/src/load.rs");
+const CONTENT_LOAD_RS: &str = include_str!("../src/content/load.rs");
 const CONTENT_FIXTURE_HIDDEN_FOOD_CLOSED_CONTAINER_RS: &str =
     include_str!("../../tracewake-content/src/fixtures/hidden_food_closed_container_001.rs");
 const CONTENT_FIXTURE_HIDDEN_ROUTE_EDGE_RS: &str =
@@ -569,6 +569,10 @@ const APPLY_MUTATOR_ALLOWLIST: &[ApplyMutatorAllowlistEntry] = &[
     ApplyMutatorAllowlistEntry {
         path: "crates/tracewake-core/src/scheduler.rs",
         rationale: "applies scheduler-owned agent diagnostics and replay checks for no-human event streams",
+    },
+    ApplyMutatorAllowlistEntry {
+        path: "crates/tracewake-core/src/content/load.rs",
+        rationale: "materializes validated fixture seed events and epistemic projection inside the core-owned content validation authority",
     },
 ];
 
@@ -1348,6 +1352,11 @@ const WORKSPACE_DEPENDENCY_ALLOWLIST: &[(&str, &str, &str)] = &[
         "tracewake-core",
     ),
     (
+        "crates/tracewake-core/Cargo.toml",
+        "dev-dependencies",
+        "tracewake-core",
+    ),
+    (
         "crates/tracewake-tui/Cargo.toml",
         "dependencies",
         "tracewake-content",
@@ -1466,6 +1475,12 @@ const WORKSPACE_SOURCE_CLASSIFICATIONS: &[WorkspaceSourceClassification] = &[
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/trace.rs", class: WorkspaceSourceClass::GuardedLayer },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/transaction.rs", class: WorkspaceSourceClass::GuardedLayer },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/checksum.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/content/load.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/content/manifest.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/content/mod.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/content/schema.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/content/serialization.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/content/validate.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/controller.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/debug_capability.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/debug_reports.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
@@ -1580,11 +1595,11 @@ const MUTATION_PERIMETER_EXAMINE_GLOBS: &[&str] = &[
     "crates/tracewake-core/src/debug_reports.rs",
     "crates/tracewake-core/src/epistemics/knowledge_context.rs",
     "crates/tracewake-core/src/epistemics/projection.rs",
-    "crates/tracewake-content/src/manifest.rs",
-    "crates/tracewake-content/src/load.rs",
-    "crates/tracewake-content/src/schema.rs",
-    "crates/tracewake-content/src/serialization.rs",
-    "crates/tracewake-content/src/validate.rs",
+    "crates/tracewake-core/src/content/manifest.rs",
+    "crates/tracewake-core/src/content/load.rs",
+    "crates/tracewake-core/src/content/schema.rs",
+    "crates/tracewake-core/src/content/serialization.rs",
+    "crates/tracewake-core/src/content/validate.rs",
     "crates/tracewake-tui/src/app.rs",
     "crates/tracewake-tui/src/debug_panels.rs",
     "crates/tracewake-tui/src/render.rs",
@@ -1616,11 +1631,11 @@ const MUTATION_PERIMETER_CANARY_PATHS: &[&str] = &[
     "crates/tracewake-core/src/debug_reports.rs",
     "crates/tracewake-core/src/epistemics/knowledge_context.rs",
     "crates/tracewake-core/src/epistemics/projection.rs",
-    "crates/tracewake-content/src/manifest.rs",
-    "crates/tracewake-content/src/load.rs",
-    "crates/tracewake-content/src/schema.rs",
-    "crates/tracewake-content/src/serialization.rs",
-    "crates/tracewake-content/src/validate.rs",
+    "crates/tracewake-core/src/content/manifest.rs",
+    "crates/tracewake-core/src/content/load.rs",
+    "crates/tracewake-core/src/content/schema.rs",
+    "crates/tracewake-core/src/content/serialization.rs",
+    "crates/tracewake-core/src/content/validate.rs",
     "crates/tracewake-tui/src/app.rs",
     "crates/tracewake-tui/src/debug_panels.rs",
     "crates/tracewake-tui/src/render.rs",
@@ -2447,6 +2462,8 @@ fn in_diff_filter_matches_path(filter_line: &str, required_path: &str) -> bool {
     ) {
         filter_line.contains("crates/tracewake-core/src/epistemics/")
             || grouped_regex_contains_stem(filter_line, "epistemics/(", ")\\.rs", required_path)
+    } else if required_path.starts_with("crates/tracewake-core/src/content/") {
+        grouped_regex_contains_stem(filter_line, "content/(", ")\\.rs", required_path)
     } else if required_path.starts_with("crates/tracewake-content/src/") {
         grouped_regex_contains_stem(
             filter_line,
@@ -10039,7 +10056,10 @@ lines.push(format!("need|actor={}", actor_id.as_str()));
 #[test]
 fn guard_001_no_production_seed_mutation_outside_state_definition() {
     for (path, source) in core_production_sources() {
-        if path == "crates/tracewake-core/src/state.rs" {
+        if path == "crates/tracewake-core/src/state.rs"
+            || path == "crates/tracewake-core/src/content/load.rs"
+            || path == "crates/tracewake-core/src/content/validate.rs"
+        {
             continue;
         }
         assert!(

@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "external_crate_cannot_construct_loaded_world_bootstrap_from_seed_parts"
+name = "external_crate_cannot_construct_loaded_world_bootstrap_from_validated_content"
 version = "0.0.0"
 dependencies = [
  "tracewake-core",

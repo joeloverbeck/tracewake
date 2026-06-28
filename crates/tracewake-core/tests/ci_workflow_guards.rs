@@ -53,11 +53,11 @@ const STANDING_MUTATION_PERIMETER: &[&str] = &[
     "crates/tracewake-core/src/epistemics/**",
     "crates/tracewake-core/src/epistemics/knowledge_context.rs",
     "crates/tracewake-core/src/epistemics/projection.rs",
-    "crates/tracewake-content/src/manifest.rs",
-    "crates/tracewake-content/src/load.rs",
-    "crates/tracewake-content/src/schema.rs",
-    "crates/tracewake-content/src/serialization.rs",
-    "crates/tracewake-content/src/validate.rs",
+    "crates/tracewake-core/src/content/manifest.rs",
+    "crates/tracewake-core/src/content/load.rs",
+    "crates/tracewake-core/src/content/schema.rs",
+    "crates/tracewake-core/src/content/serialization.rs",
+    "crates/tracewake-core/src/content/validate.rs",
     "crates/tracewake-tui/src/app.rs",
     "crates/tracewake-tui/src/debug_panels.rs",
     "crates/tracewake-tui/src/render.rs",
@@ -83,7 +83,7 @@ const STANDING_MUTATION_TRIGGER_FRAGMENTS: &[&str] = &[
     "crates/tracewake-core/src/controller\\.rs",
     "crates/tracewake-core/src/debug_reports\\.rs",
     "crates/tracewake-core/src/epistemics/",
-    "crates/tracewake-content/src/(manifest|load|schema|serialization|validate)\\.rs",
+    "crates/tracewake-core/src/content/(manifest|load|schema|serialization|validate)\\.rs",
     "crates/tracewake-tui/src/(app|debug_panels|render|transcript)\\.rs",
 ];
 
@@ -799,12 +799,12 @@ fn in_diff_trigger_fragment_for_perimeter_path(path: &str) -> &'static str {
         | "crates/tracewake-core/src/epistemics/projection.rs" => {
             "crates/tracewake-core/src/epistemics/"
         }
-        "crates/tracewake-content/src/manifest.rs"
-        | "crates/tracewake-content/src/load.rs"
-        | "crates/tracewake-content/src/schema.rs"
-        | "crates/tracewake-content/src/serialization.rs"
-        | "crates/tracewake-content/src/validate.rs" => {
-            "crates/tracewake-content/src/(manifest|load|schema|serialization|validate)\\.rs"
+        "crates/tracewake-core/src/content/manifest.rs"
+        | "crates/tracewake-core/src/content/load.rs"
+        | "crates/tracewake-core/src/content/schema.rs"
+        | "crates/tracewake-core/src/content/serialization.rs"
+        | "crates/tracewake-core/src/content/validate.rs" => {
+            "crates/tracewake-core/src/content/(manifest|load|schema|serialization|validate)\\.rs"
         }
         "crates/tracewake-tui/src/app.rs"
         | "crates/tracewake-tui/src/debug_panels.rs"

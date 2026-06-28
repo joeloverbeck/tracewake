@@ -318,7 +318,7 @@ fn generated_cases_enter_through_loaded_runtime_constructor() {
         let case = generate_case(seed);
         let initial_state = initial_world(seed);
         let initial_agents = initial_agent_state(seed);
-        let bootstrap = ValidatedLoadedWorldBootstrap::from_validated_content(
+        let bootstrap = ValidatedLoadedWorldBootstrap::from_test_content(
             registry(),
             initial_state.clone(),
             initial_agents.clone(),

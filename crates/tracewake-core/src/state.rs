@@ -273,12 +273,11 @@ impl PhysicalState {
         }
     }
 
-    #[doc(hidden)]
     #[allow(
         clippy::too_many_arguments,
         reason = "Validated content assembly mirrors authoritative state collections."
     )]
-    pub fn from_validated_content_parts(
+    pub(crate) fn from_validated_content_parts(
         actors: BTreeMap<ActorId, ActorBody>,
         places: BTreeMap<PlaceId, PlaceState>,
         doors: BTreeMap<DoorId, DoorState>,
@@ -387,8 +386,7 @@ impl AgentState {
         }
     }
 
-    #[doc(hidden)]
-    pub fn from_validated_content_parts(
+    pub(crate) fn from_validated_content_parts(
         needs_by_actor: BTreeMap<ActorId, BTreeMap<NeedKind, NeedState>>,
         intentions: BTreeMap<IntentionId, Intention>,
         active_intention_by_actor: BTreeMap<ActorId, IntentionId>,
