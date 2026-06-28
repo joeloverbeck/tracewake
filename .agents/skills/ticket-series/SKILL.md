@@ -89,6 +89,12 @@ For each ticket:
    For acceptance-artifact or report tickets, run the checks the artifact claims
    after composing or amending it, unless intentionally combining that ticket
    with the spec archive/truthing commit and recording that choice.
+   When an acceptance-artifact check uses an environment variable path such as
+   `TRACEWAKE_ACCEPTANCE_ARTIFACT`, remember that Cargo integration tests may
+   resolve relative paths from the package test working directory rather than
+   the repository root. Use an absolute path or a path relative to that working
+   directory, and classify a path-only failure separately from a manifest or
+   wording failure before changing artifact content.
    Before archiving or committing a report ticket, audit whether any tracked
    report, ticket, spec, ledger, or evidence file changed after the commands the
    report claims. If yes, either rerun the exact claimed commands against the new
@@ -259,12 +265,20 @@ deviations in the ticket and spec outcomes.
      controls unless the user explicitly says not to archive the reference spec.
 2. Update the spec with final status and an `Outcome` section following
    `docs/archival-workflow.md`.
-3. Archive any spec-required acceptance reports or replacement artifacts before
-   archiving the spec when the spec names an `archive/reports/` closeout path.
-   Prefer `git mv` for tracked reports. Retarget compiled references, tests,
-   docs, ledgers, and report links from the live `reports/` path to the archived
-   path in the same change. If a ticket `Outcome` recorded the pre-archive
-   report path as the final path, amend that outcome before closeout.
+3. Archive any series-owned or spec-required acceptance reports, capstone
+   reports, or replacement artifacts under `reports/` before archiving the spec,
+   including when the spec names an `archive/reports/` closeout path. Prefer
+   `git mv` for tracked reports. Run each report `git mv` serially; do not batch
+   report/spec archive moves or any other Git index-mutating commands in a
+   parallel tool call. Retarget compiled references, tests, docs, ledgers, and
+   report links from the live `reports/` path to the archived path in the same
+   change. If a ticket `Outcome` recorded the pre-archive report path as the
+   final path, amend that outcome before closeout.
+   After `git mv reports/<report filename> archive/reports/<report filename>`,
+   stage with rename-aware parent-directory staging such as
+   `git add -A reports archive/reports`, or stage the archive destination plus
+   `git add -u`, then inspect `git diff --cached --name-status`. Do not pass
+   only the removed source path to `git add` after the move.
    Before staging the report closeout, run a focused completed-deferral sweep
    over current report/spec/ticket outcomes for terms such as `deferred to spec`,
    `pending`, and `not run`; if the closeout completed a deferred item, update
@@ -327,6 +341,14 @@ rg -n 'archive/specs/<spec filename>|archive/reports/<report filename>|archive/t
    Before the spec archive/truthing commit, grep the current report/spec/ticket
    outcomes for the role labels above and for broad `exact commit` claims; amend
    ambiguous target-commit wording or record why one role intentionally differs.
+   If final acceptance depends on changing external repository governance such
+   as a GitHub ruleset or branch-protection setting, treat that as a first-class
+   evidence step: capture the blocker transcript, request approval before
+   mutating the external setting, apply the smallest settings change that
+   satisfies the requirement, capture the post-change transcript, rerun the
+   affected artifact ingestion/wording checks, and record the external-state
+   role separately from implementation, evidence/report, and archive/truthing
+   commits.
    For verifier baselines, generated outputs, ignored evidence paths, and bulky
    tool output directories, follow `references/closeout-edge-cases.md`: refresh
    intended truth-source baselines, commit stable summaries or manifests, and
@@ -492,13 +514,13 @@ Final responses must include:
 
 These fields may be embedded in concise prose, but the final answer must make
 each answer explicit. Before calling the goal completion tool or sending the
-final response, draft or mentally check the final answer against this list with
-literal labels and `None` values where applicable; do not omit a field because
-it seems obvious from the prose. For active `/goal` runs, draft the final
-response from the scaffold before calling the goal-completion tool; if any
-field cannot be answered, do not mark the goal complete until the missing
-evidence is gathered or the deviation is recorded. Include the goal-tool usage
-summary after marking the goal complete.
+final response, draft from the literal scaffold below with every label present
+and `None` values where applicable; do not omit a field because it seems obvious
+from the prose. For active `/goal` runs, draft the final response from the
+scaffold before calling the goal-completion tool; if any field cannot be
+answered, do not mark the goal complete until the missing evidence is gathered
+or the deviation is recorded. Include the goal-tool usage summary after marking
+the goal complete.
 
 Use this scaffold for final responses unless the user requested a narrower
 status-only reply:

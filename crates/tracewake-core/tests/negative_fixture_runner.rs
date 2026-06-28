@@ -86,7 +86,11 @@ const FIXTURES: &[NegativeFixture] = &[
     },
     NegativeFixture {
         name: "external_crate_cannot_construct_loaded_world_bootstrap_from_seed_parts",
-        expected_stderr: "no function or associated item named `from_seed_parts`",
+        expected_stderr: "associated function `from_validated_seed_parts` is private",
+    },
+    NegativeFixture {
+        name: "external_crate_cannot_induce_debug_authority_via_public_bind",
+        expected_stderr: "this function takes 3 arguments",
     },
     NegativeFixture {
         name: "external_crate_cannot_mutate_agent_state_seed_maps",
@@ -177,6 +181,10 @@ const FIXTURES: &[NegativeFixture] = &[
         expected_stderr: "private",
     },
     NegativeFixture {
+        name: "external_crate_cannot_read_one_tick_wait_receipt_internals",
+        expected_stderr: "no field `prior_tick`",
+    },
+    NegativeFixture {
         name: "external_crate_cannot_mutate_embodied_temporal_fields",
         expected_stderr: "private field",
     },
@@ -214,10 +222,12 @@ const ALL_FEATURE_PRODUCTION_BOUNDARY_FIXTURES: &[&str] = &[
     "external_crate_cannot_construct_pipeline_context_with_runtime_aggregates",
     "external_crate_cannot_convert_debug_report_to_interval_summary",
     "external_crate_cannot_forge_interval_notice",
+    "external_crate_cannot_induce_debug_authority_via_public_bind",
     "external_crate_cannot_insert_raw_epistemic_records",
     "external_crate_cannot_mutate_embodied_temporal_fields",
     "external_crate_cannot_mutate_loaded_runtime_fields",
     "external_crate_cannot_name_due_process_invocation",
+    "external_crate_cannot_read_one_tick_wait_receipt_internals",
     "external_crate_cannot_read_raw_epistemic_projection_maps",
     "external_crate_cannot_reduce_actor_step_outcome_to_option",
     "external_crate_cannot_seed_loaded_actor_or_process_eligibility",

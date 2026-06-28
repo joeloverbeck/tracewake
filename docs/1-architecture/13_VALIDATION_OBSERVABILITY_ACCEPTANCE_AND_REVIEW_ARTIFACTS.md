@@ -124,6 +124,41 @@ source guards, and workflow topology alarms are supporting evidence only; they
 cannot be the sole proof for behavior, unrepresentability, replay, or
 merge-enforced governance.
 
+Acceptance artifacts are read models over current evidence, not evidence
+themselves. A `pass` claim requires current exact-commit evidence ingestion,
+independent acceptance where required, no live survivor or pending rows, and no
+prose stronger than the computed state. Workflow source text, Rust source
+guards, manifest shape, and report wording may make regressions visible, but
+they are topology alarms unless paired with the current artifact ingestion,
+ruleset or approval evidence, mutation disposition counts, and typed
+path-under-test behavior witnesses that the artifact claims to summarize.
+
+Solo-maintainer acceptance mode is the routine-merge scoping of "independent
+acceptance where required," not a weaker behavioral-evidence rule. When the
+repository is operated by one maintainer, the independent-acceptor role for
+routine merges is fulfilled by the standing automated barrier only if the
+ruleset proves the full compensating-control set: all required standing status
+checks are present and green, including `mutation in-diff (lock layer)`; active
+ruleset enforcement has no bypass actors and reports
+`current_user_can_bypass: never`; non-fast-forward and deletion protection are
+present; and `strict_required_status_checks_policy` keeps the branch
+up-to-date. In that mode, an acceptance artifact's routine-merge independence
+posture may cite the proven ruleset controls instead of a second-human
+approving review. The second-human bar remains the default for multi-maintainer
+operation and remains in force for foundational-conformance acceptance
+artifacts unless the owning process explicitly ratifies an equally strict
+artifact-specific acceptor. Required governance controls that are open,
+pending, unbounded, merely historical, unproven, or not ingested still make a
+`pass` invalid, and self-authored-only behavioral evidence remains invalid for
+behavior, mutation, and typed path-under-test claims.
+
+This solo-maintainer mode re-specifies the forward-looking standing
+independent-acceptance posture that spec `0054` hardened under a second-human
+interpretation. The archived `0054` acceptance evidence remains valid for its
+exact implementation commit; it is historical proof of that commit's ruleset
+posture, not a current claim that the standing routine-merge posture must
+continue to require one approving review.
+
 Fairness and starvation review artifacts record which holders or processes were
 deferred, skipped, summarized, degraded, or blocked; why; for how long or
 across what source interval; the responsible layer; and what replay ancestry
@@ -200,6 +235,8 @@ A test does not pass if:
 - an acceptance artifact renders `pass` while a flagged violation, required
   governance control, or standing mutation residual remains open, pending,
   unbounded, or merely historical;
+- acceptance prose claims more than its computed status manifest supports, or
+  treats the artifact's own existence as certifying evidence;
 - a display string is the only proof;
 - replay matches final state but decision ancestry is missing;
 - an LLM output is required to make the test pass.

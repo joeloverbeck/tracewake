@@ -274,6 +274,50 @@ fn embodied_menu_offers_each_food_source_once_when_known_via_belief_and_percepti
 }
 
 #[test]
+fn embodied_menu_disables_empty_food_when_seeded_food_source_competes_with_observation() {
+    let mut app = TuiApp::from_golden(fixtures::competing_food_source_facts_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+
+    let view = app.current_view().unwrap();
+    let eat_actions = view
+        .semantic_actions
+        .iter()
+        .filter(|entry| entry.semantic_action_id.as_str() == "eat.food.food_empty_bowl_tomas")
+        .collect::<Vec<_>>();
+    assert_eq!(
+        eat_actions.len(),
+        1,
+        "competing food-source facts must surface exactly one public Eat affordance"
+    );
+    let eat_action = eat_actions[0];
+    assert!(
+        !eat_action.enabled,
+        "source-bearing observed zero servings must supersede source-less seeded food knowledge"
+    );
+    assert_eq!(
+        eat_action.availability.actor_safe_summary(),
+        Some("You know that food source is empty.")
+    );
+    assert!(
+        eat_action.availability.debug_only_diagnostics().is_empty(),
+        "public TUI action availability must not expose hidden provenance diagnostics"
+    );
+
+    let rendered = app.render_current_view().unwrap();
+    assert!(
+        rendered.contains(
+            "Eat food_empty_bowl_tomas [eat.food.food_empty_bowl_tomas] disabled: You know that food source is empty. reasons=knowledge_precondition_not_met"
+        ),
+        "rendered TUI menu must carry the public disabled consequence, got:\n{rendered}"
+    );
+    assert!(
+        !rendered.contains("source:"),
+        "public TUI render must not leak source keys or hidden provenance, got:\n{rendered}"
+    );
+}
+
+#[test]
 fn tui_selects_semantic_action_id_not_menu_index() {
     let mut app = TuiApp::load_default().unwrap();
     app.bind_actor(ActorId::new("actor_tomas").unwrap())

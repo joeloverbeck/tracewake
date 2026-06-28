@@ -22,6 +22,32 @@ Record the command, result, and concise output summary for each gate:
 List each changed file that belongs to the implementation under review. Exclude
 unrelated local worktree changes.
 
+## Computed acceptance status
+
+Artifacts that claim closure over protected authority seams must include exactly
+one fenced `tracewake-acceptance-status` block. The block is a computed read
+model over current evidence artifacts and the expected-finding manifest; it is
+not free-form certification prose. The artifact's human verdict must use only
+the closed grammar below and must not claim more than the computed block
+supports:
+
+- `pass` — every required finding is `closed`, the artifact under review was
+  ingested, independent acceptance is proven where required, mutation evidence
+  is current and green with denominator/caught/unviable/missed/timeout counts,
+  baseline reconciliation is current, and no survivor or pending row remains.
+- `non-pass` — any required finding is `open`, `routed-forward`,
+  `pending-governance`, `historical-only`, or `not-in-scope`; governance
+  independence is absent or zero-approval/status-checks-only; actual-artifact
+  ingestion is missing; mutation evidence is stale, trigger-only, survivorful,
+  timed out, or unreconciled; or certifying evidence is only sampled,
+  observer-only, historical, self-authored, display-only, or topology-only.
+
+Allowed summary wording must say either `Computed result: pass` or
+`Computed result: non-pass`, followed by the specific blocker or exact evidence
+role. Do not use open-ended prose such as "accepted", "certified", "green", or
+"closed" unless the computed block supports that exact status for the exact
+commit under test.
+
 ## Parity evidence block
 
 For any feature with TUI-facing simulation impact, record the playable-capability

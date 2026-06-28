@@ -104,7 +104,7 @@ The no-direct-dispatch guard must prove that no TUI path, debug runner,
 scheduler shortcut, routine label, need threshold, or duration queue mutates
 world state outside this canonical step and shared pipeline.
 
-Current 0053 conformance evidence records this choreography as core-owned:
+Current 0054 conformance evidence records this choreography as core-owned:
 `LoadedWorldRuntime::from_bootstrap` is the production constructor from a
 validated `ValidatedLoadedWorldBootstrap`, loaded actors are discovered by
 `due_loaded_actor_ids`, declared processes by `due_process_invocations`, and
@@ -114,17 +114,20 @@ caller-injected actor lists, raw process envelopes, or a parallel no-human
 append path. The public command boundary is `TuiApp::submit_semantic_action`,
 `TuiApp::advance_until`, and command-loop dispatch; debug/operator dispatch such
 as `RuntimeCommand::run_no_human_day` and `RuntimeCommand::debug_view` requires
-a presented `DebugSessionAuthority`. The observed effects are committed
-actor/process events, restored eligibility, actor census changes, projection
-rebuilds, process ancestry, sealed receipts, the sealed interval product, and
-replay verdicts. The production-path witnesses live in
+a presented `DebugSessionAuthority` that cannot be induced through ordinary
+public debug bind. The observed effects are committed actor/process events,
+restored eligibility, actor census changes, projection rebuilds, process
+ancestry, sealed actor-legible wait/continuation receipts, the sealed interval
+product, and replay verdicts. The production-path witnesses live in
 `crates/tracewake-core/tests/world_step_coordinator.rs` and
 `crates/tracewake-core/tests/generative_lock.rs`, the loaded-content handoff in
 `crates/tracewake-content`, the external boundary fixtures in
-`crates/tracewake-core/tests/negative_fixture_runner.rs`, and the 0053 evidence
-records in `archive/tickets/0053FOUCONFIF-004.md`,
-`archive/tickets/0053FOUCONFIF-005.md`, and
-`archive/tickets/0053FOUCONFIF-006.md`.
+`crates/tracewake-core/tests/negative_fixture_runner.rs`, and the current
+sixth-hardening evidence records in `archive/tickets/0054FOUCONSIX-001.md`,
+`archive/tickets/0054FOUCONSIX-002.md`,
+`archive/tickets/0054FOUCONSIX-003.md`,
+`archive/tickets/0054FOUCONSIX-012.md`, and
+`archive/tickets/0054FOUCONSIX-013.md`.
 
 ## Proposal ancestry
 

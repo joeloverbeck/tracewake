@@ -99,6 +99,32 @@ jobs:
           cargo test --locked -p tracewake-content --test forbidden_content
           cargo test --locked -p tracewake-tui --test adversarial_gates
           cargo test --locked -p tracewake-tui --test tui_seam_conformance
+      - name: Ingest changed acceptance artifacts
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            acceptance_range="origin/${{ github.base_ref }}...HEAD"
+          else
+            acceptance_range="HEAD^..HEAD"
+          fi
+          changed_artifacts="$(git diff --name-only "$acceptance_range" | grep -E '^(reports|archive/reports)/.*(acceptance|ACCEPTANCE).*\.md$' || true)"
+          changed_closure_paths="$(git diff --name-only "$acceptance_range" | grep -E '^(reports|archive/reports|specs|archive/specs)/' || true)"
+          if [ -z "$changed_artifacts" ]; then
+            if [ -n "$changed_closure_paths" ]; then
+              echo "Current acceptance artifact required for report/spec closure changes."
+              echo "$changed_closure_paths"
+              exit 1
+            fi
+            echo "No changed acceptance artifact to ingest."
+            exit 0
+          fi
+          for artifact in $changed_artifacts; do
+            if ! grep -q '```tracewake-acceptance-status' "$artifact"; then
+              echo "$artifact lacks tracewake-acceptance-status block."
+              exit 1
+            fi
+            TRACEWAKE_ACCEPTANCE_ARTIFACT="$artifact" \
+              cargo test --locked -p tracewake-core --test acceptance_status_manifest actual_acceptance_artifact_from_ci_env_is_pass_eligible
+          done
 
   public-boundary-conformance:
     name: public-boundary conformance
@@ -176,13 +202,19 @@ jobs:
               "lock-layer gates",
               "public-boundary conformance",
               "full-surface mutation trigger (lock layer)",
+              "mutation in-diff (lock layer)",
               "mutation shard reconciliation (lock layer)",
           }
 
           contexts = set()
           pr_required = False
           up_to_date_or_merge_queue = False
+          max_required_approvals = 0
+          require_last_push_approval = False
+          required_reviewers = []
           bypass_residuals = []
+          solo_compensating_rulesets = []
+          active_ruleset_control_summaries = []
           evidence = []
 
           if os.environ["PROTECTION_STATUS"] == "0":
@@ -195,7 +227,15 @@ jobs:
                   if check.get("context")
               )
               up_to_date_or_merge_queue = up_to_date_or_merge_queue or bool(checks.get("strict"))
-              pr_required = pr_required or bool(protection.get("required_pull_request_reviews"))
+              reviews = protection.get("required_pull_request_reviews") or {}
+              pr_required = pr_required or bool(reviews)
+              max_required_approvals = max(
+                  max_required_approvals,
+                  int(reviews.get("required_approving_review_count") or 0),
+              )
+              require_last_push_approval = require_last_push_approval or bool(
+                  reviews.get("require_last_push_approval")
+              )
               enforce_admins = protection.get("enforce_admins") or {}
               if not enforce_admins.get("enabled"):
                   bypass_residuals.append("branch protection does not enforce admins")
@@ -217,26 +257,68 @@ jobs:
                       continue
                   if ruleset.get("enforcement") != "active":
                       continue
+                  ruleset_name = ruleset.get("name", "<unnamed>")
                   if ruleset.get("bypass_actors"):
                       bypass_residuals.append(
-                          f"ruleset {ruleset.get('name', '<unnamed>')} has bypass actors"
+                          f"ruleset {ruleset_name} has bypass actors"
                       )
-                  evidence.append(f"rulesets:{ruleset.get('name', '<unnamed>')}")
+                  evidence.append(f"rulesets:{ruleset_name}")
+                  ruleset_contexts = set()
+                  ruleset_strict_required_checks = False
+                  ruleset_has_non_fast_forward = False
+                  ruleset_has_deletion = False
                   for rule in ruleset.get("rules") or []:
                       rule_type = rule.get("type")
                       parameters = rule.get("parameters") or {}
                       if rule_type == "pull_request":
                           pr_required = True
+                          max_required_approvals = max(
+                              max_required_approvals,
+                              int(parameters.get("required_approving_review_count") or 0),
+                          )
+                          require_last_push_approval = require_last_push_approval or bool(
+                              parameters.get("require_last_push_approval")
+                          )
+                          required_reviewers.extend(parameters.get("required_reviewers") or [])
                       if rule_type == "required_status_checks":
                           for check in parameters.get("required_status_checks") or []:
                               context = check.get("context")
                               if context:
                                   contexts.add(context)
+                                  ruleset_contexts.add(context)
                           up_to_date_or_merge_queue = up_to_date_or_merge_queue or bool(
+                              parameters.get("strict_required_status_checks_policy")
+                          )
+                          ruleset_strict_required_checks = bool(
                               parameters.get("strict_required_status_checks_policy")
                           )
                       if rule_type == "merge_queue":
                           up_to_date_or_merge_queue = True
+                      if rule_type == "non_fast_forward":
+                          ruleset_has_non_fast_forward = True
+                      if rule_type == "deletion":
+                          ruleset_has_deletion = True
+
+                  ruleset_missing_checks = sorted(required_checks - ruleset_contexts)
+                  ruleset_can_bypass = ruleset.get("current_user_can_bypass")
+                  ruleset_controls = {
+                      "required_checks": not ruleset_missing_checks,
+                      "no_bypass_actors": not bool(ruleset.get("bypass_actors")),
+                      "current_user_can_bypass_never": ruleset_can_bypass == "never",
+                      "non_fast_forward": ruleset_has_non_fast_forward,
+                      "deletion": ruleset_has_deletion,
+                      "strict_required_status_checks_policy": ruleset_strict_required_checks,
+                  }
+                  active_ruleset_control_summaries.append(
+                      {
+                          "name": ruleset_name,
+                          "current_user_can_bypass": ruleset_can_bypass,
+                          "missing_required_checks": ruleset_missing_checks,
+                          **ruleset_controls,
+                      }
+                  )
+                  if all(ruleset_controls.values()):
+                      solo_compensating_rulesets.append(ruleset_name)
 
           missing = sorted(required_checks - contexts)
           failures = []
@@ -244,12 +326,28 @@ jobs:
               failures.append(f"missing required status checks: {missing}")
           if not pr_required:
               failures.append("pull request requirement not proven")
+          independent_review = max_required_approvals >= 1
+          last_push_required_reviewer = require_last_push_approval and bool(required_reviewers)
+          solo_maintainer_compensating_control = bool(solo_compensating_rulesets)
+          if (
+              not independent_review
+              and not last_push_required_reviewer
+              and not solo_maintainer_compensating_control
+          ):
+              failures.append(
+                  "independent acceptor constraint not proven: required_approving_review_count, require_last_push_approval/required_reviewers, or solo-maintainer compensating controls are insufficient"
+              )
           if not up_to_date_or_merge_queue:
               failures.append("up-to-date branch or merge queue requirement not proven")
           failures.extend(bypass_residuals)
 
           print("Governance API evidence:", ", ".join(evidence) or "none")
           print("Required check contexts discovered:", sorted(contexts))
+          print("Max required approving review count:", max_required_approvals)
+          print("Require last-push approval:", require_last_push_approval)
+          print("Required reviewers discovered:", required_reviewers)
+          print("Solo-maintainer compensating-control rulesets:", solo_compensating_rulesets)
+          print("Active ruleset control summaries:", json.dumps(active_ruleset_control_summaries, sort_keys=True))
           if failures:
               print("pending/unverified: required-check governance is not proven.")
               for failure in failures:
@@ -276,7 +374,8 @@ jobs:
           fi
           if git diff --name-only "$full_surface_range" | grep -E '^(\.cargo/mutants\.toml|\.cargo/mutants-baseline-misses\.txt|\.github/workflows/ci\.yml|tools/(merge-mutation-shards\.py|supervise-command\.sh)|tests/negative-fixtures/|crates/tracewake-core/(src|tests)/|crates/tracewake-content/(src|tests)/|crates/tracewake-tui/(src|tests)/|reports/0052_|archive/tickets/0052FOUCONFOU-|specs/0052_)' >/dev/null; then
             echo "Full-surface mutation reconciliation is required for this change before merge."
-            echo "Required checks: public-boundary conformance and mutation shard reconciliation (lock layer)."
+            echo "Required checks: public-boundary conformance, mutation in-diff (lock layer), and mutation shard reconciliation (lock layer)."
+            echo "This trigger is an alarm, not mutation proof; actual in-diff mutation is PR-blocking for guarded changes."
             echo "A red scheduled mutation result is merge-blocking until repaired; pending is not a pass."
           else
             echo "No full-surface mutation trigger path changed."

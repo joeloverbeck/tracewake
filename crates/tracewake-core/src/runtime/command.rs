@@ -34,6 +34,11 @@ pub(crate) enum RuntimeCommandKind {
         actor_id: ActorId,
         mode: ControllerMode,
     },
+    BindDebugController {
+        _authority: DebugSessionAuthority,
+        controller_id: ControllerId,
+        actor_id: ActorId,
+    },
     DetachController {
         controller_id: ControllerId,
     },
@@ -96,12 +101,16 @@ impl RuntimeCommand {
         }
     }
 
-    pub fn bind_debug_controller(controller_id: ControllerId, actor_id: ActorId) -> Self {
+    pub fn bind_debug_controller(
+        authority: DebugSessionAuthority,
+        controller_id: ControllerId,
+        actor_id: ActorId,
+    ) -> Self {
         Self {
-            kind: RuntimeCommandKind::BindController {
+            kind: RuntimeCommandKind::BindDebugController {
+                _authority: authority,
                 controller_id,
                 actor_id,
-                mode: ControllerMode::Debug,
             },
         }
     }

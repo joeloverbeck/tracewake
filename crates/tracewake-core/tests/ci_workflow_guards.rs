@@ -310,6 +310,50 @@ fn ci_workflow_guards_cover_workflow_integrity() {
             .any(|error| error.contains("full-surface mutation trigger missing required text")),
         "synthetic missing scheduled-red policy must fail"
     );
+
+    let missing_approval_count_parse = CI_YML.replace("required_approving_review_count", "");
+    assert!(
+        ci_workflow_guard_errors(&missing_approval_count_parse, MUTANTS_TOML, DOC10)
+            .iter()
+            .any(|error| error.contains("required_approving_review_count")),
+        "synthetic governance audit without approval-count parsing must fail"
+    );
+
+    let missing_last_push_parse = CI_YML.replace("require_last_push_approval", "");
+    assert!(
+        ci_workflow_guard_errors(&missing_last_push_parse, MUTANTS_TOML, DOC10)
+            .iter()
+            .any(|error| error.contains("require_last_push_approval")),
+        "synthetic governance audit without last-push parsing must fail"
+    );
+
+    let missing_reviewer_parse = CI_YML.replace("required_reviewers", "");
+    assert!(
+        ci_workflow_guard_errors(&missing_reviewer_parse, MUTANTS_TOML, DOC10)
+            .iter()
+            .any(|error| error.contains("required_reviewers")),
+        "synthetic governance audit without required-reviewer parsing must fail"
+    );
+
+    let missing_in_diff_required_context = CI_YML.replace("\"mutation in-diff (lock layer)\",", "");
+    assert!(
+        ci_workflow_guard_errors(&missing_in_diff_required_context, MUTANTS_TOML, DOC10)
+            .iter()
+            .any(|error| error.contains("\"mutation in-diff (lock layer)\"")),
+        "synthetic required-context set without mutation in-diff must fail"
+    );
+}
+
+#[test]
+fn acceptance_artifact_ingestion_guard_rejects_missing_job() {
+    let missing_ingestion = CI_YML.replace("Ingest changed acceptance artifacts", "");
+
+    assert!(
+        ci_workflow_guard_errors(&missing_ingestion, MUTANTS_TOML, DOC10)
+            .iter()
+            .any(|error| error.contains("acceptance artifact ingestion")),
+        "synthetic workflow without acceptance-artifact ingestion must fail"
+    );
 }
 
 fn ci_workflow_guard_errors(workflow: &str, mutants_config: &str, doc10: &str) -> Vec<String> {
@@ -326,6 +370,7 @@ fn ci_workflow_guard_errors(workflow: &str, mutants_config: &str, doc10: &str) -
     errors.extend(public_boundary_conformance_errors(workflow));
     errors.extend(required_check_policy_errors(workflow));
     errors.extend(governance_audit_errors(workflow));
+    errors.extend(acceptance_artifact_ingestion_errors(workflow));
     errors.extend(full_surface_mutation_trigger_errors(workflow));
     errors.extend(scheduled_mutation_lane_errors(workflow));
     errors
@@ -350,7 +395,8 @@ fn public_boundary_conformance_errors(workflow: &str) -> Vec<String> {
 fn required_check_policy_errors(workflow: &str) -> Vec<String> {
     let mut errors = Vec::new();
     for required in [
-        "Required checks: public-boundary conformance and mutation shard reconciliation (lock layer).",
+        "Required checks: public-boundary conformance, mutation in-diff (lock layer), and mutation shard reconciliation (lock layer).",
+        "This trigger is an alarm, not mutation proof; actual in-diff mutation is PR-blocking for guarded changes.",
         "A red scheduled mutation result is merge-blocking until repaired; pending is not a pass.",
     ] {
         if !workflow.contains(required) {
@@ -372,6 +418,13 @@ fn governance_audit_errors(workflow: &str) -> Vec<String> {
         "pending/unverified: required-check governance is not proven.",
         "branch protection does not enforce admins",
         "pull request requirement not proven",
+        "required_approving_review_count",
+        "require_last_push_approval",
+        "required_reviewers",
+        "independent acceptor constraint not proven",
+        "Max required approving review count:",
+        "Require last-push approval:",
+        "Required reviewers discovered:",
         "up-to-date branch or merge queue requirement not proven",
         "\"rustfmt\"",
         "\"clippy\"",
@@ -379,10 +432,31 @@ fn governance_audit_errors(workflow: &str) -> Vec<String> {
         "\"lock-layer gates\"",
         "\"public-boundary conformance\"",
         "\"full-surface mutation trigger (lock layer)\"",
+        "\"mutation in-diff (lock layer)\"",
         "\"mutation shard reconciliation (lock layer)\"",
     ] {
         if !workflow.contains(required) {
             errors.push(format!("missing governance audit job text: {required}"));
+        }
+    }
+    errors
+}
+
+fn acceptance_artifact_ingestion_errors(workflow: &str) -> Vec<String> {
+    let mut errors = Vec::new();
+    for required in [
+        "Ingest changed acceptance artifacts",
+        "TRACEWAKE_ACCEPTANCE_ARTIFACT",
+        "actual_acceptance_artifact_from_ci_env_is_pass_eligible",
+        "tracewake-acceptance-status",
+        "Current acceptance artifact required for report/spec closure changes.",
+        r#"grep -E '^(reports|archive/reports)/.*(acceptance|ACCEPTANCE).*\.md$'"#,
+        r#"grep -E '^(reports|archive/reports|specs|archive/specs)/'"#,
+    ] {
+        if !workflow.contains(required) {
+            errors.push(format!(
+                "acceptance artifact ingestion missing required text: {required}"
+            ));
         }
     }
     errors
@@ -395,8 +469,10 @@ fn full_surface_mutation_trigger_errors(workflow: &str) -> Vec<String> {
         "name: full-surface mutation trigger (lock layer)",
         "full_surface_range=",
         "Full-surface mutation reconciliation is required for this change before merge.",
-        "Required checks: public-boundary conformance and mutation shard reconciliation (lock layer).",
+        "Required checks: public-boundary conformance, mutation in-diff (lock layer), and mutation shard reconciliation (lock layer).",
+        "This trigger is an alarm, not mutation proof; actual in-diff mutation is PR-blocking for guarded changes.",
         "A red scheduled mutation result is merge-blocking until repaired; pending is not a pass.",
+        "No full-surface mutation trigger path changed.",
     ] {
         if !workflow.contains(required) {
             errors.push(format!(

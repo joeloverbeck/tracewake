@@ -99,6 +99,15 @@ Reject or escalate a proposal, schema, fixture, test, prompt, UI surface, or cod
 - Are debug injections explicit test/debug metadata rather than ordinary play?
 - Are validation reports and why-not explanations generated from the shared pipeline rather than reimplemented in a client?
 - Does a claimed certification name the live gate artifact instead of saying a historical phase “landed”?
+- When a negative fixture is cited, does it attack the current public symbols and
+  composition path rather than stale constructor names or an obsolete bypass?
+- Could public constructors be composed across crates to recreate the forbidden
+  state even if each individual constructor looks validated?
+- Is debug authority merely non-forgeable as a value, or is it also
+  non-inducible through an unprivileged public command path?
+- If an artifact claims mutation closure, does it cite actual in-diff or current
+  full-campaign evidence with denominator and disposition counts, rather than a
+  trigger/topology alarm or a survivor-pass taxonomy hole?
 
 ### Holder-known and epistemics
 
@@ -207,6 +216,9 @@ At every phase exit, gate exit, certification review, or expansion handoff, answ
 7. Which risk-register entries are active, newly escalated, or ready for retirement, and what evidence supports that status?
 8. Are archived specs or tickets being cited only as history, not as certification under post-overhaul doctrine?
 9. If the artifact claims foundational conformance closure, does its fail-closed acceptance manifest compute the stated result from `closed|open|routed-forward|pending-governance|historical-only|not-in-scope` statuses, and does branch-protection or ruleset enforcement have an API transcript rather than only workflow topology evidence?
+10. If the artifact claims mutation-green closure, is `mutation in-diff` or a
+    current full-campaign artifact actual proof, with trigger-only evidence
+    rejected as topology alarm?
 
 A phase or gate cannot exit on demo success alone. It needs replay evidence, no-human evidence, holder-known view/procedure evidence, negative/failure evidence, TUI or view-model evidence, fixture evidence, diagnostics, and causal explanation evidence appropriate to the live execution gate being claimed.
 

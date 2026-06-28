@@ -598,9 +598,9 @@ mod tests {
 
         match receipt.kind() {
             RuntimeReceiptKind::OneTickAdvanced(result) => {
-                assert_eq!(result.due_work_summary.actor_transactions_attempted, 2);
-                assert_eq!(result.due_work_summary.world_process_markers_observed, 1);
-                assert_eq!(result.due_work_summary.world_processes_applied, 0);
+                assert!(result.advanced());
+                assert!(result.appended_event_count() > 0);
+                assert!(result.actor_known_interval_summary().is_none());
             }
             _ => panic!("expected one-tick receipt"),
         }

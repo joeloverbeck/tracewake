@@ -147,11 +147,12 @@ pub fn validate_fixture(
 
 fn accepted_world(mut fixture: FixtureSchema) -> InitialWorld {
     fixture.canonicalize();
-    let physical_state = fixture.to_physical_state();
+    let validation_token = FixtureValidationToken::mint();
+    let physical_state = fixture.to_physical_state(validation_token);
     InitialWorld {
         fixture,
         physical_state,
-        validation_token: FixtureValidationToken::mint(),
+        validation_token,
     }
 }
 

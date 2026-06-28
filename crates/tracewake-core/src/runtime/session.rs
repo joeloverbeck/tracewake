@@ -233,11 +233,16 @@ impl LoadedWorldRuntime {
 
     pub fn debug_session_authority_for(
         &self,
+        authority: &DebugSessionAuthority,
         controller_id: &ControllerId,
         actor_id: &ActorId,
     ) -> Option<DebugSessionAuthority> {
-        self.controller_debug_available_for(controller_id, actor_id)
-            .then(DebugSessionAuthority::mint)
+        (authority.debug_only() && self.controller_debug_available_for(controller_id, actor_id))
+            .then(|| authority.clone())
+    }
+
+    pub fn local_operator_debug_authority(&self) -> DebugSessionAuthority {
+        DebugSessionAuthority::mint()
     }
 
     pub fn embodied_view_model(
@@ -625,6 +630,17 @@ impl LoadedWorldRuntime {
                     vec!["runtime:controller_binding".to_string()],
                 )))
             }
+            RuntimeCommandKind::BindDebugController {
+                controller_id,
+                actor_id,
+                ..
+            } => {
+                self.bind_actor(controller_id, actor_id, ControllerMode::Debug);
+                Ok(RuntimeReceipt::embodied(EmbodiedRuntimeReceipt::new(
+                    "Debug controller binding changed.",
+                    vec!["runtime:debug_controller_binding".to_string()],
+                )))
+            }
             RuntimeCommandKind::DetachController { controller_id } => {
                 self.detach_controller(&controller_id);
                 Ok(RuntimeReceipt::embodied(EmbodiedRuntimeReceipt::new(
@@ -668,10 +684,32 @@ impl LoadedWorldRuntime {
         self.submit_command(RuntimeCommand::one_tick_wait(origin))
     }
 
+    pub fn wait_one_tick_debug(
+        &mut self,
+        authority: &DebugSessionAuthority,
+        origin: WorldAdvanceOrigin,
+    ) -> Result<DebugRuntimeReceipt, RuntimeCommandError> {
+        let result = self.run_world_one_tick(origin)?;
+        Ok(DebugRuntimeReceipt::from_world_advance_result(
+            authority,
+            result,
+            Some("one_tick_wait".to_string()),
+        ))
+    }
+
     fn run_one_tick_wait(
         &mut self,
         origin: WorldAdvanceOrigin,
     ) -> Result<RuntimeReceipt, RuntimeCommandError> {
+        let result = self.run_world_one_tick(origin)?;
+
+        Ok(RuntimeReceipt::one_tick_advanced(result))
+    }
+
+    fn run_world_one_tick(
+        &mut self,
+        origin: WorldAdvanceOrigin,
+    ) -> Result<crate::scheduler::WorldAdvanceResult, RuntimeCommandError> {
         let result = self.scheduler.transact_world_one_tick(
             &mut self.physical_state,
             &mut self.agent_state,
@@ -691,7 +729,7 @@ impl LoadedWorldRuntime {
             },
         )?;
 
-        Ok(RuntimeReceipt::one_tick_advanced(result))
+        Ok(result)
     }
 
     fn current_view_context(&self, actor_id: &ActorId) -> crate::epistemics::KnowledgeContext {
@@ -881,10 +919,10 @@ mod tests {
         assert_eq!(runtime.current_tick(), SimTick::new(1));
         assert!(runtime.event_count() > 0);
         match receipt.kind() {
-            RuntimeReceiptKind::OneTickAdvanced(result) => {
-                assert_eq!(result.prior_tick, SimTick::ZERO);
-                assert_eq!(result.resulting_tick, SimTick::new(1));
-                assert!(!result.appended_event_ids.is_empty());
+            RuntimeReceiptKind::OneTickAdvanced(receipt) => {
+                assert!(receipt.advanced());
+                assert!(receipt.appended_event_count() > 0);
+                assert!(receipt.actor_known_interval_summary().is_none());
             }
             _ => panic!("expected one-tick receipt"),
         }
@@ -946,8 +984,64 @@ mod tests {
         assert!(matches!(
             receipt.kind(),
             RuntimeReceiptKind::OneTickAdvanced(result)
-                if result.prior_tick == SimTick::ZERO && result.resulting_tick == SimTick::new(1)
+                if result.advanced() && result.appended_event_count() > 0
         ));
+    }
+
+    #[test]
+    fn debug_one_tick_receipt_retains_privileged_scheduler_details() {
+        let mut runtime = loaded_runtime();
+        let authority = DebugSessionAuthority::mint();
+
+        let receipt = runtime
+            .wait_one_tick_debug(
+                &authority,
+                WorldAdvanceOrigin::Controller(ControllerId::new("controller_human").unwrap()),
+            )
+            .unwrap();
+
+        assert!(receipt.debug_only());
+        assert_eq!(receipt.prior_tick(), SimTick::ZERO);
+        assert_eq!(receipt.resulting_tick(), SimTick::new(1));
+        assert!(!receipt.event_ids().is_empty());
+        let due_work = receipt
+            .due_work_summary()
+            .expect("debug receipt carries due-work summary");
+        assert!(due_work.actor_transactions_attempted > 0);
+        assert!(!receipt.actor_step_summaries().is_empty());
+    }
+
+    #[test]
+    fn debug_session_authority_requires_supplied_operator_authority() {
+        let mut runtime = loaded_runtime();
+        let controller_id = ControllerId::new("controller_operator_debug").unwrap();
+        let actor_id = ActorId::new("actor_runtime").unwrap();
+
+        runtime
+            .submit_command(RuntimeCommand::bind_controller(
+                controller_id.clone(),
+                actor_id.clone(),
+            ))
+            .unwrap();
+        let authority = runtime.local_operator_debug_authority();
+        assert!(
+            runtime
+                .debug_session_authority_for(&authority, &controller_id, &actor_id)
+                .is_none(),
+            "ordinary embodied binding must not validate debug authority"
+        );
+
+        runtime
+            .submit_command(RuntimeCommand::bind_debug_controller(
+                authority.clone(),
+                controller_id.clone(),
+                actor_id.clone(),
+            ))
+            .unwrap();
+        let validated = runtime
+            .debug_session_authority_for(&authority, &controller_id, &actor_id)
+            .expect("debug binding with held operator authority validates authority");
+        assert!(validated.debug_only());
     }
 
     #[test]

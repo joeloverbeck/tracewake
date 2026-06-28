@@ -127,9 +127,7 @@ fn status_manifest_blocks_pass_shaped_wording_over_open_items() {
         )
     );
 
-    assert!(validate_acceptance_artifact_wording(&artifact)
-        .unwrap_err()
-        .contains("closure wording over non-pass status manifest"));
+    assert_wording_error_contains(&artifact, "closure wording over non-pass status manifest");
 }
 
 #[test]
@@ -138,8 +136,8 @@ fn status_manifest_blocks_green_perimeter_with_survivors() {
         "{} `<commit>`.\n\nThe canonical perimeter green claim is ready.\n\n{}",
         REQUIRED_PHASE1_SCOPED_WORDING,
         synthetic_status_manifest(
-            "pass",
-            "enforced",
+            "non-pass",
+            "ruleset-transcript-current",
             "non-blocking-bounded-forcing",
             "food_source_fact_supersedes",
             &closed_findings(),
@@ -147,9 +145,7 @@ fn status_manifest_blocks_green_perimeter_with_survivors() {
         )
     );
 
-    assert!(validate_acceptance_artifact_wording(&artifact)
-        .unwrap_err()
-        .contains("green perimeter wording with mutation survivors"));
+    assert_wording_error_contains(&artifact, "green perimeter wording with mutation survivors");
 }
 
 #[test]
@@ -158,7 +154,7 @@ fn status_manifest_requires_branch_protection_transcript_for_enforced_claims() {
         "{} `<commit>`.\n\nBranch protection is enforced for main.\n\n{}",
         REQUIRED_PHASE1_SCOPED_WORDING,
         synthetic_status_manifest(
-            "pass",
+            "non-pass",
             "enforced",
             "killed",
             "none",
@@ -167,9 +163,10 @@ fn status_manifest_requires_branch_protection_transcript_for_enforced_claims() {
         )
     );
 
-    assert!(validate_acceptance_artifact_wording(&artifact)
-        .unwrap_err()
-        .contains("branch-protection enforcement claim lacks API transcript"));
+    assert_wording_error_contains(
+        &artifact,
+        "branch-protection enforcement claim lacks API transcript",
+    );
 }
 
 #[test]
@@ -179,7 +176,7 @@ fn status_manifest_blocks_historical_results_as_current_certification() {
         REQUIRED_PHASE1_SCOPED_WORDING,
         synthetic_status_manifest(
             "pass",
-            "enforced",
+            "ruleset-transcript-current",
             "killed",
             "none",
             &closed_findings(),
@@ -187,9 +184,10 @@ fn status_manifest_blocks_historical_results_as_current_certification() {
         )
     );
 
-    assert!(validate_acceptance_artifact_wording(&artifact)
-        .unwrap_err()
-        .contains("historical command results as current certification"));
+    assert_wording_error_contains(
+        &artifact,
+        "historical command results as current certification",
+    );
 }
 
 #[test]
@@ -199,7 +197,7 @@ fn status_manifest_blocks_display_string_as_sole_behavior_evidence() {
         REQUIRED_PHASE1_SCOPED_WORDING,
         synthetic_status_manifest(
             "pass",
-            "enforced",
+            "ruleset-transcript-current",
             "killed",
             "none",
             &closed_findings(),
@@ -207,9 +205,15 @@ fn status_manifest_blocks_display_string_as_sole_behavior_evidence() {
         )
     );
 
-    assert!(validate_acceptance_artifact_wording(&artifact)
-        .unwrap_err()
-        .contains("display string as sole behavior evidence"));
+    assert_wording_error_contains(&artifact, "display string as sole behavior evidence");
+}
+
+fn assert_wording_error_contains(artifact: &str, expected: &str) {
+    let error = validate_acceptance_artifact_wording(artifact).unwrap_err();
+    assert!(
+        error.contains(expected),
+        "expected wording error containing {expected:?}, got {error:?}"
+    );
 }
 
 fn validate_acceptance_artifact_wording(text: &str) -> Result<(), String> {
@@ -232,19 +236,6 @@ fn validate_acceptance_artifact_wording(text: &str) -> Result<(), String> {
     if text.contains(STATUS_FENCE) {
         let manifest = validate_status_manifest(text)?;
         let lower_claim_text = result_claim_text.to_ascii_lowercase();
-        if manifest.computed_result == ComputedResult::NonPass
-            && CONDITIONAL_CLOSURE_CLAIMS
-                .iter()
-                .any(|claim| lower_claim_text.contains(claim))
-        {
-            return Err("closure wording over non-pass status manifest".to_string());
-        }
-        if manifest.has_mutation_survivors
-            && (lower_claim_text.contains("green canonical perimeter")
-                || lower_claim_text.contains("canonical perimeter green"))
-        {
-            return Err("green perimeter wording with mutation survivors".to_string());
-        }
         if text.contains("Branch protection is enforced")
             && !text.contains("Branch-protection API transcript:")
             && !text.contains("Ruleset API transcript:")
@@ -261,6 +252,19 @@ fn validate_acceptance_artifact_wording(text: &str) -> Result<(), String> {
         {
             return Err("display string as sole behavior evidence".to_string());
         }
+        if manifest.has_mutation_survivors
+            && (lower_claim_text.contains("green canonical perimeter")
+                || lower_claim_text.contains("canonical perimeter green"))
+        {
+            return Err("green perimeter wording with mutation survivors".to_string());
+        }
+        if manifest.computed_result == ComputedResult::NonPass
+            && CONDITIONAL_CLOSURE_CLAIMS
+                .iter()
+                .any(|claim| lower_claim_text.contains(claim))
+        {
+            return Err("closure wording over non-pass status manifest".to_string());
+        }
     }
 
     Ok(())
@@ -273,23 +277,23 @@ fn text_before_forbidden_wording_section(text: &str) -> &str {
 
 fn closed_findings() -> [&'static str; 6] {
     [
-        "finding: F5-01 | closed | evidence=sealed bootstrap constructor | negative=external bootstrap negative fixture",
-        "finding: F5-02 | closed | evidence=sealed interval product | negative=external interval negative fixture",
-        "finding: F5-03 | closed | evidence=debug session authority token | negative=external debug command negative fixture",
-        "finding: F5-04 | closed | evidence=branch protection API transcript | negative=governance audit pending failure witness",
-        "finding: F5-05 | closed | evidence=food source projection behavior tests | negative=focused mutation survivor kills",
-        "finding: F5-06 | closed | evidence=manifest consumer and wording guard | negative=synthetic contradictory manifest",
+        "finding: F6-01 | closed | evidence_file=crates/tracewake-core/tests/acceptance_status_manifest.rs | evidence_test=all_closed_manifest_computes_pass | evidence_scope=current | negative_file=crates/tracewake-core/tests/acceptance_status_manifest.rs | negative_test=stated_pass_with_open_status_fails_closed | negative_scope=current",
+        "finding: F6-02 | closed | evidence_file=crates/tracewake-core/tests/acceptance_status_manifest.rs | evidence_test=open_or_pending_status_computes_non_pass | evidence_scope=current | negative_file=crates/tracewake-core/tests/acceptance_status_manifest.rs | negative_test=missing_or_unparseable_status_block_fails_closed | negative_scope=current",
+        "finding: F6-03 | closed | evidence_file=crates/tracewake-core/tests/acceptance_status_manifest.rs | evidence_test=routed_forward_requires_bounded_forcing_fields | evidence_scope=current | negative_file=crates/tracewake-core/tests/acceptance_status_manifest.rs | negative_test=mutation_survivors_require_bounded_forcing_or_block_pass | negative_scope=current",
+        "finding: F6-04 | closed | evidence_file=crates/tracewake-core/tests/acceptance_artifact_wording.rs | evidence_test=status_manifest_requires_branch_protection_transcript_for_enforced_claims | evidence_scope=current | negative_file=crates/tracewake-core/tests/acceptance_status_manifest.rs | negative_test=scalar_branch_protection_without_ruleset_transcript_is_non_pass | negative_scope=current",
+        "finding: F6-05 | closed | evidence_file=crates/tracewake-core/tests/acceptance_artifact_wording.rs | evidence_test=status_manifest_blocks_display_string_as_sole_behavior_evidence | evidence_scope=current | negative_file=crates/tracewake-core/tests/acceptance_status_manifest.rs | negative_test=non_current_evidence_inputs_fail_closed | negative_scope=current",
+        "finding: F6-06 | closed | evidence_file=crates/tracewake-core/tests/ci_workflow_guards.rs | evidence_test=ci_workflow_guards_cover_workflow_integrity | evidence_scope=current | negative_file=crates/tracewake-core/tests/ci_workflow_guards.rs | negative_test=acceptance_artifact_ingestion_guard_rejects_missing_job | negative_scope=current",
     ]
 }
 
 fn open_findings() -> [&'static str; 6] {
     [
-        "finding: F5-01 | closed | evidence=sealed bootstrap constructor | negative=external bootstrap negative fixture",
-        "finding: F5-02 | open",
-        "finding: F5-03 | closed | evidence=debug session authority token | negative=external debug command negative fixture",
-        "finding: F5-04 | pending-governance",
-        "finding: F5-05 | closed | evidence=food source projection behavior tests | negative=focused mutation survivor kills",
-        "finding: F5-06 | closed | evidence=manifest consumer and wording guard | negative=synthetic contradictory manifest",
+        "finding: F6-01 | closed | evidence_file=crates/tracewake-core/tests/acceptance_status_manifest.rs | evidence_test=all_closed_manifest_computes_pass | evidence_scope=current | negative_file=crates/tracewake-core/tests/acceptance_status_manifest.rs | negative_test=stated_pass_with_open_status_fails_closed | negative_scope=current",
+        "finding: F6-02 | open",
+        "finding: F6-03 | closed | evidence_file=crates/tracewake-core/tests/acceptance_status_manifest.rs | evidence_test=routed_forward_requires_bounded_forcing_fields | evidence_scope=current | negative_file=crates/tracewake-core/tests/acceptance_status_manifest.rs | negative_test=mutation_survivors_require_bounded_forcing_or_block_pass | negative_scope=current",
+        "finding: F6-04 | pending-governance",
+        "finding: F6-05 | closed | evidence_file=crates/tracewake-core/tests/acceptance_artifact_wording.rs | evidence_test=status_manifest_blocks_display_string_as_sole_behavior_evidence | evidence_scope=current | negative_file=crates/tracewake-core/tests/acceptance_status_manifest.rs | negative_test=non_current_evidence_inputs_fail_closed | negative_scope=current",
+        "finding: F6-06 | closed | evidence_file=crates/tracewake-core/tests/ci_workflow_guards.rs | evidence_test=ci_workflow_guards_cover_workflow_integrity | evidence_scope=current | negative_file=crates/tracewake-core/tests/ci_workflow_guards.rs | negative_test=acceptance_artifact_ingestion_guard_rejects_missing_job | negative_scope=current",
     ]
 }
 
@@ -306,7 +310,16 @@ fn synthetic_status_manifest(
         format!("overall_result: {overall_result}"),
         "commit_under_test: 0123456789abcdef0123456789abcdef01234567".to_string(),
         "source_acquisition: clean local checkout".to_string(),
+        "expected_findings: F6-01,F6-02,F6-03,F6-04,F6-05,F6-06".to_string(),
         format!("branch_protection: {branch_protection}"),
+        "governance_independence: independent-review".to_string(),
+        "mutation_evidence: current-in-diff".to_string(),
+        "mutation_denominator: 2".to_string(),
+        "mutation_caught: 2".to_string(),
+        "mutation_unviable: 0".to_string(),
+        "mutation_missed: 0".to_string(),
+        "mutation_timeout: 0".to_string(),
+        "mutation_baseline_reconciliation: current-reconciled".to_string(),
         format!("mutation_status: {mutation_status}"),
         format!("mutation_survivors: {mutation_survivors}"),
     ];

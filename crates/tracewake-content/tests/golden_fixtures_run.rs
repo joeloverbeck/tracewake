@@ -57,6 +57,7 @@ const FROZEN_FIXTURE_FINGERPRINTS: &[(&str, &str)] = &[
         "twf1-5594c16c721cde82",
     ),
     ("container_item_move_001", "twf1-bc90d56dcf16b9d3"),
+    ("competing_food_source_facts_001", "twf1-1df8941c296b27d9"),
     ("debug_attach_001", "twf1-7818100e3c7b9fd1"),
     ("debug_omniscience_excluded_001", "twf1-87f6032bf6fbdfba"),
     ("door_access_001", "twf1-eb38689018fcec34"),

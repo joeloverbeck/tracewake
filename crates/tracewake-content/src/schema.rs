@@ -555,7 +555,7 @@ impl FixtureSchema {
         });
     }
 
-    pub fn to_physical_state(&self) -> PhysicalState {
+    pub fn to_physical_state(&self, _validation: FixtureValidationToken) -> PhysicalState {
         let mut actors = BTreeMap::new();
         let mut places = BTreeMap::new();
         let mut doors = BTreeMap::new();
@@ -683,7 +683,7 @@ impl FixtureSchema {
             sleep_affordances.insert(sleep_affordance_id, sleep_affordance);
         }
 
-        PhysicalState::from_validated_seed_parts(
+        PhysicalState::from_validated_content_parts(
             actors,
             places,
             doors,
@@ -802,7 +802,7 @@ impl FixtureSchema {
         for (actor_id, (_start_tick, intention_id)) in active_intention_candidates {
             active_intention_by_actor.insert(actor_id, intention_id);
         }
-        AgentState::from_validated_seed_parts(
+        AgentState::from_validated_content_parts(
             needs_by_actor,
             intentions,
             active_intention_by_actor,

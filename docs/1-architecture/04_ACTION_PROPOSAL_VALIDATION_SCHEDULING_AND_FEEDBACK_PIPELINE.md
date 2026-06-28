@@ -116,7 +116,7 @@ masquerade as ordinary actor actions; they authorize lifecycle progression or
 interruption through the duration seam and do not create a competing wait
 action.
 
-Current 0053 evidence names the sealed production coordinator entry explicitly:
+Current 0054 evidence names the sealed production coordinator entry explicitly:
 `LoadedWorldRuntime::from_bootstrap(ValidatedLoadedWorldBootstrap, SimTick)`
 creates the runtime only from the validated content path; external clients
 cannot call removed raw loaded-state constructors, seed-part constructors, or
@@ -125,16 +125,25 @@ actor work, declared process work, restored eligibility, process transactions,
 and closed actor transaction outcome consumption. The public client boundary is
 `TuiApp::submit_semantic_action`, `TuiApp::advance_until`, and command-loop
 dispatch to closed `RuntimeCommand` values; debug/operator commands require a
-runtime-minted `DebugSessionAuthority`. Observed effects are committed
+presented `DebugSessionAuthority` obtained through an operator entrypoint, not
+through ordinary embodied self-bind. Observed effects are committed
 actor/process events, projection rebuilds, actor census changes, process
-ancestry, sealed receipts, the sealed interval product, and replay verdicts in
-the witness suites. `negative_fixture_runner.rs` supplies compile-fail
-sensitivity through `external_crate_cannot_construct_loaded_world_bootstrap_from_seed_parts`,
+ancestry, sealed one-tick and continuation receipts, the sealed interval
+product, and replay verdicts in the witness suites. `negative_fixture_runner.rs`
+supplies compile-fail sensitivity through
+`external_crate_cannot_construct_loaded_world_bootstrap_from_seed_parts`,
+`external_crate_cannot_read_one_tick_wait_receipt_internals`,
+`external_crate_cannot_induce_debug_authority_via_public_bind`,
 `external_crate_cannot_construct_actor_interval_summary`, and
-`external_crate_cannot_submit_debug_command_without_token`; `public-boundary
-conformance` composes the production-boundary matrix; and
-`archive/tickets/0053FOUCONFIF-007.md` records the closed `food_source`
-mutation family with `9` targeted predicate mutants caught.
+`external_crate_cannot_submit_debug_command_without_token`; public-boundary
+conformance composes the production-boundary matrix. The sixth-hardening
+evidence is recorded in `archive/tickets/0054FOUCONSIX-001.md`,
+`archive/tickets/0054FOUCONSIX-002.md`,
+`archive/tickets/0054FOUCONSIX-003.md`,
+`archive/tickets/0054FOUCONSIX-012.md`, and
+`archive/tickets/0054FOUCONSIX-013.md`, including the current standing mutation
+rerun with `3445` mutants tested, `2679` caught, `766` unviable, `0` missed,
+and `0` timeout.
 
 ### Affordances
 

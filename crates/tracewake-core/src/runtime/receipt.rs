@@ -3,7 +3,9 @@ use crate::debug_capability::{DebugCapability, DebugSessionAuthority};
 use crate::events::EventEnvelope;
 use crate::ids::EventId;
 use crate::scheduler::no_human::NoHumanDayReport;
-use crate::scheduler::{AdvanceUntilResult, WorldAdvanceResult};
+use crate::scheduler::{
+    ActorStepSummary, AdvanceUntilResult, WorldAdvanceResult, WorldStepDueWorkSummary,
+};
 use crate::time::SimTick;
 use crate::view_models::TypedActorKnownIntervalSummary;
 
@@ -14,8 +16,12 @@ pub struct RuntimeReceipt {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[allow(
+    clippy::large_enum_variant,
+    reason = "Runtime receipts preserve existing public enum ergonomics; boxing action receipts is a separate API change."
+)]
 pub enum RuntimeReceiptKind {
-    OneTickAdvanced(WorldAdvanceResult),
+    OneTickAdvanced(OneTickRuntimeReceipt),
     ActionSubmitted(RuntimeActionReceipt),
     Continued(ContinuedRuntimeReceipt),
     NoHumanDay(NoHumanDayReport),
@@ -27,6 +33,17 @@ pub enum RuntimeReceiptKind {
 pub struct RuntimeActionReceipt {
     pub report: ValidationReport,
     pub appended_events: Vec<EventEnvelope>,
+}
+
+/// Actor-legible one-tick wait product. It mirrors the continuation receipt:
+/// visible progress and actor-known interval summary are exposed, while exact
+/// scheduler ticks, event IDs, due-work queues, ancestry, and trace IDs stay out
+/// of the normal receipt boundary.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OneTickRuntimeReceipt {
+    advanced: bool,
+    appended_event_count: usize,
+    actor_known_interval_summary: Option<TypedActorKnownIntervalSummary>,
 }
 
 /// Actor-legible continuation product. It carries whether visible progress
@@ -54,13 +71,17 @@ pub struct DebugRuntimeReceipt {
     prior_tick: SimTick,
     resulting_tick: SimTick,
     event_ids: Vec<EventId>,
+    due_work_summary: Option<WorldStepDueWorkSummary>,
+    actor_step_summaries: Vec<ActorStepSummary>,
     stop_reason: Option<String>,
 }
 
 impl RuntimeReceipt {
     pub(crate) fn one_tick_advanced(result: WorldAdvanceResult) -> Self {
         Self {
-            kind: RuntimeReceiptKind::OneTickAdvanced(result),
+            kind: RuntimeReceiptKind::OneTickAdvanced(
+                OneTickRuntimeReceipt::from_world_advance_result(result),
+            ),
         }
     }
 
@@ -124,6 +145,30 @@ impl From<PipelineResult> for RuntimeActionReceipt {
     }
 }
 
+impl OneTickRuntimeReceipt {
+    fn from_world_advance_result(result: WorldAdvanceResult) -> Self {
+        Self {
+            advanced: result.resulting_tick > result.prior_tick,
+            appended_event_count: result.appended_event_ids.len(),
+            actor_known_interval_summary: result
+                .actor_known_interval_delta
+                .map(TypedActorKnownIntervalSummary::from_actor_known_delta),
+        }
+    }
+
+    pub fn advanced(&self) -> bool {
+        self.advanced
+    }
+
+    pub fn appended_event_count(&self) -> usize {
+        self.appended_event_count
+    }
+
+    pub fn actor_known_interval_summary(&self) -> Option<&TypedActorKnownIntervalSummary> {
+        self.actor_known_interval_summary.as_ref()
+    }
+}
+
 impl ContinuedRuntimeReceipt {
     fn from_advance_until_result(result: AdvanceUntilResult) -> Self {
         Self {
@@ -178,6 +223,24 @@ impl DebugRuntimeReceipt {
             prior_tick,
             resulting_tick,
             event_ids,
+            due_work_summary: None,
+            actor_step_summaries: Vec::new(),
+            stop_reason,
+        }
+    }
+
+    pub(crate) fn from_world_advance_result(
+        authority: &DebugSessionAuthority,
+        result: WorldAdvanceResult,
+        stop_reason: Option<String>,
+    ) -> Self {
+        Self {
+            capability: authority.capability(),
+            prior_tick: result.prior_tick,
+            resulting_tick: result.resulting_tick,
+            event_ids: result.appended_event_ids,
+            due_work_summary: Some(result.due_work_summary),
+            actor_step_summaries: result.actor_step_summaries,
             stop_reason,
         }
     }
@@ -198,6 +261,14 @@ impl DebugRuntimeReceipt {
         &self.event_ids
     }
 
+    pub fn due_work_summary(&self) -> Option<&WorldStepDueWorkSummary> {
+        self.due_work_summary.as_ref()
+    }
+
+    pub fn actor_step_summaries(&self) -> &[ActorStepSummary] {
+        &self.actor_step_summaries
+    }
+
     pub fn stop_reason(&self) -> Option<&str> {
         self.stop_reason.as_deref()
     }
@@ -206,6 +277,11 @@ impl DebugRuntimeReceipt {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ids::ActorId;
+    use crate::projections::{
+        ActorKnownIntervalDelta, IntervalNoticeKind, IntervalSalience, IntervalStopReason,
+        VerifiedActorKnownIntervalNotice,
+    };
     use crate::scheduler::AdvanceUntilStopReason;
 
     #[test]
@@ -258,6 +334,63 @@ mod tests {
     }
 
     #[test]
+    fn one_tick_receipt_derives_actor_visible_fields_from_world_advance_result() {
+        let interval_delta = ActorKnownIntervalDelta::from_verified(
+            ActorId::new("actor_tomas").unwrap(),
+            SimTick::new(9),
+            SimTick::new(9),
+            12,
+            14,
+            IntervalStopReason::UserPausedBeforeNextTick,
+            IntervalSalience::NovelActorKnownFact,
+            vec![VerifiedActorKnownIntervalNotice::from_verified(
+                IntervalNoticeKind::Observation,
+                EventId::new("event_actor_known_notice").unwrap(),
+                "observation.food_empty_bowl_tomas",
+            )],
+        );
+        let receipt = OneTickRuntimeReceipt::from_world_advance_result(WorldAdvanceResult {
+            prior_tick: SimTick::new(9),
+            resulting_tick: SimTick::new(9),
+            appended_event_ids: vec![
+                EventId::new("event_one_tick_visible_one").unwrap(),
+                EventId::new("event_one_tick_visible_two").unwrap(),
+            ],
+            actor_known_interval_delta: Some(interval_delta),
+            due_duration_candidates: Vec::new(),
+            due_work_summary: WorldStepDueWorkSummary {
+                open_duration_candidates: 0,
+                duration_terminals_appended: 0,
+                actor_transactions_attempted: 0,
+                world_process_markers_observed: 0,
+                world_processes_applied: 0,
+            },
+            actor_step_summaries: Vec::new(),
+            controlled_pipeline_results: Vec::new(),
+        });
+
+        assert!(
+            !receipt.advanced(),
+            "equal prior/result ticks must remain actor-legible non-advance"
+        );
+        assert_eq!(
+            receipt.appended_event_count(),
+            2,
+            "one-tick receipt must preserve the public appended-event count"
+        );
+        let summary = receipt
+            .actor_known_interval_summary()
+            .expect("one-tick receipt must preserve the actor-known interval summary");
+        assert_eq!(summary.start_frontier(), 12);
+        assert_eq!(summary.stop_frontier(), 14);
+        assert_eq!(
+            summary.stop_reason(),
+            IntervalStopReason::UserPausedBeforeNextTick
+        );
+        assert_eq!(summary.notices().len(), 1);
+    }
+
+    #[test]
     fn debug_receipt_is_capability_gated() {
         let event_ids = vec![
             EventId::new("event.debug.one").unwrap(),
@@ -283,6 +416,8 @@ mod tests {
             prior_tick: SimTick::new(7),
             resulting_tick: SimTick::new(9),
             event_ids,
+            due_work_summary: None,
+            actor_step_summaries: Vec::new(),
             stop_reason: Some("test".to_string()),
         };
         assert!(!non_debug.debug_only());

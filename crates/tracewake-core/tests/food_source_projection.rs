@@ -95,6 +95,14 @@ fn source_bearing_empty_food_supersedes_source_less_food() {
         !action.enabled,
         "source-bearing empty food must supersede source-less availability"
     );
+    assert_eq!(
+        action.availability.actor_safe_summary(),
+        Some("You know that food source is empty.")
+    );
+    assert!(
+        action.availability.debug_only_diagnostics().is_empty(),
+        "public action availability must not expose hidden provenance diagnostics"
+    );
 }
 
 #[test]
@@ -107,6 +115,14 @@ fn source_less_food_does_not_replace_source_bearing_empty_food() {
     assert!(
         !action.enabled,
         "source-less food must not replace source-bearing empty knowledge"
+    );
+    assert_eq!(
+        action.availability.actor_safe_summary(),
+        Some("You know that food source is empty.")
+    );
+    assert!(
+        action.availability.debug_only_diagnostics().is_empty(),
+        "public action availability must not expose hidden provenance diagnostics"
     );
 }
 

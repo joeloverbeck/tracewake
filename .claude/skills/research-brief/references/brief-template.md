@@ -81,7 +81,20 @@ qualified-`pass` rows from the code rather than inheriting them**, and record ge
 as *present* while reporting any `pass` that the code does not bear out. State the dual-diff result in
 §1 (wholesale vs. the report's commit; empty vs. the keystone) so Session 2 reads the posture correctly.
 Which commit you diff against decides the posture: against the report's pre-remediation commit gauges
-how much changed since the *audit*; against the keystone decides source-equivalence vs. drift.
+how much changed since the *audit*; against the keystone decides source-equivalence vs. drift. When the
+acceptance artifact names **more than one** implementation commit — e.g. a capstone code / standing-campaign
+commit and a separate commit-under-test, with only a governance- or doc-only fix between them — diff against
+the **commit-under-test** (the broadest implementation state the acceptance certifies); if it and the
+capstone-code commit diverge over the §2 seams, diff both and state which commit the source-equivalence claim
+rests on (an empty diff against either is sufficient when they agree).
+**(3) Evolving distinctive axis (multi-pass campaign).** A recurring re-audit campaign typically gives each
+pass a *distinctive axis* beyond the standing re-verification (e.g. one pass adds a process-integrity /
+verification-honesty contribution). When the immediately-prior pass's recommendation was **implemented** in
+the interval, the newly-built mechanism — and the first acceptance/artifact produced under it — becomes a
+**first-class audit target for this pass**: the recurrence's own fix is now on trial. Do not assume the prior
+axis carries over unchanged; surface the evolving axis (and whether it is co-equal with the code re-audit) as
+a bounded interview question (SKILL.md Step 4, path (b)), and carry the resolved emphasis into §3 as a settled
+intention.
 
 ### 2. Read in full (authority order)
 
