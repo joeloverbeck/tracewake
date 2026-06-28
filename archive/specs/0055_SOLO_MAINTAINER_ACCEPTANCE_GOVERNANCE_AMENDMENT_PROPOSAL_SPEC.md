@@ -1,6 +1,6 @@
 # 0055 — Solo-Maintainer Acceptance Governance Amendment (Proposal)
 
-**Status**: PROPOSED
+**Status**: COMPLETED
 
 **Classification**: dev-process/docs — this spec changes no simulation runtime
 behavior. It proposes amendments to architecture- and execution-tier governance
@@ -289,3 +289,72 @@ the acceptance doctrine actually protect.
 4. **Audit predicate fragility.** The amended audit must fail-closed if it
    cannot prove the compensating controls (API error, ruleset rename, missing
    field), so an evidence-gathering failure never reads as a pass.
+
+## Outcome
+
+Completed: 2026-06-28
+
+The proposal was enacted by the `0055SOLMAIACC` ticket series and accepted as a
+scoping clarification plus compensating-control substitution for solo-maintainer
+routine merges, not as a constitutional amendment and not as a relaxation of
+behavioral-evidence independence.
+
+Delivered:
+
+- `0055SOLMAIACC-001` amended
+  `docs/1-architecture/13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md`
+  to define solo-maintainer acceptance mode, name the compensating-control set,
+  preserve the second-human bar for multi-maintainer operation and
+  foundational-conformance artifacts, and record the `0054` lineage note.
+- `0055SOLMAIACC-002` amended
+  `docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`
+  to add the `solo-maintainer-compensating-control` independent-acceptance
+  posture and the fail-closed solo-mode exception while preserving the
+  self-authored-only behavioral-evidence rejection.
+- `0055SOLMAIACC-003` amended `.github/workflows/ci.yml` so the governance audit
+  parses `current_user_can_bypass`, `non_fast_forward`, and `deletion`, and
+  accepts approval count `0` only when an active branch ruleset proves the full
+  compensating-control set. Synthetic positive, six negative-member, and
+  count-1 regression cases passed against the extracted embedded predicate.
+- `0055SOLMAIACC-004` updated the live GitHub ruleset
+  `main-standing-conformance-barrier` (`18200914`) from
+  `required_approving_review_count: 1` to `0`, with branch protection returning
+  `404 Branch not protected`, so no second approval-count source remained.
+  Follow-up live evidence showed no bypass actors, `current_user_can_bypass:
+  never`, deletion and non-fast-forward rules, strict status checks, and the
+  eight required contexts.
+
+Verification:
+
+- GitHub PR `#67` at head
+  `eff62acc4588b25e1c3c0bdbb895dcc8f973b75c` ran the updated CI and all eight
+  required checks passed: `rustfmt`, `clippy`, `build & test`,
+  `lock-layer gates`, `public-boundary conformance`,
+  `full-surface mutation trigger (lock layer)`, `governance required checks
+  audit`, and `mutation in-diff (lock layer)`.
+- Running the embedded governance predicate locally against the live ruleset API
+  response printed `Governance required checks audit passed.`,
+  `Max required approving review count: 0`, and
+  `Solo-maintainer compensating-control rulesets:
+  ['main-standing-conformance-barrier']`.
+- A temporary scratch ruleset `tracewake-0055-negative-control-scratch`
+  (`18223133`) with a bypass actor made the embedded audit fail with `ruleset
+  tracewake-0055-negative-control-scratch has bypass actors`; the scratch ruleset
+  was deleted afterward, and a follow-up ruleset list returned only
+  `main-standing-conformance-barrier`.
+- `gh pr view 67 --json mergeable,mergeStateStatus,reviewDecision,isDraft,statusCheckRollup,headRefOid`
+  returned `mergeable: MERGEABLE`, `mergeStateStatus: CLEAN`, `isDraft: false`,
+  an empty `reviewDecision`, and successful required checks at head
+  `eff62acc4588b25e1c3c0bdbb895dcc8f973b75c`, proving the solo maintainer can
+  merge with all required checks green and no approving review.
+
+Deviations:
+
+- The spec was a proposal, so the owner-ratification precondition was satisfied
+  by the active goal request to implement the named `0055SOLMAIACC` series.
+- The final ruleset relaxation was verified by live GitHub API and PR state
+  rather than by mutating `main`; the PR was proven mergeable but not merged as
+  part of this spec closeout.
+
+This amendment mints no invariant, gate, glossary term, certification claim, or
+whole-project status. It changes routine solo-maintainer merge governance only.

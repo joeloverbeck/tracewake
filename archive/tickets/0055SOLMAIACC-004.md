@@ -1,6 +1,6 @@
 # 0055SOLMAIACC-004: Relax ruleset approval count and verify solo-maintainer acceptance end-to-end
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: None — operational change to the live GitHub ruleset (rulesets API); no repository file is modified
@@ -86,3 +86,64 @@ Confirm the governance audit passes with count 0 and the compensating controls p
 1. `gh api /repos/joeloverbeck/tracewake/rulesets/18200914 --jq '.rules[] | select(.type=="pull_request") | .parameters.required_approving_review_count'` — confirm the pre-change count, then the post-`PUT` count reads `0`.
 2. After the relaxation, observe the `governance required checks audit` check on a PR to `main` (and the scratch-ruleset negative-control run) to confirm green-on-proof / red-on-missing-control.
 3. These are operational `gh api` / live-CI commands and are deliberately **not** dry-run at decomposition: they mutate live repository governance and require repository auth, so they execute only as the gated runbook after 001/002 ratification and 003 landing — there is no safe local dry-run equivalent for a live ruleset mutation.
+
+## Outcome
+
+Completed: 2026-06-28
+
+Executed the operational ruleset enactment after tickets `0055SOLMAIACC-001`,
+`0055SOLMAIACC-002`, and `0055SOLMAIACC-003` landed. The active goal request to
+implement the named `0055SOLMAIACC` series satisfied the owner-ratification
+precondition for the operational change.
+
+Live pre-change evidence:
+
+- `gh api /repos/joeloverbeck/tracewake/rulesets/18200914` showed active
+  ruleset `main-standing-conformance-barrier`, no bypass actors,
+  `current_user_can_bypass: never`, deletion and non-fast-forward rules,
+  strict required status checks with the eight standing contexts, and
+  `required_approving_review_count: 1`.
+- `gh api /repos/joeloverbeck/tracewake/branches/main/protection` returned
+  `Branch not protected (HTTP 404)`, so there was no separate branch-protection
+  review-count source to relax.
+
+Applied the live ruleset update with `PUT
+/repos/joeloverbeck/tracewake/rulesets/18200914`, changing only the
+pull-request rule's `required_approving_review_count` from `1` to `0` while
+retaining deletion protection, non-fast-forward protection, no bypass actors,
+`current_user_can_bypass: never`, strict required status checks, and the eight
+required contexts.
+
+Verification:
+
+- The returned update response showed `required_approving_review_count: 0`,
+  no bypass actors, `current_user_can_bypass: never`, deletion and
+  non-fast-forward rules, strict status checks, and the same eight required
+  contexts.
+- The embedded `.github/workflows/ci.yml` governance-audit predicate was run
+  locally against the live GitHub API response and printed `Governance required
+  checks audit passed.` with `Max required approving review count: 0` and
+  `Solo-maintainer compensating-control rulesets:
+  ['main-standing-conformance-barrier']`.
+- PR `#67` was pushed to head commit
+  `eff62acc4588b25e1c3c0bdbb895dcc8f973b75c`; GitHub checks all passed for the
+  eight required contexts: `rustfmt`, `clippy`, `build & test`,
+  `lock-layer gates`, `public-boundary conformance`,
+  `full-surface mutation trigger (lock layer)`, `governance required checks
+  audit`, and `mutation in-diff (lock layer)`.
+- The scratch negative control created temporary ruleset
+  `tracewake-0055-negative-control-scratch` (`18223133`) scoped to a throwaway
+  branch pattern with a bypass actor. Running the embedded governance predicate
+  against the live rulesets failed with `ruleset
+  tracewake-0055-negative-control-scratch has bypass actors`, proving the audit
+  reds on missing compensating controls. The scratch ruleset was then deleted,
+  and a follow-up ruleset list returned only `main-standing-conformance-barrier`.
+- `gh pr view 67 --json mergeable,mergeStateStatus,reviewDecision,isDraft,statusCheckRollup,headRefOid`
+  returned `mergeable: MERGEABLE`, `mergeStateStatus: CLEAN`, `isDraft: false`,
+  empty `reviewDecision`, and successful required check runs at head
+  `eff62acc4588b25e1c3c0bdbb895dcc8f973b75c`, proving the solo maintainer can
+  merge the PR with all required checks green and no approving review.
+
+No behavioral-evidence rule was changed. The self-authored-only behavioral
+evidence rejection remains documented in execution tier 10 from ticket
+`0055SOLMAIACC-002`.
