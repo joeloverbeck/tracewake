@@ -2,11 +2,13 @@ use tracewake_core::actions::ActionRegistry;
 use tracewake_core::agent::NeedKind;
 use tracewake_core::content::schema::{
     ActionAffordanceSchema, ActorSchema, ContainerSchema, DoorSchema, FixtureSchema, FixtureScope,
-    InitialNeedSchema, ItemSchema, NeedModelSchema, PlaceSchema, FIXTURE_SCHEMA_V1,
+    InitialNeedSchema, ItemSchema, NeedModelSchema, PlaceSchema, SleepPlaceSchema, WorkplaceSchema,
+    FIXTURE_SCHEMA_V1,
 };
 use tracewake_core::content::validate::{validate_fixture, ValidationPhase};
 use tracewake_core::ids::{
     ActionId, ActorId, ContainerId, DoorId, FixtureId, ItemId, PlaceId, SchemaVersion,
+    SleepAffordanceId, WorkplaceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::state::VisibilityDefault;
@@ -179,4 +181,43 @@ fn locked_closed_and_unlocked_open_states_remain_valid() {
     unlocked_open.containers[0].is_open = true;
     validate_fixture(&unlocked_open, &registry())
         .expect("open but unlocked doors and containers remain valid authored state");
+}
+
+#[test]
+fn authored_duration_fields_must_be_positive() {
+    let mut fixture = fixture();
+    fixture.sleep_places.push(SleepPlaceSchema {
+        actor_id: ActorId::new("actor_tomas").unwrap(),
+        place_id: PlaceId::new("shop_front").unwrap(),
+        sleep_place_id: SleepAffordanceId::new("sleep_shop_front").unwrap(),
+        access_open: true,
+        duration_ticks: 0,
+        fatigue_recovery_per_tick: 1,
+        hunger_rise_per_tick: 0,
+    });
+    fixture.workplaces.push(WorkplaceSchema {
+        workplace_id: WorkplaceId::new("workplace_shop").unwrap(),
+        place_id: PlaceId::new("shop_front").unwrap(),
+        assigned_actor_ids: vec![ActorId::new("actor_tomas").unwrap()],
+        work_duration_ticks: 0,
+        fatigue_delta_per_tick: 1,
+        hunger_delta_per_tick: 1,
+        max_fatigue_to_start: 100,
+        max_hunger_to_start: 100,
+        access_open: true,
+        role_notice_access_open: true,
+        output_tag: "shelf_stocked".to_string(),
+    });
+
+    let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+    assert!(report.errors.iter().any(|error| {
+        error.phase == ValidationPhase::State
+            && error.path == "sleep_places[0].duration_ticks"
+            && error.code == "invalid_duration"
+    }));
+    assert!(report.errors.iter().any(|error| {
+        error.phase == ValidationPhase::State
+            && error.path == "workplaces[0].work_duration_ticks"
+            && error.code == "invalid_duration"
+    }));
 }
