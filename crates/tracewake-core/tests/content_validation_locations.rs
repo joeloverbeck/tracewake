@@ -1,14 +1,15 @@
 use tracewake_core::actions::ActionRegistry;
-use tracewake_core::agent::NeedKind;
+use tracewake_core::agent::routine::RoutineDiagnosticKind;
+use tracewake_core::agent::{NeedKind, RoutineCondition, RoutineFamily, RoutineStep};
 use tracewake_core::content::schema::{
     ActionAffordanceSchema, ActorSchema, ContainerSchema, DoorSchema, FixtureSchema, FixtureScope,
-    InitialNeedSchema, ItemSchema, NeedModelSchema, PlaceSchema, SleepPlaceSchema, WorkplaceSchema,
-    FIXTURE_SCHEMA_V1,
+    InitialNeedSchema, ItemSchema, NeedModelSchema, PlaceSchema, RoutineTemplateSchema,
+    SleepPlaceSchema, WorkplaceSchema, FIXTURE_SCHEMA_V1,
 };
 use tracewake_core::content::validate::{validate_fixture, ValidationPhase};
 use tracewake_core::ids::{
-    ActionId, ActorId, ContainerId, DoorId, FixtureId, ItemId, PlaceId, SchemaVersion,
-    SleepAffordanceId, WorkplaceId,
+    ActionId, ActorId, ContainerId, DoorId, FixtureId, ItemId, PlaceId, RoutineTemplateId,
+    SchemaVersion, SemanticActionId, SleepAffordanceId, WorkplaceId,
 };
 use tracewake_core::location::Location;
 use tracewake_core::state::VisibilityDefault;
@@ -18,6 +19,7 @@ fn registry() -> ActionRegistry {
     registry.register_phase1_movement_open_close();
     registry.register_phase1_take_place();
     registry.register_phase1_inspect_wait();
+    registry.register_phase3a_sleep();
     registry
 }
 
@@ -220,4 +222,42 @@ fn authored_duration_fields_must_be_positive() {
             && error.path == "workplaces[0].work_duration_ticks"
             && error.code == "invalid_duration"
     }));
+}
+
+#[test]
+fn phase3a_sleep_routines_require_surface_or_typed_diagnostic() {
+    let mut fixture = fixture();
+    fixture.fixture_scope = FixtureScope::Phase3AHistorical;
+    validate_fixture(&fixture, &registry())
+        .expect("Phase 3A fixtures without sleep routines do not need a sleep surface");
+
+    fixture.routine_templates.push(RoutineTemplateSchema {
+        template_id: RoutineTemplateId::new("routine_sleep_night").unwrap(),
+        family: RoutineFamily::SleepNight,
+        applicability_conditions: vec![RoutineCondition::ActorKnowsSleepPlace],
+        preconditions: vec![RoutineCondition::SleepPlaceBelievedAccessible],
+        steps: vec![RoutineStep::StartScheduledSleep {
+            action_id: SemanticActionId::new("sleep.sleep_shop_front").unwrap(),
+        }],
+        min_duration_ticks: 4,
+        max_duration_ticks: 6,
+        interruption_points: vec![0],
+        failure_modes: vec!["access".to_string()],
+        fallback_rules: vec!["wait".to_string()],
+        debug_labels: vec!["phase3a_sleep_surface_contract".to_string()],
+        reservable_resource: Some("body".to_string()),
+    });
+
+    let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+    assert!(report.errors.iter().any(|error| {
+        error.phase == ValidationPhase::State
+            && error.path == "sleep_places"
+            && error.code == "missing_sleep_surface"
+    }));
+
+    fixture.routine_templates[0].steps = vec![RoutineStep::FailWithTypedDiagnostic {
+        diagnostic: RoutineDiagnosticKind::NoSleepAffordance,
+    }];
+    validate_fixture(&fixture, &registry())
+        .expect("typed no-sleep diagnostic satisfies absent sleep surface contract");
 }
