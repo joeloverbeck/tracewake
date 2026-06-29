@@ -567,9 +567,13 @@ On implementation the session must: begin from a clean baseline; name its own ex
 commit (not this proposal's baseline `2720167`); run `cargo fmt --all --check`,
 `cargo clippy --workspace --all-targets -- -D warnings`,
 `cargo build --workspace --all-targets --locked`, and `cargo test --workspace`; run focused mutation
-campaigns for each in-surface change and then the full standing campaign **after** all code/test
-work; and publish the selected denominator with the complete caught/missed/unviable/timeout
-disposition. The acceptance artifact follows `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md`,
+campaigns for each in-surface change and then a full standing discovery campaign **after** all
+code/test work. The discovery campaign must run to completion even if it finds survivors, so the
+session captures the whole missed/timeout set before remediation. Survivor remediation should be
+batched by owning surface and converged with focused commands plus `cargo mutants --iterate`; only
+the final clean-baseline full standing campaign may be cited as canonical green evidence. Publish the
+selected denominator with the complete caught/missed/unviable/timeout disposition. The acceptance
+artifact follows `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md`,
 **carries the machine-readable status manifest computed by the doctrine-complete fail-closed
 parser** (with the closed verdict-grammar line), records per-finding closure with real
 production-path evidence (sealed validated-content constructor, operator-gated debug authority,

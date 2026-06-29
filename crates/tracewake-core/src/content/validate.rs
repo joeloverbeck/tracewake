@@ -1146,6 +1146,7 @@ enum NumericFieldPolicy {
     CountNonnegative,
 }
 
+#[cfg_attr(mutants, mutants::skip)] // permanently disabled audit scaffold; untestable by cargo test
 #[cfg(any())]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct NumericFieldRegistration {
@@ -1153,6 +1154,7 @@ struct NumericFieldRegistration {
     policy: NumericFieldPolicy,
 }
 
+#[cfg_attr(mutants, mutants::skip)] // permanently disabled audit scaffold; untestable by cargo test
 #[cfg(any())]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ContentNegativePolicy {
@@ -1161,6 +1163,7 @@ enum ContentNegativePolicy {
     FixtureSchemaVersion,
 }
 
+#[cfg_attr(mutants, mutants::skip)] // permanently disabled audit scaffold; untestable by cargo test
 #[cfg(any())]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct ContentNegativeProof {
@@ -1170,6 +1173,7 @@ struct ContentNegativeProof {
     rejection_path: &'static str,
 }
 
+#[cfg_attr(mutants, mutants::skip)] // permanently disabled audit scaffold; untestable by cargo test
 #[cfg(any())]
 const NUMERIC_FIELD_REGISTRY: &[NumericFieldRegistration] = &[
     NumericFieldRegistration {
@@ -1238,6 +1242,7 @@ const NUMERIC_FIELD_REGISTRY: &[NumericFieldRegistration] = &[
     },
 ];
 
+#[cfg_attr(mutants, mutants::skip)] // permanently disabled audit scaffold; untestable by cargo test
 #[cfg(any())]
 const CONTENT_NEGATIVE_PROOFS: &[ContentNegativeProof] = &[
     ContentNegativeProof {
@@ -1895,6 +1900,7 @@ fn validate_no_script(fixture: &FixtureSchema, errors: &mut Vec<ContentValidatio
     }
 }
 
+#[cfg_attr(mutants, mutants::skip)] // permanently disabled audit scaffold; untestable by cargo test
 #[cfg(any())]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct StringFieldScanRegistration {
@@ -1903,6 +1909,7 @@ struct StringFieldScanRegistration {
     rationale: &'static str,
 }
 
+#[cfg_attr(mutants, mutants::skip)] // permanently disabled audit scaffold; untestable by cargo test
 #[cfg(any())]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct IdFieldScanRegistration {
@@ -1916,6 +1923,7 @@ enum StringScanPolicy {
     Union,
 }
 
+#[cfg_attr(mutants, mutants::skip)] // permanently disabled audit scaffold; untestable by cargo test
 #[cfg(any())]
 const SCANNED_STRING_FIELDS: &[StringFieldScanRegistration] = &[
     StringFieldScanRegistration {
@@ -1955,6 +1963,7 @@ const SCANNED_STRING_FIELDS: &[StringFieldScanRegistration] = &[
     },
 ];
 
+#[cfg_attr(mutants, mutants::skip)] // permanently disabled audit scaffold; untestable by cargo test
 #[cfg(any())]
 const SCANNED_ID_FIELDS: &[IdFieldScanRegistration] = &[
     IdFieldScanRegistration {
@@ -2882,6 +2891,7 @@ fn is_phase3a_shortcut_marker(value: &str) -> bool {
         .any(|marker| value.contains(marker))
 }
 
+#[cfg_attr(mutants, mutants::skip)] // permanently disabled test scaffold; untestable by cargo test
 #[cfg(any())]
 mod tests {
     use super::*;

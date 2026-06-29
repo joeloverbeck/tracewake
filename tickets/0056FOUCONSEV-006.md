@@ -35,13 +35,19 @@ Spec §7 (mutation) + §8 (acceptance evidence) + §5 (standing-mutation residua
 
 For fast feedback during/after implementation: `cargo mutants -f` over the bootstrap (001), debug-authority (002), and taxonomy-guard (003/004/005) surfaces.
 
-### 2. Run the full standing campaign from a clean baseline
+### 2. Run one full standing discovery campaign from a clean baseline
 
 After all code/test work lands, run the configured standing campaign to completion; publish the selected denominator and the complete caught/missed/unviable/timeout disposition.
+
+Do **not** stop and restart the full campaign at the first survivor. A survivor is evidence, not an interrupt condition. Let the run finish so the ticket captures the whole missed/timeout set in one pass.
 
 ### 3. Record residual disposition
 
 Record any survivor under a §5 bounded forcing function, or kill it via a public behavior witness; confirm the `food_source` witness is preserved and no historical `0054` count is treated as current evidence.
+
+When survivors are found, batch them by owning surface and remediate them together. Use focused mutation commands and `cargo mutants --iterate` against the existing `mutants.out` state to converge on the remaining missed/time-out set instead of rerunning already-caught mutants from scratch after every fix. Preserve the discovery-run disposition in the ticket evidence.
+
+Run a final full standing campaign from a clean baseline only after the survivor set is empty or all residuals have been explicitly bounded under §5. This final pass is the only campaign that may be cited as canonical green evidence.
 
 ## Files to Touch
 
@@ -74,5 +80,7 @@ Record any survivor under a §5 bounded forcing function, or kill it via a publi
 ### Commands
 
 1. `cargo mutants --in-diff` — focused in-diff campaign for fast feedback on each sealed surface.
-2. `cargo mutants` — full standing campaign over the configured perimeter from a clean baseline; capture the caught/missed/unviable/timeout disposition.
-3. `cargo test --workspace` — confirm the clean baseline before the standing run (mutation evidence is only meaningful over a green tree).
+2. `cargo mutants` — full standing discovery campaign over the configured perimeter from a clean baseline; let it complete even if `missed.txt` becomes non-empty.
+3. `cargo mutants --iterate` — after batched survivor fixes, reuse the prior `mutants.out` state to focus on remaining missed/time-out work rather than restarting the full denominator.
+4. `cargo mutants` — final clean-baseline standing campaign after convergence; this is the canonical green proof if and only if no live survivor remains.
+5. `cargo test --workspace` — confirm the clean baseline before standing runs (mutation evidence is only meaningful over a green tree).
