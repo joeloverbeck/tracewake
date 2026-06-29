@@ -260,4 +260,18 @@ fn phase3a_sleep_routines_require_surface_or_typed_diagnostic() {
     }];
     validate_fixture(&fixture, &registry())
         .expect("typed no-sleep diagnostic satisfies absent sleep surface contract");
+
+    fixture.routine_templates[0].failure_modes = vec!["scripted_failure".to_string()];
+    fixture.routine_templates[0].fallback_rules = vec!["scripted_recovery".to_string()];
+    let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+    assert!(report.errors.iter().any(|error| {
+        error.phase == ValidationPhase::State
+            && error.path == "routine_templates[0].failure_modes[0]"
+            && error.code == "unknown_failure_mode"
+    }));
+    assert!(report.errors.iter().any(|error| {
+        error.phase == ValidationPhase::State
+            && error.path == "routine_templates[0].fallback_rules[0]"
+            && error.code == "unknown_fallback_rule"
+    }));
 }
