@@ -225,6 +225,32 @@ fn authored_duration_fields_must_be_positive() {
 }
 
 #[test]
+fn phase3a_surface_fields_reject_authored_shortcut_markers() {
+    let mut fixture = fixture();
+    fixture.fixture_scope = FixtureScope::Phase3AHistorical;
+    fixture.workplaces.push(WorkplaceSchema {
+        workplace_id: WorkplaceId::new("workplace_shop").unwrap(),
+        place_id: PlaceId::new("shop_front").unwrap(),
+        assigned_actor_ids: vec![ActorId::new("actor_tomas").unwrap()],
+        work_duration_ticks: 4,
+        fatigue_delta_per_tick: 1,
+        hunger_delta_per_tick: 1,
+        max_fatigue_to_start: 100,
+        max_hunger_to_start: 100,
+        access_open: true,
+        role_notice_access_open: true,
+        output_tag: "work_always_succeeds".to_string(),
+    });
+
+    let report = validate_fixture(&fixture, &registry()).unwrap_err().report;
+    assert!(report.errors.iter().any(|error| {
+        error.phase == ValidationPhase::NoScript
+            && error.path == "workplaces[0].output_tag"
+            && error.code == "authored_shortcut_effect"
+    }));
+}
+
+#[test]
 fn phase3a_sleep_routines_require_surface_or_typed_diagnostic() {
     let mut fixture = fixture();
     fixture.fixture_scope = FixtureScope::Phase3AHistorical;
