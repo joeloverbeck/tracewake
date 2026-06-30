@@ -256,12 +256,14 @@ fn proven_solo_maintainer_compensating_control_computes_pass() {
     let manifest = validate_status_manifest(&synthetic_manifest_with_governance_controls(
         "pass",
         "ruleset-transcript-current",
-        "solo-maintainer-compensating-control",
+        SyntheticGovernance {
+            independence: "solo-maintainer-compensating-control",
+            controls: &proven_solo_maintainer_controls(),
+        },
         "killed",
         "none",
         &closed_findings(),
         &[],
-        &proven_solo_maintainer_controls(),
     ))
     .expect("fully proven solo-maintainer controls are pass-eligible");
 
@@ -286,12 +288,14 @@ fn solo_maintainer_compensating_control_fails_closed_on_any_control_gap() {
         let error = validate_status_manifest(&synthetic_manifest_with_governance_controls(
             "pass",
             "ruleset-transcript-current",
-            "solo-maintainer-compensating-control",
+            SyntheticGovernance {
+                independence: "solo-maintainer-compensating-control",
+                controls: &controls,
+            },
             "killed",
             "none",
             &closed_findings(),
             &[],
-            &controls,
         ))
         .unwrap_err();
         assert!(
@@ -305,12 +309,14 @@ fn solo_maintainer_compensating_control_fails_closed_on_any_control_gap() {
     let manifest = validate_status_manifest(&synthetic_manifest_with_governance_controls(
         "non-pass",
         "ruleset-transcript-current",
-        "solo-maintainer-compensating-control",
+        SyntheticGovernance {
+            independence: "solo-maintainer-compensating-control",
+            controls: &missing_controls,
+        },
         "killed",
         "none",
         &closed_findings(),
         &[],
-        &missing_controls,
     ))
     .expect("missing solo-maintainer controls compute non-pass when stated truthfully");
     assert_eq!(manifest.computed_result, ComputedResult::NonPass);
@@ -450,24 +456,30 @@ fn synthetic_manifest_with_governance(
     synthetic_manifest_with_governance_controls(
         overall_result,
         branch_protection,
-        governance_independence,
+        SyntheticGovernance {
+            independence: governance_independence,
+            controls: &[],
+        },
         mutation_status,
         mutation_survivors,
         findings,
         survivors,
-        &[],
     )
+}
+
+struct SyntheticGovernance<'a> {
+    independence: &'a str,
+    controls: &'a [(&'a str, &'a str)],
 }
 
 fn synthetic_manifest_with_governance_controls(
     overall_result: &str,
     branch_protection: &str,
-    governance_independence: &str,
+    governance: SyntheticGovernance<'_>,
     mutation_status: &str,
     mutation_survivors: &str,
     findings: &[&str],
     survivors: &[&str],
-    governance_controls: &[(&str, &str)],
 ) -> String {
     let mut lines = vec![
         "# Synthetic 0053 acceptance artifact".to_string(),
@@ -477,10 +489,11 @@ fn synthetic_manifest_with_governance_controls(
         "source_acquisition: clean local checkout".to_string(),
         "expected_findings: F6-01,F6-02,F6-03,F6-04,F6-05,F6-06".to_string(),
         format!("branch_protection: {branch_protection}"),
-        format!("governance_independence: {governance_independence}"),
+        format!("governance_independence: {}", governance.independence),
     ];
     lines.extend(
-        governance_controls
+        governance
+            .controls
             .iter()
             .map(|(field, value)| format!("{field}: {value}")),
     );

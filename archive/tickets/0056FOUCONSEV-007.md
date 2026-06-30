@@ -1,6 +1,6 @@
 # 0056FOUCONSEV-007: §6.1 below-foundation doctrine synchronization
 
-**Status**: PENDING
+**Status**: COMPLETE
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: None
@@ -88,3 +88,23 @@ Update existing R-27/R-28/R-29 status/evidence rows only; mint no new risk ID.
 1. `grep -nE "solo-maintainer-compensating-control" docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md` — field-set + value landed.
 2. `grep -nE "Computed result" docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md` — existing verdict line retained (must still match).
 3. `grep -nE "R-27|R-28|R-29" docs/3-reference/01_DESIGN_RISK_REGISTER.md` — status rows updated, no new risk ID.
+
+## Outcome
+
+Completed: 2026-06-30
+
+Synchronized the below-foundation acceptance doctrine with the executable
+taxonomy:
+
+- `docs/1-architecture/13_VALIDATION_OBSERVABILITY_ACCEPTANCE_AND_REVIEW_ARTIFACTS.md` now states that a `pass` requires the doctrine-complete computed verdict, exact-commit evidence ingestion, proven governance posture, no live survivor/pending rows, and no prose stronger than the computed state.
+- `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md` retains the required `Computed result: pass | non-pass` wording and adds the `solo-maintainer-compensating-control` field set, including ruleset transcript, bypass, branch protection, deletion protection, status-check, and strict-up-to-date proof fields.
+- `docs/3-reference/00_REFERENCE_INDEX_AND_REVIEW_CHECKLIST.md` adds reviewer prompts for stale negative fixtures, validated-content alias/composition paths, ordinary-input debug induction, and paraphrase-bypassable verdict wording.
+- `docs/3-reference/01_DESIGN_RISK_REGISTER.md` updates the existing R-27/R-28/R-29 rows with 0056 evidence/status notes and mints no new risk ID.
+
+Verification:
+
+- `grep -nE "solo-maintainer-compensating-control" docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md docs/2-execution/10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md` returned the template field-set lines and execution `10` posture lines.
+- `grep -nE "Computed result" docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md` confirmed the existing closed verdict line remains.
+- `grep -nE "R-27|R-28|R-29" docs/3-reference/01_DESIGN_RISK_REGISTER.md` confirmed the existing risk rows remain the update targets.
+- `cargo fmt --all --check` passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` passed after a narrow test-helper refactor in `crates/tracewake-core/tests/acceptance_status_manifest.rs` grouped synthetic governance controls to satisfy the existing `too_many_arguments` lint.

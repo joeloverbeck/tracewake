@@ -103,11 +103,20 @@ Reject or escalate a proposal, schema, fixture, test, prompt, UI surface, or cod
   composition path rather than stale constructor names or an obsolete bypass?
 - Could public constructors be composed across crates to recreate the forbidden
   state even if each individual constructor looks validated?
+- Are validated-content aliases, helper constructors, or public re-exports
+  checked as a composition family rather than only at the originally cited
+  symbol?
 - Is debug authority merely non-forgeable as a value, or is it also
   non-inducible through an unprivileged public command path?
+- Can any ordinary input path, including TUI commands and semantic action
+  submission, induce debug/operator authority without an explicit operator
+  capability?
 - If an artifact claims mutation closure, does it cite actual in-diff or current
   full-campaign evidence with denominator and disposition counts, rather than a
   trigger/topology alarm or a survivor-pass taxonomy hole?
+- Does the acceptance artifact's wording remain inside the closed verdict
+  grammar, or could paraphrased pass-shaped language bypass the computed
+  `pass|non-pass` result?
 
 ### Holder-known and epistemics
 

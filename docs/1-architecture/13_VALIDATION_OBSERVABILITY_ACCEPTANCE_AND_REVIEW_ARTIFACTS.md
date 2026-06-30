@@ -125,7 +125,8 @@ cannot be the sole proof for behavior, unrepresentability, replay, or
 merge-enforced governance.
 
 Acceptance artifacts are read models over current evidence, not evidence
-themselves. A `pass` claim requires current exact-commit evidence ingestion,
+themselves. A `pass` claim requires the doctrine-complete computed verdict,
+current exact-commit evidence ingestion, the proven governance posture,
 independent acceptance where required, no live survivor or pending rows, and no
 prose stronger than the computed state. Workflow source text, Rust source
 guards, manifest shape, and report wording may make regressions visible, but
