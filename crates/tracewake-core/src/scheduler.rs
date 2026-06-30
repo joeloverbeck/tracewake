@@ -2850,18 +2850,12 @@ pub mod no_human {
                     }
                 };
                 if has_open_duration {
+                    // The actor is mid sleep/work block: an open body-exclusive duration is
+                    // committed, in-progress behavioral progress, so the routine owning it is
+                    // not "stuck past its expected progress window". Skip the actor's decision
+                    // (it is occupied) and emit no stuck diagnostic this window.
                     duration_skip_by_window_actor
                         .insert((window.window_id.clone(), actor_id.clone()));
-                    append_routine_stuck_diagnostics(
-                        log,
-                        agent_state,
-                        &process_id,
-                        actor_id,
-                        window,
-                        &content_manifest_id,
-                        &mut stuck_diagnostic_event_ids,
-                        &mut scheduler_errors,
-                    );
                     continue;
                 }
                 append_routine_stuck_diagnostics(
@@ -3580,11 +3574,12 @@ pub mod no_human {
             .filter(|(_, execution)| &execution.actor_id == actor_id)
             .flat_map(|(execution_id, execution)| {
                 let mut diagnostics = Vec::new();
-                if execution
-                    .expected_next_progress_tick
-                    .is_some_and(|expected| {
-                        expected < window.start_tick && execution.last_progress_tick < expected
-                    })
+                if !execution.step_status.is_resolved()
+                    && execution
+                        .expected_next_progress_tick
+                        .is_some_and(|expected| {
+                            expected < window.start_tick && execution.last_progress_tick < expected
+                        })
                 {
                     diagnostics.push((
                         StuckDiagnosticKind::PastExpectedProgressWindow,
@@ -5446,6 +5441,24 @@ pub mod no_human {
                 ActorBody::new(actor_id(), crate::ids::PlaceId::new("bedroom").unwrap()),
             );
             let mut agent_state = agent_state(&actor_id());
+            // The actor owns a routine whose expected progress (tick 2) is already past the
+            // "sleeping" window start (tick 4) with no later progress — the exact shape that
+            // fires past_expected_progress_window. Because the actor holds an open sleep
+            // duration, no stuck diagnostic must be emitted for it.
+            agent_state.routine_executions.insert(
+                RoutineExecutionId::new("routine_exec_sleep_owner").unwrap(),
+                crate::agent::RoutineExecution::new(
+                    RoutineExecutionId::new("routine_exec_sleep_owner").unwrap(),
+                    actor_id(),
+                    RoutineTemplateId::new("routine_sleep_owner").unwrap(),
+                    RoutineFamily::SleepNight,
+                    SimTick::ZERO,
+                    Some(SimTick::new(2)),
+                    Some(SimTick::new(12)),
+                    None,
+                    DecisionTraceId::new("trace_sleep_owner").unwrap(),
+                ),
+            );
             let mut log = EventLog::new();
             let mut sleep_started = EventEnvelope::new_caused_v1(
                 EventId::new("event.sleep_started.proposal_sleep_open").unwrap(),
@@ -6113,6 +6126,75 @@ pub mod no_human {
                     (StuckDiagnosticKind::PastExpectedProgressWindow, past_due),
                     (StuckDiagnosticKind::RepeatedIdleWait, waiting),
                 ]
+            );
+        }
+
+        #[test]
+        fn resolved_routine_execution_is_not_flagged_past_expected_progress_window() {
+            // A routine that has reached a resolved state (here Completed) made its
+            // progress and must not be re-flagged "stuck past expected progress window"
+            // in every later window. Without the guard, a completed go-to-work routine
+            // produced false stuck diagnostics in work_window/evening/night long after
+            // it finished. The tick boundaries below would fire the diagnostic if status
+            // were ignored: expected progress (8) is before the window start (10) and the
+            // last progress tick (5) is before the expected tick.
+            let actor = actor_id();
+            let window = DayWindow {
+                window_id: "evening".to_string(),
+                start_tick: SimTick::new(10),
+                end_tick: SimTick::new(12),
+            };
+            let mut agent_state = agent_state(&actor);
+
+            let resolved_execution = |suffix: &str| {
+                crate::agent::RoutineExecution::new(
+                    RoutineExecutionId::new(format!("routine_exec_resolved_{suffix}")).unwrap(),
+                    actor.clone(),
+                    RoutineTemplateId::new(format!("routine_resolved_{suffix}")).unwrap(),
+                    RoutineFamily::GoToWork,
+                    SimTick::ZERO,
+                    Some(SimTick::new(8)),
+                    Some(SimTick::new(9)),
+                    None,
+                    DecisionTraceId::new(format!("trace_resolved_{suffix}")).unwrap(),
+                )
+            };
+            let mut completed = resolved_execution("completed");
+            completed.complete_step(SimTick::new(5));
+            let mut failed = resolved_execution("failed");
+            failed.fail(SimTick::new(5), "blocked");
+            let mut interrupted = resolved_execution("interrupted");
+            interrupted.interrupt(SimTick::new(5), "safety");
+            let mut abandoned = resolved_execution("abandoned");
+            abandoned.abandon(SimTick::new(5), "superseded");
+            for execution in [completed, failed, interrupted, abandoned] {
+                agent_state
+                    .routine_executions
+                    .insert(execution.execution_id.clone(), execution);
+            }
+
+            // A still-pending execution with the same boundaries must still be flagged,
+            // proving the guard keys on resolution rather than disabling detection.
+            let pending = RoutineExecutionId::new("routine_exec_pending").unwrap();
+            agent_state.routine_executions.insert(
+                pending.clone(),
+                crate::agent::RoutineExecution::new(
+                    pending.clone(),
+                    actor.clone(),
+                    RoutineTemplateId::new("routine_pending").unwrap(),
+                    RoutineFamily::GoToWork,
+                    SimTick::ZERO,
+                    Some(SimTick::new(8)),
+                    None,
+                    None,
+                    DecisionTraceId::new("trace_pending").unwrap(),
+                ),
+            );
+
+            let diagnostics = routine_stuck_diagnostic_kinds(&agent_state, &actor, &window);
+            assert_eq!(
+                diagnostics,
+                vec![(StuckDiagnosticKind::PastExpectedProgressWindow, pending)]
             );
         }
 

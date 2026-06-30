@@ -543,6 +543,10 @@ impl EpistemicProjection {
             self.actor_known_records_by_actor
                 .get(context.viewer_actor_id()),
         );
+        let selected_local_items = newest_local_item_records(
+            self.actor_known_records_by_actor
+                .get(context.viewer_actor_id()),
+        );
 
         self.actor_known_records_by_actor
             .get(context.viewer_actor_id())
@@ -552,6 +556,7 @@ impl EpistemicProjection {
                 record
                     .policy()
                     .includes_classified_record(record, &selected_workplaces)
+                    && local_item_record_is_selected(record, &selected_local_items)
             })
             .map(|record| {
                 let current_place_record = record.relevant_place_id() == current_place_id;
@@ -1463,7 +1468,7 @@ fn newest_workplace_records<'a>(
         };
         if newest
             .get(workplace_id)
-            .is_none_or(|previous| workplace_record_is_newer(record, previous))
+            .is_none_or(|previous| record_is_newer_by_tick_then_event(record, previous))
         {
             newest.insert(workplace_id.clone(), record);
         }
@@ -1471,13 +1476,56 @@ fn newest_workplace_records<'a>(
     newest
 }
 
-fn workplace_record_is_newer(
+fn record_is_newer_by_tick_then_event(
     candidate: &ActorKnownProjectionRecord,
     previous: &ActorKnownProjectionRecord,
 ) -> bool {
     candidate.source_tick() > previous.source_tick()
         || (candidate.source_tick() == previous.source_tick()
             && candidate.source_event_id() > previous.source_event_id())
+}
+
+/// Newest local-item record per item, by `(source_tick, source_event_id)`.
+///
+/// An item observed at a new location supersedes the actor's older location
+/// belief for that item: a thing is in exactly one place, so re-observing it
+/// elsewhere must retire the stale record. Without this collapse the embodied
+/// context surfaces the same item twice (e.g. still "in the chest" and also "on
+/// the floor") after an open/take/place sequence, which contradicts authoritative
+/// single-location truth and offers a phantom take action for the empty location.
+/// Mirrors `newest_workplace_records` so item supersession matches the workplace
+/// precedent. Freshness is left to the per-record policy, so a single surviving
+/// record an actor can no longer see is still classified as remembered.
+fn newest_local_item_records(
+    records: Option<&BTreeSet<ActorKnownProjectionRecord>>,
+) -> BTreeMap<ItemId, &ActorKnownProjectionRecord> {
+    let mut newest: BTreeMap<ItemId, &ActorKnownProjectionRecord> = BTreeMap::new();
+    for record in records.into_iter().flat_map(|records| records.iter()) {
+        let ActorKnownProjectionRecord::LocalItem { item_id, .. } = record else {
+            continue;
+        };
+        if newest
+            .get(item_id)
+            .is_none_or(|previous| record_is_newer_by_tick_then_event(record, previous))
+        {
+            newest.insert(item_id.clone(), record);
+        }
+    }
+    newest
+}
+
+/// A non-item record is always kept; a local-item record is kept only when it is
+/// the newest record for its item (see `newest_local_item_records`).
+fn local_item_record_is_selected(
+    record: &ActorKnownProjectionRecord,
+    selected_local_items: &BTreeMap<ItemId, &ActorKnownProjectionRecord>,
+) -> bool {
+    match record {
+        ActorKnownProjectionRecord::LocalItem { item_id, .. } => selected_local_items
+            .get(item_id)
+            .is_some_and(|selected| *selected == record),
+        _ => true,
+    }
 }
 
 fn reclassifying_record_freshness(
@@ -2896,6 +2944,59 @@ mod tests {
     }
 
     #[test]
+    fn newest_local_item_record_supersedes_stale_location_for_same_item() {
+        // An item observed in a container, then later observed on the floor of the
+        // same place, must collapse to a single newest record. Surfacing both would
+        // show the item in two places at once (the container_item_move open/take/place
+        // regression).
+        let actor = actor_id("actor_mira");
+        let item = item_id("brass_key_01");
+        let in_chest = ActorKnownProjectionRecord::LocalItem {
+            actor_id: actor.clone(),
+            item_id: item.clone(),
+            place_id: place_id("workroom"),
+            source_location: Location::InContainer(container_id("source_chest")),
+            portable: true,
+            source: ActorKnownProjectionSource::VisibleItem,
+            source_event_id: event_id("event_item_in_chest"),
+            source_tick: SimTick::new(2),
+        };
+        let on_floor = ActorKnownProjectionRecord::LocalItem {
+            actor_id: actor.clone(),
+            item_id: item.clone(),
+            place_id: place_id("workroom"),
+            source_location: Location::AtPlace(place_id("workroom")),
+            portable: true,
+            source: ActorKnownProjectionSource::VisibleItem,
+            source_event_id: event_id("event_item_on_floor"),
+            source_tick: SimTick::new(5),
+        };
+
+        let mut records = BTreeSet::new();
+        records.insert(in_chest.clone());
+        records.insert(on_floor.clone());
+
+        let selected = newest_local_item_records(Some(&records));
+        assert_eq!(selected.len(), 1);
+        assert_eq!(selected.get(&item), Some(&&on_floor));
+
+        // The newest record is kept; the stale in-chest record is excluded.
+        assert!(local_item_record_is_selected(&on_floor, &selected));
+        assert!(!local_item_record_is_selected(&in_chest, &selected));
+
+        // Non-item records are never excluded by item supersession.
+        let other = ActorKnownProjectionRecord::LocalActor {
+            actor_id: actor.clone(),
+            observed_actor_id: actor_id("actor_tomas"),
+            place_id: place_id("workroom"),
+            source: ActorKnownProjectionSource::VisibleActor,
+            source_event_id: event_id("event_visible_actor"),
+            source_tick: SimTick::new(5),
+        };
+        assert!(local_item_record_is_selected(&other, &selected));
+    }
+
+    #[test]
     fn actor_known_classification_helpers_preserve_freshness_keys_and_sources() {
         let actor = actor_id("actor_tomas");
         let previous = ActorKnownProjectionRecord::Workplace {
@@ -2925,10 +3026,10 @@ mod tests {
             source_event_id: event_id("event_role_notice_old"),
             source_tick: SimTick::new(5),
         };
-        assert!(workplace_record_is_newer(&later_event, &previous));
-        assert!(workplace_record_is_newer(&later_tick, &previous));
-        assert!(!workplace_record_is_newer(&previous, &later_event));
-        assert!(!workplace_record_is_newer(&previous, &previous));
+        assert!(record_is_newer_by_tick_then_event(&later_event, &previous));
+        assert!(record_is_newer_by_tick_then_event(&later_tick, &previous));
+        assert!(!record_is_newer_by_tick_then_event(&previous, &later_event));
+        assert!(!record_is_newer_by_tick_then_event(&previous, &previous));
 
         let visible_actor = ActorKnownProjectionRecord::LocalActor {
             actor_id: actor.clone(),

@@ -146,6 +146,65 @@ fn wait_command_during_sleep_is_reservation_conflict_without_world_advance() {
 }
 
 #[test]
+fn body_exclusive_surface_disables_ordinary_actions_but_keeps_lifecycle_controls() {
+    let mut app = TuiApp::from_golden(fixtures::sleep_eat_work_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+
+    let sleep_started = app
+        .submit_semantic_action(&SemanticActionId::new("sleep.here").unwrap())
+        .unwrap();
+    assert_eq!(sleep_started.report.status, ReportStatus::Accepted);
+
+    let view = app.current_view().unwrap();
+
+    // While the actor holds the open body-exclusive duration, lifecycle controls
+    // (continue_routine) must stay enabled. The disable post-pass guards them with
+    // `entry.enabled && !is_lifecycle_control(..)`; flipping that `&&` to `||` would
+    // disable an enabled lifecycle control, so this assertion kills that mutant.
+    let lifecycle_controls: Vec<_> = view
+        .semantic_actions
+        .iter()
+        .filter(|entry| entry.action_id.as_str() == "continue_routine")
+        .collect();
+    assert!(
+        !lifecycle_controls.is_empty(),
+        "expected a continue_routine lifecycle control on the body-exclusive surface:\n{:#?}",
+        view.semantic_actions
+    );
+    assert!(
+        lifecycle_controls.iter().all(|entry| entry.enabled),
+        "lifecycle controls must remain enabled during a body-exclusive duration:\n{lifecycle_controls:#?}"
+    );
+
+    // Every ordinary (non-lifecycle) action that validation left enabled is
+    // pre-disabled with the reservation-conflict reason and the body-exclusive
+    // summary, so the surface reflects the submit-time rejection by construction.
+    let body_exclusive_disabled: Vec<_> = view
+        .semantic_actions
+        .iter()
+        .filter(|entry| {
+            entry.action_id.as_str() != "continue_routine"
+                && entry
+                    .availability
+                    .reason_codes()
+                    .contains(&ReasonCode::ReservationConflict)
+                && entry.availability.actor_safe_summary()
+                    == Some("That actor is already in a body-exclusive action.")
+        })
+        .collect();
+    assert!(
+        !body_exclusive_disabled.is_empty(),
+        "expected ordinary actions disabled with the body-exclusive reason:\n{:#?}",
+        view.semantic_actions
+    );
+    assert!(
+        body_exclusive_disabled.iter().all(|entry| !entry.enabled),
+        "body-exclusive-disabled actions must report not-enabled:\n{body_exclusive_disabled:#?}"
+    );
+}
+
+#[test]
 fn human_sleep_completion_real_pipeline_witness() {
     let mut app = TuiApp::from_golden_operator_debug(fixtures::sleep_eat_work_001()).unwrap();
     app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())

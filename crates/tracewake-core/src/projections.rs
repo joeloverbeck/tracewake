@@ -151,6 +151,7 @@ pub struct EmbodiedPreflightSource<'a> {
     state: &'a PhysicalState,
     registry: &'a ActionRegistry,
     content_manifest_id: &'a ContentManifestId,
+    actor_in_body_exclusive_duration: bool,
 }
 
 impl<'a> EmbodiedPreflightSource<'a> {
@@ -159,10 +160,25 @@ impl<'a> EmbodiedPreflightSource<'a> {
         registry: &'a ActionRegistry,
         content_manifest_id: &'a ContentManifestId,
     ) -> Self {
+        Self::with_body_exclusive_duration(state, registry, content_manifest_id, false)
+    }
+
+    /// Build a preflight source that knows whether the viewer actor currently
+    /// holds an unresolved body-exclusive start. The caller derives this from the
+    /// same event-log open-duration authority the reservation-conflict check uses
+    /// (`open_body_exclusive_starts`), so the surface's disabled state matches the
+    /// rejection an ordinary action would receive on submit.
+    pub fn with_body_exclusive_duration(
+        state: &'a PhysicalState,
+        registry: &'a ActionRegistry,
+        content_manifest_id: &'a ContentManifestId,
+        actor_in_body_exclusive_duration: bool,
+    ) -> Self {
         Self {
             state,
             registry,
             content_manifest_id,
+            actor_in_body_exclusive_duration,
         }
     }
 
@@ -183,6 +199,7 @@ impl<'a> EmbodiedPreflightSource<'a> {
             sim_tick,
             knowledge_context_id,
             knowledge_context_frontier,
+            actor_in_body_exclusive_duration: self.actor_in_body_exclusive_duration,
         }
     }
 }
@@ -700,6 +717,41 @@ pub fn build_embodied_view_model(
         &source.current_place_id,
         viewer_actor_id,
     ));
+    // While the actor holds an unresolved body-exclusive start (a sleep or work
+    // block), the reservation-conflict check rejects every non-lifecycle action on
+    // submit. That check is event-log-derived, so the per-action validators above
+    // cannot see it; disable those actions here so the surface reflects the
+    // rejection instead of offering enabled actions that always fail. Lifecycle
+    // controls (continue routine) remain available, and actions already disabled for
+    // a more specific reason keep it.
+    if preflight_context.actor_in_body_exclusive_duration {
+        semantic_actions = semantic_actions
+            .into_iter()
+            .map(|entry| {
+                if entry.enabled
+                    && !crate::actions::pipeline::is_lifecycle_control(&entry.action_id)
+                {
+                    SemanticActionEntry::with_availability(
+                        entry.semantic_action_id,
+                        entry.action_id,
+                        entry.target_ids,
+                        entry.label,
+                        ActionAvailability::disabled(
+                            vec![ReasonCode::ReservationConflict],
+                            "That actor is already in a body-exclusive action.".to_string(),
+                            vec![ActionAvailabilityProvenance::new(
+                                ActionAvailabilityProvenanceKind::HolderKnownContext,
+                                context.holder_known_context_id().as_str(),
+                            )],
+                            Vec::new(),
+                        ),
+                    )
+                } else {
+                    entry
+                }
+            })
+            .collect();
+    }
     semantic_actions.sort();
 
     Ok(EmbodiedViewModel {
@@ -1092,13 +1144,17 @@ fn phase3a_status(agent_state: &AgentState, viewer_actor_id: &ActorId) -> Phase3
         .get(viewer_actor_id)
         .and_then(|intention_id| agent_state.intentions.get(intention_id));
     let intention_summary = intention.map(|intention| {
+        // A need-driven intention has no routine template. Report what is actually
+        // driving it (its source) rather than a misleading "routine_unknown" sentinel,
+        // which otherwise contradicts the sibling "Routine: none" line for the same
+        // `selected_routine_method == None` state.
         format!(
             "active:{}:{}",
             intention
                 .selected_routine_method
                 .as_ref()
                 .map(|id| id.as_str())
-                .unwrap_or("routine_unknown"),
+                .unwrap_or_else(|| intention.source.stable_id()),
             intention.current_step.as_deref().unwrap_or("step_pending")
         )
     });
@@ -1292,6 +1348,7 @@ struct SemanticActionPreflightContext<'a> {
     sim_tick: SimTick,
     knowledge_context_id: HolderKnownContextId,
     knowledge_context_frontier: u64,
+    actor_in_body_exclusive_duration: bool,
 }
 
 fn semantic_actions(
@@ -1429,6 +1486,36 @@ fn semantic_actions(
             ),
             preflight,
         ));
+        // A carried item can also be placed into an open container the actor can see,
+        // mirroring the `take.item.*.from.<container>` surface. The shared `place`
+        // pipeline already accepts a container destination (`ItemPlacedInContainer`);
+        // without this entry an embodied player can take an item out of a container
+        // but never put one in — only drop it on the floor.
+        for container in visible_containers
+            .iter()
+            .filter(|container| container.is_open)
+        {
+            actions.push(with_validator_availability(
+                SemanticActionEntry::new(
+                    SemanticActionId::new(format!(
+                        "place.item.{}.into.{}",
+                        item_id.as_str(),
+                        container.container_id.as_str()
+                    ))
+                    .unwrap(),
+                    ActionId::new("place").unwrap(),
+                    vec![item_id.to_string(), container.container_id.to_string()],
+                    format!(
+                        "Place {} into {}",
+                        item_id.as_str(),
+                        container.container_id.as_str()
+                    ),
+                    true,
+                    None,
+                ),
+                preflight,
+            ));
+        }
     }
 
     actions
@@ -1662,6 +1749,41 @@ mod tests {
 
     fn content_manifest_id() -> ContentManifestId {
         ContentManifestId::new("phase2a_manifest").unwrap()
+    }
+
+    #[test]
+    fn phase3a_status_need_driven_intention_reports_source_not_routine_unknown_sentinel() {
+        // A need-driven intention has no routine template. The embodied status must not
+        // leak the internal "routine_unknown" sentinel into the player-facing view, and
+        // it must stay consistent with the sibling routine summary (which renders None).
+        let viewer = actor_id("actor_tomas");
+        let mut agent_state = AgentState::default();
+        let intention_id = IntentionId::new("intention_tomas_rest").unwrap();
+        agent_state
+            .active_intention_by_actor
+            .insert(viewer.clone(), intention_id.clone());
+        agent_state.intentions.insert(
+            intention_id.clone(),
+            Intention::adopt(
+                intention_id,
+                viewer.clone(),
+                IntentionSource::NeedPressure,
+                CandidateGoalId::new("goal_tomas_sleep_or_rest").unwrap(),
+                None,
+                Some("sleep_or_rest".to_string()),
+                4,
+                SimTick::new(1),
+                DecisionTraceId::new("trace_tomas_rest").unwrap(),
+            ),
+        );
+
+        let status = phase3a_status(&agent_state, &viewer);
+        let intention_summary = status.intention_summary.as_deref().unwrap();
+        assert_eq!(intention_summary, "active:need_pressure:sleep_or_rest");
+        assert!(!intention_summary.contains("routine_unknown"));
+        // The routine summary stays None (rendered as "none"); the intention line no
+        // longer contradicts it with a phantom routine token.
+        assert!(status.routine_summary.is_none());
     }
 
     #[test]
@@ -2475,6 +2597,119 @@ mod tests {
             .semantic_actions
             .iter()
             .any(|entry| entry.semantic_action_id.as_str() == "place.item.coin_stack_01.at.place"));
+    }
+
+    #[test]
+    fn embodied_projection_offers_place_into_open_container_but_not_closed() {
+        let mut state = state();
+        // Actor carries the coin; the strongbox is co-located and open.
+        let actor = actor_id("actor_tomas");
+        state
+            .actors
+            .get_mut(&actor)
+            .unwrap()
+            .carried_item_ids
+            .insert(item_id("coin_stack_01"));
+        state
+            .items
+            .get_mut(&item_id("coin_stack_01"))
+            .unwrap()
+            .location = Location::CarriedBy(actor.clone());
+        {
+            let container = state
+                .containers
+                .get_mut(&container_id("strongbox_tomas"))
+                .unwrap();
+            container.contents.remove(&item_id("coin_stack_01"));
+            container.is_open = true;
+        }
+
+        let open_view = view_for(&state);
+        assert!(
+            open_view.semantic_actions.iter().any(|entry| {
+                entry.semantic_action_id.as_str() == "place.item.coin_stack_01.into.strongbox_tomas"
+            }),
+            "an open co-located container must offer a place-into action for a carried item"
+        );
+        // The at-place option remains available alongside the into-container option.
+        assert!(open_view
+            .semantic_actions
+            .iter()
+            .any(|entry| entry.semantic_action_id.as_str() == "place.item.coin_stack_01.at.place"));
+
+        // A closed container offers no place-into action (the actor would open it first).
+        state
+            .containers
+            .get_mut(&container_id("strongbox_tomas"))
+            .unwrap()
+            .is_open = false;
+        let closed_view = view_for(&state);
+        assert!(
+            !closed_view.semantic_actions.iter().any(|entry| {
+                entry.semantic_action_id.as_str() == "place.item.coin_stack_01.into.strongbox_tomas"
+            }),
+            "a closed container must not offer a place-into action"
+        );
+    }
+
+    #[test]
+    fn embodied_surface_disables_non_lifecycle_actions_during_body_exclusive_duration() {
+        let state = state();
+        let viewer = actor_id("actor_tomas");
+        let current_place_id = place_id("shop_front");
+        let context = KnowledgeContext::embodied_at_frontier_with_all_facts_and_observations(
+            viewer.clone(),
+            SimTick::new(1),
+            0,
+            Vec::new(),
+            actor_known_current_place_facts(&state, &current_place_id),
+            actor_known_carried_item_facts(&state, &viewer),
+            Vec::new(),
+            Vec::new(),
+            vec![crate::epistemics::ActorKnownRouteFact::new(
+                current_place_id.clone(),
+                place_id("back_room"),
+                "visible_exit",
+            )],
+            actor_known_door_facts(&state, &current_place_id),
+            actor_known_container_facts(&state, &current_place_id),
+            actor_known_item_facts(&state, &current_place_id),
+            actor_known_local_actor_facts(&state, &viewer, &current_place_id),
+        );
+        let snapshot = EmbodiedTruthSnapshot::from_physical_state(&context, &state);
+        let source = EmbodiedProjectionSource::from_sealed_context(&context, snapshot, None);
+        let registry = registry();
+        let manifest = content_manifest_id();
+
+        let wait_entry = |view: &EmbodiedViewModel| {
+            view.semantic_actions
+                .iter()
+                .find(|entry| entry.semantic_action_id.as_str() == "wait.1_tick")
+                .cloned()
+                .expect("wait is always offered")
+        };
+
+        // Free actor: ordinary wait is available.
+        let free = EmbodiedPreflightSource::new(&state, &registry, &manifest);
+        let free_view = build_embodied_view_model(&context, &source, &free, None).unwrap();
+        assert!(wait_entry(&free_view).enabled);
+
+        // Actor holding an open body-exclusive duration: ordinary wait is disabled with
+        // the reservation-conflict reason, matching the submit-time rejection.
+        let in_duration = EmbodiedPreflightSource::with_body_exclusive_duration(
+            &state, &registry, &manifest, true,
+        );
+        let duration_view =
+            build_embodied_view_model(&context, &source, &in_duration, None).unwrap();
+        let wait = wait_entry(&duration_view);
+        assert!(
+            !wait.enabled,
+            "ordinary wait must be disabled during a body-exclusive duration"
+        );
+        assert!(wait
+            .availability
+            .reason_codes()
+            .contains(&ReasonCode::ReservationConflict));
     }
 
     #[test]

@@ -450,7 +450,10 @@ fn body_exclusive_reservation_conflict(
     open_starts.into_iter().next()
 }
 
-fn is_lifecycle_control(action_id: &ActionId) -> bool {
+/// Actions permitted while an actor holds an unresolved body-exclusive start.
+/// Everything else is rejected by the reservation-conflict check, and the
+/// embodied surface mirrors this by disabling those actions during a duration.
+pub(crate) fn is_lifecycle_control(action_id: &ActionId) -> bool {
     matches!(action_id.as_str(), "continue_routine")
 }
 
