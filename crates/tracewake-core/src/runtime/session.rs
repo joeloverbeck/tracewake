@@ -630,6 +630,20 @@ impl LoadedWorldRuntime {
                 &diagnostic,
             );
         }
+        if embodied_follow_on_advances_time(&follow_on_proposal) {
+            let diagnostic = embodied_time_advancing_follow_on_diagnostic(
+                actor_id,
+                decision_tick,
+                &follow_on_proposal,
+            );
+            return self.run_embodied_continue_routine_stuck_outcome(
+                actor_id,
+                decision_tick,
+                marker_result,
+                &embodied_stuck_events,
+                &diagnostic,
+            );
+        }
         let ordering_key = OrderingKey::new(
             decision_tick,
             SchedulePhase::HumanCommand,
@@ -1246,6 +1260,49 @@ fn embodied_recursive_continue_routine_diagnostic(
         "recursive continue_routine follow-on",
         "routine continuation could not select an ordinary follow-on action",
         "embodied continue_routine resolved to continue_routine again",
+        "typed_stuck_diagnostic",
+        StuckResultingStatus::Failed,
+    )
+}
+
+fn embodied_follow_on_advances_time(proposal: &crate::actions::Proposal) -> bool {
+    proposal.action_id.as_str() == "wait"
+}
+
+fn embodied_time_advancing_follow_on_diagnostic(
+    actor_id: &ActorId,
+    decision_tick: SimTick,
+    proposal: &crate::actions::Proposal,
+) -> StuckDiagnosticRecord {
+    StuckDiagnosticRecord::new(
+        StuckDiagnosticId::new(format!(
+            "stuck_embodied_continue_routine_time_advancing_{}_{}",
+            actor_id.as_str(),
+            decision_tick.value()
+        ))
+        .expect("embodied time-advancing continue diagnostic ids are generated from typed ids"),
+        actor_id.clone(),
+        decision_tick,
+        decision_tick.advance_by(1),
+        None,
+        None,
+        None,
+        proposal
+            .parameters
+            .get("routine_template_id")
+            .and_then(|template_id| crate::ids::RoutineTemplateId::new(template_id.clone()).ok()),
+        proposal
+            .parameters
+            .get("routine_execution_id")
+            .and_then(|execution_id| {
+                crate::ids::RoutineExecutionId::new(execution_id.clone()).ok()
+            }),
+        None,
+        None,
+        BlockerCategory::SchedulingReservation,
+        "time-advancing follow-on requires scheduler authority",
+        "routine continuation cannot safely commit a time-advancing follow-on yet",
+        "embodied continue_routine resolved to wait; scheduler-owned routing is deferred",
         "typed_stuck_diagnostic",
         StuckResultingStatus::Failed,
     )
@@ -1978,5 +2035,43 @@ mod tests {
             embodied_routine_window_family(&state, &actor, &context),
             Some(RoutineFamily::EatMeal)
         );
+    }
+
+    #[test]
+    fn embodied_continue_wait_follow_on_is_not_direct_pipelined() {
+        let actor = ActorId::new("actor_window_primary").unwrap();
+        let mut proposal = crate::actions::Proposal::new(
+            crate::ids::ProposalId::new("proposal_embodied_wait_follow_on").unwrap(),
+            crate::actions::ProposalOrigin::Agent,
+            Some(actor.clone()),
+            ActionId::new("wait").unwrap(),
+            SimTick::new(7),
+        );
+        proposal.parameters.insert(
+            "routine_template_id".to_string(),
+            "routine_wait_idle".to_string(),
+        );
+        proposal.parameters.insert(
+            "routine_execution_id".to_string(),
+            "routine_exec_wait_idle".to_string(),
+        );
+
+        assert!(embodied_follow_on_advances_time(&proposal));
+        let diagnostic =
+            embodied_time_advancing_follow_on_diagnostic(&actor, SimTick::new(7), &proposal);
+
+        assert_eq!(
+            diagnostic.concrete_blocker,
+            "time-advancing follow-on requires scheduler authority"
+        );
+        assert_eq!(
+            diagnostic.actor_known_explanation,
+            "routine continuation cannot safely commit a time-advancing follow-on yet"
+        );
+        assert_eq!(
+            diagnostic.debug_only_details,
+            "embodied continue_routine resolved to wait; scheduler-owned routing is deferred"
+        );
+        assert_eq!(diagnostic.resulting_status, StuckResultingStatus::Failed);
     }
 }

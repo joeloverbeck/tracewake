@@ -225,6 +225,44 @@ fn continue_routine_commits_embodied_follow_on_move_then_rejects_workplace_short
 }
 
 #[test]
+fn embodied_continue_wait_follow_on_is_not_direct_pipelined() {
+    let mut app = TuiApp::from_golden(fixtures::ordinary_workday_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+
+    let first_continue = current_continue_routine_id(&mut app);
+    let moved = app.submit_semantic_action(&first_continue).unwrap();
+    assert_eq!(moved.report.status, ReportStatus::Accepted);
+    assert_eq!(moved.report.action_id.as_str(), "move");
+
+    let second_continue = current_continue_routine_id(&mut app);
+    let rejected_wait = app.submit_semantic_action(&second_continue).unwrap();
+
+    assert_eq!(rejected_wait.report.status, ReportStatus::Rejected);
+    assert_eq!(rejected_wait.report.action_id.as_str(), "continue_routine");
+    assert!(rejected_wait
+        .report
+        .reason_codes
+        .contains(&ReasonCode::RoutineStepBlocked));
+    assert!(rejected_wait
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::ContinueRoutineProposed));
+    assert!(rejected_wait
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::StuckDiagnosticRecorded));
+    assert!(!rejected_wait
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::ActorWaited));
+    assert!(!app.render_debug_event_log_panel().contains("actor_waited"));
+    assert!(app
+        .render_debug_projection_rebuild_panel()
+        .contains("diffs=0"));
+}
+
+#[test]
 fn continue_routine_blocked_follow_on_returns_typed_stuck_diagnostic() {
     let mut app = TuiApp::from_golden(fixtures::routine_no_teleport_001()).unwrap();
     app.bind_actor(ActorId::new("actor_tomas").unwrap())

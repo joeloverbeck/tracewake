@@ -1,6 +1,6 @@
 # 0058EMBROUCON-002: Temporal gateway for embodied follow-ons
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — modifies `crates/tracewake-core/src/runtime/session.rs` (`run_embodied_continue_routine_follow_on` gateway); adds core behavioral tests
@@ -78,3 +78,43 @@ Add `embodied_continue_wait_follow_on_is_not_direct_pipelined` (force the resolv
 
 1. `cargo test -p tracewake-core embodied_continue_wait`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-30
+
+Implemented the temporal gateway in
+`crates/tracewake-core/src/runtime/session.rs`. Embodied
+`continue_routine` follow-ons that resolve to `wait` are now classified before
+the direct `run_pipeline` call and converted into a typed stuck outcome via the
+existing `run_embodied_continue_routine_stuck_outcome` path. Same-tick ordinary
+follow-ons still use the shared pipeline. Scheduler-owned wait routing remains
+deferred, matching this ticket's selected fail-closed resolution.
+
+The gateway uses an explicit `action_id == "wait"` classifier because there is
+not yet a registry-level duration/action-time classifier. The new diagnostic
+records: `time-advancing follow-on requires scheduler authority`, actor-visible
+summary `routine continuation cannot safely commit a time-advancing follow-on
+yet`, and debug detail `embodied continue_routine resolved to wait;
+scheduler-owned routing is deferred`.
+
+Added verification:
+
+- Core unit `embodied_continue_wait_follow_on_is_not_direct_pipelined` proves the
+  wait follow-on is recognized as time-advancing and produces the typed gateway
+  diagnostic.
+- TUI integration witness
+  `embodied_continue_wait_follow_on_is_not_direct_pipelined` proves the real
+  embodied continuation path rejects without appending `ActorWaited`.
+
+The single-charge test `embodied_continue_time_advancing_follow_on_charges_needs_once`
+is N/A for this ticket because scheduler-owned wait routing was deferred and the
+implemented behavior is typed stuck.
+
+Verification:
+
+- `cargo test -p tracewake-core embodied_continue_wait` — passed.
+- `cargo test -p tracewake-tui --test embodied_flow embodied_continue_wait_follow_on_is_not_direct_pipelined` — passed.
+- `cargo test --workspace` — passed.
+- `cargo fmt --all --check` — passed.
+- `git diff --check` — passed.
