@@ -1433,6 +1433,36 @@ fn semantic_actions(
             ),
             preflight,
         ));
+        // A carried item can also be placed into an open container the actor can see,
+        // mirroring the `take.item.*.from.<container>` surface. The shared `place`
+        // pipeline already accepts a container destination (`ItemPlacedInContainer`);
+        // without this entry an embodied player can take an item out of a container
+        // but never put one in — only drop it on the floor.
+        for container in visible_containers
+            .iter()
+            .filter(|container| container.is_open)
+        {
+            actions.push(with_validator_availability(
+                SemanticActionEntry::new(
+                    SemanticActionId::new(format!(
+                        "place.item.{}.into.{}",
+                        item_id.as_str(),
+                        container.container_id.as_str()
+                    ))
+                    .unwrap(),
+                    ActionId::new("place").unwrap(),
+                    vec![item_id.to_string(), container.container_id.to_string()],
+                    format!(
+                        "Place {} into {}",
+                        item_id.as_str(),
+                        container.container_id.as_str()
+                    ),
+                    true,
+                    None,
+                ),
+                preflight,
+            ));
+        }
     }
 
     actions
@@ -2514,6 +2544,59 @@ mod tests {
             .semantic_actions
             .iter()
             .any(|entry| entry.semantic_action_id.as_str() == "place.item.coin_stack_01.at.place"));
+    }
+
+    #[test]
+    fn embodied_projection_offers_place_into_open_container_but_not_closed() {
+        let mut state = state();
+        // Actor carries the coin; the strongbox is co-located and open.
+        let actor = actor_id("actor_tomas");
+        state
+            .actors
+            .get_mut(&actor)
+            .unwrap()
+            .carried_item_ids
+            .insert(item_id("coin_stack_01"));
+        state
+            .items
+            .get_mut(&item_id("coin_stack_01"))
+            .unwrap()
+            .location = Location::CarriedBy(actor.clone());
+        {
+            let container = state
+                .containers
+                .get_mut(&container_id("strongbox_tomas"))
+                .unwrap();
+            container.contents.remove(&item_id("coin_stack_01"));
+            container.is_open = true;
+        }
+
+        let open_view = view_for(&state);
+        assert!(
+            open_view.semantic_actions.iter().any(|entry| {
+                entry.semantic_action_id.as_str() == "place.item.coin_stack_01.into.strongbox_tomas"
+            }),
+            "an open co-located container must offer a place-into action for a carried item"
+        );
+        // The at-place option remains available alongside the into-container option.
+        assert!(open_view
+            .semantic_actions
+            .iter()
+            .any(|entry| entry.semantic_action_id.as_str() == "place.item.coin_stack_01.at.place"));
+
+        // A closed container offers no place-into action (the actor would open it first).
+        state
+            .containers
+            .get_mut(&container_id("strongbox_tomas"))
+            .unwrap()
+            .is_open = false;
+        let closed_view = view_for(&state);
+        assert!(
+            !closed_view.semantic_actions.iter().any(|entry| {
+                entry.semantic_action_id.as_str() == "place.item.coin_stack_01.into.strongbox_tomas"
+            }),
+            "a closed container must not offer a place-into action"
+        );
     }
 
     #[test]
