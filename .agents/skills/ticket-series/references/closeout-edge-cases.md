@@ -84,3 +84,32 @@ When a report cites an ignored path such as `target/...`, make the durable
 status explicit: either inline the relevant content in the tracked report,
 commit a small tracked summary artifact, or label the generated path as local
 transient evidence.
+
+## Cargo Mutants Campaigns
+
+`cargo mutants` is both long-running evidence and a disk-risk command. Treat a
+surviving mutant as evidence to classify, not as a reason to discard the rest of
+the run.
+
+1. For a full standing campaign, let the discovery run complete even if
+   `missed.txt` becomes non-empty. Record the full caught/missed/unviable/
+   timeout disposition from that discovery pass.
+2. Batch survivors by owning surface. Avoid one-survivor-at-a-time full
+   reruns.
+3. After survivor fixes, use focused `cargo mutants` commands for the touched
+   surface and `cargo mutants --iterate` against the existing `mutants.out`
+   state to retest only remaining missed or timed-out mutants when the campaign
+   state is still valid.
+4. Run a final clean-baseline full campaign only after the survivor set is empty
+   or every residual has an explicitly recorded bounded forcing function. Only
+   this final clean run may be cited as canonical green standing evidence.
+5. Monitor disk usage during repeated or interrupted mutation work. If a run is
+   interrupted, inspect for leaked scratch directories before starting another
+   full campaign.
+6. In Tracewake, use `tools/clean-build-scratch.sh` dry-run before cleanup and
+   `tools/clean-build-scratch.sh --force` only when the user has accepted the
+   deletion scope. Do not run WSL shutdown or Windows-side VHD compaction from
+   an agent session; `AGENTS.md` reserves that for a human.
+7. Record in the ticket/report whether scratch cleanup was run, skipped, or
+   left to the user, and keep bulky `mutants.out` trees untracked unless the
+   ticket/spec explicitly requires archiving them.
