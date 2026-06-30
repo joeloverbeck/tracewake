@@ -1,6 +1,6 @@
 # 0057EMBROUCON-007: Acceptance capstone — embodied routine continuation
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: None
@@ -69,3 +69,24 @@ Create `reports/0057_embodied_routine_continuation_acceptance.md` from the `docs
 1. `cargo test --locked -p tracewake-tui --test embodied_flow --test playable_capability_parity --test tui_acceptance && cargo test --locked -p tracewake-content --test golden_fixtures_run` — the named acceptance tests.
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace` — the four-gate suite.
 3. `grep -nF "0057_embodied_routine_continuation_acceptance" reports/0057_embodied_routine_continuation_acceptance.md` — artifact landed at the convention path.
+
+## Outcome
+
+Completed: 2026-06-30
+
+Created `reports/0057_embodied_routine_continuation_acceptance.md`, recording scoped acceptance evidence for exact implementation commit `4726527858d027b4559bac607969b2bc6dfee094`. The artifact consolidates the leaf-ticket evidence for the shared resolver, embodied follow-on commit, typed block/stuck surfacing, marker invariant guards, parity entry, possession parity, hidden-truth firewall fixture, replay/no-human evidence, and doctrine amendments. It explicitly claims no certification gate and does not promote the spec or update the spec ledger.
+
+Deviation from plan: none.
+
+Verification:
+
+- `cargo test --locked -p tracewake-tui --test embodied_flow`
+- `cargo test --locked -p tracewake-tui --test playable_capability_parity`
+- `cargo test --locked -p tracewake-tui --test tui_acceptance`
+- `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
+- `grep -nF "0057_embodied_routine_continuation_acceptance" reports/0057_embodied_routine_continuation_acceptance.md`
+- `git diff --check`
