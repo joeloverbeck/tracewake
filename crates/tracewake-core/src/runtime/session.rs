@@ -1556,7 +1556,8 @@ mod tests {
     }
 
     use crate::agent::{
-        ActorKnownPlanningContext, Intention, IntentionSource, RoutineExecution, RoutineStepStatus,
+        ActorKnownFact, ActorKnownPlanningContext, Intention, IntentionSource, RoutineExecution,
+        RoutineStepStatus, SourceEventIds,
     };
     use crate::events::PayloadField;
     use crate::ids::{
@@ -1777,6 +1778,40 @@ mod tests {
             BTreeMap::new(),
             Vec::new(),
         )
+    }
+
+    #[test]
+    fn embodied_routine_window_family_returns_work_block_at_known_workplace() {
+        let actor = ActorId::new("actor_window_primary").unwrap();
+        // A known workplace that resolves to the actor's current place must take
+        // the early work-block branch before any execution scan. A
+        // `place_id == current_place_id()` -> `!=` mutant skips that branch and
+        // falls through to an empty agent state, returning `None`.
+        let context = ActorKnownPlanningContext::from_observed_parts(
+            actor.clone(),
+            PlaceId::new("place_window_test").unwrap(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            BTreeSet::new(),
+            BTreeMap::new(),
+            vec![ActorKnownFact::observed_now(
+                actor.clone(),
+                "actor_knows_workplace",
+                "workplace_window@place_window_test",
+                "test:resolver",
+                Some(SimTick::new(0)),
+                SourceEventIds::checked(vec![EventId::new("event_window_workplace").unwrap()])
+                    .unwrap(),
+            )],
+        );
+        let state = AgentState::default();
+
+        assert_eq!(
+            embodied_routine_window_family(&state, &actor, &context),
+            Some(RoutineFamily::WorkBlock)
+        );
     }
 
     #[test]
