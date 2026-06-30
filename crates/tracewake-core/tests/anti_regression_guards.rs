@@ -31,6 +31,7 @@ const EVENTS_ENVELOPE_RS: &str = include_str!("../src/events/envelope.rs");
 const EVENTS_MUTATION_RS: &str = include_str!("../src/events/mutation.rs");
 const EPISTEMIC_PROJECTION_RS: &str = include_str!("../src/epistemics/projection.rs");
 const EAT_RS: &str = include_str!("../src/actions/defs/eat.rs");
+const CONTINUE_ROUTINE_RS: &str = include_str!("../src/actions/defs/continue_routine.rs");
 const MOVEMENT_RS: &str = include_str!("../src/actions/defs/movement.rs");
 const WAIT_RS: &str = include_str!("../src/actions/defs/wait.rs");
 const OPENCLOSE_RS: &str = include_str!("../src/actions/defs/openclose.rs");
@@ -2155,6 +2156,12 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
         witness_min: 1,
     },
     MetaLockRegistryEntry {
+        lock_id: "guard_0057_continue_routine_progress_of_record_is_follow_on",
+        negative_id: "synthetic_continue_marker_counts_as_progress",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_min: 2,
+    },
+    MetaLockRegistryEntry {
         lock_id: "guard_007_mutation_efficacy_notes_cover_high_risk_shortcuts",
         negative_id: "synthetic_missing_mutation_efficacy_note",
         routing: MetaLockRouting::BehaviorAssertion,
@@ -3006,6 +3013,13 @@ fn behavior_assertion_inspected_site_count(entry: &MetaLockRegistryEntry) -> usi
         }
         "guard_0057_embodied_continue_non_proposed_outcome_is_typed_stuck" => {
             non_empty_production_sites(&[production(RUNTIME_SESSION_RS).as_str()])
+        }
+        "guard_0057_continue_routine_progress_of_record_is_follow_on" => {
+            non_empty_production_sites(&[
+                production(CONTINUE_ROUTINE_RS).as_str(),
+                production(RUNTIME_SESSION_RS).as_str(),
+                production(SCHEDULER_RS).as_str(),
+            ])
         }
         "guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass" => {
             guarded_sources_for(GuardedLayer::Scheduler).len()
@@ -10290,6 +10304,47 @@ fn guard_0057_embodied_continue_non_proposed_outcome_is_typed_stuck() {
     assert!(
         runtime_session.contains("recursive continue_routine follow-on"),
         "recursive continue_routine follow-ons must be classified as typed stuck, not committed as another marker"
+    );
+}
+
+#[test]
+fn guard_0057_continue_routine_progress_of_record_is_follow_on() {
+    let continue_routine = production(CONTINUE_ROUTINE_RS);
+    assert!(
+        continue_routine.contains("PayloadField::new(\"intention_mutated\", \"false\")"),
+        "continue_routine marker must not mutate the active intention"
+    );
+    assert!(
+        continue_routine.contains("PayloadField::new(\"behavioral_progress\", \"false\")"),
+        "continue_routine marker must remain explicit non-progress"
+    );
+    assert_absent(
+        continue_routine,
+        "PayloadField::new(\"behavioral_progress\", \"true\")",
+    );
+
+    let runtime_session = production(RUNTIME_SESSION_RS);
+    assert!(
+        runtime_session.contains("let mut follow_on_result = run_pipeline"),
+        "embodied continue_routine must commit the follow-on through the shared pipeline"
+    );
+    assert!(
+        runtime_session.contains("first_appended_event(&follow_on_result)"),
+        "follow-on committed events must be the ordinary-event ancestry source"
+    );
+    assert!(
+        runtime_session.contains("marker_result.appended_events.clone()"),
+        "the marker must be reported as marker ancestry, not counted as progress by itself"
+    );
+
+    let scheduler = production(SCHEDULER_RS);
+    assert!(
+        scheduler.contains("event.event_type != EventKind::ContinueRoutineProposed"),
+        "scheduler progress accounting must special-case continue_routine markers"
+    );
+    assert!(
+        scheduler.contains("field.key == \"behavioral_progress\" && field.value == \"true\""),
+        "a continue_routine marker may count as progress only through an explicit true payload, which the marker action does not emit"
     );
 }
 

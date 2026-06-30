@@ -1,6 +1,6 @@
 # 0057EMBROUCON-004: Marker invariants preserved — the marker is not progress
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: Yes — guard tests in `tracewake-core` (`actions/defs/continue_routine.rs`, `tests/anti_regression_guards.rs`) pinning that the `continue_routine` marker stays non-progress and that the committed follow-on is the progress of record
@@ -76,3 +76,23 @@ In `crates/tracewake-core/tests/anti_regression_guards.rs`, add a guard that the
 1. `cargo test --locked -p tracewake-core continue_routine` — marker-payload guard.
 2. `cargo test --locked -p tracewake-core --test anti_regression_guards` — progress-of-record-by-ancestry guard.
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace` — four-gate suite.
+
+## Outcome
+
+Completed: 2026-06-30
+
+Installed marker-invariant guards without changing production marker behavior:
+
+- Added `continue_marker_payload_contract_stays_non_progress` in `continue_routine.rs`, asserting `ContinueRoutineProposed` keeps `intention_mutated=false`, `behavioral_progress=false`, `routes_through_shared_pipeline=true`, the expected next action id, proposal-only cause, and the marker-only effects summary.
+- Added `guard_0057_continue_routine_progress_of_record_is_follow_on` to `anti_regression_guards.rs`, covered by the meta-lock registry. The guard pins the marker payload as non-progress, requires embodied continuation to commit the follow-on through `run_pipeline`, requires receipt ancestry to include the marker as marker ancestry, and keeps scheduler progress accounting special-cased on `ContinueRoutineProposed` plus explicit `behavioral_progress=true`.
+
+Verification run:
+
+- `cargo test --locked -p tracewake-core continue_routine`
+- `cargo test --locked -p tracewake-core --test anti_regression_guards guard_0057_continue_routine_progress_of_record_is_follow_on`
+- `cargo test --locked -p tracewake-core --test anti_regression_guards meta_lock_registry_covers_structural_locks_and_negatives`
+- `cargo fmt --all --check`
+- `cargo test --locked -p tracewake-core`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
