@@ -33,7 +33,7 @@ Spec §8. The remediation line is acceptance-complete only when a single accepta
 
 ### 1. Assemble the acceptance artifact
 
-Author `reports/0056_foundational_conformance_seventh_hardening_acceptance.md` per template `0003`: clean baseline, own exact implementation commit, the full gate (`cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo build --workspace --all-targets --locked`, `cargo test --workspace`), the machine-readable status manifest with the closed verdict-grammar line, per-finding closure evidence, and the required-check names + ruleset API transcript matching the governance posture.
+Author and archive `archive/reports/0056_foundational_conformance_seventh_hardening_acceptance.md` per template `0003`: clean baseline, own exact implementation commit, the full gate (`cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo build --workspace --all-targets --locked`, `cargo test --workspace`), the machine-readable status manifest with the closed verdict-grammar line, per-finding closure evidence, and the required-check names + ruleset API transcript matching the governance posture.
 
 ### 2. Gate the rendered verdict on the computed manifest
 
@@ -41,7 +41,7 @@ The artifact must not render `pass` unless the manifest computes pass — i.e. e
 
 ## Files to Touch
 
-- `reports/0056_foundational_conformance_seventh_hardening_acceptance.md` (new — the acceptance/evidence artifact; do not modify upstream tickets' files)
+- `archive/reports/0056_foundational_conformance_seventh_hardening_acceptance.md` (new archived acceptance/evidence artifact; do not modify upstream tickets' files)
 
 ## Out of Scope
 
@@ -70,7 +70,7 @@ The artifact must not render `pass` unless the manifest computes pass — i.e. e
 ### Commands
 
 1. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
-2. `TRACEWAKE_ACCEPTANCE_ARTIFACT="reports/0056_foundational_conformance_seventh_hardening_acceptance.md" cargo test --locked -p tracewake-core --test acceptance_status_manifest actual_acceptance_artifact_from_ci_env_is_pass_eligible` — the CI-forced parser computes pass over the actual artifact.
+2. `TRACEWAKE_ACCEPTANCE_ARTIFACT="../../archive/reports/0056_foundational_conformance_seventh_hardening_acceptance.md" cargo test --locked -p tracewake-core --test acceptance_status_manifest actual_acceptance_artifact_from_ci_env_is_pass_eligible` — the CI-forced parser computes pass over the actual artifact.
 3. `cargo test --locked -p tracewake-core --test acceptance_artifact_wording` — the closed verdict grammar accepts the artifact's wording.
 
 ## Outcome
