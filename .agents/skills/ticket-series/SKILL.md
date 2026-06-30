@@ -34,6 +34,12 @@ final spec-closeout commit when applicable, or ticket-only closeout evidence
 when no spec existed. If those exist, route directly to the final completion
 audit instead of restarting intake.
 
+## Hard Stops
+
+- Never run Git index-mutating commands in parallel. This includes `git add`,
+  `git mv`, `git commit`, `git restore --staged`, report/spec archive moves, and
+  any closeout command that stages, moves, commits, or unstages files.
+
 ## Startup
 
 1. Read the live checkout first. Do not rely on memory or prior runs for current
