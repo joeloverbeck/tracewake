@@ -180,6 +180,12 @@ Behavioral progress is one of:
 
 A pure `continue_routine` marker is not behavioral progress.
 
+When a possessed actor selects embodied `continue_routine`, progress comes from
+the routine step's committed follow-on ordinary action, or from a typed
+blocker, modeled wait, or typed stuck/failure record produced through the same
+actor-known resolution. The marker remains non-progress; the committed
+follow-on or typed outcome is the progress record.
+
 Cross-tick stuck detection must include:
 
 - no-progress-past-expected-window: a routine window passes its expected progress boundary without a committed ordinary action, modeled wait, duration terminal event, or typed failure;

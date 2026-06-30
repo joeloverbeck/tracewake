@@ -42,6 +42,8 @@ Glob/Grep to confirm each path exists. If moved, renamed, or deleted, record the
 
 **Doc-tier path drift**: the doc pack is tiered and numbered. When a spec cites a doctrine file, verify both the tier folder and the `NN_` prefix — a doc reorg renumbers or moves files, and a stale `docs/0-foundation/02_FOUNDATIONAL_INVARIANTS.md` (the constitution is `02_CONSTITUTIONAL_INVARIANTS.md`) or a wrong-tier citation passes a loose existence check silently. Confirm against `docs/README.md` and the per-tier `00_*_INDEX.md`.
 
+**Code-tree path prefix**: source-file references resolve under `crates/<crate>/src/...` or `crates/<crate>/tests/...` — the three crates are `crates/tracewake-{core,content,tui}`. A spec that writes a bare `tracewake-core/src/...` (the crate *name* without the `crates/` prefix), or a bare module-relative path (`actions/defs/foo.rs`, `parity/`), does not resolve as written; sibling specs under `archive/specs/` (e.g. `0046_*`) are the convention exemplar. Distinguish a crate-*name* mention (`tracewake-core stays dependency-free`), which is fine as prose, from a *file-path* reference, which needs the full `crates/<crate>/...` prefix — flag the latter, leave the former.
+
 **Name-collision check for proposed paths**: when a spec proposes a NEW file (a new doc, a new fixture file, a new module), list the parent directory for SIMILAR filenames (substring match on the distinctive token, not exact-path). A proposed file whose parent already holds a near-name sibling occupying the same conceptual slot is a HIGH Issue — the spec should MODIFY the existing file instead. An exact-path existence check passes this silently.
 
 ## 3.2 Types, Schema, and Contract Fields

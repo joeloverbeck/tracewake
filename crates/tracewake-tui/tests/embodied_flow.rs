@@ -146,6 +146,177 @@ fn wait_command_during_sleep_is_reservation_conflict_without_world_advance() {
 }
 
 #[test]
+fn continue_routine_commits_embodied_follow_on_move_and_work() {
+    let mut app = TuiApp::from_golden(fixtures::ordinary_workday_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+
+    let first_continue = current_continue_routine_id(&mut app);
+    let moved = app.submit_semantic_action(&first_continue).unwrap();
+
+    assert_eq!(moved.report.status, ReportStatus::Accepted);
+    assert_eq!(moved.report.action_id.as_str(), "move");
+    assert_eq!(moved.report.target_ids, ["workshop_tomas".to_string()]);
+    // The embodied follow-on receipt must surface the freshly appended intention
+    // and decision-trace artifacts, located by exact event id. If the locating
+    // `event.event_id == id` comparison were inverted, the receipt would instead
+    // carry an earlier, unrelated log event of a different kind.
+    assert!(
+        moved.appended_events.iter().any(|event| matches!(
+            event.event_type,
+            EventKind::IntentionContinued | EventKind::IntentionStarted
+        )),
+        "follow-on receipt must surface the appended intention lifecycle event: {:?}",
+        moved
+            .appended_events
+            .iter()
+            .map(|event| event.event_type)
+            .collect::<Vec<_>>()
+    );
+    assert!(
+        moved
+            .appended_events
+            .iter()
+            .any(|event| event.event_type == EventKind::DecisionTraceRecorded),
+        "follow-on receipt must surface the appended decision-trace event: {:?}",
+        moved
+            .appended_events
+            .iter()
+            .map(|event| event.event_type)
+            .collect::<Vec<_>>()
+    );
+    let after_move_log = app.render_debug_event_log_panel();
+    assert!(after_move_log.contains("continue_routine_proposed"));
+    assert!(after_move_log.contains("actor_moved"));
+    assert!(
+        after_move_log.contains("intention_continued")
+            || after_move_log.contains("intention_started"),
+        "{after_move_log}"
+    );
+    assert!(after_move_log.contains("decision_trace_recorded"));
+    assert!(app
+        .render_current_view()
+        .unwrap()
+        .contains("workshop_tomas"));
+
+    let second_view = app.current_view().unwrap();
+    let second_continue_entry = second_view
+        .semantic_actions
+        .iter()
+        .find(|entry| entry.action_id.as_str() == "continue_routine" && entry.enabled)
+        .expect("current view exposes enabled continue_routine")
+        .clone();
+    let second_continue = second_continue_entry.semantic_action_id.clone();
+    let worked = app.submit_semantic_action(&second_continue).unwrap();
+
+    assert_eq!(worked.report.status, ReportStatus::Accepted);
+    assert_eq!(
+        worked.report.action_id.as_str(),
+        "work_block",
+        "entry={second_continue_entry:#?}"
+    );
+    let after_work_log = app.render_debug_event_log_panel();
+    assert!(after_work_log.contains("work_block_started"));
+    assert!(after_work_log.matches("continue_routine_proposed").count() >= 2);
+
+    let advanced = app.advance_until(8).unwrap();
+    assert!(advanced.advanced());
+    let after_completion_log = app.render_debug_event_log_panel();
+    assert!(after_completion_log.contains("work_block_completed"));
+    assert!(app
+        .render_debug_projection_rebuild_panel()
+        .contains("diffs=0"));
+}
+
+#[test]
+fn continue_routine_blocked_follow_on_returns_typed_stuck_diagnostic() {
+    let mut app = TuiApp::from_golden(fixtures::routine_no_teleport_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+
+    let continue_id = current_continue_routine_id(&mut app);
+    let continued = app.submit_semantic_action(&continue_id).unwrap();
+
+    assert_eq!(continued.report.status, ReportStatus::Rejected);
+    assert_eq!(continued.report.action_id.as_str(), "continue_routine");
+    assert!(continued
+        .report
+        .reason_codes
+        .contains(&ReasonCode::RoutineStepBlocked));
+    assert!(continued
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::ContinueRoutineProposed));
+    let diagnostic = continued
+        .appended_events
+        .iter()
+        .find(|event| event.event_type == EventKind::StuckDiagnosticRecorded)
+        .expect("blocked follow-on records a typed stuck diagnostic");
+    assert!(diagnostic
+        .payload
+        .iter()
+        .any(|field| field.key == "hidden_truth_referenced" && field.value == "false"));
+    assert!(diagnostic
+        .payload
+        .iter()
+        .any(|field| field.key == "blocker_code" && !field.value.is_empty()));
+    assert!(!continued
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::ActorMoved));
+    assert!(!continued
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::WorkBlockStarted));
+}
+
+#[test]
+fn continue_routine_hidden_workplace_returns_actor_known_blocker_without_truth_move() {
+    let mut app = TuiApp::from_golden(fixtures::embodied_continue_hidden_workplace_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+    let before_checksum = app.physical_checksum();
+    let before_rendered = app.render_current_view().unwrap();
+    assert!(!before_rendered.contains("hidden_workshop"));
+    assert!(!before_rendered.contains("workplace_hidden"));
+
+    let continue_id = current_continue_routine_id(&mut app);
+    let continued = app.submit_semantic_action(&continue_id).unwrap();
+
+    assert_eq!(continued.report.status, ReportStatus::Rejected);
+    assert_eq!(continued.report.action_id.as_str(), "continue_routine");
+    assert!(continued
+        .report
+        .reason_codes
+        .contains(&ReasonCode::RoutineStepBlocked));
+    assert!(continued
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::ContinueRoutineProposed));
+    assert!(continued
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::StuckDiagnosticRecorded));
+    assert!(!continued
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::ActorMoved));
+    assert!(!continued
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::WorkBlockStarted));
+    assert_eq!(
+        app.physical_checksum(),
+        before_checksum,
+        "hidden truth must not drive a physical move"
+    );
+    let after_rendered = app.render_current_view().unwrap();
+    assert!(after_rendered.contains("Why-not:"));
+    assert!(!after_rendered.contains("hidden_workshop"));
+    assert!(!after_rendered.contains("workplace_hidden"));
+}
+
+#[test]
 fn body_exclusive_surface_disables_ordinary_actions_but_keeps_lifecycle_controls() {
     let mut app = TuiApp::from_golden(fixtures::sleep_eat_work_001()).unwrap();
     app.bind_actor(ActorId::new("actor_tomas").unwrap())
@@ -202,6 +373,17 @@ fn body_exclusive_surface_disables_ordinary_actions_but_keeps_lifecycle_controls
         body_exclusive_disabled.iter().all(|entry| !entry.enabled),
         "body-exclusive-disabled actions must report not-enabled:\n{body_exclusive_disabled:#?}"
     );
+}
+
+fn current_continue_routine_id(app: &mut TuiApp) -> SemanticActionId {
+    app.current_view()
+        .unwrap()
+        .semantic_actions
+        .iter()
+        .find(|entry| entry.action_id.as_str() == "continue_routine" && entry.enabled)
+        .expect("current view exposes enabled continue_routine")
+        .semantic_action_id
+        .clone()
 }
 
 #[test]

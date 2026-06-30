@@ -4,7 +4,7 @@ use tracewake_core::actions::{ActionRegistry, ReportStatus, ValidationReport};
 use tracewake_core::checksum::PhysicalChecksum;
 use tracewake_core::debug_capability::{DebugSessionAuthority, LocalOperatorDebugAuthority};
 use tracewake_core::ids::{
-    ActorId, ContentManifestId, ContentVersion, ControllerId, DebugReportId, ItemId,
+    ActionId, ActorId, ContentManifestId, ContentVersion, ControllerId, DebugReportId, ItemId,
     SemanticActionId,
 };
 use tracewake_core::projections::ProjectionError;
@@ -231,11 +231,6 @@ impl TuiApp {
         source_view: &EmbodiedViewModel,
     ) -> Result<RuntimeActionReceipt, AppError> {
         let actor_id = self.bound_actor_id.clone().ok_or(AppError::ActorNotBound)?;
-        // Deferral witness: embodied targeted-command routing is not yet wired, but the
-        // semantic-action surface already carries target_ids. Borrow it (no behavioral
-        // effect, no mutable operator to mutate) to keep the field's reachability guard
-        // satisfied until a live consumer lands.
-        let _ = &entry.target_ids;
         let receipt = self
             .runtime
             .submit_command(RuntimeCommand::submit_semantic_action(
@@ -248,6 +243,13 @@ impl TuiApp {
         let result = receipt
             .into_action_receipt()
             .expect("submit_semantic_action command returns an action receipt");
+        if same_action_receipt_requires_target_parity(&result.report.action_id, &entry.action_id) {
+            debug_assert_eq!(
+                result.report.target_ids.as_slice(),
+                entry.target_ids.as_slice(),
+                "same-action receipts must preserve the submitted embodied action targets"
+            );
+        }
         if result.report.status == ReportStatus::Rejected {
             self.last_rejection = Some(result.report.clone());
         } else {
@@ -393,10 +395,52 @@ impl TuiApp {
     }
 }
 
+/// Whether a submitted embodied action's receipt must preserve the submitted
+/// targets verbatim. This holds only when the receipt reports the same typed
+/// action that was submitted and that action is not `continue_routine` — the
+/// one action whose receipt legitimately reports a different follow-on action
+/// (e.g. `move`/`work_block`) with its own targets. Extracted as a pure
+/// predicate so the target-parity invariant carries a behavior witness.
+fn same_action_receipt_requires_target_parity(
+    report_action_id: &ActionId,
+    entry_action_id: &ActionId,
+) -> bool {
+    report_action_id == entry_action_id && entry_action_id.as_str() != "continue_routine"
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use tracewake_core::ids::SemanticActionId;
+
+    #[test]
+    fn same_action_receipt_requires_target_parity_truth_table() {
+        let move_action = ActionId::new("move").unwrap();
+        let sleep_action = ActionId::new("sleep").unwrap();
+        let continue_routine = ActionId::new("continue_routine").unwrap();
+
+        // Same typed action, not continue_routine: targets must be preserved.
+        assert!(same_action_receipt_requires_target_parity(
+            &move_action,
+            &move_action
+        ));
+        // Differing typed actions: this is not a same-action receipt, so the
+        // parity check must not apply.
+        assert!(!same_action_receipt_requires_target_parity(
+            &move_action,
+            &sleep_action
+        ));
+        // continue_routine legitimately reports a different follow-on action,
+        // so it is exempt regardless of which action the receipt reports.
+        assert!(!same_action_receipt_requires_target_parity(
+            &move_action,
+            &continue_routine
+        ));
+        assert!(!same_action_receipt_requires_target_parity(
+            &continue_routine,
+            &continue_routine
+        ));
+    }
 
     #[test]
     fn app_binds_renders_submits_and_rerenders() {

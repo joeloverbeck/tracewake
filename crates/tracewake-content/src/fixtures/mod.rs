@@ -4,6 +4,7 @@ mod container_item_move_001;
 mod debug_attach_001;
 mod debug_omniscience_excluded_001;
 mod door_access_001;
+mod embodied_continue_hidden_workplace_001;
 mod embodied_exits_require_perceived_or_known_route_001;
 mod embodied_menu_lags_truth_change_without_perception_001;
 mod embodied_view_omits_raw_assignment_without_context_001;
@@ -88,6 +89,7 @@ pub use container_item_move_001::container_item_move_001;
 pub use debug_attach_001::debug_attach_001;
 pub use debug_omniscience_excluded_001::debug_omniscience_excluded_001;
 pub use door_access_001::door_access_001;
+pub use embodied_continue_hidden_workplace_001::embodied_continue_hidden_workplace_001;
 pub use embodied_exits_require_perceived_or_known_route_001::embodied_exits_require_perceived_or_known_route_001;
 pub use embodied_menu_lags_truth_change_without_perception_001::embodied_menu_lags_truth_change_without_perception_001;
 pub use embodied_view_omits_raw_assignment_without_context_001::embodied_view_omits_raw_assignment_without_context_001;
@@ -186,6 +188,7 @@ pub fn all() -> Vec<GoldenFixture> {
         embodied_workplace_availability_reflects_belief_not_truth_001(),
         embodied_workplace_believed_open_truth_closed_commit_fails_001(),
         stale_workplace_notice_superseded_by_newer_001(),
+        embodied_continue_hidden_workplace_001(),
         embodied_view_omits_unobserved_food_at_open_place_001(),
         embodied_view_omits_unknown_sleep_affordance_001(),
         embodied_exits_require_perceived_or_known_route_001(),

@@ -18,6 +18,7 @@ const ACTOR_KNOWN_RS: &str = include_str!("../src/agent/actor_known.rs");
 const NO_HUMAN_SURFACE_RS: &str = include_str!("../src/agent/no_human_surface.rs");
 const PERCEPTION_RS: &str = include_str!("../src/agent/perception.rs");
 const TRANSACTION_RS: &str = include_str!("../src/agent/transaction.rs");
+const ROUTINE_CONTINUATION_RS: &str = include_str!("../src/agent/routine_continuation.rs");
 const DECISION_RS: &str = include_str!("../src/agent/decision.rs");
 const PIPELINE_RS: &str = include_str!("../src/actions/pipeline.rs");
 const HTN_RS: &str = include_str!("../src/agent/htn.rs");
@@ -30,6 +31,7 @@ const EVENTS_ENVELOPE_RS: &str = include_str!("../src/events/envelope.rs");
 const EVENTS_MUTATION_RS: &str = include_str!("../src/events/mutation.rs");
 const EPISTEMIC_PROJECTION_RS: &str = include_str!("../src/epistemics/projection.rs");
 const EAT_RS: &str = include_str!("../src/actions/defs/eat.rs");
+const CONTINUE_ROUTINE_RS: &str = include_str!("../src/actions/defs/continue_routine.rs");
 const MOVEMENT_RS: &str = include_str!("../src/actions/defs/movement.rs");
 const WAIT_RS: &str = include_str!("../src/actions/defs/wait.rs");
 const OPENCLOSE_RS: &str = include_str!("../src/actions/defs/openclose.rs");
@@ -1380,6 +1382,7 @@ const WORKSPACE_SOURCE_CLASSIFICATIONS: &[WorkspaceSourceClassification] = &[
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/debug_attach_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/debug_omniscience_excluded_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/door_access_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/embodied_continue_hidden_workplace_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/embodied_exits_require_perceived_or_known_route_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/embodied_menu_lags_truth_change_without_perception_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-content/src/fixtures/embodied_view_omits_raw_assignment_without_context_001.rs", class: WorkspaceSourceClass::Exempt { rationale: CONTENT_RATIONALE } },
@@ -1472,6 +1475,7 @@ const WORKSPACE_SOURCE_CLASSIFICATIONS: &[WorkspaceSourceClassification] = &[
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/perception.rs", class: WorkspaceSourceClass::GuardedLayer },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/planner.rs", class: WorkspaceSourceClass::GuardedLayer },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/routine.rs", class: WorkspaceSourceClass::GuardedLayer },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/routine_continuation.rs", class: WorkspaceSourceClass::GuardedLayer },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/trace.rs", class: WorkspaceSourceClass::GuardedLayer },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/transaction.rs", class: WorkspaceSourceClass::GuardedLayer },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/checksum.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
@@ -2145,6 +2149,18 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
         negative_id: "synthetic_continue_marker_as_progress",
         routing: MetaLockRouting::BehaviorAssertion,
         witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_0057_embodied_continue_non_proposed_outcome_is_typed_stuck",
+        negative_id: "synthetic_embodied_continue_stuck_falls_back_to_marker",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_0057_continue_routine_progress_of_record_is_follow_on",
+        negative_id: "synthetic_continue_marker_counts_as_progress",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_min: 2,
     },
     MetaLockRegistryEntry {
         lock_id: "guard_007_mutation_efficacy_notes_cover_high_risk_shortcuts",
@@ -2995,6 +3011,16 @@ fn behavior_assertion_inspected_site_count(entry: &MetaLockRegistryEntry) -> usi
         | "guard_006_scheduler_has_no_routine_family_to_primitive_dispatch"
         | "guard_006_continue_routine_marker_alone_is_not_behavioral_progress" => {
             non_empty_production_sites(&[production(SCHEDULER_RS).as_str()])
+        }
+        "guard_0057_embodied_continue_non_proposed_outcome_is_typed_stuck" => {
+            non_empty_production_sites(&[production(RUNTIME_SESSION_RS).as_str()])
+        }
+        "guard_0057_continue_routine_progress_of_record_is_follow_on" => {
+            non_empty_production_sites(&[
+                production(CONTINUE_ROUTINE_RS).as_str(),
+                production(RUNTIME_SESSION_RS).as_str(),
+                production(SCHEDULER_RS).as_str(),
+            ])
         }
         "guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass" => {
             guarded_sources_for(GuardedLayer::Scheduler).len()
@@ -8296,7 +8322,7 @@ fn no_human_day_runner_only_evidence_errors(source: &str) -> Vec<String> {
 fn guard_014_sleep_validation_requires_modeled_affordance() {
     let sleep = production(SLEEP_RS);
     let projection = production(PROJECTIONS_RS);
-    let transaction = production(TRANSACTION_RS);
+    let routine_continuation = production(ROUTINE_CONTINUATION_RS);
     let builder = production(NO_HUMAN_SURFACE_RS);
 
     assert!(
@@ -8313,7 +8339,7 @@ fn guard_014_sleep_validation_requires_modeled_affordance() {
         "human semantic sleep actions must be backed by an open modeled affordance"
     );
     assert!(
-        transaction.contains("actor_known_sleep_affordance_id"),
+        routine_continuation.contains("actor_known_sleep_affordance_id"),
         "agent sleep proposals must carry the actor-known affordance id"
     );
     assert!(
@@ -8524,6 +8550,7 @@ fn guard_014_scheduler_cannot_rewrite_transaction_proposals_after_cognition() {
 #[test]
 fn guard_014_transaction_has_no_silent_method_fallback_scan() {
     let transaction = production(TRANSACTION_RS);
+    let routine_continuation = production(ROUTINE_CONTINUATION_RS);
     assert_absent(&transaction, "candidate_fallbacks");
     assert_absent(&transaction, ".find_map(|candidate|");
     assert!(
@@ -8531,11 +8558,11 @@ fn guard_014_transaction_has_no_silent_method_fallback_scan() {
         "transaction must bind selected candidate, trace, method, local plan, and proposal ancestry"
     );
     assert!(
-        transaction.contains("bundle.decision_trace_id.as_str().to_string()"),
+        routine_continuation.contains("bundle.decision_trace_id.as_str().to_string()"),
         "proposal decision_trace_id must come from the selected goal bundle"
     );
     assert!(
-        transaction.contains("bundle.candidate_goal_id.as_str().to_string()"),
+        routine_continuation.contains("bundle.candidate_goal_id.as_str().to_string()"),
         "proposal candidate_goal_id must come from the selected goal bundle"
     );
     assert!(
@@ -10253,6 +10280,72 @@ fn guard_006_continue_routine_marker_alone_is_not_behavioral_progress() {
     assert!(
         scheduler.contains("EventKind::ActionRejected"),
         "rejected actions must be excluded from behavioral progress"
+    );
+}
+
+#[test]
+fn guard_0057_embodied_continue_non_proposed_outcome_is_typed_stuck() {
+    let runtime_session = production(RUNTIME_SESSION_RS);
+    assert!(
+        runtime_session.contains("ActorDecisionTransactionOutcome::Stuck"),
+        "embodied continue_routine must handle stuck actor-decision outcomes explicitly"
+    );
+    assert!(
+        runtime_session.contains("run_embodied_continue_routine_stuck_outcome"),
+        "embodied continue_routine must return a typed stuck receipt instead of falling back to the marker receipt"
+    );
+    assert!(
+        runtime_session.contains("build_actor_stuck_diagnostic_event"),
+        "embodied continue_routine stuck outcomes must reuse the typed stuck diagnostic event schema"
+    );
+    assert!(
+        runtime_session.contains("append_embodied_routine_stuck_diagnostics"),
+        "embodied continue_routine submissions must scan the scheduler-owned stuck diagnostics"
+    );
+    assert!(
+        runtime_session.contains("recursive continue_routine follow-on"),
+        "recursive continue_routine follow-ons must be classified as typed stuck, not committed as another marker"
+    );
+}
+
+#[test]
+fn guard_0057_continue_routine_progress_of_record_is_follow_on() {
+    let continue_routine = production(CONTINUE_ROUTINE_RS);
+    assert!(
+        continue_routine.contains("PayloadField::new(\"intention_mutated\", \"false\")"),
+        "continue_routine marker must not mutate the active intention"
+    );
+    assert!(
+        continue_routine.contains("PayloadField::new(\"behavioral_progress\", \"false\")"),
+        "continue_routine marker must remain explicit non-progress"
+    );
+    assert_absent(
+        continue_routine,
+        "PayloadField::new(\"behavioral_progress\", \"true\")",
+    );
+
+    let runtime_session = production(RUNTIME_SESSION_RS);
+    assert!(
+        runtime_session.contains("let mut follow_on_result = run_pipeline"),
+        "embodied continue_routine must commit the follow-on through the shared pipeline"
+    );
+    assert!(
+        runtime_session.contains("first_appended_event(&follow_on_result)"),
+        "follow-on committed events must be the ordinary-event ancestry source"
+    );
+    assert!(
+        runtime_session.contains("marker_result.appended_events.clone()"),
+        "the marker must be reported as marker ancestry, not counted as progress by itself"
+    );
+
+    let scheduler = production(SCHEDULER_RS);
+    assert!(
+        scheduler.contains("event.event_type != EventKind::ContinueRoutineProposed"),
+        "scheduler progress accounting must special-case continue_routine markers"
+    );
+    assert!(
+        scheduler.contains("field.key == \"behavioral_progress\" && field.value == \"true\""),
+        "a continue_routine marker may count as progress only through an explicit true payload, which the marker action does not emit"
     );
 }
 

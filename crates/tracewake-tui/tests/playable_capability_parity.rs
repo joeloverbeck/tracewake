@@ -70,6 +70,7 @@ fn playable_capability_registry_smoke_test() {
                 | SetupOperation::HumanWaitOneTick
                 | SetupOperation::StartSleepThenAdvanceUntil { .. }
                 | SetupOperation::MoveWorkThenAdvanceUntil { .. }
+                | SetupOperation::ContinueRoutineWorkday { .. }
                 | SetupOperation::StartSleepThenWaitConflict
                 | SetupOperation::SubmitSemanticAction { .. }
                 | SetupOperation::SubmitRegistryAction { .. }
@@ -137,6 +138,18 @@ fn playable_capability_registry_includes_spec0047_time_control_pack() {
         })
         .map(|entry| entry.key)
         .collect::<Vec<_>>();
+    let spec0057_keys = entries
+        .iter()
+        .filter(|entry| {
+            matches!(
+                entry.ownership_scope,
+                OwnershipScope::FuturePack {
+                    namespace: "spec0057_embodied_routine_continuation"
+                }
+            )
+        })
+        .map(|entry| entry.key)
+        .collect::<Vec<_>>();
 
     assert_eq!(base_count, 21, "spec-0046 baseline entries must remain");
     assert_eq!(
@@ -150,7 +163,14 @@ fn playable_capability_registry_includes_spec0047_time_control_pack() {
             "spec0047.time.open_duration_wait_conflict",
         ]
     );
-    assert_eq!(entries.len(), base_count + spec0047_keys.len());
+    assert_eq!(
+        spec0057_keys,
+        vec!["spec0057.routine.embodied_continue_workday"]
+    );
+    assert_eq!(
+        entries.len(),
+        base_count + spec0047_keys.len() + spec0057_keys.len()
+    );
 }
 
 #[test]
@@ -205,6 +225,7 @@ fn playable_capability_registry_schema_exposes_all_closed_enum_variants() {
         SetupOperation::HumanWaitOneTick,
         SetupOperation::StartSleepThenAdvanceUntil { max_ticks: 4 },
         SetupOperation::MoveWorkThenAdvanceUntil { max_ticks: 4 },
+        SetupOperation::ContinueRoutineWorkday { max_ticks: 8 },
         SetupOperation::StartSleepThenWaitConflict,
         SetupOperation::SubmitSemanticAction {
             semantic_action_id: "wait.1_tick",
@@ -216,7 +237,7 @@ fn playable_capability_registry_schema_exposes_all_closed_enum_variants() {
         SetupOperation::RenderDebugOverlay,
         SetupOperation::RunNoHumanDay,
     ];
-    assert_eq!(operations.len(), 12);
+    assert_eq!(operations.len(), 13);
 
     let witness_kinds = [
         WitnessKind::TypedCausal,

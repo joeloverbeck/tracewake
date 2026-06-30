@@ -19,6 +19,19 @@ edits are still cheap:
 6. Review any matches manually. Historical archived prose can remain only when
    it is not claiming current live location or current status.
 
+If a capstone or acceptance report was created under `reports/` during the
+series, reconcile it before final gates:
+
+1. Move the tracked report to `archive/reports/` before archiving the spec.
+2. Update report self-paths, links, and evidence-path statements from the live
+   path to the archived path.
+3. Update ticket outcomes, the spec outcome, and the ledger row so none of them
+   describe the live report path or a completed closeout item as still deferred.
+4. Reconcile commit-role labels across the report, ticket outcomes, spec
+   outcome, ledger row, and final response.
+5. Grep the report/ticket/spec outcomes for stale `deferred`, `out of scope`,
+   `not run`, live-path, and broad `exact commit` wording before final gates.
+
 When the ticket prefix and reference paths are known, prefer:
 
 ```sh

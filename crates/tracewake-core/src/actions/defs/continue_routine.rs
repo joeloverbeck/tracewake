@@ -383,6 +383,42 @@ mod tests {
     }
 
     #[test]
+    fn continue_marker_payload_contract_stays_non_progress() {
+        let event = build_continue_routine_event(
+            &state(),
+            &agent_state(),
+            &proposal(ProposalOrigin::Test),
+            &ordering_key(),
+            &ContentManifestId::new("phase3a_manifest").unwrap(),
+        )
+        .unwrap();
+        let payload_value = |key: &str| {
+            event
+                .payload
+                .iter()
+                .find(|field| field.key == key)
+                .map(|field| field.value.as_str())
+        };
+
+        assert_eq!(event.event_type, EventKind::ContinueRoutineProposed);
+        assert_eq!(payload_value("intention_mutated"), Some("false"));
+        assert_eq!(payload_value("behavioral_progress"), Some("false"));
+        assert_eq!(
+            payload_value("routes_through_shared_pipeline"),
+            Some("true")
+        );
+        assert_eq!(payload_value("next_action_id"), Some("work_block"));
+        assert_eq!(
+            event.effects_summary,
+            "continue routine marker only; behavioral progress requires next ordinary action"
+        );
+        assert!(event
+            .causes
+            .iter()
+            .all(|cause| matches!(cause, EventCause::Proposal(_))));
+    }
+
+    #[test]
     fn human_and_scheduler_continue_produce_same_next_action() {
         let human = build_continue_routine_event(
             &state(),

@@ -64,6 +64,13 @@ For each ticket:
    If a ticket acceptance criterion cites a local guidance file, verifier
    contract, or build/test/lint contract, read it before relying on it, or
    record why `AGENTS.md` or another higher-priority authority supersedes it.
+   If a ticket tells you to add an entry to a named census, registry, or
+   allowlist at a specific file or line, read the enclosing test/function name,
+   assertion, and failure semantics before editing. Do not assume that a path
+   list is a general census when its name or test behavior marks it as a
+   negative guard, stale-helper allowlist, or legacy exception list; record the
+   ticket/spec divergence before implementing instead of satisfying the file
+   instruction mechanically.
    Identify explicit preconditions, approvals, or "do not proceed until" clauses
    before editing. If the user's current request clearly satisfies a
    precondition, record that in the ticket/spec `Outcome`; otherwise ask before
@@ -500,6 +507,14 @@ rg -P -n '(?<!archive/)specs/<spec filename>|(?<!archive/)reports/<report filena
    response alone.
 
 ## Reporting
+
+Final hard stop before reporting: do not send the final response or mark a
+`/goal` complete until the repository-required final gates have covered the
+last tracked closeout edit, or until every skipped or changed final gate is
+recorded with the exact command/flag difference and reason in both the spec
+`Outcome` and final response. If a report, ticket, spec, ledger, or reference
+changed after a gate run, treat that run as preliminary evidence until the exact
+required gates are rerun or the deviation is explicitly recorded.
 
 For active `/goal` runs, call the goal completion tool after the final audit and
 before the final response; do not rely on a prose closeout alone.

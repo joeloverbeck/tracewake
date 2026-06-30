@@ -89,6 +89,7 @@ Schedulers may not:
 - convert routine labels directly into primitive actions;
 - read true food, bed, workplace, route, suspect, record, or clue targets to select plans;
 - count markers such as “continue routine” as behavioral progress unless an ordinary follow-on action or explicit modeled wait/failure is committed;
+- treat an embodied `continue_routine` selection as progress by itself; it is the human-input counterpart to the autonomous planner's step commit only when the same shared pipeline and actor-known resolution commit the follow-on ordinary action, typed blocker, modeled wait, or typed stuck/failure;
 - repair behavior using debug or validator truth.
 
 ### Temporal firewall for scheduling

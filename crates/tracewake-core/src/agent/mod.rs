@@ -12,6 +12,7 @@ pub mod no_human_surface;
 pub mod perception;
 pub mod planner;
 pub mod routine;
+pub mod routine_continuation;
 pub mod trace;
 pub mod transaction;
 
@@ -59,6 +60,7 @@ pub use routine::{
     RoutineCondition, RoutineExecution, RoutineFamily, RoutineStep, RoutineStepParseError,
     RoutineStepProposal, RoutineStepStatus, RoutineTemplate, RoutineTemplateError,
 };
+pub use routine_continuation::{resolve_routine_step_follow_on, RoutineContinuationResolution};
 pub use trace::{
     BlockerCategory, BlockerCode, DecisionOutcome, DecisionTrace, DecisionTraceRecord,
     DecisionTraceRecordParseError, HiddenTruthAudit, RejectedDecisionItem, ResponsibleLayer,
@@ -67,5 +69,5 @@ pub use trace::{
 };
 pub use transaction::{
     ActorDecisionProposalOutcome, ActorDecisionTransaction, ActorDecisionTransactionInput,
-    ActorDecisionTransactionOutcome, SealedProposal,
+    ActorDecisionTransactionOutcome, SealedProposal, SelectedGoalBundle,
 };

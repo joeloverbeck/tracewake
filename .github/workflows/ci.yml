@@ -425,14 +425,20 @@ jobs:
           # scheduled job, but match on file+mutation+function (drop line:col)
           # so accepted baseline misses aren't re-flagged when lines shift.
           set +e
-          # Pin an explicit per-mutant test timeout (matching the scheduled
-          # shard job's 183s) instead of cargo-mutants' fragile auto-set window
-          # (~20s for this workspace), which spuriously times out the growing
-          # workspace test suite and makes cargo-mutants exit 3 (TIMEOUT).
-          # Run two mutants concurrently (matching the scheduled shard job's
-          # MUTANTS_JOBS) so a large guarded diff does not serialize into a
-          # ~20-minute wall; --no-shuffle keeps the run deterministic.
-          cargo mutants --in-diff "$RUNNER_TEMP/guarded.diff" --no-shuffle --jobs 2 --timeout 183
+          # Pin an explicit per-mutant test timeout instead of cargo-mutants'
+          # fragile auto-set window (~20s for this workspace), which spuriously
+          # times out the growing workspace test suite and makes cargo-mutants
+          # exit 3 (TIMEOUT). This in-diff job runs the FULL workspace suite per
+          # mutant under --jobs 2 contention, so control-flow mutants that ~2x
+          # the suite legitimately need more wall time to be *caught* than the
+          # scheduled shards' 183s (the shards split the perimeter across eight
+          # supervised jobs). 300s gives those caught-but-slow mutants headroom
+          # so a spurious timeout is not reported as a survivor, while still
+          # bounding genuinely non-terminating mutants. The unmutated baseline
+          # tests run ~90s; the slowest observed caught mutant is ~180s here.
+          # Run two mutants concurrently so a large guarded diff does not
+          # serialize into a multi-minute wall; --no-shuffle keeps it deterministic.
+          cargo mutants --in-diff "$RUNNER_TEMP/guarded.diff" --no-shuffle --jobs 2 --timeout 300
           mutants_status=$?
           set -e
           if [ "$mutants_status" -ne 0 ] && [ "$mutants_status" -ne 2 ] && [ "$mutants_status" -ne 3 ]; then
