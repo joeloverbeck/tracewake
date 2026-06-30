@@ -101,6 +101,30 @@ fn embodied_autonomous_parity_ignores_inactive_resolved_and_other_actor_executio
     assert_matching_proposed(&fixture, "move", Some("routine_go_to_work"));
 }
 
+#[test]
+fn embodied_autonomous_parity_at_workplace_enables_work_block() {
+    // Behavioral counterpart to `..._uses_active_eat_not_known_workplace_shortcut`:
+    // both build `base_surface(workshop, workshop)` so the actor is AT the assigned
+    // workplace, but here the active intention is the WorkBlock itself. The
+    // `actor_at_workplace` / `assigned_workplace_known` / `at_workplace` facts pushed
+    // by `with_test_known_workplace`'s `place_id == current_place_id` branch are what
+    // make the `work_block` method applicable — drop them (the mutated `!=` branch) and
+    // both paths fall to `Stuck("no applicable method")`. Asserting the `work_block`
+    // proposal pins that precondition behaviorally on both parity paths.
+    let workshop = place("workshop_parity");
+    let surface = base_surface(workshop.clone(), workshop.clone());
+    let fixture = RoutineParityFixture::new(
+        RoutineFamily::WorkBlock,
+        "routine_work_block",
+        RoutineStepStatus::InProgress,
+        Vec::new(),
+        workshop,
+        surface,
+    );
+
+    assert_matching_proposed(&fixture, "work_block", Some("routine_work_block"));
+}
+
 fn assert_matching_proposed(
     fixture: &RoutineParityFixture,
     expected_action_id: &str,
