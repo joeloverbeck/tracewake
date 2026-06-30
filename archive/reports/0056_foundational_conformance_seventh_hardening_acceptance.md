@@ -67,7 +67,7 @@ The full workspace gate for this capstone is recorded here:
 
 Capstone-specific parser checks:
 
-- `TRACEWAKE_ACCEPTANCE_ARTIFACT=../../reports/0056_foundational_conformance_seventh_hardening_acceptance.md cargo test --locked -p tracewake-core --test acceptance_status_manifest actual_acceptance_artifact_from_ci_env_is_pass_eligible` - passed.
+- `TRACEWAKE_ACCEPTANCE_ARTIFACT=../../archive/reports/0056_foundational_conformance_seventh_hardening_acceptance.md cargo test --locked -p tracewake-core --test acceptance_status_manifest actual_acceptance_artifact_from_ci_env_is_pass_eligible` - passed.
 - `cargo test --locked -p tracewake-core --test acceptance_artifact_wording` -
   passed.
 
@@ -102,7 +102,7 @@ Implementation and evidence changes in the 0056 line:
 - `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md`
 - `archive/tickets/0056FOUCONSEV-001.md` through
   `archive/tickets/0056FOUCONSEV-008.md`
-- `reports/0056_foundational_conformance_seventh_hardening_acceptance.md`
+- `archive/reports/0056_foundational_conformance_seventh_hardening_acceptance.md`
 
 Unrelated local worktree changes are not included.
 

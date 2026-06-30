@@ -77,9 +77,13 @@ The artifact must not render `pass` unless the manifest computes pass — i.e. e
 
 Completed: 2026-06-30
 
-Created `reports/0056_foundational_conformance_seventh_hardening_acceptance.md`
-as the capstone evidence artifact for exact implementation commit
-`9000c392a7c3a3c13589037e4e4bf55c56364b07`.
+Outcome amended: 2026-06-30
+
+Created `archive/reports/0056_foundational_conformance_seventh_hardening_acceptance.md`
+as the archived capstone evidence artifact for exact implementation commit
+`9000c392a7c3a3c13589037e4e4bf55c56364b07`. The artifact was initially
+created under `reports/` for ticket verification, then moved to
+`archive/reports/` during spec closeout.
 
 The artifact carries one `tracewake-acceptance-status` block with:
 
@@ -95,6 +99,6 @@ Verification:
 - `cargo clippy --workspace --all-targets -- -D warnings` passed.
 - `cargo build --workspace --all-targets --locked` passed.
 - `cargo test --workspace` passed.
-- `TRACEWAKE_ACCEPTANCE_ARTIFACT=../../reports/0056_foundational_conformance_seventh_hardening_acceptance.md cargo test --locked -p tracewake-core --test acceptance_status_manifest actual_acceptance_artifact_from_ci_env_is_pass_eligible` passed over the actual artifact.
+- `TRACEWAKE_ACCEPTANCE_ARTIFACT=../../archive/reports/0056_foundational_conformance_seventh_hardening_acceptance.md cargo test --locked -p tracewake-core --test acceptance_status_manifest actual_acceptance_artifact_from_ci_env_is_pass_eligible` passed over the archived artifact.
 - `cargo test --locked -p tracewake-core --test acceptance_artifact_wording` passed.
 - `git diff --check` passed.
