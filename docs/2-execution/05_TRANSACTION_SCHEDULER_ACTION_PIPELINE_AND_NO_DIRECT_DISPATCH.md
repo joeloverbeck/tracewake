@@ -104,7 +104,7 @@ The no-direct-dispatch guard must prove that no TUI path, debug runner,
 scheduler shortcut, routine label, need threshold, or duration queue mutates
 world state outside this canonical step and shared pipeline.
 
-Current 0054 conformance evidence records this choreography as core-owned:
+Current 0056 conformance evidence records this choreography as core-owned:
 `LoadedWorldRuntime::from_bootstrap` is the production constructor from a
 validated `ValidatedLoadedWorldBootstrap`, loaded actors are discovered by
 `due_loaded_actor_ids`, declared processes by `due_process_invocations`, and
@@ -123,11 +123,12 @@ product, and replay verdicts. The production-path witnesses live in
 `crates/tracewake-core/tests/generative_lock.rs`, the loaded-content handoff in
 `crates/tracewake-content`, the external boundary fixtures in
 `crates/tracewake-core/tests/negative_fixture_runner.rs`, and the current
-sixth-hardening evidence records in `archive/tickets/0054FOUCONSIX-001.md`,
-`archive/tickets/0054FOUCONSIX-002.md`,
-`archive/tickets/0054FOUCONSIX-003.md`,
-`archive/tickets/0054FOUCONSIX-012.md`, and
-`archive/tickets/0054FOUCONSIX-013.md`.
+seventh-hardening evidence records in `archive/tickets/0056FOUCONSEV-001.md`,
+`archive/tickets/0056FOUCONSEV-002.md`,
+`archive/tickets/0056FOUCONSEV-005.md`, and
+`archive/tickets/0056FOUCONSEV-006.md`. The final clean standing mutation
+campaign was run at `37062d6` with `3451` mutants tested, `2681` caught,
+`770` unviable, `0` missed, and `0` timeout.
 
 ## Proposal ancestry
 

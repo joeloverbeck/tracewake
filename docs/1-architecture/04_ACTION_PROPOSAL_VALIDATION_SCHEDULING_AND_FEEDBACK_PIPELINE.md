@@ -116,7 +116,7 @@ masquerade as ordinary actor actions; they authorize lifecycle progression or
 interruption through the duration seam and do not create a competing wait
 action.
 
-Current 0054 evidence names the sealed production coordinator entry explicitly:
+Current 0056 evidence names the sealed production coordinator entry explicitly:
 `LoadedWorldRuntime::from_bootstrap(ValidatedLoadedWorldBootstrap, SimTick)`
 creates the runtime only from the validated content path; external clients
 cannot call removed raw loaded-state constructors, seed-part constructors, or
@@ -136,14 +136,13 @@ supplies compile-fail sensitivity through
 `external_crate_cannot_induce_debug_authority_via_public_bind`,
 `external_crate_cannot_construct_actor_interval_summary`, and
 `external_crate_cannot_submit_debug_command_without_token`; public-boundary
-conformance composes the production-boundary matrix. The sixth-hardening
-evidence is recorded in `archive/tickets/0054FOUCONSIX-001.md`,
-`archive/tickets/0054FOUCONSIX-002.md`,
-`archive/tickets/0054FOUCONSIX-003.md`,
-`archive/tickets/0054FOUCONSIX-012.md`, and
-`archive/tickets/0054FOUCONSIX-013.md`, including the current standing mutation
-rerun with `3445` mutants tested, `2679` caught, `766` unviable, `0` missed,
-and `0` timeout.
+conformance composes the production-boundary matrix. The seventh-hardening
+evidence is recorded in `archive/tickets/0056FOUCONSEV-001.md`,
+`archive/tickets/0056FOUCONSEV-002.md`,
+`archive/tickets/0056FOUCONSEV-005.md`, and
+`archive/tickets/0056FOUCONSEV-006.md`, including the final clean standing
+mutation campaign at `37062d6` with `3451` mutants tested, `2681` caught,
+`770` unviable, `0` missed, and `0` timeout.
 
 ### Affordances
 
