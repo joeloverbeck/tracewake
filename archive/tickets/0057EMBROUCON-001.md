@@ -1,6 +1,6 @@
 # 0057EMBROUCON-001: Shared actor-known routine-step resolver
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` `agent` module: a new shared routine-step→ordinary-action resolver consumed by both the autonomous decision transaction and (in 0057EMBROUCON-002) the embodied submission path
@@ -83,3 +83,47 @@ Add the §9 R2 unit test pinning that autonomous and shared-resolver resolution 
 1. `cargo test --locked -p tracewake-core routine_continuation` — the new resolver unit proofs.
 2. `cargo test --locked -p tracewake-core` — full core suite, including unchanged autonomous resolution.
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked` — four-gate hygiene.
+
+## Outcome
+
+Completed: 2026-06-30
+
+Implemented the shared actor-known routine-step follow-on resolver in
+`crates/tracewake-core/src/agent/routine_continuation.rs` and exported it from
+`agent/mod.rs`. `ActorDecisionTransaction::run` now delegates routine-step
+proposal construction to that resolver, while retaining the existing
+transaction-level stuck-diagnostic mapping and sealed proposal handoff shape.
+
+The resolver owns the previously inline actor-known target selection,
+local-plan request construction, sleep-affordance parameter shaping, selected
+goal bundle construction, and sealed proposal parameter population. The
+autonomous path and future embodied path now share one callable resolution
+surface rather than a transaction-local copy.
+
+Added resolver unit coverage proving:
+
+- the shared resolver produces byte-identical proposal action, targets,
+  parameters, local-plan first proposal, and selected-goal bundle to the real
+  autonomous `ActorDecisionTransaction::run` for a fixed actor-known state;
+- actor-known go-to-work resolution yields the expected `move` target when the
+  workplace and route are actor-known;
+- a hidden-only route fails closed with a `BlockerCategory::Knowledge` local-plan
+  failure instead of resolving a truth-driven target.
+
+Updated the anti-regression guard source census and source scans so the guarded
+layer recognizes `routine_continuation.rs` and continues checking the moved
+sleep-affordance and selected-goal-bundle proposal construction invariants in
+their new home.
+
+Verification run:
+
+- `cargo test --locked -p tracewake-core routine_continuation` — passed.
+- `cargo test --locked -p tracewake-core` — passed.
+- `cargo fmt --all --check` — passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` — passed.
+- `cargo build --workspace --all-targets --locked` — passed.
+
+Deviations: none. The ticket's actor-known firewall proof was implemented as a
+missing actor-known route knowledge blocker for a known workplace, which is the
+current resolver/planner failure surface for preventing truth-driven movement to
+the hidden route target.

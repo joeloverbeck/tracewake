@@ -18,6 +18,7 @@ const ACTOR_KNOWN_RS: &str = include_str!("../src/agent/actor_known.rs");
 const NO_HUMAN_SURFACE_RS: &str = include_str!("../src/agent/no_human_surface.rs");
 const PERCEPTION_RS: &str = include_str!("../src/agent/perception.rs");
 const TRANSACTION_RS: &str = include_str!("../src/agent/transaction.rs");
+const ROUTINE_CONTINUATION_RS: &str = include_str!("../src/agent/routine_continuation.rs");
 const DECISION_RS: &str = include_str!("../src/agent/decision.rs");
 const PIPELINE_RS: &str = include_str!("../src/actions/pipeline.rs");
 const HTN_RS: &str = include_str!("../src/agent/htn.rs");
@@ -1472,6 +1473,7 @@ const WORKSPACE_SOURCE_CLASSIFICATIONS: &[WorkspaceSourceClassification] = &[
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/perception.rs", class: WorkspaceSourceClass::GuardedLayer },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/planner.rs", class: WorkspaceSourceClass::GuardedLayer },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/routine.rs", class: WorkspaceSourceClass::GuardedLayer },
+    WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/routine_continuation.rs", class: WorkspaceSourceClass::GuardedLayer },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/trace.rs", class: WorkspaceSourceClass::GuardedLayer },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/agent/transaction.rs", class: WorkspaceSourceClass::GuardedLayer },
     WorkspaceSourceClassification { path: "crates/tracewake-core/src/checksum.rs", class: WorkspaceSourceClass::Exempt { rationale: CORE_FOUNDATION_RATIONALE } },
@@ -8296,7 +8298,7 @@ fn no_human_day_runner_only_evidence_errors(source: &str) -> Vec<String> {
 fn guard_014_sleep_validation_requires_modeled_affordance() {
     let sleep = production(SLEEP_RS);
     let projection = production(PROJECTIONS_RS);
-    let transaction = production(TRANSACTION_RS);
+    let routine_continuation = production(ROUTINE_CONTINUATION_RS);
     let builder = production(NO_HUMAN_SURFACE_RS);
 
     assert!(
@@ -8313,7 +8315,7 @@ fn guard_014_sleep_validation_requires_modeled_affordance() {
         "human semantic sleep actions must be backed by an open modeled affordance"
     );
     assert!(
-        transaction.contains("actor_known_sleep_affordance_id"),
+        routine_continuation.contains("actor_known_sleep_affordance_id"),
         "agent sleep proposals must carry the actor-known affordance id"
     );
     assert!(
@@ -8524,6 +8526,7 @@ fn guard_014_scheduler_cannot_rewrite_transaction_proposals_after_cognition() {
 #[test]
 fn guard_014_transaction_has_no_silent_method_fallback_scan() {
     let transaction = production(TRANSACTION_RS);
+    let routine_continuation = production(ROUTINE_CONTINUATION_RS);
     assert_absent(&transaction, "candidate_fallbacks");
     assert_absent(&transaction, ".find_map(|candidate|");
     assert!(
@@ -8531,11 +8534,11 @@ fn guard_014_transaction_has_no_silent_method_fallback_scan() {
         "transaction must bind selected candidate, trace, method, local plan, and proposal ancestry"
     );
     assert!(
-        transaction.contains("bundle.decision_trace_id.as_str().to_string()"),
+        routine_continuation.contains("bundle.decision_trace_id.as_str().to_string()"),
         "proposal decision_trace_id must come from the selected goal bundle"
     );
     assert!(
-        transaction.contains("bundle.candidate_goal_id.as_str().to_string()"),
+        routine_continuation.contains("bundle.candidate_goal_id.as_str().to_string()"),
         "proposal candidate_goal_id must come from the selected goal bundle"
     );
     assert!(

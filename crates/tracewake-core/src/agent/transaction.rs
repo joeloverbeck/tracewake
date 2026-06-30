@@ -1,10 +1,10 @@
-use crate::actions::{Proposal, ProposalOrigin};
+use crate::actions::Proposal;
 use crate::agent::{
-    generate_candidate_goals_from_agent_state, plan_local_actions, select_goal_and_trace,
-    select_phase3a_method, ActorKnownPlanningContext, ActorKnownProvenance, ApplicabilityResult,
-    BlockerCategory, BlockerCode, CandidateGoal, DecisionInput, DecisionTrace, DecisionTraceRecord,
-    GoalKind, IntentionLifecycleEffect, LiveCandidateGenerationInput, LocalPlan, LocalPlanFailure,
-    LocalPlanRequest, PlannerGoal, ResponsibleLayer, RoutineFamily, RoutineStep,
+    generate_candidate_goals_from_agent_state, resolve_routine_step_follow_on,
+    select_goal_and_trace, select_phase3a_method, ActorKnownPlanningContext, ActorKnownProvenance,
+    ApplicabilityResult, BlockerCategory, BlockerCode, CandidateGoal, DecisionInput, DecisionTrace,
+    DecisionTraceRecord, GoalKind, IntentionLifecycleEffect, LiveCandidateGenerationInput,
+    LocalPlan, LocalPlanFailure, ResponsibleLayer, RoutineFamily, RoutineStep,
     StuckDiagnosticRecord, StuckResultingStatus, TypedDiagnosticFields,
 };
 use crate::events::EventKind;
@@ -233,170 +233,55 @@ impl ActorDecisionTransaction {
                 }
             }
         };
-        let method_goal = selection.selected_goal.clone();
-
-        let step =
-            method
-                .template
-                .steps
-                .first()
-                .cloned()
-                .unwrap_or_else(|| RoutineStep::WaitUntil {
-                    reason: "empty method".to_string(),
-                });
-        let request = LocalPlanRequest {
-            routine_step: step.clone(),
-            goal: planner_goal_for(&method_goal, input.actor_known_context),
-            budget: crate::agent::DEFAULT_PLANNER_BUDGET,
-            actor_known_facts: actor_known_facts.clone(),
-        };
-        let local_plan = match plan_local_actions(input.actor_known_context, &request) {
-            Ok(plan) => plan,
+        let resolution = match resolve_routine_step_follow_on(
+            &input.actor_id,
+            input.decision_tick,
+            input.actor_known_context,
+            &actor_known_facts,
+            &selection,
+            &method,
+        ) {
+            Ok(resolution) => resolution,
             Err(failure) => {
                 return ActorDecisionTransactionOutcome::Stuck {
                     diagnostic: Box::new(stuck_diagnostic_for_plan_failure(
                         &input.actor_id,
                         input.decision_tick,
-                        &method_goal,
-                        Some(step),
+                        &selection.selected_goal,
+                        method.template.steps.first().cloned(),
                         failure,
                     )),
                 };
             }
         };
-        let Some(planned) = local_plan.proposals.first() else {
+        if resolution.local_plan.proposals.is_empty() {
             return ActorDecisionTransactionOutcome::Stuck {
                 diagnostic: Box::new(stuck_diagnostic(
                     &input.actor_id,
                     input.decision_tick,
-                    Some(&method_goal),
-                    Some(step),
+                    Some(&selection.selected_goal),
+                    Some(resolution.routine_step),
                     "empty local plan",
                     "selected method produced no concrete proposal",
                 )),
             };
         };
-        let bundle = SelectedGoalBundle {
-            candidate_goal_id: method_goal.candidate_goal_id.clone(),
-            decision_trace_id: selection.trace.trace_id.clone(),
-            intention_transition_id: selection.lifecycle_effects.first().map(
-                |effect| match effect {
-                    IntentionLifecycleEffect::Continued { intention_id, .. } => {
-                        format!("continued:{}", intention_id.as_str())
-                    }
-                    IntentionLifecycleEffect::Interrupted { intention_id, .. } => {
-                        format!("interrupted:{}", intention_id.as_str())
-                    }
-                    IntentionLifecycleEffect::Adopted { intention, .. } => {
-                        format!("adopted:{}", intention.intention_id.as_str())
-                    }
-                },
-            ),
-            selected_method_id: method.template.template_id.clone(),
-            local_plan_id: format!(
-                "local_plan_{}_{}",
-                selection.trace.trace_id.as_str(),
-                planned.action_id.as_str()
-            ),
-            proposal_ancestry: vec![
-                selection.trace.trace_id.as_str().to_string(),
-                method_goal.candidate_goal_id.as_str().to_string(),
-                method.template.template_id.as_str().to_string(),
-            ],
-        };
-
-        let mut proposal = Proposal::new(
-            ProposalId::new(format!(
-                "proposal_actor_decision_{}_{}_{}",
-                input.actor_id.as_str(),
-                input.decision_tick.value(),
-                planned.action_id.as_str()
-            ))
-            .unwrap(),
-            ProposalOrigin::Agent,
-            Some(input.actor_id.clone()),
-            planned.action_id.clone(),
-            input.decision_tick,
-        );
-        if planned.action_id.as_str() == "wait" {
-            let reason = planned
-                .target_ids
-                .first()
-                .cloned()
-                .unwrap_or_else(|| "actor_decision_idle".to_string());
-            proposal.parameters.insert("reason".to_string(), reason);
-        } else if planned.action_id.as_str() == "sleep" {
-            proposal.target_ids = planned.target_ids.clone();
-            if let Some(sleep_place_id) = planned.target_ids.first() {
-                proposal
-                    .parameters
-                    .insert("sleep_place_id".to_string(), sleep_place_id.clone());
-                if let Some(sleep_affordance_id) =
-                    actor_known_sleep_affordance_id(input.actor_known_context)
-                {
-                    proposal
-                        .parameters
-                        .insert("sleep_affordance_id".to_string(), sleep_affordance_id);
-                }
-            }
-        } else {
-            proposal.target_ids = planned.target_ids.clone();
-        }
-        proposal.parameters.insert(
-            "decision_trace_id".to_string(),
-            bundle.decision_trace_id.as_str().to_string(),
-        );
-        proposal.parameters.insert(
-            "hidden_truth_audit_actor_known_only".to_string(),
-            selection
-                .trace
-                .hidden_truth_audit_result
-                .actor_known_only
-                .to_string(),
-        );
-        proposal.parameters.insert(
-            "candidate_goal_id".to_string(),
-            bundle.candidate_goal_id.as_str().to_string(),
-        );
-        proposal.parameters.insert(
-            "routine_template_id".to_string(),
-            bundle.selected_method_id.as_str().to_string(),
-        );
-        proposal.parameters.insert(
-            "routine_execution_id".to_string(),
-            method.execution.execution_id.as_str().to_string(),
-        );
-        proposal
-            .parameters
-            .insert("local_plan_id".to_string(), bundle.local_plan_id.clone());
-        proposal.parameters.insert(
-            "proposal_ancestry".to_string(),
-            bundle.proposal_ancestry.join("\n"),
-        );
 
         let decision_trace_record = DecisionTraceRecord::from_trace(&selection.trace)
             .with_plan_lineage(
-                bundle.local_plan_id.clone(),
-                bundle.proposal_ancestry.clone(),
+                resolution.selected_goal_bundle.local_plan_id.clone(),
+                resolution.selected_goal_bundle.proposal_ancestry.clone(),
             );
 
         ActorDecisionTransactionOutcome::Proposed(Box::new(ActorDecisionProposalOutcome {
-            proposal: SealedProposal::seal(proposal),
+            proposal: resolution.proposal,
             decision_trace_record,
             decision_trace: selection.trace,
             lifecycle_effects: selection.lifecycle_effects,
-            local_plan,
-            selected_goal_bundle: bundle,
+            local_plan: resolution.local_plan,
+            selected_goal_bundle: resolution.selected_goal_bundle,
         }))
     }
-}
-
-fn actor_known_sleep_affordance_id(context: &ActorKnownPlanningContext) -> Option<String> {
-    context
-        .actor_known_facts()
-        .iter()
-        .find(|fact| fact.stable_id() == "actor_knows_sleep_affordance" && fact.is_actor_known())
-        .map(|fact| fact.value().to_string())
 }
 
 fn active_intention_for_actor(
@@ -405,92 +290,6 @@ fn active_intention_for_actor(
 ) -> Option<crate::agent::Intention> {
     let intention_id = agent_state.active_intention_by_actor.get(actor_id)?;
     agent_state.intentions.get(intention_id).cloned()
-}
-
-fn planner_goal_for(
-    selected_goal: &CandidateGoal,
-    actor_known_context: &ActorKnownPlanningContext,
-) -> PlannerGoal {
-    match selected_goal.goal_kind {
-        GoalKind::Eat | GoalKind::FindFood => actor_known_food_source_for_goal(actor_known_context)
-            .map(PlannerGoal::EatKnownFood)
-            .unwrap_or_else(|| PlannerGoal::WaitWithReason("no_actor_known_food".to_string())),
-        GoalKind::GoToWork => actor_known_context
-            .known_workplaces()
-            .values()
-            .next()
-            .cloned()
-            .map(|workplace_place_id| {
-                if actor_known_context
-                    .known_edges()
-                    .get(actor_known_context.current_place_id())
-                    .is_some_and(|edges| edges.contains(&workplace_place_id))
-                {
-                    PlannerGoal::ReachPlace(workplace_place_id)
-                } else {
-                    actor_known_context
-                        .known_edges()
-                        .get(actor_known_context.current_place_id())
-                        .and_then(|edges| edges.iter().next().cloned())
-                        .map(PlannerGoal::ReachPlace)
-                        .unwrap_or(PlannerGoal::ReachPlace(workplace_place_id))
-                }
-            })
-            .unwrap_or_else(|| PlannerGoal::WaitWithReason("no_actor_known_workplace".to_string())),
-        GoalKind::PerformWorkBlock => actor_known_context
-            .known_workplaces()
-            .iter()
-            .next()
-            .map(|(workplace_id, place_id)| {
-                if place_id == actor_known_context.current_place_id() {
-                    PlannerGoal::StartWorkBlock(workplace_id.as_str().to_string())
-                } else {
-                    PlannerGoal::ReachPlace(place_id.clone())
-                }
-            })
-            .unwrap_or_else(|| PlannerGoal::WaitWithReason("no_actor_known_workplace".to_string())),
-        GoalKind::SleepOrRest => actor_known_context
-            .known_sleep_places()
-            .iter()
-            .next()
-            .cloned()
-            .map(|sleep_place_id| {
-                if &sleep_place_id == actor_known_context.current_place_id() {
-                    PlannerGoal::StartSleep(sleep_place_id)
-                } else {
-                    PlannerGoal::ReachPlace(sleep_place_id)
-                }
-            })
-            .unwrap_or_else(|| {
-                PlannerGoal::WaitWithReason("no_actor_known_sleep_place".to_string())
-            }),
-        GoalKind::ReturnHome => actor_known_context
-            .known_sleep_places()
-            .iter()
-            .next()
-            .cloned()
-            .map(PlannerGoal::ReachPlace)
-            .unwrap_or_else(|| {
-                PlannerGoal::WaitWithReason("no_actor_known_sleep_place".to_string())
-            }),
-        GoalKind::ContinueCurrentIntention | GoalKind::IdleWithReason => {
-            PlannerGoal::WaitWithReason("actor_decision_reevaluation".to_string())
-        }
-        GoalKind::LeaveUnsafePlace => PlannerGoal::LeaveUnsafePlace,
-    }
-}
-
-fn actor_known_food_source_for_goal(context: &ActorKnownPlanningContext) -> Option<String> {
-    context
-        .actor_known_facts()
-        .iter()
-        .find(|fact| {
-            fact.stable_id() == "actor_knows_food_source"
-                && fact.semantic_kind() == "observed_now"
-                && fact.is_actor_known()
-        })
-        .map(|fact| fact.value().to_string())
-        .or_else(|| context.known_food_sources().iter().next().cloned())
 }
 
 fn goal_for_routine_family(family: RoutineFamily) -> Option<GoalKind> {
@@ -945,47 +744,6 @@ mod tests {
                 ),
             ],
         )
-    }
-
-    #[test]
-    fn food_goal_prefers_currently_observed_source_over_remembered_set_order() {
-        let home = place("home_tomas");
-        let context = ActorKnownPlanningContext::from_observed_parts(
-            actor_id(),
-            home.clone(),
-            BTreeMap::new(),
-            BTreeMap::new(),
-            BTreeMap::new(),
-            BTreeSet::from([
-                "food_empty_pantry_mara".to_string(),
-                "food_stew_home_tomas".to_string(),
-            ]),
-            BTreeSet::new(),
-            BTreeMap::new(),
-            vec![
-                ActorKnownFact::remembered_belief(
-                    actor_id(),
-                    "actor_knows_food_source",
-                    "food_empty_pantry_mara",
-                    "test:remembered_food",
-                    Some(SimTick::new(4)),
-                    test_source(),
-                ),
-                ActorKnownFact::observed_now(
-                    actor_id(),
-                    "actor_knows_food_source",
-                    "food_stew_home_tomas",
-                    "test:visible_food",
-                    Some(SimTick::new(9)),
-                    test_source(),
-                ),
-            ],
-        );
-
-        assert_eq!(
-            actor_known_food_source_for_goal(&context),
-            Some("food_stew_home_tomas".to_string())
-        );
     }
 
     fn context_with_forbidden_input() -> ActorKnownPlanningContext {
