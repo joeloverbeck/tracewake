@@ -1,6 +1,6 @@
 # 0057EMBROUCON-006: Doctrine amendments — embodied continue_routine commits the follow-on
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: None
@@ -74,3 +74,18 @@ Name the embodied follow-on commit as the human-input counterpart to the autonom
 1. `grep -nE "embodied|follow-on" docs/2-execution/06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md` — landing check for the execution-tier amendment.
 2. `grep -nE "embodied|follow-on|counterpart" docs/1-architecture/04_ACTION_PROPOSAL_VALIDATION_SCHEDULING_AND_FEEDBACK_PIPELINE.md` — landing check for the architecture-tier amendment.
 3. `grep -nF "marker is not" docs/2-execution/06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md` — boundary check that the marker-is-not-progress rule is preserved.
+
+## Outcome
+
+Completed: 2026-06-30
+
+Amended `docs/2-execution/06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md` to state that embodied `continue_routine` progress comes from the committed follow-on ordinary action or typed block/wait/stuck outcome, while the marker remains non-progress. Amended `docs/1-architecture/04_ACTION_PROPOSAL_VALIDATION_SCHEDULING_AND_FEEDBACK_PIPELINE.md` to name embodied `continue_routine` as the human-input counterpart to the autonomous planner's step commit only when the same shared pipeline and actor-known resolution commit the follow-on or typed outcome.
+
+Deviation from plan: none. No new gate code, risk id, glossary term, or constitutional invariant was minted.
+
+Verification:
+
+- `grep -nE "embodied|follow-on" docs/2-execution/06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md`
+- `grep -nE "embodied|follow-on|counterpart" docs/1-architecture/04_ACTION_PROPOSAL_VALIDATION_SCHEDULING_AND_FEEDBACK_PIPELINE.md`
+- `grep -nF "marker is not" docs/2-execution/06_ORDINARY_LIFE_NEEDS_ROUTINES_AND_NO_HUMAN_PROOF.md`
+- `git diff --check`
