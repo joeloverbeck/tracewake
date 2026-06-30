@@ -123,6 +123,27 @@ production-path witnesses named by later specs. Spec 0050 preserves this line
 while replacing the overbroad 0048 reachability locks with current
 production-path behavior witnesses.
 
+## `0058MUTWIT` source/navigation record
+
+`0058MUTWIT` is a ticket-only mutation-debt follow-up to the six embodied-seam
+survivors recorded by the spec-0058 focused acceptance artifact. It has no live
+or archived spec package and does not mint a product feature, doctrine
+amendment, gate, risk ID, glossary term, latest-`main` certification claim, or
+rewrite of the original 0058 artifact's exact-commit non-pass result.
+
+The line is implemented by `archive/tickets/0058MUTWIT-001.md`. The ticket
+re-ran the 0058 survivor hypothesis under the checked-in standing
+full-workspace mutation scope and recorded 16 selected mutants, 14 caught, 2
+unviable, 0 missed, and 0 timeouts. The six owned session-line survivors from
+the 0058 artifact were caught under that scope, so no new witnesses or
+production changes were added and the zero-floor mutation baseline remained
+empty.
+
+For current re-verification, use the named `0058MUTWIT-001` command record as a
+ticket-scoped full-workspace reproduction of the 0058 survivor set. It does not
+turn the original spec-0058 acceptance artifact into a certification-style pass
+for its exact implementation commit.
+
 ## Next known execution move
 
 The current replacement P0-CERT artifact is
