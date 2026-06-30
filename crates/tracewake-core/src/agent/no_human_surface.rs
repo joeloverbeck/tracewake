@@ -148,6 +148,135 @@ impl NoHumanActorKnownSurfaceBuilder {
         SealedActorKnownSurface::new(context)
     }
 
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn with_test_known_route(
+        mut self,
+        from_place_id: PlaceId,
+        to_place_id: PlaceId,
+        source_event_id: EventId,
+    ) -> Self {
+        self.known_edges
+            .entry(from_place_id.clone())
+            .or_default()
+            .insert(to_place_id.clone());
+        self.facts.push(ActorKnownFact::observed_now(
+            self.actor_id.clone(),
+            "known_route_surface",
+            format!("{}->{}", from_place_id.as_str(), to_place_id.as_str()),
+            "test_support:known_route",
+            self.decision_tick,
+            SourceEventIds::checked(vec![source_event_id])
+                .expect("test-support route source id is non-empty"),
+        ));
+        self
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn with_test_known_food_source(
+        mut self,
+        food_source: impl Into<String>,
+        source_event_id: EventId,
+    ) -> Self {
+        let food_source = food_source.into();
+        self.known_food_sources.insert(food_source.clone());
+        self.facts.push(ActorKnownFact::observed_now(
+            self.actor_id.clone(),
+            "actor_knows_food_source",
+            food_source,
+            "test_support:known_food",
+            self.decision_tick,
+            SourceEventIds::checked(vec![source_event_id])
+                .expect("test-support food source id is non-empty"),
+        ));
+        self
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn with_test_known_sleep_place(
+        mut self,
+        place_id: PlaceId,
+        sleep_affordance_id: Option<&str>,
+        source_event_id: EventId,
+    ) -> Self {
+        self.known_sleep_places.insert(place_id.clone());
+        let source_event_ids = SourceEventIds::checked(vec![source_event_id])
+            .expect("test-support sleep source id is non-empty");
+        if let Some(sleep_affordance_id) = sleep_affordance_id {
+            self.facts.push(ActorKnownFact::observed_now(
+                self.actor_id.clone(),
+                "actor_knows_sleep_affordance",
+                sleep_affordance_id,
+                "test_support:known_sleep",
+                self.decision_tick,
+                source_event_ids.clone(),
+            ));
+        }
+        self.facts.push(ActorKnownFact::observed_now(
+            self.actor_id.clone(),
+            "actor_knows_sleep_place",
+            place_id.as_str(),
+            "test_support:known_sleep",
+            self.decision_tick,
+            source_event_ids,
+        ));
+        self
+    }
+
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn with_test_known_workplace(
+        mut self,
+        workplace_id: WorkplaceId,
+        place_id: PlaceId,
+        believed_access_open: bool,
+        source_event_id: EventId,
+    ) -> Self {
+        self.known_workplaces
+            .insert(workplace_id.clone(), place_id.clone());
+        let source_event_ids = SourceEventIds::checked(vec![source_event_id])
+            .expect("test-support workplace source id is non-empty");
+        self.facts.push(ActorKnownFact::routine_assignment(
+            self.actor_id.clone(),
+            "actor_knows_workplace",
+            format!("{}@{}", workplace_id.as_str(), place_id.as_str()),
+            "test_support:known_workplace",
+            self.decision_tick,
+            source_event_ids.clone(),
+        ));
+        self.facts.push(ActorKnownFact::routine_assignment(
+            self.actor_id.clone(),
+            "workplace_assignment_active",
+            workplace_id.as_str(),
+            "test_support:known_workplace",
+            self.decision_tick,
+            source_event_ids.clone(),
+        ));
+        self.facts.push(ActorKnownFact::routine_assignment(
+            self.actor_id.clone(),
+            "workplace_believed_accessible",
+            format!("{}:{}", workplace_id.as_str(), believed_access_open),
+            "test_support:known_workplace",
+            self.decision_tick,
+            source_event_ids.clone(),
+        ));
+        if place_id == self.current_place_id {
+            for stable_id in [
+                "actor_at_workplace",
+                "assigned_workplace_known",
+                "at_workplace",
+            ] {
+                self.facts.push(ActorKnownFact::observed_now(
+                    self.actor_id.clone(),
+                    stable_id,
+                    place_id.as_str(),
+                    "test_support:actor_at_workplace",
+                    self.decision_tick,
+                    source_event_ids.clone(),
+                ));
+            }
+        }
+        self
+    }
+
     fn consume_projection_records(&mut self, projection: &EpistemicProjection) {
         let context = KnowledgeContext::embodied(
             self.actor_id.clone(),

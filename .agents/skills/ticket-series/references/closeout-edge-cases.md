@@ -96,20 +96,26 @@ the run.
    timeout disposition from that discovery pass.
 2. Batch survivors by owning surface. Avoid one-survivor-at-a-time full
    reruns.
-3. After survivor fixes, use focused `cargo mutants` commands for the touched
+3. For filtered mutation runs, first inspect the matching `--list` or
+   `--list-files` output. If repository config or regex behavior selects
+   unexpected files, record the mismatch before the expensive run. Tighten the
+   scope with an explicit choice such as `--no-config` only when that is valid
+   for the ticket/spec, or classify unrelated mutants separately in the
+   ticket/report instead of counting them as owned seam evidence.
+4. After survivor fixes, use focused `cargo mutants` commands for the touched
    surface and `cargo mutants --iterate` against the existing `mutants.out`
    state to retest only remaining missed or timed-out mutants when the campaign
    state is still valid.
-4. Run a final clean-baseline full campaign only after the survivor set is empty
+5. Run a final clean-baseline full campaign only after the survivor set is empty
    or every residual has an explicitly recorded bounded forcing function. Only
    this final clean run may be cited as canonical green standing evidence.
-5. Monitor disk usage during repeated or interrupted mutation work. If a run is
+6. Monitor disk usage during repeated or interrupted mutation work. If a run is
    interrupted, inspect for leaked scratch directories before starting another
    full campaign.
-6. In Tracewake, use `tools/clean-build-scratch.sh` dry-run before cleanup and
+7. In Tracewake, use `tools/clean-build-scratch.sh` dry-run before cleanup and
    `tools/clean-build-scratch.sh --force` only when the user has accepted the
    deletion scope. Do not run WSL shutdown or Windows-side VHD compaction from
    an agent session; `AGENTS.md` reserves that for a human.
-7. Record in the ticket/report whether scratch cleanup was run, skipped, or
+8. Record in the ticket/report whether scratch cleanup was run, skipped, or
    left to the user, and keep bulky `mutants.out` trees untracked unless the
    ticket/spec explicitly requires archiving them.

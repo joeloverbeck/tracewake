@@ -13,6 +13,8 @@ Options:
   --archived-report PATH   Archived report path expected to exist.
   --active-ticket PATH     Live ticket path expected to be gone. Repeatable.
   --archived-ticket PATH   Archived ticket path expected to exist. Repeatable.
+  --checklist              Print the final manual readiness checklist.
+  --ready-template         Alias for --checklist.
 
 The helper emits commands and results for mechanical closeout checks. Inspect
 matches manually; historical archive prose can be valid.`);
@@ -31,6 +33,11 @@ for (let i = 0; i < args.length; i += 1) {
   if (arg === "--help" || arg === "-h") {
     usage();
     process.exit(0);
+  }
+
+  if (arg === "--checklist" || arg === "--ready-template") {
+    options.checklist = true;
+    continue;
   }
 
   if (!arg.startsWith("--") || value === undefined || value.startsWith("--")) {
@@ -126,6 +133,22 @@ function capture(label, command, argsForCommand, expectedExitCodes = [0]) {
 
 function testPath(label, argsForTest) {
   return run(label, "test", argsForTest, [0]);
+}
+
+function printReadinessChecklist() {
+  console.log(`
+## Final readiness checklist
+- Latest archive/truthing commit identified: <commit sha>
+- Final gates were rerun after that archive/truthing commit:
+  - cargo fmt --all --check
+  - cargo clippy --workspace --all-targets -- -D warnings
+  - cargo build --workspace --all-targets --locked
+  - cargo test --workspace
+- Post-gate git status is clean or only documented unrelated pre-existing changes.
+- No active ticket/spec/report paths remain for the audited family.
+- Archived tickets/spec contain ## Outcome and Completed: markers.
+- Stale live-path sweep is empty after final gates.
+- Final response names implementation baseline, evidence/report, and archive/truthing commit roles when they differ.`);
 }
 
 let ok = true;
@@ -226,6 +249,10 @@ if (archivePatterns.length > 0) {
     ["-n", archivePatterns.join("|"), "docs", "reports", "archive"],
     [0, 1],
   ) && ok;
+}
+
+if (options.checklist) {
+  printReadinessChecklist();
 }
 
 process.exit(ok ? 0 : 1);

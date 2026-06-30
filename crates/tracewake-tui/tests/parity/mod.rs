@@ -54,6 +54,8 @@ pub enum SetupOperation {
     StartSleepThenAdvanceUntil { max_ticks: u64 },
     MoveWorkThenAdvanceUntil { max_ticks: u64 },
     ContinueRoutineWorkday { max_ticks: u64 },
+    ContinueRoutineActiveIntention,
+    ContinueRoutineTemporalAuthority,
     StartSleepThenWaitConflict,
     SubmitSemanticAction { semantic_action_id: &'static str },
     SubmitRegistryAction { action_id: &'static str },

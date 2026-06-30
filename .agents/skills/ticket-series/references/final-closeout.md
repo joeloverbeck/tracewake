@@ -61,6 +61,10 @@ If any tracked content changes after a gate run, rerun the affected required
 gate set after the final edit or record the exact skipped/deviated command and
 reason in the spec outcome and final response.
 
+Before final response or goal completion, compare the latest archive/truthing
+commit with the last full gate run. If the archive/truthing commit is newer,
+stop and rerun all four required gates against that committed tree.
+
 ## Commit Roles
 
 When an acceptance artifact cannot self-reference the commit that adds it, use

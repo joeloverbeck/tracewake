@@ -71,6 +71,8 @@ fn playable_capability_registry_smoke_test() {
                 | SetupOperation::StartSleepThenAdvanceUntil { .. }
                 | SetupOperation::MoveWorkThenAdvanceUntil { .. }
                 | SetupOperation::ContinueRoutineWorkday { .. }
+                | SetupOperation::ContinueRoutineActiveIntention
+                | SetupOperation::ContinueRoutineTemporalAuthority
                 | SetupOperation::StartSleepThenWaitConflict
                 | SetupOperation::SubmitSemanticAction { .. }
                 | SetupOperation::SubmitRegistryAction { .. }
@@ -150,6 +152,18 @@ fn playable_capability_registry_includes_spec0047_time_control_pack() {
         })
         .map(|entry| entry.key)
         .collect::<Vec<_>>();
+    let spec0058_keys = entries
+        .iter()
+        .filter(|entry| {
+            matches!(
+                entry.ownership_scope,
+                OwnershipScope::FuturePack {
+                    namespace: "spec0058_embodied_routine_continuation_foundational_alignment"
+                }
+            )
+        })
+        .map(|entry| entry.key)
+        .collect::<Vec<_>>();
 
     assert_eq!(base_count, 21, "spec-0046 baseline entries must remain");
     assert_eq!(
@@ -168,8 +182,15 @@ fn playable_capability_registry_includes_spec0047_time_control_pack() {
         vec!["spec0057.routine.embodied_continue_workday"]
     );
     assert_eq!(
+        spec0058_keys,
+        vec![
+            "spec0058.routine.embodied_continue_active_intention_current_step",
+            "spec0058.routine.embodied_continue_temporal_authority",
+        ]
+    );
+    assert_eq!(
         entries.len(),
-        base_count + spec0047_keys.len() + spec0057_keys.len()
+        base_count + spec0047_keys.len() + spec0057_keys.len() + spec0058_keys.len()
     );
 }
 
@@ -226,6 +247,8 @@ fn playable_capability_registry_schema_exposes_all_closed_enum_variants() {
         SetupOperation::StartSleepThenAdvanceUntil { max_ticks: 4 },
         SetupOperation::MoveWorkThenAdvanceUntil { max_ticks: 4 },
         SetupOperation::ContinueRoutineWorkday { max_ticks: 8 },
+        SetupOperation::ContinueRoutineActiveIntention,
+        SetupOperation::ContinueRoutineTemporalAuthority,
         SetupOperation::StartSleepThenWaitConflict,
         SetupOperation::SubmitSemanticAction {
             semantic_action_id: "wait.1_tick",
@@ -237,7 +260,7 @@ fn playable_capability_registry_schema_exposes_all_closed_enum_variants() {
         SetupOperation::RenderDebugOverlay,
         SetupOperation::RunNoHumanDay,
     ];
-    assert_eq!(operations.len(), 13);
+    assert_eq!(operations.len(), 15);
 
     let witness_kinds = [
         WitnessKind::TypedCausal,
@@ -350,6 +373,46 @@ fn playable_capability_runner_passes_live_registry_and_reports_deterministically
     assert_eq!(
         first.to_deterministic_text(),
         second.to_deterministic_text()
+    );
+}
+
+#[test]
+fn spec0058_routine_parity_rows_measure_real_scenarios() {
+    let entries = registry()
+        .into_iter()
+        .filter(|entry| entry.key.starts_with("spec0058."))
+        .collect::<Vec<_>>();
+
+    assert_eq!(entries.len(), 2);
+    for entry in &entries {
+        assert_eq!(
+            entry.capability_class,
+            CapabilityClass::ActorObservableConsequence
+        );
+        assert_eq!(entry.surface_disposition, SurfaceDisposition::Embodied);
+        assert_eq!(entry.replay_evidence, EvidenceFlag::Required);
+        assert_eq!(entry.no_human_evidence, EvidenceFlag::Required);
+        assert!(
+            !entry.anti_leak_fixtures.is_empty(),
+            "{} must declare anti-leak coverage",
+            entry.key
+        );
+        let witnesses = run_real_pipeline(entry)
+            .unwrap_or_else(|error| panic!("{} scenario failed: {error:#?}", entry.key));
+        assert!(
+            witnesses.measured_evidence.typed
+                && witnesses.measured_evidence.actor_knowledge
+                && witnesses.measured_evidence.rendered
+                && witnesses.measured_evidence.replay_match,
+            "{} did not measure all spec0058 evidence: {:#?}",
+            entry.key,
+            witnesses.measured_evidence
+        );
+        assert_actor_surface_does_not_leak(entry, &witnesses.rendered);
+    }
+    assert!(
+        run_conformance(&entries).is_pass(),
+        "spec0058 rows must pass conformance"
     );
 }
 

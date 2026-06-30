@@ -2163,6 +2163,30 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
         witness_min: 2,
     },
     MetaLockRegistryEntry {
+        lock_id: "guard_0058_embodied_routine_family_has_no_pre_intention_workplace_selector",
+        negative_id: "synthetic_workplace_before_active_intention",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_0058_embodied_continue_time_advancing_follow_on_is_gated",
+        negative_id: "synthetic_direct_wait_follow_on",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_0058_embodied_continue_success_path_not_current_stuck",
+        negative_id: "synthetic_success_prefixed_current_stuck",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_0058_tui_continue_routine_forwards_only",
+        negative_id: "synthetic_tui_routine_selection",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
         lock_id: "guard_007_mutation_efficacy_notes_cover_high_risk_shortcuts",
         negative_id: "synthetic_missing_mutation_efficacy_note",
         routing: MetaLockRouting::BehaviorAssertion,
@@ -3021,6 +3045,14 @@ fn behavior_assertion_inspected_site_count(entry: &MetaLockRegistryEntry) -> usi
                 production(RUNTIME_SESSION_RS).as_str(),
                 production(SCHEDULER_RS).as_str(),
             ])
+        }
+        "guard_0058_embodied_routine_family_has_no_pre_intention_workplace_selector"
+        | "guard_0058_embodied_continue_time_advancing_follow_on_is_gated"
+        | "guard_0058_embodied_continue_success_path_not_current_stuck" => {
+            non_empty_production_sites(&[production(RUNTIME_SESSION_RS).as_str()])
+        }
+        "guard_0058_tui_continue_routine_forwards_only" => {
+            non_empty_production_sites(&[production(TUI_APP_RS).as_str()])
         }
         "guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass" => {
             guarded_sources_for(GuardedLayer::Scheduler).len()
@@ -10347,6 +10379,217 @@ fn guard_0057_continue_routine_progress_of_record_is_follow_on() {
         scheduler.contains("field.key == \"behavioral_progress\" && field.value == \"true\""),
         "a continue_routine marker may count as progress only through an explicit true payload, which the marker action does not emit"
     );
+}
+
+#[test]
+fn guard_0058_embodied_routine_family_has_no_pre_intention_workplace_selector() {
+    let runtime_session = production(RUNTIME_SESSION_RS);
+    let errors = embodied_routine_family_authority_errors(&runtime_session);
+    assert!(
+        errors.is_empty(),
+        "embodied routine family must derive from active intention before workplace context: {errors:?}"
+    );
+
+    let synthetic = r#"
+        fn embodied_routine_window_family(
+            agent_state: &AgentState,
+            actor_id: &ActorId,
+            actor_known_context: &ActorKnownPlanningContext,
+        ) -> Option<RoutineFamily> {
+            if actor_known_context.known_workplaces().values().any(|place_id| place_id == actor_known_context.current_place_id()) {
+                return Some(RoutineFamily::WorkBlock);
+            }
+            let active_intention_id = agent_state.active_intention_by_actor().get(actor_id)?;
+            let _active = agent_state.intentions().get(active_intention_id)?;
+            Some(RoutineFamily::EatMeal)
+        }
+    "#;
+    assert!(
+        embodied_routine_family_authority_errors(synthetic)
+            .iter()
+            .any(|error| error.contains("known_workplaces before active_intention")),
+        "synthetic_workplace_before_active_intention must fail the guard"
+    );
+}
+
+#[test]
+fn guard_0058_embodied_continue_time_advancing_follow_on_is_gated() {
+    let runtime_session = production(RUNTIME_SESSION_RS);
+    let errors = embodied_temporal_gateway_errors(&runtime_session);
+    assert!(
+        errors.is_empty(),
+        "embodied continue_routine must gate time-advancing follow-ons before run_pipeline: {errors:?}"
+    );
+
+    let synthetic = r#"
+        fn run_embodied_continue_routine_follow_on(&mut self) {
+            let follow_on_proposal = proposed.proposal.into_proposal();
+            let mut context = PipelineContext {};
+            let mut follow_on_result = run_pipeline(&mut context, &follow_on_proposal);
+            if embodied_follow_on_advances_time(&follow_on_proposal) {
+                return self.run_embodied_continue_routine_stuck_outcome();
+            }
+        }
+    "#;
+    assert!(
+        embodied_temporal_gateway_errors(synthetic)
+            .iter()
+            .any(|error| error.contains("temporal gateway must precede run_pipeline")),
+        "synthetic_direct_wait_follow_on must fail the guard"
+    );
+}
+
+#[test]
+fn guard_0058_embodied_continue_success_path_not_current_stuck() {
+    let runtime_session = production(RUNTIME_SESSION_RS);
+    let errors = embodied_current_stuck_receipt_errors(&runtime_session);
+    assert!(
+        errors.is_empty(),
+        "embodied continue success receipts must not fabricate a current stuck diagnostic: {errors:?}"
+    );
+
+    let synthetic = r#"
+        fn run_embodied_continue_routine_follow_on(&mut self) {
+            let current_stuck_events = build_actor_stuck_diagnostic_event(actor_id, tick, process, diagnostic, manifest, None);
+            let outcome = ActorDecisionTransaction::run(input);
+            let proposed = match outcome { ActorDecisionTransactionOutcome::Proposed(proposed) => proposed, _ => todo!() };
+            let mut follow_on_result = run_pipeline(&mut context, &follow_on_proposal);
+            let mut receipt_prefix = marker_result.appended_events.clone();
+            receipt_prefix.extend(current_stuck_events);
+            follow_on_result.appended_events.splice(0..0, receipt_prefix);
+        }
+    "#;
+    assert!(
+        embodied_current_stuck_receipt_errors(synthetic)
+            .iter()
+            .any(
+                |error| error.contains("current stuck diagnostic before transaction outcome")
+                    || error.contains("success receipt prefixes current stuck")
+            ),
+        "synthetic_success_prefixed_current_stuck must fail the guard"
+    );
+}
+
+#[test]
+fn guard_0058_tui_continue_routine_forwards_only() {
+    let app = production(TUI_APP_RS);
+    let errors = tui_continue_routine_forwarding_errors(&app);
+    assert!(
+        errors.is_empty(),
+        "TUI app must forward continue_routine through RuntimeCommand without routine authority: {errors:?}"
+    );
+
+    let synthetic = r#"
+        use tracewake_core::agent::{RoutineFamily, ActorDecisionTransaction};
+        fn submit_semantic_action() {
+            let routine_window_family = Some(RoutineFamily::WorkBlock);
+            let target_ids = vec!["hidden_workshop".to_string()];
+            let _ = ActorDecisionTransaction::run(input);
+            let _ = RuntimeCommand::submit_semantic_action(controller, actor, entry, view);
+        }
+    "#;
+    assert!(
+        tui_continue_routine_forwarding_errors(synthetic)
+            .iter()
+            .any(|error| error.contains("routine authority token")),
+        "synthetic_tui_routine_selection must fail the guard"
+    );
+}
+
+fn embodied_routine_family_authority_errors(source: &str) -> Vec<String> {
+    let Some(body) = function_body_if_present(source, "fn embodied_routine_window_family") else {
+        return vec!["missing embodied_routine_window_family".to_string()];
+    };
+    let active_index = body.find("active_intention_by_actor()");
+    let workplace_index = body.find("known_workplaces()");
+    let mut errors = Vec::new();
+    if active_index.is_none() {
+        errors.push("missing active_intention_by_actor authority".to_string());
+    }
+    if let (Some(workplace), Some(active)) = (workplace_index, active_index) {
+        if workplace < active {
+            errors.push("known_workplaces before active_intention authority".to_string());
+        }
+    }
+    if body.contains("return Some(RoutineFamily::WorkBlock)")
+        && workplace_index.is_some_and(|workplace| {
+            active_index.is_none() || workplace < active_index.unwrap_or(usize::MAX)
+        })
+    {
+        errors.push("workplace-derived WorkBlock shortcut before active intention".to_string());
+    }
+    errors
+}
+
+fn embodied_temporal_gateway_errors(source: &str) -> Vec<String> {
+    let Some(body) = function_body_if_present(source, "fn run_embodied_continue_routine_follow_on")
+    else {
+        return vec!["missing run_embodied_continue_routine_follow_on".to_string()];
+    };
+    let gate = body.find("embodied_follow_on_advances_time(&follow_on_proposal)");
+    let pipeline = body.find("run_pipeline(&mut context, &follow_on_proposal)");
+    let mut errors = Vec::new();
+    if gate.is_none() {
+        errors.push("missing embodied temporal gateway".to_string());
+    }
+    if let (Some(gate), Some(pipeline)) = (gate, pipeline) {
+        if pipeline < gate {
+            errors.push("temporal gateway must precede run_pipeline".to_string());
+        }
+    }
+    errors
+}
+
+fn embodied_current_stuck_receipt_errors(source: &str) -> Vec<String> {
+    let Some(body) = function_body_if_present(source, "fn run_embodied_continue_routine_follow_on")
+    else {
+        return vec!["missing run_embodied_continue_routine_follow_on".to_string()];
+    };
+    let mut errors = Vec::new();
+    let outcome = body.find("let outcome = ActorDecisionTransaction::run");
+    let current_stuck = body.find("build_actor_stuck_diagnostic_event");
+    if let (Some(current_stuck), Some(outcome)) = (current_stuck, outcome) {
+        if current_stuck < outcome {
+            errors.push("current stuck diagnostic before transaction outcome".to_string());
+        }
+    }
+    if !body.contains("prior_scheduler_stuck_events") {
+        errors.push("missing prior_scheduler_stuck_events naming".to_string());
+    }
+    for forbidden in [
+        "receipt_prefix.extend(current_stuck_events)",
+        "receipt_prefix.extend(appended)",
+        "receipt_prefix.extend(current_stuck)",
+    ] {
+        if body.contains(forbidden) {
+            errors.push(format!(
+                "success receipt prefixes current stuck: {forbidden}"
+            ));
+        }
+    }
+    errors
+}
+
+fn tui_continue_routine_forwarding_errors(source: &str) -> Vec<String> {
+    let mut errors = Vec::new();
+    if !source.contains("RuntimeCommand::submit_semantic_action") {
+        errors.push("missing RuntimeCommand::submit_semantic_action forwarding".to_string());
+    }
+    for forbidden in [
+        "ActorDecisionTransaction",
+        "RoutineFamily",
+        "routine_window_family",
+        "resolve_routine_step_follow_on",
+        "run_embodied_continue_routine_follow_on",
+        "run_pipeline(",
+    ] {
+        if source.contains(forbidden) {
+            errors.push(format!(
+                "TUI app contains routine authority token: {forbidden}"
+            ));
+        }
+    }
+    errors
 }
 
 #[test]

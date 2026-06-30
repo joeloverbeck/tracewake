@@ -594,7 +594,7 @@ impl LoadedWorldRuntime {
             ),
             include_idle_fallback: false,
         });
-        let embodied_stuck_events = append_embodied_routine_stuck_diagnostics(
+        let prior_scheduler_stuck_events = append_embodied_routine_stuck_diagnostics(
             &mut self.event_log,
             &mut self.agent_state,
             actor_id,
@@ -608,7 +608,7 @@ impl LoadedWorldRuntime {
                     actor_id,
                     decision_tick,
                     marker_result,
-                    &embodied_stuck_events,
+                    &prior_scheduler_stuck_events,
                     &diagnostic,
                 );
             }
@@ -626,7 +626,21 @@ impl LoadedWorldRuntime {
                 actor_id,
                 decision_tick,
                 marker_result,
-                &embodied_stuck_events,
+                &prior_scheduler_stuck_events,
+                &diagnostic,
+            );
+        }
+        if embodied_follow_on_advances_time(&follow_on_proposal) {
+            let diagnostic = embodied_time_advancing_follow_on_diagnostic(
+                actor_id,
+                decision_tick,
+                &follow_on_proposal,
+            );
+            return self.run_embodied_continue_routine_stuck_outcome(
+                actor_id,
+                decision_tick,
+                marker_result,
+                &prior_scheduler_stuck_events,
                 &diagnostic,
             );
         }
@@ -652,7 +666,7 @@ impl LoadedWorldRuntime {
         let mut follow_on_result = run_pipeline(&mut context, &follow_on_proposal);
         if follow_on_result.report.status == ReportStatus::Rejected {
             let mut receipt_prefix = marker_result.appended_events.clone();
-            receipt_prefix.extend(embodied_stuck_events);
+            receipt_prefix.extend(prior_scheduler_stuck_events);
             follow_on_result
                 .appended_events
                 .splice(0..0, receipt_prefix);
@@ -729,7 +743,7 @@ impl LoadedWorldRuntime {
             follow_on_result.appended_events.push(appended.clone());
         }
         let mut receipt_prefix = marker_result.appended_events.clone();
-        receipt_prefix.extend(embodied_stuck_events);
+        receipt_prefix.extend(prior_scheduler_stuck_events);
         follow_on_result
             .appended_events
             .splice(0..0, receipt_prefix);
@@ -742,7 +756,7 @@ impl LoadedWorldRuntime {
         actor_id: &ActorId,
         decision_tick: SimTick,
         marker_result: &PipelineResult,
-        embodied_stuck_events: &[EventEnvelope],
+        prior_scheduler_stuck_events: &[EventEnvelope],
         diagnostic: &StuckDiagnosticRecord,
     ) -> Result<Option<PipelineResult>, RuntimeCommandError> {
         let process_id = ProcessId::new(format!(
@@ -775,7 +789,7 @@ impl LoadedWorldRuntime {
             .into_iter()
             .collect::<Vec<_>>();
         let mut appended_events = marker_result.appended_events.clone();
-        appended_events.extend(embodied_stuck_events.iter().cloned());
+        appended_events.extend(prior_scheduler_stuck_events.iter().cloned());
         appended_events.extend(appended);
         self.record_actor_current_place_perception(actor_id);
         Ok(Some(PipelineResult {
@@ -1124,13 +1138,6 @@ fn embodied_routine_window_family(
     actor_id: &ActorId,
     actor_known_context: &crate::agent::ActorKnownPlanningContext,
 ) -> Option<RoutineFamily> {
-    if actor_known_context
-        .known_workplaces()
-        .values()
-        .any(|place_id| place_id == actor_known_context.current_place_id())
-    {
-        return Some(RoutineFamily::WorkBlock);
-    }
     let active_intention_id = agent_state.active_intention_by_actor().get(actor_id)?;
     let active = agent_state.intentions().get(active_intention_id)?;
     let selected_method = active.selected_routine_method.as_ref()?;
@@ -1143,7 +1150,16 @@ fn embodied_routine_window_family(
         .map(|execution| execution.family)
         .next()
         .or_else(|| routine_family_from_template_id(selected_method.as_str()))?;
-    Some(family)
+    if family == RoutineFamily::WorkBlock
+        && !actor_known_context
+            .known_workplaces()
+            .values()
+            .any(|place_id| place_id == actor_known_context.current_place_id())
+    {
+        Some(RoutineFamily::GoToWork)
+    } else {
+        Some(family)
+    }
 }
 
 fn routine_family_from_template_id(template_id: &str) -> Option<RoutineFamily> {
@@ -1244,6 +1260,49 @@ fn embodied_recursive_continue_routine_diagnostic(
         "recursive continue_routine follow-on",
         "routine continuation could not select an ordinary follow-on action",
         "embodied continue_routine resolved to continue_routine again",
+        "typed_stuck_diagnostic",
+        StuckResultingStatus::Failed,
+    )
+}
+
+fn embodied_follow_on_advances_time(proposal: &crate::actions::Proposal) -> bool {
+    proposal.action_id.as_str() == "wait"
+}
+
+fn embodied_time_advancing_follow_on_diagnostic(
+    actor_id: &ActorId,
+    decision_tick: SimTick,
+    proposal: &crate::actions::Proposal,
+) -> StuckDiagnosticRecord {
+    StuckDiagnosticRecord::new(
+        StuckDiagnosticId::new(format!(
+            "stuck_embodied_continue_routine_time_advancing_{}_{}",
+            actor_id.as_str(),
+            decision_tick.value()
+        ))
+        .expect("embodied time-advancing continue diagnostic ids are generated from typed ids"),
+        actor_id.clone(),
+        decision_tick,
+        decision_tick.advance_by(1),
+        None,
+        None,
+        None,
+        proposal
+            .parameters
+            .get("routine_template_id")
+            .and_then(|template_id| crate::ids::RoutineTemplateId::new(template_id.clone()).ok()),
+        proposal
+            .parameters
+            .get("routine_execution_id")
+            .and_then(|execution_id| {
+                crate::ids::RoutineExecutionId::new(execution_id.clone()).ok()
+            }),
+        None,
+        None,
+        BlockerCategory::SchedulingReservation,
+        "time-advancing follow-on requires scheduler authority",
+        "routine continuation cannot safely commit a time-advancing follow-on yet",
+        "embodied continue_routine resolved to wait; scheduler-owned routing is deferred",
         "typed_stuck_diagnostic",
         StuckResultingStatus::Failed,
     )
@@ -1765,8 +1824,8 @@ mod tests {
     }
 
     fn window_context(actor: &ActorId) -> ActorKnownPlanningContext {
-        // Empty facts derive no known workplaces, so the early work-block branch
-        // is skipped and resolution falls through to the execution scan.
+        // Empty facts derive no known workplaces, so a selected WorkBlock
+        // routine is refined to GoToWork after active-intention selection.
         ActorKnownPlanningContext::from_observed_parts(
             actor.clone(),
             PlaceId::new("place_window_test").unwrap(),
@@ -1781,12 +1840,22 @@ mod tests {
     }
 
     #[test]
-    fn embodied_routine_window_family_returns_work_block_at_known_workplace() {
+    fn embodied_continue_uses_active_intention_current_step_not_known_workplace() {
         let actor = ActorId::new("actor_window_primary").unwrap();
-        // A known workplace that resolves to the actor's current place must take
-        // the early work-block branch before any execution scan. A
-        // `place_id == current_place_id()` -> `!=` mutant skips that branch and
-        // falls through to an empty agent state, returning `None`.
+        let template = RoutineTemplateId::new("routine_eat_meal").unwrap();
+        let state = window_agent_state(
+            &actor,
+            &template,
+            vec![window_execution(
+                "routine_exec_active_eat",
+                &actor,
+                &template,
+                RoutineFamily::EatMeal,
+                RoutineStepStatus::InProgress,
+            )],
+        );
+        // A known workplace at the actor's current place is only actor-known
+        // context. It may not upgrade the active eat step into WorkBlock.
         let context = ActorKnownPlanningContext::from_observed_parts(
             actor.clone(),
             PlaceId::new("place_window_test").unwrap(),
@@ -1806,11 +1875,96 @@ mod tests {
                     .unwrap(),
             )],
         );
-        let state = AgentState::default();
 
         assert_eq!(
             embodied_routine_window_family(&state, &actor, &context),
-            Some(RoutineFamily::WorkBlock)
+            Some(RoutineFamily::EatMeal)
+        );
+    }
+
+    #[test]
+    fn embodied_routine_window_family_refines_work_block_to_go_to_work_when_not_at_known_workplace()
+    {
+        let actor = ActorId::new("actor_window_primary").unwrap();
+        let template = RoutineTemplateId::new("routine_work_block").unwrap();
+        let state = window_agent_state(
+            &actor,
+            &template,
+            vec![window_execution(
+                "routine_exec_active_work",
+                &actor,
+                &template,
+                RoutineFamily::WorkBlock,
+                RoutineStepStatus::InProgress,
+            )],
+        );
+        let context = window_context(&actor);
+
+        assert_eq!(
+            embodied_routine_window_family(&state, &actor, &context),
+            Some(RoutineFamily::GoToWork)
+        );
+    }
+
+    #[test]
+    fn embodied_continue_assigned_inactive_window_does_not_drive_follow_on() {
+        let actor = ActorId::new("actor_window_primary").unwrap();
+        let active_template = RoutineTemplateId::new("routine_eat_meal").unwrap();
+        let inactive_template = RoutineTemplateId::new("routine_work_block").unwrap();
+        let state = window_agent_state(
+            &actor,
+            &active_template,
+            vec![
+                window_execution(
+                    "routine_exec_active_eat",
+                    &actor,
+                    &active_template,
+                    RoutineFamily::EatMeal,
+                    RoutineStepStatus::InProgress,
+                ),
+                window_execution(
+                    "routine_exec_inactive_work",
+                    &actor,
+                    &inactive_template,
+                    RoutineFamily::WorkBlock,
+                    RoutineStepStatus::InProgress,
+                ),
+            ],
+        );
+        let context = window_context(&actor);
+
+        assert_eq!(
+            embodied_routine_window_family(&state, &actor, &context),
+            Some(RoutineFamily::EatMeal)
+        );
+    }
+
+    #[test]
+    fn embodied_routine_window_family_requires_active_intention_before_workplace_context() {
+        let actor = ActorId::new("actor_window_primary").unwrap();
+        let context = ActorKnownPlanningContext::from_observed_parts(
+            actor.clone(),
+            PlaceId::new("place_window_test").unwrap(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            BTreeSet::new(),
+            BTreeMap::new(),
+            vec![ActorKnownFact::observed_now(
+                actor.clone(),
+                "actor_knows_workplace",
+                "workplace_window@place_window_test",
+                "test:resolver",
+                Some(SimTick::new(0)),
+                SourceEventIds::checked(vec![EventId::new("event_window_workplace").unwrap()])
+                    .unwrap(),
+            )],
+        );
+
+        assert_eq!(
+            embodied_routine_window_family(&AgentState::default(), &actor, &context),
+            None
         );
     }
 
@@ -1881,5 +2035,43 @@ mod tests {
             embodied_routine_window_family(&state, &actor, &context),
             Some(RoutineFamily::EatMeal)
         );
+    }
+
+    #[test]
+    fn embodied_continue_wait_follow_on_is_not_direct_pipelined() {
+        let actor = ActorId::new("actor_window_primary").unwrap();
+        let mut proposal = crate::actions::Proposal::new(
+            crate::ids::ProposalId::new("proposal_embodied_wait_follow_on").unwrap(),
+            crate::actions::ProposalOrigin::Agent,
+            Some(actor.clone()),
+            ActionId::new("wait").unwrap(),
+            SimTick::new(7),
+        );
+        proposal.parameters.insert(
+            "routine_template_id".to_string(),
+            "routine_wait_idle".to_string(),
+        );
+        proposal.parameters.insert(
+            "routine_execution_id".to_string(),
+            "routine_exec_wait_idle".to_string(),
+        );
+
+        assert!(embodied_follow_on_advances_time(&proposal));
+        let diagnostic =
+            embodied_time_advancing_follow_on_diagnostic(&actor, SimTick::new(7), &proposal);
+
+        assert_eq!(
+            diagnostic.concrete_blocker,
+            "time-advancing follow-on requires scheduler authority"
+        );
+        assert_eq!(
+            diagnostic.actor_known_explanation,
+            "routine continuation cannot safely commit a time-advancing follow-on yet"
+        );
+        assert_eq!(
+            diagnostic.debug_only_details,
+            "embodied continue_routine resolved to wait; scheduler-owned routing is deferred"
+        );
+        assert_eq!(diagnostic.resulting_status, StuckResultingStatus::Failed);
     }
 }
