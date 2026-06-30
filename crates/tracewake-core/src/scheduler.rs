@@ -2850,18 +2850,12 @@ pub mod no_human {
                     }
                 };
                 if has_open_duration {
+                    // The actor is mid sleep/work block: an open body-exclusive duration is
+                    // committed, in-progress behavioral progress, so the routine owning it is
+                    // not "stuck past its expected progress window". Skip the actor's decision
+                    // (it is occupied) and emit no stuck diagnostic this window.
                     duration_skip_by_window_actor
                         .insert((window.window_id.clone(), actor_id.clone()));
-                    append_routine_stuck_diagnostics(
-                        log,
-                        agent_state,
-                        &process_id,
-                        actor_id,
-                        window,
-                        &content_manifest_id,
-                        &mut stuck_diagnostic_event_ids,
-                        &mut scheduler_errors,
-                    );
                     continue;
                 }
                 append_routine_stuck_diagnostics(
@@ -5447,6 +5441,24 @@ pub mod no_human {
                 ActorBody::new(actor_id(), crate::ids::PlaceId::new("bedroom").unwrap()),
             );
             let mut agent_state = agent_state(&actor_id());
+            // The actor owns a routine whose expected progress (tick 2) is already past the
+            // "sleeping" window start (tick 4) with no later progress — the exact shape that
+            // fires past_expected_progress_window. Because the actor holds an open sleep
+            // duration, no stuck diagnostic must be emitted for it.
+            agent_state.routine_executions.insert(
+                RoutineExecutionId::new("routine_exec_sleep_owner").unwrap(),
+                crate::agent::RoutineExecution::new(
+                    RoutineExecutionId::new("routine_exec_sleep_owner").unwrap(),
+                    actor_id(),
+                    RoutineTemplateId::new("routine_sleep_owner").unwrap(),
+                    RoutineFamily::SleepNight,
+                    SimTick::ZERO,
+                    Some(SimTick::new(2)),
+                    Some(SimTick::new(12)),
+                    None,
+                    DecisionTraceId::new("trace_sleep_owner").unwrap(),
+                ),
+            );
             let mut log = EventLog::new();
             let mut sleep_started = EventEnvelope::new_caused_v1(
                 EventId::new("event.sleep_started.proposal_sleep_open").unwrap(),
