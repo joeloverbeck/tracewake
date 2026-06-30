@@ -73,7 +73,7 @@ pub fn entries() -> Vec<CapabilityEntry> {
             capability_class: CapabilityClass::ActorObservableConsequence,
             surface_disposition: SurfaceDisposition::Embodied,
             disposition_rationale:
-                "continue_routine reaches the same move-to-work and work-block consequences through the possessed TUI surface",
+                "continue_routine reaches move-to-work and then fails closed instead of selecting work from workplace context",
             fixture_ids: vec!["ordinary_workday_001"],
             viewer_actor: "actor_tomas",
             setup_operation: SetupOperation::ContinueRoutineWorkday { max_ticks: 8 },
@@ -81,17 +81,17 @@ pub fn entries() -> Vec<CapabilityEntry> {
             typed_witness: Witness {
                 kind: WitnessKind::TypedCausal,
                 assertion:
-                    "two continue_routine submissions emit ContinueRoutineProposed, ActorMoved, and WorkBlockStarted before terminal work completion",
+                    "two continue_routine submissions emit ContinueRoutineProposed and ActorMoved, then reject the workplace shortcut with a typed stuck diagnostic",
             },
             actor_knowledge_witness: Witness {
                 kind: WitnessKind::ActorKnowledge,
                 assertion:
-                    "actor_tomas reaches work from actor-known routine context without hidden target selection",
+                    "actor_tomas reaches the known workplace but does not select work without an active work intention",
             },
             rendered_witness: Some(Witness {
                 kind: WitnessKind::RenderedText,
                 assertion:
-                    "rendered embodied state shows the post-work actor-known interval without debug truth",
+                    "rendered embodied state remains actor-known after the rejected shortcut without debug truth",
             }),
             golden_path: None,
             anti_leak_fixtures: vec!["embodied_continue_hidden_workplace_001"],

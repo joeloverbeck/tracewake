@@ -165,7 +165,12 @@ fn run_real_pipeline_with_app(
                     .appended_events
                     .iter()
                     .any(|event| event.event_type == EventKind::ActorMoved);
-            let worked_by_continue = worked.report.status == ReportStatus::Accepted
+            let rejected_workplace_shortcut = worked.report.status == ReportStatus::Rejected
+                && worked.report.action_id.as_str() == "continue_routine"
+                && worked
+                    .report
+                    .reason_codes
+                    .contains(&ReasonCode::RoutineStepBlocked)
                 && worked
                     .appended_events
                     .iter()
@@ -173,14 +178,14 @@ fn run_real_pipeline_with_app(
                 && worked
                     .appended_events
                     .iter()
-                    .any(|event| event.event_type == EventKind::WorkBlockStarted);
+                    .any(|event| event.event_type == EventKind::StuckDiagnosticRecorded);
 
-            let result = app.advance_until(max_ticks).map_err(ScenarioError::from)?;
             rendered = app.render_current_view().map_err(ScenarioError::from)?;
-            measure_advance_until(&mut measured, &app, &result);
-            measured.typed = moved_by_continue && worked_by_continue && measured.typed;
-            measured.marker_counted = moved_by_continue && worked_by_continue;
-            measured.autonomous_work = worked_by_continue;
+            let _ = max_ticks;
+            measured.typed = moved_by_continue && rejected_workplace_shortcut;
+            measured.marker_counted = moved_by_continue && rejected_workplace_shortcut;
+            measured.typed_stop_reason = rejected_workplace_shortcut;
+            measured.frontier_advanced = moved_by_continue;
         }
         SetupOperation::StartSleepThenWaitConflict => {
             submit_semantic_action_by_id(&mut app, "sleep.here")?;

@@ -146,7 +146,7 @@ fn wait_command_during_sleep_is_reservation_conflict_without_world_advance() {
 }
 
 #[test]
-fn continue_routine_commits_embodied_follow_on_move_and_work() {
+fn continue_routine_commits_embodied_follow_on_move_then_rejects_workplace_shortcut() {
     let mut app = TuiApp::from_golden(fixtures::ordinary_workday_001()).unwrap();
     app.bind_actor(ActorId::new("actor_tomas").unwrap())
         .unwrap();
@@ -209,20 +209,16 @@ fn continue_routine_commits_embodied_follow_on_move_and_work() {
     let second_continue = second_continue_entry.semantic_action_id.clone();
     let worked = app.submit_semantic_action(&second_continue).unwrap();
 
-    assert_eq!(worked.report.status, ReportStatus::Accepted);
+    assert_eq!(worked.report.status, ReportStatus::Rejected);
     assert_eq!(
         worked.report.action_id.as_str(),
-        "work_block",
+        "continue_routine",
         "entry={second_continue_entry:#?}"
     );
     let after_work_log = app.render_debug_event_log_panel();
-    assert!(after_work_log.contains("work_block_started"));
+    assert!(!after_work_log.contains("work_block_started"));
+    assert!(after_work_log.contains("stuck_diagnostic_recorded"));
     assert!(after_work_log.matches("continue_routine_proposed").count() >= 2);
-
-    let advanced = app.advance_until(8).unwrap();
-    assert!(advanced.advanced());
-    let after_completion_log = app.render_debug_event_log_panel();
-    assert!(after_completion_log.contains("work_block_completed"));
     assert!(app
         .render_debug_projection_rebuild_panel()
         .contains("diffs=0"));

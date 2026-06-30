@@ -381,13 +381,9 @@ fn validate_load_bearing_measurements(
             require_measured(
                 &key,
                 failures,
-                measured.frontier_advanced
-                    && measured.marker_counted
-                    && measured.autonomous_work
-                    && measured.duration_terminal
-                    && measured.typed_stop_reason,
+                measured.marker_counted && measured.typed && measured.typed_stop_reason,
                 "missing_measured_continue_workday",
-                "embodied continue-routine witness must measure move, work, marker, and terminal progress",
+                "embodied continue-routine witness must measure move, marker, and typed fail-closed continuation",
             );
         }
         _ => {}

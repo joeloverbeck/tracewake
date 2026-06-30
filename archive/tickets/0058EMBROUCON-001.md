@@ -1,6 +1,6 @@
 # 0058EMBROUCON-001: Active-intention current-step authority for embodied continuation
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — modifies `crates/tracewake-core/src/runtime/session.rs` (`embodied_routine_window_family`); adds core behavioral tests
@@ -77,3 +77,45 @@ Add `embodied_continue_uses_active_intention_current_step_not_known_workplace`, 
 1. `cargo test -p tracewake-core embodied_continue`
 2. `cargo test --workspace`
 3. `cargo test -p tracewake-core embodied_routine_window_family` — confirms the inverted test and the two preserved siblings still pass (narrow boundary for the selector change).
+
+## Outcome
+
+Completed: 2026-06-30
+
+Implemented the active-intention authority fix in
+`crates/tracewake-core/src/runtime/session.rs`: the embodied routine-family
+helper no longer returns `WorkBlock` from `known_workplaces()` before consulting
+`active_intention_by_actor()`. It now derives the family from the active
+intention's selected routine method / unresolved execution and only then applies
+the scheduler-style `WorkBlock` -> `GoToWork` refinement when the actor is not
+at an actor-known workplace.
+
+Added/replaced focused witnesses:
+
+- `embodied_continue_uses_active_intention_current_step_not_known_workplace`
+- `embodied_continue_assigned_inactive_window_does_not_drive_follow_on`
+- `embodied_routine_window_family_requires_active_intention_before_workplace_context`
+- `embodied_routine_window_family_refines_work_block_to_go_to_work_when_not_at_known_workplace`
+
+The marker-alone behavioral-progress witness already existed as
+`continue_routine_marker_alone_is_not_behavioral_progress` in
+`crates/tracewake-core/tests/acceptance_gates.rs`; it was re-run rather than
+duplicated.
+
+The removed workplace shortcut exposed an obsolete 0057 TUI/parity expectation:
+after a possessed continue moves Tomas to a known workplace, a second continue
+must not jump into `work_block` while the active intention is still the
+go-to-work continuation. Updated the TUI flow and parity row/measurement to
+assert the new fail-closed typed stuck behavior instead of preserving the old
+fork.
+
+Verification:
+
+- `cargo test -p tracewake-core embodied_routine_window_family` — passed.
+- `cargo test -p tracewake-core embodied_continue` — passed.
+- `cargo test -p tracewake-core continue_routine_marker_alone_is_not_behavioral_progress` — passed.
+- `cargo test -p tracewake-core embodied_continue_assigned_inactive_window_does_not_drive_follow_on` — passed.
+- `cargo test -p tracewake-tui --test embodied_flow continue_routine_commits_embodied_follow_on_move_then_rejects_workplace_shortcut` — passed.
+- `cargo test -p tracewake-tui --test parity_adversarial parity_adversarial_witness_drop_fails_runner` — passed.
+- `cargo fmt --all --check` — passed.
+- `cargo test --workspace` — passed after the TUI/parity expectation repair.
