@@ -309,6 +309,8 @@ fn validate_entry(
         | SetupOperation::StartSleepThenAdvanceUntil { .. }
         | SetupOperation::MoveWorkThenAdvanceUntil { .. }
         | SetupOperation::ContinueRoutineWorkday { .. }
+        | SetupOperation::ContinueRoutineActiveIntention
+        | SetupOperation::ContinueRoutineTemporalAuthority
         | SetupOperation::StartSleepThenWaitConflict
         | SetupOperation::AdvanceNoHuman
         | SetupOperation::RenderNotebook
@@ -384,6 +386,30 @@ fn validate_load_bearing_measurements(
                 measured.marker_counted && measured.typed && measured.typed_stop_reason,
                 "missing_measured_continue_workday",
                 "embodied continue-routine witness must measure move, marker, and typed fail-closed continuation",
+            );
+        }
+        "spec0058.routine.embodied_continue_active_intention_current_step" => {
+            require_measured(
+                &key,
+                failures,
+                measured.marker_counted
+                    && measured.typed
+                    && measured.frontier_advanced
+                    && measured.holder_known_sources,
+                "missing_measured_active_intention_continue",
+                "spec0058 active-intention witness must measure typed move consequence from actor-known active step",
+            );
+        }
+        "spec0058.routine.embodied_continue_temporal_authority" => {
+            require_measured(
+                &key,
+                failures,
+                measured.marker_counted
+                    && measured.typed
+                    && measured.typed_stop_reason
+                    && measured.holder_known_sources,
+                "missing_measured_temporal_authority_continue",
+                "spec0058 temporal-authority witness must measure typed stuck consequence without direct time advance",
             );
         }
         _ => {}

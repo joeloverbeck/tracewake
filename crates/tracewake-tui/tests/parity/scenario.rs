@@ -187,6 +187,81 @@ fn run_real_pipeline_with_app(
             measured.typed_stop_reason = rejected_workplace_shortcut;
             measured.frontier_advanced = moved_by_continue;
         }
+        SetupOperation::ContinueRoutineActiveIntention => {
+            let first_continue = semantic_action_for_action(
+                &app.current_view().map_err(ScenarioError::from)?,
+                "continue_routine",
+            )?;
+            assert_render_contains_action(entry, &rendered, first_continue.as_str());
+            let moved = app
+                .submit_semantic_action(&first_continue)
+                .map_err(ScenarioError::from)?;
+
+            submitted_status = Some(moved.report.status.clone());
+            rendered = app.render_current_view().map_err(ScenarioError::from)?;
+            measured.typed = moved.report.status == ReportStatus::Accepted
+                && moved.report.action_id.as_str() == "move"
+                && moved.report.target_ids == ["workshop_tomas".to_string()]
+                && moved
+                    .appended_events
+                    .iter()
+                    .any(|event| event.event_type == EventKind::ContinueRoutineProposed)
+                && moved
+                    .appended_events
+                    .iter()
+                    .any(|event| event.event_type == EventKind::ActorMoved)
+                && !moved
+                    .appended_events
+                    .iter()
+                    .any(|event| event.event_type == EventKind::WorkBlockStarted);
+            measured.marker_counted = measured.typed;
+            measured.frontier_advanced = measured.typed;
+            measured.holder_known_sources =
+                rendered.contains("workshop_tomas") && !rendered.contains("hidden_workshop");
+        }
+        SetupOperation::ContinueRoutineTemporalAuthority => {
+            let first_continue = semantic_action_for_action(
+                &app.current_view().map_err(ScenarioError::from)?,
+                "continue_routine",
+            )?;
+            assert_render_contains_action(entry, &rendered, first_continue.as_str());
+            let moved = app
+                .submit_semantic_action(&first_continue)
+                .map_err(ScenarioError::from)?;
+
+            let second_continue = semantic_action_for_action(
+                &app.current_view().map_err(ScenarioError::from)?,
+                "continue_routine",
+            )?;
+            let rejected = app
+                .submit_semantic_action(&second_continue)
+                .map_err(ScenarioError::from)?;
+            submitted_status = Some(rejected.report.status.clone());
+            rendered = app.render_current_view().map_err(ScenarioError::from)?;
+
+            measured.typed = moved.report.status == ReportStatus::Accepted
+                && rejected.report.status == ReportStatus::Rejected
+                && rejected.report.action_id.as_str() == "continue_routine"
+                && rejected
+                    .report
+                    .reason_codes
+                    .contains(&ReasonCode::RoutineStepBlocked)
+                && rejected
+                    .appended_events
+                    .iter()
+                    .any(|event| event.event_type == EventKind::ContinueRoutineProposed)
+                && rejected
+                    .appended_events
+                    .iter()
+                    .any(|event| event.event_type == EventKind::StuckDiagnosticRecorded)
+                && !rejected
+                    .appended_events
+                    .iter()
+                    .any(|event| event.event_type == EventKind::ActorWaited);
+            measured.marker_counted = measured.typed;
+            measured.typed_stop_reason = measured.typed;
+            measured.holder_known_sources = rendered.contains("Why-not:");
+        }
         SetupOperation::StartSleepThenWaitConflict => {
             submit_semantic_action_by_id(&mut app, "sleep.here")?;
             let view = app.current_view().map_err(ScenarioError::from)?;

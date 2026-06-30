@@ -98,6 +98,72 @@ pub fn entries() -> Vec<CapabilityEntry> {
             replay_evidence: EvidenceFlag::Required,
             no_human_evidence: EvidenceFlag::Required,
         },
+        CapabilityEntry {
+            key: "spec0058.routine.embodied_continue_active_intention_current_step",
+            ownership_scope: OwnershipScope::FuturePack {
+                namespace: "spec0058_embodied_routine_continuation_foundational_alignment",
+            },
+            capability_class: CapabilityClass::ActorObservableConsequence,
+            surface_disposition: SurfaceDisposition::Embodied,
+            disposition_rationale:
+                "continue_routine resolves the active intention's current actor-known move step instead of deriving work from workplace context",
+            fixture_ids: vec!["ordinary_workday_001"],
+            viewer_actor: "actor_tomas",
+            setup_operation: SetupOperation::ContinueRoutineActiveIntention,
+            registry_action_id: Some("continue_routine"),
+            typed_witness: Witness {
+                kind: WitnessKind::TypedCausal,
+                assertion:
+                    "continue_routine emits ContinueRoutineProposed and ActorMoved to workshop_tomas without WorkBlockStarted",
+            },
+            actor_knowledge_witness: Witness {
+                kind: WitnessKind::ActorKnowledge,
+                assertion:
+                    "the target comes from actor_tomas's active intention and actor-known route, not hidden truth or inactive assignment",
+            },
+            rendered_witness: Some(Witness {
+                kind: WitnessKind::RenderedText,
+                assertion:
+                    "rendered embodied state shows workshop_tomas after continuation and omits hidden workplace truth",
+            }),
+            golden_path: None,
+            anti_leak_fixtures: vec!["embodied_continue_hidden_workplace_001"],
+            replay_evidence: EvidenceFlag::Required,
+            no_human_evidence: EvidenceFlag::Required,
+        },
+        CapabilityEntry {
+            key: "spec0058.routine.embodied_continue_temporal_authority",
+            ownership_scope: OwnershipScope::FuturePack {
+                namespace: "spec0058_embodied_routine_continuation_foundational_alignment",
+            },
+            capability_class: CapabilityClass::ActorObservableConsequence,
+            surface_disposition: SurfaceDisposition::Embodied,
+            disposition_rationale:
+                "continue_routine temporal follow-on risk is surfaced as typed stuck authority rather than direct time advancement",
+            fixture_ids: vec!["ordinary_workday_001"],
+            viewer_actor: "actor_tomas",
+            setup_operation: SetupOperation::ContinueRoutineTemporalAuthority,
+            registry_action_id: Some("continue_routine"),
+            typed_witness: Witness {
+                kind: WitnessKind::TypedCausal,
+                assertion:
+                    "second continue_routine returns RoutineStepBlocked with StuckDiagnosticRecorded and no ActorWaited",
+            },
+            actor_knowledge_witness: Witness {
+                kind: WitnessKind::ActorKnowledge,
+                assertion:
+                    "the rejected temporal authority branch is rendered as actor-known why-not, not a hidden scheduler shortcut",
+            },
+            rendered_witness: Some(Witness {
+                kind: WitnessKind::RenderedText,
+                assertion:
+                    "rendered embodied state carries an actor-safe Why-not after the typed stuck branch",
+            }),
+            golden_path: None,
+            anti_leak_fixtures: vec!["embodied_continue_hidden_workplace_001"],
+            replay_evidence: EvidenceFlag::Required,
+            no_human_evidence: EvidenceFlag::Required,
+        },
         semantic_action_entry(ActionEntrySpec {
             action_id: "eat",
             fixture_id: "no_human_day_001",

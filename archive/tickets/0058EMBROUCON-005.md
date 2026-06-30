@@ -1,6 +1,6 @@
 # 0058EMBROUCON-005: TUI parity rows and de-authority lock
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — adds `spec0058.*` parity rows + scenario measurement; possible anti-leak fixture
@@ -82,3 +82,21 @@ Reuse `embodied_continue_hidden_workplace_001` or add a `spec0058` anti-leak fix
 
 1. `cargo test -p tracewake-tui spec0058`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-30
+
+- Added two `spec0058.*` parity rows under `spec0058_embodied_routine_continuation_foundational_alignment`:
+  - `spec0058.routine.embodied_continue_active_intention_current_step`
+  - `spec0058.routine.embodied_continue_temporal_authority`
+- Both rows are `ActorObservableConsequence` / `Embodied`, require replay and no-human evidence, and declare `embodied_continue_hidden_workplace_001` as anti-leak coverage.
+- Added scenario operations for active-intention continuation and temporal-authority typed-stuck measurement. The active-intention row measures `ContinueRoutineProposed` + `ActorMoved` to `workshop_tomas` with no `WorkBlockStarted`; the temporal row measures rejected `continue_routine` with `RoutineStepBlocked`, `StuckDiagnosticRecorded`, and no `ActorWaited`.
+- Added runner load-bearing checks for both spec0058 rows and a targeted `spec0058_routine_parity_rows_measure_real_scenarios` test so `cargo test -p tracewake-tui spec0058` exercises the real scenario evidence.
+- `crates/tracewake-tui/src/app.rs` was not touched; no TUI-side simulation authority, target repair, routine-family selection, or hidden-truth checks were added.
+
+Verification:
+
+- `cargo test -p tracewake-tui spec0058` passed.
+- `cargo fmt --all --check` passed.
+- `cargo test --workspace` passed.
