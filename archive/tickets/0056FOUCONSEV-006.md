@@ -1,6 +1,6 @@
 # 0056FOUCONSEV-006: Standing mutation campaign — run and record
 
-**Status**: PENDING
+**Status**: COMPLETE
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: None
@@ -84,3 +84,33 @@ Run a final full standing campaign from a clean baseline only after the survivor
 3. `cargo mutants --iterate` — after batched survivor fixes, reuse the prior `mutants.out` state to focus on remaining missed/time-out work rather than restarting the full denominator.
 4. `cargo mutants` — final clean-baseline standing campaign after convergence; this is the canonical green proof if and only if no live survivor remains.
 5. `cargo test --workspace` — confirm the clean baseline before standing runs (mutation evidence is only meaningful over a green tree).
+
+## Outcome
+
+Completed: 2026-06-30
+
+The standing mutation campaign was executed to current evidence instead of carrying forward the historical `0054` count. The campaign initially discovered one survivor after previously classified mutants were reused:
+
+- `cargo mutants --workspace --no-shuffle --iterate` at `5d3f934`: `1571 mutants tested in 3h: 1 missed, 1192 caught, 378 unviable`; `previously_caught.txt` carried 2044 prior caught/unviable classifications, for a 3615-mutant disposition. `timeout.txt` was empty.
+- Survivor: `crates/tracewake-core/src/runtime/session.rs:242:9: replace LoadedWorldRuntime::actor_exists -> bool with true`.
+- Fix commit: `37062d6 Kill actor exists mutation survivor`, adding a public runtime witness that known actors return true and absent actors return false.
+
+Focused verification after the survivor fix:
+
+- `cargo test --locked -p tracewake-core runtime::session::tests::actor_exists_reports_known_and_absent_actors` passed.
+- `cargo fmt --all --check` passed.
+- `cargo mutants --no-config --file crates/tracewake-core/src/runtime/session.rs -F actor_exists --list` listed the two expected `actor_exists` mutants.
+- `cargo mutants --no-config --file crates/tracewake-core/src/runtime/session.rs -F actor_exists` passed: `2 mutants tested in 2m: 2 caught`.
+
+The full standing campaign was not rebooted after the survivor. The existing `mutants.out` state was reused:
+
+- `cargo mutants --workspace --no-shuffle --iterate` at `37062d6`: `INFO Iteration excludes 3614 previously caught or unviable mutants`; `Found 1 mutant to test`; result `1 mutant tested in 2m: 1 caught`.
+- Convergence disposition: `caught.txt` 1, `missed.txt` 0, `unviable.txt` 0, `timeout.txt` 0, `previously_caught.txt` 3614.
+
+Final canonical clean standing campaign:
+
+- Command: `cargo mutants --workspace --no-shuffle` from a clean temp worktree at `37062d6`.
+- Result: `3451 mutants tested in 6h: 2681 caught, 770 unviable`.
+- Disposition files: `caught.txt` 2681, `missed.txt` 0, `unviable.txt` 770, `timeout.txt` 0.
+
+No survivor remains on the sealed surfaces, no timeout residual remains, and no §5 bounded forcing function is needed. The `food_source` witness remained in the current clean campaign perimeter and no historical `0054` mutation count is used as current green evidence.
