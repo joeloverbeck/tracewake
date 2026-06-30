@@ -1,6 +1,6 @@
 # 0058EMBROUCON-004: Embodied/autonomous metamorphic no-fork proof
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds a core integration test (metamorphic equivalence) + a shared test helper
@@ -79,3 +79,22 @@ Cover: actor at a known workplace while active intention is eat/sleep; hidden wo
 
 1. `cargo test -p tracewake-core --test embodied_autonomous_parity`
 2. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-30
+
+- Added test-support-only actor-known surface builders on `NoHumanActorKnownSurfaceBuilder` for route, food, sleep, and workplace facts. These stay behind `#[cfg(any(test, feature = "test-support"))]` and keep context construction inside the existing no-human surface boundary.
+- Added shared parity helpers in `crates/tracewake-core/tests/support/mod.rs` that build a fixed active-intention state, derive the embodied family from active intention/current method, derive the autonomous baseline with scheduler-style window eligibility, and compare transaction outputs at semantic proposal shape level.
+- Added `crates/tracewake-core/tests/embodied_autonomous_parity.rs` with:
+  - `embodied_continue_and_autonomous_transaction_match_from_equivalent_actor_known_state`
+  - actor-at-known-workplace while active intention is eat, proving no workplace shortcut
+  - hidden-workplace-absent variant, proving neither path selects hidden truth
+  - inactive-future, resolved, and other-actor execution decoys, proving no divergence
+- The comparison checks action id, actor id, target ids, routine template/execution parameters, local-plan presence, ancestry length, decision outcome, and hidden-truth audit.
+
+Verification:
+
+- `cargo fmt --all --check` passed.
+- `cargo test -p tracewake-core --test embodied_autonomous_parity` passed.
+- `cargo test --workspace` passed.
