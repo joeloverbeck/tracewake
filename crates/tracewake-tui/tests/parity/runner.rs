@@ -308,6 +308,7 @@ fn validate_entry(
         | SetupOperation::HumanWaitOneTick
         | SetupOperation::StartSleepThenAdvanceUntil { .. }
         | SetupOperation::MoveWorkThenAdvanceUntil { .. }
+        | SetupOperation::ContinueRoutineWorkday { .. }
         | SetupOperation::StartSleepThenWaitConflict
         | SetupOperation::AdvanceNoHuman
         | SetupOperation::RenderNotebook
@@ -374,6 +375,19 @@ fn validate_load_bearing_measurements(
                 measured.autonomous_work && measured.marker_counted,
                 "missing_measured_no_human_work",
                 "no-human autonomy witness must measure autonomous work and markers",
+            );
+        }
+        "spec0057.routine.embodied_continue_workday" => {
+            require_measured(
+                &key,
+                failures,
+                measured.frontier_advanced
+                    && measured.marker_counted
+                    && measured.autonomous_work
+                    && measured.duration_terminal
+                    && measured.typed_stop_reason,
+                "missing_measured_continue_workday",
+                "embodied continue-routine witness must measure move, work, marker, and terminal progress",
             );
         }
         _ => {}

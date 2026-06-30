@@ -65,6 +65,39 @@ pub fn entries() -> Vec<CapabilityEntry> {
             golden_path: "crates/tracewake-tui/tests/goldens/action_continue_routine.txt",
             anti_leak_fixtures: Vec::new(),
         }),
+        CapabilityEntry {
+            key: "spec0057.routine.embodied_continue_workday",
+            ownership_scope: OwnershipScope::FuturePack {
+                namespace: "spec0057_embodied_routine_continuation",
+            },
+            capability_class: CapabilityClass::ActorObservableConsequence,
+            surface_disposition: SurfaceDisposition::Embodied,
+            disposition_rationale:
+                "continue_routine reaches the same move-to-work and work-block consequences through the possessed TUI surface",
+            fixture_ids: vec!["ordinary_workday_001"],
+            viewer_actor: "actor_tomas",
+            setup_operation: SetupOperation::ContinueRoutineWorkday { max_ticks: 8 },
+            registry_action_id: Some("continue_routine"),
+            typed_witness: Witness {
+                kind: WitnessKind::TypedCausal,
+                assertion:
+                    "two continue_routine submissions emit ContinueRoutineProposed, ActorMoved, and WorkBlockStarted before terminal work completion",
+            },
+            actor_knowledge_witness: Witness {
+                kind: WitnessKind::ActorKnowledge,
+                assertion:
+                    "actor_tomas reaches work from actor-known routine context without hidden target selection",
+            },
+            rendered_witness: Some(Witness {
+                kind: WitnessKind::RenderedText,
+                assertion:
+                    "rendered embodied state shows the post-work actor-known interval without debug truth",
+            }),
+            golden_path: None,
+            anti_leak_fixtures: vec!["embodied_continue_hidden_workplace_001"],
+            replay_evidence: EvidenceFlag::Required,
+            no_human_evidence: EvidenceFlag::Required,
+        },
         semantic_action_entry(ActionEntrySpec {
             action_id: "eat",
             fixture_id: "no_human_day_001",

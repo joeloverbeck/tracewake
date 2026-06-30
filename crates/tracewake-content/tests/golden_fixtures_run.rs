@@ -62,6 +62,10 @@ const FROZEN_FIXTURE_FINGERPRINTS: &[(&str, &str)] = &[
     ("debug_omniscience_excluded_001", "twf1-87f6032bf6fbdfba"),
     ("door_access_001", "twf1-eb38689018fcec34"),
     (
+        "embodied_continue_hidden_workplace_001",
+        "twf1-2ab3b743e6eeb2e9",
+    ),
+    (
         "embodied_exits_require_perceived_or_known_route_001",
         "twf1-2fd542c243164d0b",
     ),

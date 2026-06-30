@@ -137,6 +137,51 @@ fn run_real_pipeline_with_app(
             rendered = app.render_current_view().map_err(ScenarioError::from)?;
             measure_advance_until(&mut measured, &app, &result);
         }
+        SetupOperation::ContinueRoutineWorkday { max_ticks } => {
+            let first_continue = semantic_action_for_action(
+                &app.current_view().map_err(ScenarioError::from)?,
+                "continue_routine",
+            )?;
+            assert_render_contains_action(entry, &rendered, first_continue.as_str());
+            let moved = app
+                .submit_semantic_action(&first_continue)
+                .map_err(ScenarioError::from)?;
+
+            let second_continue = semantic_action_for_action(
+                &app.current_view().map_err(ScenarioError::from)?,
+                "continue_routine",
+            )?;
+            let worked = app
+                .submit_semantic_action(&second_continue)
+                .map_err(ScenarioError::from)?;
+            submitted_status = Some(worked.report.status.clone());
+
+            let moved_by_continue = moved.report.status == ReportStatus::Accepted
+                && moved
+                    .appended_events
+                    .iter()
+                    .any(|event| event.event_type == EventKind::ContinueRoutineProposed)
+                && moved
+                    .appended_events
+                    .iter()
+                    .any(|event| event.event_type == EventKind::ActorMoved);
+            let worked_by_continue = worked.report.status == ReportStatus::Accepted
+                && worked
+                    .appended_events
+                    .iter()
+                    .any(|event| event.event_type == EventKind::ContinueRoutineProposed)
+                && worked
+                    .appended_events
+                    .iter()
+                    .any(|event| event.event_type == EventKind::WorkBlockStarted);
+
+            let result = app.advance_until(max_ticks).map_err(ScenarioError::from)?;
+            rendered = app.render_current_view().map_err(ScenarioError::from)?;
+            measure_advance_until(&mut measured, &app, &result);
+            measured.typed = moved_by_continue && worked_by_continue && measured.typed;
+            measured.marker_counted = moved_by_continue && worked_by_continue;
+            measured.autonomous_work = worked_by_continue;
+        }
         SetupOperation::StartSleepThenWaitConflict => {
             submit_semantic_action_by_id(&mut app, "sleep.here")?;
             let view = app.current_view().map_err(ScenarioError::from)?;

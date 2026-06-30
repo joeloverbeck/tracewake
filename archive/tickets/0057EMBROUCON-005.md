@@ -1,6 +1,6 @@
 # 0057EMBROUCON-005: Parity entry, embodied go-to-work golden, and firewall/replay fixtures
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — a new hidden-truth firewall fixture in `tracewake-content` plus its census/golden registration, and embodied go-to-work golden + playable-capability parity + possession-parity tests in `tracewake-tui`
@@ -91,3 +91,25 @@ Add the embodied routine-continuation capability entry (`parity/census_actions.r
 1. `cargo test --locked -p tracewake-content --test golden_fixtures_run --test fixtures_load` — new fixture census + golden + replay.
 2. `cargo test --locked -p tracewake-tui --test embodied_flow --test playable_capability_parity --test tui_acceptance` — embodied golden, parity, possession.
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace` — four-gate suite.
+
+## Outcome
+
+Completed: 2026-06-30
+
+Implemented the hidden-truth firewall fixture `embodied_continue_hidden_workplace_001`, registered it through the fixture module and frozen fixture fingerprint table, and added it to the workspace source classification guard. Extended the embodied routine golden so possessed `actor_tomas` continues through movement, work start, work completion, and replay rebuild. Added a TUI firewall test proving hidden-only workplace truth yields a typed `RoutineStepBlocked` rejection plus stuck diagnostic without `ActorMoved` or `WorkBlockStarted`. Added the `spec0057.routine.embodied_continue_workday` playable-capability parity entry and scenario operation, measuring `ContinueRoutineProposed`, `ActorMoved`, `WorkBlockStarted`, terminal work progress, replay, and no-hidden-truth actor rendering. Added `possession_rebind_preserves_next_routine_step` to prove controller rebinding preserves the surfaced next routine step, routine status, and physical checksum.
+
+Deviation from plan: the current `fixtures_load.rs` path list is a legacy blanket-known-food-helper allowlist, not a general per-fixture source census. The new fixture intentionally does not use that helper and was therefore not added to that allowlist; registration and deterministic fixture coverage are through `fixtures::all()`, validation, and the frozen fingerprint table.
+
+Verification:
+
+- `cargo test --locked -p tracewake-content --test fixtures_load`
+- `cargo test --locked -p tracewake-content --test golden_fixtures_run`
+- `cargo test --locked -p tracewake-tui --test embodied_flow`
+- `cargo test --locked -p tracewake-tui --test playable_capability_parity`
+- `cargo test --locked -p tracewake-tui --test tui_acceptance possession_rebind_preserves_next_routine_step`
+- `cargo test --locked -p tracewake-content`
+- `cargo test --locked -p tracewake-tui`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

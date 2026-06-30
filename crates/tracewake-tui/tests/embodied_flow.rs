@@ -190,6 +190,14 @@ fn continue_routine_commits_embodied_follow_on_move_and_work() {
     let after_work_log = app.render_debug_event_log_panel();
     assert!(after_work_log.contains("work_block_started"));
     assert!(after_work_log.matches("continue_routine_proposed").count() >= 2);
+
+    let advanced = app.advance_until(8).unwrap();
+    assert!(advanced.advanced());
+    let after_completion_log = app.render_debug_event_log_panel();
+    assert!(after_completion_log.contains("work_block_completed"));
+    assert!(app
+        .render_debug_projection_rebuild_panel()
+        .contains("diffs=0"));
 }
 
 #[test]
@@ -232,6 +240,52 @@ fn continue_routine_blocked_follow_on_returns_typed_stuck_diagnostic() {
         .appended_events
         .iter()
         .any(|event| event.event_type == EventKind::WorkBlockStarted));
+}
+
+#[test]
+fn continue_routine_hidden_workplace_returns_actor_known_blocker_without_truth_move() {
+    let mut app = TuiApp::from_golden(fixtures::embodied_continue_hidden_workplace_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+    let before_checksum = app.physical_checksum();
+    let before_rendered = app.render_current_view().unwrap();
+    assert!(!before_rendered.contains("hidden_workshop"));
+    assert!(!before_rendered.contains("workplace_hidden"));
+
+    let continue_id = current_continue_routine_id(&mut app);
+    let continued = app.submit_semantic_action(&continue_id).unwrap();
+
+    assert_eq!(continued.report.status, ReportStatus::Rejected);
+    assert_eq!(continued.report.action_id.as_str(), "continue_routine");
+    assert!(continued
+        .report
+        .reason_codes
+        .contains(&ReasonCode::RoutineStepBlocked));
+    assert!(continued
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::ContinueRoutineProposed));
+    assert!(continued
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::StuckDiagnosticRecorded));
+    assert!(!continued
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::ActorMoved));
+    assert!(!continued
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::WorkBlockStarted));
+    assert_eq!(
+        app.physical_checksum(),
+        before_checksum,
+        "hidden truth must not drive a physical move"
+    );
+    let after_rendered = app.render_current_view().unwrap();
+    assert!(after_rendered.contains("Why-not:"));
+    assert!(!after_rendered.contains("hidden_workshop"));
+    assert!(!after_rendered.contains("workplace_hidden"));
 }
 
 #[test]

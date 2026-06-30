@@ -894,6 +894,35 @@ fn positive_proof_fixtures_emit_typed_artifacts_first() {
 }
 
 #[test]
+fn possession_rebind_preserves_next_routine_step() {
+    let mut app = TuiApp::from_golden(fixtures::possession_does_not_reset_intention_001()).unwrap();
+    let actor_mara = ActorId::new("actor_mara").unwrap();
+    app.bind_actor(actor_mara.clone()).unwrap();
+    let before_view = app.current_view().unwrap();
+    let before_continue = before_view
+        .semantic_actions
+        .iter()
+        .find(|action| action.action_id.as_str() == "continue_routine")
+        .expect("actor_mara starts with a continue-routine step")
+        .clone();
+    let before_status = before_view.phase3a_status.clone();
+    let before_checksum = app.physical_checksum();
+
+    app.bind_actor(actor_mara).unwrap();
+
+    let after_view = app.current_view().unwrap();
+    let after_continue = after_view
+        .semantic_actions
+        .iter()
+        .find(|action| action.action_id.as_str() == "continue_routine")
+        .expect("rebound actor_mara still surfaces the continue-routine step")
+        .clone();
+    assert_eq!(after_continue, before_continue);
+    assert_eq!(after_view.phase3a_status, before_status);
+    assert_eq!(app.physical_checksum(), before_checksum);
+}
+
+#[test]
 fn phase3a_debug_surfaces_render_deterministically_and_read_only() {
     let mut app = TuiApp::from_golden_operator_debug(fixtures::no_human_day_001()).unwrap();
     app.bind_actor(ActorId::new("actor_tomas").unwrap())
