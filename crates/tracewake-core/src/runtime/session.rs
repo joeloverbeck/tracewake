@@ -949,6 +949,16 @@ mod tests {
     }
 
     #[test]
+    fn actor_exists_reports_known_and_absent_actors() {
+        let runtime = loaded_runtime();
+        let known_actor_id = ActorId::new("actor_runtime").unwrap();
+        let absent_actor_id = ActorId::new("actor_absent").unwrap();
+
+        assert!(runtime.actor_exists(&known_actor_id));
+        assert!(!runtime.actor_exists(&absent_actor_id));
+    }
+
+    #[test]
     fn replay_seed_command_rebuilds_scheduler_from_owned_log() {
         let mut runtime = loaded_runtime();
         runtime
