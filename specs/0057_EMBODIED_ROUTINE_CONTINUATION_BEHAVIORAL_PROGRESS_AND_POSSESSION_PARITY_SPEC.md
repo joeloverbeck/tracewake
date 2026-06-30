@@ -17,7 +17,7 @@ progress through the embodied affordance the TUI presents for it.
 
 - **Driver.** Hands-on TUI play during an iterative bug-hunt loop on
   `ordinary_workday_001`, driving the same code path as the interactive TUI
-  (`tracewake-tui/src/run.rs::submit_and_render` → `TuiApp::submit_semantic_action`).
+  (`crates/tracewake-tui/src/run.rs::submit_and_render` → `TuiApp::submit_semantic_action`).
   The reproduction is recorded in §3; it is the originating analysis and mints no doctrine,
   invariant, risk identifier, gate code, or glossary term.
 - **Baseline commit.** Re-verified against repository `HEAD`
@@ -64,7 +64,7 @@ block through the routine affordance, even though:
 **Root cause (two cooperating seams).**
 
 1. `continue_routine` is by design a *marker only*: `build_continue_routine_event`
-   (`tracewake-core/src/actions/defs/continue_routine.rs`) emits `ContinueRoutineProposed`
+   (`crates/tracewake-core/src/actions/defs/continue_routine.rs`) emits `ContinueRoutineProposed`
    with `behavioral_progress=false` and `intention_mutated=false`, effects-summary
    "continue routine marker only; behavioral progress requires next ordinary action". This is
    correct per doctrine (a pure marker is not progress — `docs/2-execution/06` and
@@ -108,7 +108,7 @@ weakening the "a pure `continue_routine` marker is not progress" rule.
    typed rejection / why-not or a modeled wait / typed stuck record — never a silent Accepted
    no-op. Repeated submission inside one routine window without progress must be eligible for
    the same cross-tick stuck detection the no-human path uses
-   (`past_expected_progress_window`, `repeated_idle`), so an embodied player is not silently
+   (`past_expected_progress_window`, `repeated_idle_wait`), so an embodied player is not silently
    wedged.
 4. **Possession parity of routine capability.** Whatever routine behavioral progress an
    autonomous actor can make from a given actor-known state, a possessed actor can make from
@@ -148,7 +148,11 @@ weakening the "a pure `continue_routine` marker is not progress" rule.
 - **INV-099 — Truth may validate actions but may not plan them.** The follow-on target must be
   resolved from actor-known context, never from hidden truth.
 - **`docs/0-foundation/12` line ≈533** places "follow/interrupt routines" inside embodied-play
-  scope; line ≈557 requires behavioral-progress evidence for possessed actions.
+  scope; the truth-firewall gate (≈line 557) requires every salient possessed action to show,
+  as acceptance evidence, the actor-known context used for proposal generation and provenance
+  for its cognition inputs — reinforcing the §4.1 INV-099 resolution. (The behavioral-progress
+  requirement itself is carried by the next bullet's `docs/1-architecture/04` /
+  `docs/2-execution/06` anchors, not line ≈557.)
 - **`docs/1-architecture/04` / `docs/2-execution/06`**: a pure `continue_routine` marker is not
   behavioral progress; progress is a committed ordinary action, a modeled wait with typed
   reason, a duration terminal, or a typed stuck/failure record.
@@ -160,9 +164,13 @@ weakening the "a pure `continue_routine` marker is not progress" rule.
 
 Driving `TuiApp` against `ordinary_workday_001` / `actor_tomas` (the `run.rs` path):
 
-- Initial embodied view offers `continue.routine.intention_tomas_go_work`
-  (`action_id=continue_routine`, enabled), `move.to.workshop_tomas` (`action_id=move`),
-  `sleep.here`, `wait.1_tick`. Intention `active:routine_tomas_go_to_work:move`.
+- Initial embodied view offers `continue.routine.<intention_id>` for the active
+  `routine_tomas_go_to_work` intention (`action_id=continue_routine`, enabled),
+  `move.to.workshop_tomas` (`action_id=move`), `sleep.here`, `wait.1_tick`. Intention
+  `active:routine_tomas_go_to_work:move`. (The `<intention_id>` is runtime-derived from the
+  routine assignment, not authored in `ordinary_workday_001`; the §6 golden must read it from
+  the live view rather than hardcode it. Note that `intention_tomas_go_work` /
+  `routine_tomas_go_work` belong to the separate `no_human_day_001` fixture, not this one.)
 - Submitting `continue.routine.*` → **Accepted**, `+4` events (marker + epistemic/world
   bookkeeping), but place stays `home_tomas`, intention stays `:move`, needs unchanged. 38
   consecutive submissions: no movement, no time progress observed in the embodied view.
@@ -181,7 +189,7 @@ shared actor-known resolution.
 
 ## 4. Findings and remediation requirements
 
-### 4.1 Shared actor-known routine-step resolver (seam: `tracewake-core/src/agent/`)
+### 4.1 Shared actor-known routine-step resolver (seam: `crates/tracewake-core/src/agent/`)
 Factor the autonomous routine-step → ordinary-action(+target) resolution so it is callable
 for an embodied submission against a named intention's `current_step`, returning a typed
 result: a resolved ordinary `Proposal` (action id + actor-known target ids), or a typed
@@ -189,27 +197,29 @@ blocker (precondition/route/workplace/need/terminal), or a modeled-wait directiv
 consume only actor-known context (the same generation boundary the planner uses) and must be
 the *same* resolution the autonomous path uses, not a parallel copy.
 
-### 4.2 Embodied continuation commits the follow-on (seams: `tracewake-tui/src/app.rs`,
-`tracewake-core` command surface)
-When a possessed actor submits `Continue routine` for an active routine intention,
-`submit_entry`/the runtime command must, in one embodied transaction: (a) commit the
+### 4.2 Embodied continuation commits the follow-on (seam: `tracewake-core` runtime command surface; `crates/tracewake-tui/src/app.rs` forwards only)
+When a possessed actor submits `Continue routine` for an active routine intention, the **core
+runtime command** (not the TUI) must, in one embodied transaction: (a) commit the
 `ContinueRoutineProposed` marker as today, and (b) commit the §4.1 resolved follow-on ordinary
 action through the shared action pipeline (or record its typed block / modeled wait). The
-action receipt returned to the TUI must reflect the follow-on outcome (moved / work started /
-why-not / waited / stuck), not merely "Accepted" for the marker.
+marker+follow-on sequencing lives in the core command surface so no simulation authority moves
+into the TUI boundary (INV-008, INV-069); `submit_entry` only forwards the entry and surfaces
+the returned receipt. That action receipt returned to the TUI must reflect the follow-on
+outcome (moved / work started / why-not / waited / stuck), not merely "Accepted" for the
+marker.
 
 ### 4.3 No silent wedge; embodied stuck eligibility (seam: stuck detection)
 An embodied routine continuation that cannot progress must surface a typed why-not or a
 modeled wait, and repeated no-progress continuations within one routine window must be
 eligible for the existing cross-tick stuck diagnostics (`past_expected_progress_window`,
-`repeated_idle`) on the same terms as the no-human path.
+`repeated_idle_wait`) on the same terms as the no-human path.
 
-### 4.4 Marker invariants preserved (seam: `actions/defs/continue_routine.rs`)
+### 4.4 Marker invariants preserved (seam: `crates/tracewake-core/src/actions/defs/continue_routine.rs`)
 `continue_routine` keeps `behavioral_progress=false` / `intention_mutated=false`. No code may
 count the marker as progress. The progress of record is the committed follow-on, asserted by
 ancestry to the marker's `intention_id` and the routine step.
 
-### 4.5 Parity surface extension (seam: spec-0046 parity registry/tests, `parity/`)
+### 4.5 Parity surface extension (seam: spec-0046 parity registry/tests, `crates/tracewake-tui/tests/parity/`)
 Add a playable-capability parity entry proving embodied routine continuation reaches the same
 routine behavioral progress as the autonomous path for at least the go-to-work→work_block
 chain, and that controller bind/unbind does not change the next routine step.
@@ -281,9 +291,16 @@ passing, and the named exact implementation commit. No certification gate is cla
   a unit test must pin identical output for a fixed actor-known state.
 - **R3 — Stop-reason interaction.** Surfacing the follow-on receipt must not change
   `advance_until` stop-reason semantics from `0047`.
-- **OQ1 — Multiple active intentions.** `ordinary_workday_001` shows two active intentions
-  (`go_work`, `work`); confirm the embodied `Continue routine` targets the intention named in
-  the entry's `target_ids[0]`, not an arbitrary active one.
+- **OQ1 — Intention selection under windowed assignments.** `ordinary_workday_001` assigns two
+  *time-windowed* routines (`routine_tomas_go_to_work` ticks 4–8, `routine_tomas_work_block`
+  ticks 8–14), but the authoritative model holds exactly one active intention per actor at a
+  time (`active_intention_by_actor: BTreeMap<ActorId, IntentionId>` in
+  `crates/tracewake-core/src/state.rs`), and the marker already rejects any proposal whose
+  intention does not equal that single authoritative active intention
+  (`crates/tracewake-core/src/actions/defs/continue_routine.rs`). Confirm the embodied
+  `Continue routine` resolves its follow-on from that single authoritative active intention's
+  `current_step`, and that the entry's `target_ids[0]` equals it — not from an
+  assigned-but-inactive routine.
 
 ## 10. Invariants alignment
 
