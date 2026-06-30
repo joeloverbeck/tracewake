@@ -178,6 +178,18 @@ if (options.activeSpec) {
 }
 if (options.archivedSpec) {
   ok = testPath(`Archived spec present: ${options.archivedSpec}`, ["-e", options.archivedSpec]) && ok;
+  ok = run(
+    "Archived spec Outcome heading",
+    "rg",
+    ["--files-without-match", "^## Outcome", options.archivedSpec],
+    [1],
+  ) && ok;
+  ok = run(
+    "Archived spec Completed line",
+    "rg",
+    ["--files-without-match", "^Completed: ", options.archivedSpec],
+    [1],
+  ) && ok;
 }
 if (options.activeReport) {
   ok = testPath(`Active report absent: ${options.activeReport}`, ["!", "-e", options.activeReport]) && ok;

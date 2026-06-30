@@ -3,6 +3,7 @@
 pub mod actions;
 pub mod agent;
 pub mod checksum;
+pub mod content;
 pub mod controller;
 pub mod debug_capability;
 pub mod debug_reports;

@@ -124,7 +124,7 @@ impl From<WorldAdvanceError> for RuntimeCommandError {
 
 impl ValidatedLoadedWorldBootstrap {
     #[allow(clippy::too_many_arguments)]
-    pub fn from_validated_content(
+    pub(crate) fn from_validated_content(
         registry: ActionRegistry,
         physical_state: PhysicalState,
         agent_state: AgentState,
@@ -145,6 +145,30 @@ impl ValidatedLoadedWorldBootstrap {
             fixture_id,
             content_version,
         })
+    }
+
+    #[cfg(feature = "test-support")]
+    #[allow(clippy::too_many_arguments)]
+    pub fn from_test_content(
+        registry: ActionRegistry,
+        physical_state: PhysicalState,
+        agent_state: AgentState,
+        event_log: EventLog,
+        epistemic_projection: EpistemicProjection,
+        content_manifest_id: ContentManifestId,
+        fixture_id: FixtureId,
+        content_version: ContentVersion,
+    ) -> Self {
+        Self::from_validated_content(
+            registry,
+            physical_state,
+            agent_state,
+            event_log,
+            epistemic_projection,
+            content_manifest_id,
+            fixture_id,
+            content_version,
+        )
     }
 
     pub fn replay_seed(&self) -> RuntimeReplaySeed {
@@ -239,10 +263,6 @@ impl LoadedWorldRuntime {
     ) -> Option<DebugSessionAuthority> {
         (authority.debug_only() && self.controller_debug_available_for(controller_id, actor_id))
             .then(|| authority.clone())
-    }
-
-    pub fn local_operator_debug_authority(&self) -> DebugSessionAuthority {
-        DebugSessionAuthority::mint()
     }
 
     pub fn embodied_view_model(
@@ -929,6 +949,16 @@ mod tests {
     }
 
     #[test]
+    fn actor_exists_reports_known_and_absent_actors() {
+        let runtime = loaded_runtime();
+        let known_actor_id = ActorId::new("actor_runtime").unwrap();
+        let absent_actor_id = ActorId::new("actor_absent").unwrap();
+
+        assert!(runtime.actor_exists(&known_actor_id));
+        assert!(!runtime.actor_exists(&absent_actor_id));
+    }
+
+    #[test]
     fn replay_seed_command_rebuilds_scheduler_from_owned_log() {
         let mut runtime = loaded_runtime();
         runtime
@@ -1023,7 +1053,7 @@ mod tests {
                 actor_id.clone(),
             ))
             .unwrap();
-        let authority = runtime.local_operator_debug_authority();
+        let authority = DebugSessionAuthority::mint();
         assert!(
             runtime
                 .debug_session_authority_for(&authority, &controller_id, &actor_id)

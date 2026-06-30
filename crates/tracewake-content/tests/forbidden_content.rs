@@ -18,7 +18,7 @@ use tracewake_core::events::log::EventLog;
 use tracewake_core::ids::{ActionId, BeliefId, EventId, ItemId, SchemaVersion, SemanticActionId};
 use tracewake_core::time::SimTick;
 
-const VALIDATE_RS: &str = include_str!("../src/validate.rs");
+const VALIDATE_RS: &str = include_str!("../../tracewake-core/src/content/validate.rs");
 
 fn registry() -> ActionRegistry {
     let mut registry = ActionRegistry::new();
@@ -244,7 +244,7 @@ fn validator_branch_matrix_locks_fail_closed_validate_rs_guards() {
         "for(index,item)infixture.items.iter().enumerate(){match&item.location{Location::AtPlace(place_id)if!places.contains(place_id)=>missing(",
         "Location::InContainer(container_id)if!containers.contains(container_id)=>missing(errors,ValidationPhase::Referential,format!(\"items[{index}].location\"),container_id.as_str()",
         "Location::CarriedBy(actor_id)if!actors.contains(actor_id)=>missing(errors,ValidationPhase::Referential,format!(\"items[{index}].location\"),actor_id.as_str()",
-        "fnvalidate_location_reference(location:&Location,actors:&BTreeSet<tracewake_core::ids::ActorId>,places:&BTreeSet<PlaceId>,containers:&BTreeSet<tracewake_core::ids::ContainerId>,errors:&mutVec<ContentValidationError>,path:String,){matchlocation{Location::AtPlace(place_id)if!places.contains(place_id)=>missing(",
+        "fnvalidate_location_reference(location:&Location,actors:&BTreeSet<crate::ids::ActorId>,places:&BTreeSet<PlaceId>,containers:&BTreeSet<crate::ids::ContainerId>,errors:&mutVec<ContentValidationError>,path:String,){matchlocation{Location::AtPlace(place_id)if!places.contains(place_id)=>missing(",
         "Location::InContainer(container_id)if!containers.contains(container_id)=>missing(errors,ValidationPhase::Referential,path,container_id.as_str()",
         "Location::CarriedBy(actor_id)if!actors.contains(actor_id)=>missing(errors,ValidationPhase::Referential,path,actor_id.as_str()",
         "validate_topology(fixture,&muterrors);",
@@ -669,7 +669,7 @@ fn valid_seed(id: &str) -> InitialBeliefSchema {
 }
 
 fn fixture_schema_fields() -> BTreeSet<&'static str> {
-    let schema_source = include_str!("../src/schema.rs");
+    let schema_source = include_str!("../../tracewake-core/src/content/schema.rs");
     let start = schema_source
         .find("pub struct FixtureSchema")
         .expect("FixtureSchema exists");

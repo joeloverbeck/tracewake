@@ -2,7 +2,7 @@ use tracewake_content::fixtures::{self, GoldenFixture};
 use tracewake_content::load::{load_fixture_package, LoadError};
 use tracewake_core::actions::{ActionRegistry, ReportStatus, ValidationReport};
 use tracewake_core::checksum::PhysicalChecksum;
-use tracewake_core::debug_capability::DebugSessionAuthority;
+use tracewake_core::debug_capability::{DebugSessionAuthority, LocalOperatorDebugAuthority};
 use tracewake_core::ids::{
     ActorId, ContentManifestId, ContentVersion, ControllerId, DebugReportId, ItemId,
     SemanticActionId,
@@ -57,6 +57,7 @@ pub struct TuiApp {
     runtime: LoadedWorldRuntime,
     controller_id: ControllerId,
     bound_actor_id: Option<ActorId>,
+    operator_debug_authority: Option<LocalOperatorDebugAuthority>,
     debug_authority: Option<DebugSessionAuthority>,
     last_rejection: Option<ValidationReport>,
     last_interval_summary: Option<TypedActorKnownIntervalSummary>,
@@ -91,10 +92,22 @@ impl TuiApp {
             runtime,
             controller_id: ControllerId::new("controller_human").unwrap(),
             bound_actor_id: None,
+            operator_debug_authority: None,
             debug_authority: None,
             last_rejection: None,
             last_interval_summary: None,
         })
+    }
+
+    pub fn from_golden_operator_debug(golden: GoldenFixture) -> Result<Self, AppError> {
+        let mut app = Self::from_golden(golden)?;
+        app.operator_debug_authority =
+            Some(LocalOperatorDebugAuthority::for_local_operator_launch());
+        Ok(app)
+    }
+
+    pub fn load_default_operator_debug() -> Result<Self, AppError> {
+        Self::from_golden_operator_debug(fixtures::strongbox_001())
     }
 
     pub fn bind_actor(&mut self, actor_id: ActorId) -> Result<(), AppError> {
@@ -102,7 +115,11 @@ impl TuiApp {
     }
 
     pub fn bind_debug_actor(&mut self, actor_id: ActorId) -> Result<(), AppError> {
-        let authority = self.runtime.local_operator_debug_authority();
+        let authority = self
+            .operator_debug_authority
+            .as_ref()
+            .ok_or(AppError::DebugUnavailable)?
+            .session_authority();
         self.bind_actor_with_mode(actor_id, ControllerMode::Debug, Some(authority))
     }
 
@@ -427,7 +444,7 @@ mod tests {
 
     #[test]
     fn app_debug_overlay_renders_only_for_bound_debug_controller() {
-        let mut app = TuiApp::load_default().unwrap();
+        let mut app = TuiApp::load_default_operator_debug().unwrap();
         app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())
             .unwrap();
 
@@ -529,7 +546,7 @@ mod tests {
 
     #[test]
     fn rejected_action_surfaces_why_not_from_validation_report() {
-        let mut app = TuiApp::from_golden(fixtures::door_access_001()).unwrap();
+        let mut app = TuiApp::from_golden_operator_debug(fixtures::door_access_001()).unwrap();
         app.bind_actor(ActorId::new("actor_sena").unwrap()).unwrap();
 
         let result = app
@@ -544,7 +561,7 @@ mod tests {
 
     #[test]
     fn app_runs_no_human_day_into_real_log_metrics() {
-        let mut app = TuiApp::from_golden(fixtures::no_human_day_001()).unwrap();
+        let mut app = TuiApp::from_golden_operator_debug(fixtures::no_human_day_001()).unwrap();
         app.bind_debug_actor(ActorId::new("actor_tomas").unwrap())
             .unwrap();
         let before_events = app.event_count();
@@ -559,7 +576,7 @@ mod tests {
 
     #[test]
     fn run_no_human_day_refuses_intrinsically_without_debug_availability() {
-        let mut app = TuiApp::from_golden(fixtures::no_human_day_001()).unwrap();
+        let mut app = TuiApp::from_golden_operator_debug(fixtures::no_human_day_001()).unwrap();
         let before_events = app.event_count();
 
         let result = app.run_no_human_day();
@@ -610,7 +627,7 @@ mod tests {
 
     #[test]
     fn controller_mode_debug_availability_decision_is_explicit() {
-        let mut app = TuiApp::load_default().unwrap();
+        let mut app = TuiApp::load_default_operator_debug().unwrap();
         let actor_id = ActorId::new("actor_tomas").unwrap();
         let other_actor_id = ActorId::new("actor_elena").unwrap();
 

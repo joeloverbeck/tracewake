@@ -11,6 +11,16 @@ const CLOSED_STATUSES: &[&str] = &[
     "not-in-scope",
 ];
 
+const SOLO_MAINTAINER_CONTROL_FIELDS: &[(&str, &str)] = &[
+    ("required_checks_present", "all-standing-required"),
+    ("active_enforcement", "active"),
+    ("bypass_actors", "none"),
+    ("current_user_can_bypass", "never"),
+    ("non_fast_forward_protection", "enabled"),
+    ("deletion_protection", "enabled"),
+    ("strict_required_status_checks_policy", "enabled"),
+];
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ComputedResult {
     Pass,
@@ -86,6 +96,7 @@ struct ParsedManifest {
     expected_findings: Vec<String>,
     branch_protection: String,
     governance_independence: String,
+    solo_maintainer_controls: BTreeMap<String, String>,
     mutation_evidence: String,
     mutation_denominator: String,
     mutation_caught: String,
@@ -154,6 +165,13 @@ fn parse_status_block(block: &str) -> Result<ParsedManifest, String> {
             | "expected_findings"
             | "branch_protection"
             | "governance_independence"
+            | "required_checks_present"
+            | "active_enforcement"
+            | "bypass_actors"
+            | "current_user_can_bypass"
+            | "non_fast_forward_protection"
+            | "deletion_protection"
+            | "strict_required_status_checks_policy"
             | "mutation_evidence"
             | "mutation_denominator"
             | "mutation_caught"
@@ -200,6 +218,14 @@ fn parse_status_block(block: &str) -> Result<ParsedManifest, String> {
     }
     let expected_findings = parse_expected_findings(&scalars["expected_findings"])?;
     let expected_set: BTreeSet<_> = expected_findings.iter().map(String::as_str).collect();
+    let solo_maintainer_controls = SOLO_MAINTAINER_CONTROL_FIELDS
+        .iter()
+        .filter_map(|(field, _expected)| {
+            scalars
+                .remove(*field)
+                .map(|value| ((*field).to_string(), value))
+        })
+        .collect();
 
     let present: BTreeSet<_> = findings.keys().map(String::as_str).collect();
     for required in &expected_findings {
@@ -218,6 +244,7 @@ fn parse_status_block(block: &str) -> Result<ParsedManifest, String> {
         expected_findings,
         branch_protection: scalars.remove("branch_protection").unwrap(),
         governance_independence: scalars.remove("governance_independence").unwrap(),
+        solo_maintainer_controls,
         mutation_evidence: scalars.remove("mutation_evidence").unwrap(),
         mutation_denominator: scalars.remove("mutation_denominator").unwrap(),
         mutation_caught: scalars.remove("mutation_caught").unwrap(),
@@ -288,6 +315,11 @@ fn compute_result(parsed: &ParsedManifest) -> Result<ComputedResult, String> {
     }
     match parsed.governance_independence.as_str() {
         "independent-review" | "last-push-required-reviewer" => {}
+        "solo-maintainer-compensating-control" => {
+            if let Err(_error) = validate_solo_maintainer_controls(parsed) {
+                pass = false;
+            }
+        }
         "pending-governance" | "status-checks-only" | "zero-approval" => pass = false,
         other => return Err(format!("unknown governance_independence: {other}")),
     }
@@ -380,7 +412,28 @@ fn parse_count(field: &str, value: &str) -> Result<u64, String> {
 }
 
 fn governance_is_independent(value: &str) -> bool {
-    matches!(value, "independent-review" | "last-push-required-reviewer")
+    matches!(
+        value,
+        "independent-review"
+            | "last-push-required-reviewer"
+            | "solo-maintainer-compensating-control"
+    )
+}
+
+fn validate_solo_maintainer_controls(parsed: &ParsedManifest) -> Result<(), String> {
+    for (field, expected) in SOLO_MAINTAINER_CONTROL_FIELDS {
+        let Some(actual) = parsed.solo_maintainer_controls.get(*field) else {
+            return Err(format!(
+                "solo-maintainer-compensating-control missing {field}"
+            ));
+        };
+        if actual != expected {
+            return Err(format!(
+                "solo-maintainer-compensating-control requires {field}: {expected}, got {actual}"
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn validate_closed_finding(label: &str, finding: &Finding) -> Result<(), String> {

@@ -115,6 +115,10 @@ For each ticket:
    incomplete run into a pass. Deterministic reruns or narrower variants may be
    useful supplemental evidence, but they do not replace the exact required
    command unless the ticket/spec explicitly allows that substitution.
+   For `cargo mutants`, also follow
+   `references/closeout-edge-cases.md#cargo-mutants-campaigns`: complete the
+   discovery run before remediation, batch survivors, use focused commands plus
+   `cargo mutants --iterate` to converge, and record disk/scratch cleanup facts.
    When reports cite ignored or generated evidence paths such as `target/...`,
    make the cited evidence durable: inline the relevant summary/list content in
    a tracked report, commit a small tracked summary artifact, or label the
@@ -252,6 +256,9 @@ rg --files specs docs/4-specs | rg '<ticket-prefix>|<family-name>'
 
 After all tickets in the series are complete:
 
+Use `references/final-closeout.md` for the detailed pre-gate audit, final-gate,
+commit-role, and post-commit check sequence. Keep the hard stops below in force.
+
 Complete, archive, and commit the final ticket before spec archival when the
 final ticket is ordinary implementation work. If the final ticket is itself the
 capstone acceptance artifact or spec-closeout vehicle, it may be combined with
@@ -302,6 +309,10 @@ deviations in the ticket and spec outcomes.
    appears, check for active Git processes, then retry serially.
 5. Repair active references and ledgers, especially `docs/4-specs/SPEC_LEDGER.md`
    and any implementation-order or index surfaces found in the repo.
+   When the ticket prefix and reference paths are known, run
+   `.agents/skills/ticket-series/scripts/closeout-audit.mjs` now, or run the
+   equivalent checks manually, before the final gates. Run the helper or the
+   same focused checks again after the final commit.
    Use separate concrete sweeps for stale live paths and expected archive
    provenance. First run a strict stale-live-path sweep for the exact live spec,
    report, and ticket paths, for example:
@@ -548,8 +559,10 @@ aligned with this skill's trigger wording and closeout expectations.
 
 - `references/closeout-edge-cases.md`: optional progressive-disclosure guidance
   for clean temporary worktree evidence, controlled temporary-break evidence,
-  generated baselines, ignored evidence paths, and bulky long-running tool
-  outputs.
+  generated baselines, `cargo mutants` campaign handling, ignored evidence
+  paths, and bulky long-running tool outputs.
+- `references/final-closeout.md`: detailed final closeout audit sequence,
+  commit-role guidance, and post-commit verification checks.
 - `scripts/closeout-audit.mjs`: optional helper that emits mechanical closeout
   checks for active paths, archived paths, stale live references, and Git status
   when the ticket prefix and reference artifact paths are known.

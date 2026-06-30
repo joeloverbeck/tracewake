@@ -38,7 +38,8 @@ fn run_session_with_args(args: &[&str], script: &str) -> String {
 
 #[test]
 fn scripted_session_exercises_actual_binary_loop() {
-    let output = run_session(
+    let output = run_session_with_args(
+        &["--operator-debug", "strongbox_001", "actor_tomas"],
         "notebook\ndo close.door.door_house_street\ndo move.to.street_lane\ndebug log\ndebug epistemics\ndebug beliefs actor_tomas\ndebug observations actor_tomas\nquit\n",
     );
 
@@ -107,7 +108,7 @@ fn continue_stops_at_controller_safety_bound() {
 #[test]
 fn continue_sleep_stops_at_duration_terminal_without_actor_waited() {
     let output = run_session_with_args(
-        &["sleep_eat_work_001", "actor_tomas"],
+        &["--operator-debug", "sleep_eat_work_001", "actor_tomas"],
         "do sleep.here\ncontinue\ndebug log\nquit\n",
     );
 
@@ -121,7 +122,10 @@ fn continue_sleep_stops_at_duration_terminal_without_actor_waited() {
 
 #[test]
 fn debug_item_does_not_leak_to_following_view_or_change_checksum() {
-    let output = run_session("debug item coin_stack_01\ndebug projection\nview\nquit\n");
+    let output = run_session_with_args(
+        &["--operator-debug", "strongbox_001", "actor_tomas"],
+        "debug item coin_stack_01\ndebug projection\nview\nquit\n",
+    );
 
     assert!(output.contains("DEBUG NON-DIEGETIC: Item Location"));
     assert!(output.contains("current_location=container:strongbox_tomas -> place:house_tomas"));
@@ -145,7 +149,7 @@ fn debug_item_does_not_leak_to_following_view_or_change_checksum() {
 #[test]
 fn no_human_day_command_loop_renders_phase3a_behavior_rows() {
     let output = run_session_with_args(
-        &["no_human_day_001", "actor_tomas"],
+        &["--operator-debug", "no_human_day_001", "actor_tomas"],
         "debug run no-human-day\ndebug routines\ndebug replay\nquit\n",
     );
 

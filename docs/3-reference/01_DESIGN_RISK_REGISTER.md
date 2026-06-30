@@ -345,6 +345,12 @@ A risk can be retired only when the team can name the tests, fixtures, reviews, 
   denominator/caught/unviable/missed/timeout counts plus baseline reconciliation;
   trigger-only workflow evidence, stale command output, display-only rows, and
   prose stronger than the computed manifest remain non-pass.
+- **0056 status/evidence:** The seventh-pass closure line requires the
+  doctrine-complete computed verdict and closed verdict grammar to consume the
+  current standing mutation disposition from `archive/tickets/0056FOUCONSEV-006.md`.
+  The canonical 0056 campaign records `3451` mutants with `2681` caught,
+  `770` unviable, `0` missed, and `0` timeout; no historical `0054` count or
+  trigger-only workflow evidence is current green proof.
 - **Escalation trigger:** Any acceptance artifact or conformance row claims reachability, replay coverage, or ordinary-life evidence while the tested path could have been bypassed or pre-seeded by the harness.
 - **Retirement criteria:** Retire only for a bounded artifact family with source bans, emitted-only counters, and report checks that fail on fabricated evidence.
 - **Status / review cadence:** Watch. Review at every acceptance artifact, conformance-row update, and no-human/generative evidence claim.
@@ -364,6 +370,13 @@ A risk can be retired only when the team can name the tests, fixtures, reviews, 
   must cite current behavior and negative evidence; survivors, governance gaps,
   or stale/non-current mutation evidence cannot be silently hidden behind a
   general pass claim.
+- **0056 status/evidence:** The seventh-pass line extends the closure family to
+  stale validated-content aliases, ordinary-input debug induction,
+  paraphrase-bypassable verdict wording, and mutation restart-loop evidence.
+  `archive/tickets/0056FOUCONSEV-006.md` records the only discovered survivor
+  (`LoadedWorldRuntime::actor_exists -> true`), the public behavior witness
+  that killed it, and `cargo mutants --iterate` convergence before the final
+  clean full campaign.
 - **Escalation trigger:** A correction is marked complete without enumerating the defect class and proving each member fixed or explicitly exempted with rationale.
 - **Retirement criteria:** Retire only for a specific defect family after the shared rule and family-level guard exist; the general risk remains Watch for hardening passes.
 - **Status / review cadence:** Watch. Review during ticket reassessment, implementation closeout, and spec acceptance.
@@ -386,6 +399,12 @@ A risk can be retired only when the team can name the tests, fixtures, reviews, 
   full-campaign artifact ingested by the fail-closed status manifest; source
   scans and workflow topology guards remain secondary alarms unless paired with
   behavior witnesses and mutation disposition evidence.
+- **0056 status/evidence:** The seventh-pass mutation evidence makes survivor
+  discovery a completed-run disposition, not a restart trigger. A discovered
+  survivor must be batched by owning surface, fixed through public behavior
+  evidence or bounded under §5, and converged with `cargo mutants --iterate`
+  against the existing `mutants.out`; only the final clean full campaign may be
+  cited as canonical green proof.
 - **Escalation trigger:** Any new or modified guard has no behavioral negative, no synthetic failing case, and no explanation for why a negative cannot be built.
 - **Retirement criteria:** Do not retire globally. A specific guard family may retire only after its negative cases and path-under-test evidence are durable.
 - **Status / review cadence:** Watch. Review during lock-layer, mutation, census, conformance-row, and acceptance-artifact work.

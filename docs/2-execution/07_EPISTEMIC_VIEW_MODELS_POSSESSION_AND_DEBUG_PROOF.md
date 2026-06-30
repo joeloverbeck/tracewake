@@ -92,7 +92,7 @@ remain non-diegetic and excluded from actor-known context. Per-surface temporal
 rendering diagnostics are owned by
 `10_TESTING_OBSERVABILITY_DIAGNOSTICS_AND_REVIEW_ARTIFACTS.md`.
 
-The accepted 0054 evidence makes the interval and wait products complete core
+The accepted 0056 evidence makes the interval and wait products complete core
 results: `LoadedWorldRuntime::from_bootstrap` constructs the runtime from
 `ValidatedLoadedWorldBootstrap`, the shared world step captures final
 perception, holder-known interval delta, stop reason, temporal verdict, and
@@ -114,8 +114,9 @@ negative fixtures `external_crate_cannot_read_one_tick_wait_receipt_internals`,
 for same-source observation replacement, subject-separated interval facts,
 debug availability, one-tick receipt accessors, and the configured standing
 perimeter is recorded in `archive/tickets/0052FOUCONFOU-010.md`,
-`archive/tickets/0054FOUCONSIX-012.md`, and
-`archive/tickets/0054FOUCONSIX-013.md`.
+`archive/tickets/0056FOUCONSEV-002.md`, and
+`archive/tickets/0056FOUCONSEV-006.md`; the current green perimeter is the
+final clean `37062d6` standing campaign with `0` missed and `0` timeout.
 
 ## Observation-time snapshot proof
 

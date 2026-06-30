@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::process::Command;
 
-const CONTENT_LOAD_RS: &str = include_str!("../../tracewake-content/src/load.rs");
+const CONTENT_LOAD_RS: &str = include_str!("../src/content/load.rs");
 const CLIPPY_TOML: &str = include_str!("../../../clippy.toml");
 
 struct NegativeFixture {
@@ -85,12 +85,12 @@ const FIXTURES: &[NegativeFixture] = &[
         expected_stderr: "no method named `schedule_loaded_actor_decision`",
     },
     NegativeFixture {
-        name: "external_crate_cannot_construct_loaded_world_bootstrap_from_seed_parts",
-        expected_stderr: "associated function `from_validated_seed_parts` is private",
+        name: "external_crate_cannot_construct_loaded_world_bootstrap_from_validated_content",
+        expected_stderr: "private",
     },
     NegativeFixture {
         name: "external_crate_cannot_induce_debug_authority_via_public_bind",
-        expected_stderr: "this function takes 3 arguments",
+        expected_stderr: "no method named `local_operator_debug_authority`",
     },
     NegativeFixture {
         name: "external_crate_cannot_mutate_agent_state_seed_maps",
@@ -217,7 +217,7 @@ const ALL_FEATURE_PRODUCTION_BOUNDARY_FIXTURES: &[&str] = &[
     "external_crate_cannot_call_seed_mutators_after_load",
     "external_crate_cannot_call_tui_perception_append_helper",
     "external_crate_cannot_construct_actor_interval_summary",
-    "external_crate_cannot_construct_loaded_world_bootstrap_from_seed_parts",
+    "external_crate_cannot_construct_loaded_world_bootstrap_from_validated_content",
     "external_crate_cannot_construct_debug_report",
     "external_crate_cannot_construct_pipeline_context_with_runtime_aggregates",
     "external_crate_cannot_convert_debug_report_to_interval_summary",

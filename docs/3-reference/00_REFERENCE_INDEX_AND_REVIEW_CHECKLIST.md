@@ -103,11 +103,20 @@ Reject or escalate a proposal, schema, fixture, test, prompt, UI surface, or cod
   composition path rather than stale constructor names or an obsolete bypass?
 - Could public constructors be composed across crates to recreate the forbidden
   state even if each individual constructor looks validated?
+- Are validated-content aliases, helper constructors, or public re-exports
+  checked as a composition family rather than only at the originally cited
+  symbol?
 - Is debug authority merely non-forgeable as a value, or is it also
   non-inducible through an unprivileged public command path?
+- Can any ordinary input path, including TUI commands and semantic action
+  submission, induce debug/operator authority without an explicit operator
+  capability?
 - If an artifact claims mutation closure, does it cite actual in-diff or current
   full-campaign evidence with denominator and disposition counts, rather than a
   trigger/topology alarm or a survivor-pass taxonomy hole?
+- Does the acceptance artifact's wording remain inside the closed verdict
+  grammar, or could paraphrased pass-shaped language bypass the computed
+  `pass|non-pass` result?
 
 ### Holder-known and epistemics
 
@@ -133,22 +142,23 @@ Use this block as a pointer to foundation `03` / `INV-112`, the architecture tem
 - Do open durations close through the shared authority for event-sourced starts and terminals, not through batch-local pending queues or client-side completion logic?
 - Is interval output positive actor-known evidence from modeled sources, not a redacted omniscient event diff or an omniscient "nothing happened" summary?
 
-Current 0053 evidence answers these prompts by constructing the runtime through
+Current 0056 evidence answers these prompts by constructing the runtime through
 `LoadedWorldRuntime::from_bootstrap` from a validated
 `ValidatedLoadedWorldBootstrap` and routing human-origin and no-human-origin
 advancement through core-derived loaded actors, declared processes, closed actor
 transaction outcomes, fail-closed event identity, temporal replay verdicts, and
 a sealed interval product. Debug/operator no-human-day and debug-view commands
-require `DebugSessionAuthority`; the 0053 governance audit records merge
-enforcement as API-proven, pending, or unverified rather than accepting workflow
-topology alone. Reviewers should look for `world_step_coordinator.rs`,
+require `DebugSessionAuthority`; the 0056 standing campaign records the
+current sealed perimeter at `37062d6` with `3451` mutants tested, `2681`
+caught, `770` unviable, `0` missed, and `0` timeout. Reviewers should look for
+`world_step_coordinator.rs`,
 `generative_lock.rs`, `replay_temporal_frontier.rs`,
 `holder_known_interval_projection.rs`, `salient_stop_actor_known.rs`,
 `negative_fixture_runner.rs`, `command_loop_session.rs`,
 `playable_capability_parity.rs`, `embodied_flow.rs`, `parity_adversarial.rs`,
-`archive/tickets/0053FOUCONFIF-003.md`, `archive/tickets/0053FOUCONFIF-004.md`,
-`archive/tickets/0053FOUCONFIF-005.md`, `archive/tickets/0053FOUCONFIF-006.md`,
-and `archive/tickets/0053FOUCONFIF-007.md` before treating a
+`archive/tickets/0056FOUCONSEV-001.md`, `archive/tickets/0056FOUCONSEV-002.md`,
+`archive/tickets/0056FOUCONSEV-005.md`, and
+`archive/tickets/0056FOUCONSEV-006.md` before treating a
 loaded-world/time-control row as current executable evidence.
 
 ### Ordinary-life play

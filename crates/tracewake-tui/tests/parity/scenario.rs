@@ -37,19 +37,27 @@ pub fn run_real_pipeline(entry: &CapabilityEntry) -> Result<ScenarioWitnesses, S
         .ok_or(ScenarioError::MissingFixture)?;
     let golden = fixtures::by_id(fixture_id)
         .ok_or_else(|| ScenarioError::UnknownFixture((*fixture_id).to_string()))?;
-    let mut app = TuiApp::from_golden(golden).map_err(ScenarioError::from)?;
     let actor_id = ActorId::new(entry.viewer_actor.to_string())
         .map_err(|_| ScenarioError::BadActor(entry.viewer_actor.to_string()))?;
     if matches!(
         entry.setup_operation,
         SetupOperation::RenderDebugOverlay | SetupOperation::RunNoHumanDay
     ) {
+        let mut app = TuiApp::from_golden_operator_debug(golden).map_err(ScenarioError::from)?;
         app.bind_debug_actor(actor_id)
             .map_err(ScenarioError::from)?;
+        run_real_pipeline_with_app(entry, app)
     } else {
+        let mut app = TuiApp::from_golden(golden).map_err(ScenarioError::from)?;
         app.bind_actor(actor_id).map_err(ScenarioError::from)?;
+        run_real_pipeline_with_app(entry, app)
     }
+}
 
+fn run_real_pipeline_with_app(
+    entry: &CapabilityEntry,
+    mut app: TuiApp,
+) -> Result<ScenarioWitnesses, ScenarioError> {
     let view = app.current_view().map_err(ScenarioError::from)?;
     let mut measured = ScenarioMeasuredEvidence {
         actor_knowledge: view

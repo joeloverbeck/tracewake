@@ -50,7 +50,7 @@ fn phase3a_debug_snapshot_is_byte_identical_across_runs() {
 }
 
 fn capture_phase3a_debug_snapshot() -> String {
-    let mut app = TuiApp::from_golden(fixtures::no_human_day_001()).unwrap();
+    let mut app = TuiApp::from_golden_operator_debug(fixtures::no_human_day_001()).unwrap();
     app.bind_actor(ActorId::new("actor_tomas").unwrap())
         .unwrap();
     [

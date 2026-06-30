@@ -8,3 +8,9 @@ license.workspace = true
 
 [features]
 test-support = []
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(mutants)'] }
+
+[dev-dependencies]
+tracewake-core = { path = ".", features = ["test-support"] }

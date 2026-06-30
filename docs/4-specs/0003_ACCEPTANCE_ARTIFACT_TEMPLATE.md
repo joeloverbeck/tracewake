@@ -48,6 +48,25 @@ role. Do not use open-ended prose such as "accepted", "certified", "green", or
 "closed" unless the computed block supports that exact status for the exact
 commit under test.
 
+When the governance posture is `solo-maintainer-compensating-control`, the
+computed block must include the full field set that proves the posture:
+
+- `governance_posture: solo-maintainer-compensating-control`
+- `required_approving_review_count: 0`
+- `required_status_checks: <all required standing checks and current result>`
+- `mutation_in_diff_lock_layer: <present and green|not present>`
+- `bypass_actors: []`
+- `current_user_can_bypass: never`
+- `non_fast_forward_protection: true`
+- `deletion_protection: true`
+- `strict_required_status_checks_policy: true`
+- `ruleset_api_transcript: <path, digest, or inline evidence summary>`
+
+Missing or historical ruleset evidence, bypass actors, mutable bypass by the
+current user, absent standing checks, stale check results, or branch-policy
+topology without an API/ruleset transcript makes the computed result
+`non-pass`.
+
 ## Parity evidence block
 
 For any feature with TUI-facing simulation impact, record the playable-capability

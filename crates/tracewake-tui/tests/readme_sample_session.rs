@@ -9,7 +9,6 @@ fn readme_documented_commands_are_live_against_binary() {
         "help",
         "view",
         "bind <actor_id>",
-        "bind-debug <actor_id>",
         "<n>",
         "do <semantic_action_id>",
         "notebook",
@@ -34,7 +33,8 @@ fn readme_documented_commands_are_live_against_binary() {
         );
     }
 
-    let output = run_session(
+    let ordinary_output = run_session_with_args(
+        &[],
         "help\n\
          view\n\
          bind actor_elena\n\
@@ -45,7 +45,23 @@ fn readme_documented_commands_are_live_against_binary() {
          do wait.1_tick\n\
          wait\n\
          w\n\
-         bind-debug actor_tomas\n\
+         q\n",
+    );
+
+    assert!(!ordinary_output.contains("Error:"), "{ordinary_output}");
+    assert!(ordinary_output.contains("tracewake-tui ready"));
+    assert!(ordinary_output.contains("Commands: help, view"));
+    assert!(ordinary_output.contains("Bound actor: actor_elena"));
+    assert!(ordinary_output.contains("Bound actor: actor_tomas"));
+    assert!(ordinary_output.contains("Accepted: open.container.strongbox_tomas"));
+    assert!(ordinary_output.contains("Accepted: check.container.strongbox_tomas"));
+    assert!(ordinary_output.contains("Notebook: actor_tomas"));
+    assert!(ordinary_output.contains("Accepted: wait.1_tick"));
+
+    let debug_output = run_session_with_args(
+        &["--operator-debug", "strongbox_001", "actor_tomas"],
+        "do open.container.strongbox_tomas\n\
+         do check.container.strongbox_tomas\n\
          debug log\n\
          debug bindings\n\
          debug item coin_stack_01\n\
@@ -58,33 +74,25 @@ fn readme_documented_commands_are_live_against_binary() {
          q\n",
     );
 
-    assert!(!output.contains("Error:"), "{output}");
-    assert!(output.contains("tracewake-tui ready"));
-    assert!(output.contains("Commands: help, view"));
-    assert!(output.contains("Bound actor: actor_elena"));
-    assert!(output.contains("Bound actor: actor_tomas"));
-    assert!(output.contains("Bound debug actor: actor_tomas"));
-    assert!(output.contains("Accepted: open.container.strongbox_tomas"));
-    assert!(output.contains("Accepted: check.container.strongbox_tomas"));
-    assert!(output.contains("Notebook: actor_tomas"));
-    assert!(output.contains("Accepted: wait.1_tick"));
-    assert!(output.contains("DEBUG NON-DIEGETIC: Event Log"));
-    assert!(output.contains("DEBUG NON-DIEGETIC: Controller Binding"));
-    assert!(output.contains("DEBUG NON-DIEGETIC: Item Location"));
-    assert!(output.contains("DEBUG NON-DIEGETIC: Action Rejection"));
-    assert!(output.contains("DEBUG NON-DIEGETIC: Projection Rebuild"));
-    assert!(output.contains("DEBUG NON-DIEGETIC: Replay"));
-    assert!(output.contains("DEBUG NON-DIEGETIC: Epistemics"));
-    assert!(output.contains("DEBUG NON-DIEGETIC: Beliefs"));
-    assert!(output.contains("DEBUG NON-DIEGETIC: Observations"));
+    assert!(!debug_output.contains("Error:"), "{debug_output}");
+    assert!(debug_output.contains("DEBUG NON-DIEGETIC: Event Log"));
+    assert!(debug_output.contains("DEBUG NON-DIEGETIC: Controller Binding"));
+    assert!(debug_output.contains("DEBUG NON-DIEGETIC: Item Location"));
+    assert!(debug_output.contains("DEBUG NON-DIEGETIC: Action Rejection"));
+    assert!(debug_output.contains("DEBUG NON-DIEGETIC: Projection Rebuild"));
+    assert!(debug_output.contains("DEBUG NON-DIEGETIC: Replay"));
+    assert!(debug_output.contains("DEBUG NON-DIEGETIC: Epistemics"));
+    assert!(debug_output.contains("DEBUG NON-DIEGETIC: Beliefs"));
+    assert!(debug_output.contains("DEBUG NON-DIEGETIC: Observations"));
 }
 
 #[allow(
     clippy::disallowed_methods,
     reason = "TUI subprocess smoke test launches the binary; this is not simulation outcome code"
 )]
-fn run_session(script: &str) -> String {
+fn run_session_with_args(args: &[&str], script: &str) -> String {
     let mut child = Command::new(env!("CARGO_BIN_EXE_tracewake-tui"))
+        .args(args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
