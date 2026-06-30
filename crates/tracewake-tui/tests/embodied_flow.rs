@@ -157,6 +157,34 @@ fn continue_routine_commits_embodied_follow_on_move_and_work() {
     assert_eq!(moved.report.status, ReportStatus::Accepted);
     assert_eq!(moved.report.action_id.as_str(), "move");
     assert_eq!(moved.report.target_ids, ["workshop_tomas".to_string()]);
+    // The embodied follow-on receipt must surface the freshly appended intention
+    // and decision-trace artifacts, located by exact event id. If the locating
+    // `event.event_id == id` comparison were inverted, the receipt would instead
+    // carry an earlier, unrelated log event of a different kind.
+    assert!(
+        moved.appended_events.iter().any(|event| matches!(
+            event.event_type,
+            EventKind::IntentionContinued | EventKind::IntentionStarted
+        )),
+        "follow-on receipt must surface the appended intention lifecycle event: {:?}",
+        moved
+            .appended_events
+            .iter()
+            .map(|event| event.event_type)
+            .collect::<Vec<_>>()
+    );
+    assert!(
+        moved
+            .appended_events
+            .iter()
+            .any(|event| event.event_type == EventKind::DecisionTraceRecorded),
+        "follow-on receipt must surface the appended decision-trace event: {:?}",
+        moved
+            .appended_events
+            .iter()
+            .map(|event| event.event_type)
+            .collect::<Vec<_>>()
+    );
     let after_move_log = app.render_debug_event_log_panel();
     assert!(after_move_log.contains("continue_routine_proposed"));
     assert!(after_move_log.contains("actor_moved"));

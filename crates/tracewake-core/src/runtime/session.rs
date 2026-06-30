@@ -1554,4 +1554,297 @@ mod tests {
 
         assert_eq!(runtime.current_tick(), SimTick::ZERO);
     }
+
+    use crate::agent::{
+        ActorKnownPlanningContext, Intention, IntentionSource, RoutineExecution, RoutineStepStatus,
+    };
+    use crate::events::PayloadField;
+    use crate::ids::{
+        CandidateGoalId, DecisionTraceId, IntentionId, RoutineExecutionId, RoutineTemplateId,
+    };
+    use crate::scheduler::ProposalSequence;
+
+    fn perception_test_event(
+        event_id: &str,
+        kind: EventKind,
+        actor_id: Option<&ActorId>,
+        tick: SimTick,
+        place_id: Option<&PlaceId>,
+        payload: Vec<PayloadField>,
+    ) -> EventEnvelope {
+        let ordering_actor = actor_id
+            .cloned()
+            .unwrap_or_else(|| ActorId::new("actor_perception_ordering").unwrap());
+        let mut event = EventEnvelope::new_v1(
+            EventId::new(event_id).unwrap(),
+            kind,
+            0,
+            0,
+            tick,
+            OrderingKey::new(
+                tick,
+                SchedulePhase::NoHumanProcess,
+                SchedulerSourceId::Actor(ordering_actor),
+                ProposalSequence::new(0),
+                ActionId::new("noop").unwrap(),
+                Vec::new(),
+                format!("test_event:{event_id}"),
+            ),
+            manifest_id(),
+        );
+        event.actor_id = actor_id.cloned();
+        event.place_id = place_id.cloned();
+        event.payload = payload;
+        event
+    }
+
+    #[test]
+    fn latest_current_place_perception_event_id_requires_all_four_dimensions() {
+        let actor = ActorId::new("actor_perception").unwrap();
+        let other_actor = ActorId::new("actor_other").unwrap();
+        let place = PlaceId::new("place_perception").unwrap();
+        let other_place = PlaceId::new("place_other").unwrap();
+        let tick = SimTick::new(5);
+        let other_tick = SimTick::new(4);
+
+        // No event matches all four of {type, actor, tick, place}. Each decoy
+        // misses on a different dimension, so broadening any single `&&` to `||`
+        // would return a decoy instead of the required `None`.
+        let mut log = EventLog::new();
+        log.append(perception_test_event(
+            "event.perception.observation_wrong_dims",
+            EventKind::ObservationRecorded,
+            Some(&other_actor),
+            other_tick,
+            Some(&other_place),
+            Vec::new(),
+        ))
+        .unwrap();
+        log.append(perception_test_event(
+            "event.perception.right_dims_wrong_type",
+            EventKind::NeedDeltaApplied,
+            Some(&other_actor),
+            tick,
+            Some(&place),
+            Vec::new(),
+        ))
+        .unwrap();
+
+        assert_eq!(
+            latest_current_place_perception_event_id(&log, &actor, tick, &place),
+            None
+        );
+
+        // A fully matching observation is selected.
+        log.append(perception_test_event(
+            "event.perception.match",
+            EventKind::ObservationRecorded,
+            Some(&actor),
+            tick,
+            Some(&place),
+            Vec::new(),
+        ))
+        .unwrap();
+        assert_eq!(
+            latest_current_place_perception_event_id(&log, &actor, tick, &place),
+            Some(EventId::new("event.perception.match").unwrap())
+        );
+    }
+
+    #[test]
+    fn latest_need_event_id_matches_direct_actor_then_payload() {
+        let actor = ActorId::new("actor_need").unwrap();
+
+        // Direct actor_id match with no payload: a `==`->`!=` on the actor check
+        // or a `||`->`&&` across the actor/payload branch would drop this match.
+        let mut direct_log = EventLog::new();
+        direct_log
+            .append(perception_test_event(
+                "event.need.direct",
+                EventKind::NeedDeltaApplied,
+                Some(&actor),
+                SimTick::new(3),
+                None,
+                Vec::new(),
+            ))
+            .unwrap();
+        assert_eq!(
+            latest_need_event_id(&direct_log, &actor),
+            Some(EventId::new("event.need.direct").unwrap())
+        );
+
+        // Payload-only match (actor_id absent on the envelope, present in the
+        // payload): a `==`->`!=` on either the payload key or value comparison
+        // would drop it.
+        let mut payload_log = EventLog::new();
+        payload_log
+            .append(perception_test_event(
+                "event.need.payload",
+                EventKind::NeedDeltaApplied,
+                None,
+                SimTick::new(3),
+                None,
+                vec![PayloadField::new("actor_id", actor.as_str())],
+            ))
+            .unwrap();
+        assert_eq!(
+            latest_need_event_id(&payload_log, &actor),
+            Some(EventId::new("event.need.payload").unwrap())
+        );
+
+        // A payload field whose value does not match must not qualify; a
+        // `&&`->`||` across the payload key/value comparison would wrongly
+        // accept it.
+        let mut mismatch_log = EventLog::new();
+        mismatch_log
+            .append(perception_test_event(
+                "event.need.mismatch",
+                EventKind::NeedDeltaApplied,
+                None,
+                SimTick::new(3),
+                None,
+                vec![PayloadField::new("actor_id", "actor_someone_else")],
+            ))
+            .unwrap();
+        assert_eq!(latest_need_event_id(&mismatch_log, &actor), None);
+    }
+
+    fn window_execution(
+        execution_id: &str,
+        actor: &ActorId,
+        template: &RoutineTemplateId,
+        family: RoutineFamily,
+        status: RoutineStepStatus,
+    ) -> RoutineExecution {
+        let mut execution = RoutineExecution::new(
+            RoutineExecutionId::new(execution_id).unwrap(),
+            actor.clone(),
+            template.clone(),
+            family,
+            SimTick::new(0),
+            None,
+            None,
+            None,
+            DecisionTraceId::new(format!("trace_{execution_id}")).unwrap(),
+        );
+        execution.step_status = status;
+        execution
+    }
+
+    fn window_agent_state(
+        actor: &ActorId,
+        template: &RoutineTemplateId,
+        executions: Vec<RoutineExecution>,
+    ) -> AgentState {
+        let mut state = AgentState::default();
+        let intention_id = IntentionId::new("intention_window_test").unwrap();
+        state.intentions.insert(
+            intention_id.clone(),
+            Intention::adopt(
+                intention_id.clone(),
+                actor.clone(),
+                IntentionSource::RoutineDuty,
+                CandidateGoalId::new("candidate_window_test").unwrap(),
+                Some(template.clone()),
+                None,
+                1,
+                SimTick::new(0),
+                DecisionTraceId::new("trace_window_intention").unwrap(),
+            ),
+        );
+        state
+            .active_intention_by_actor
+            .insert(actor.clone(), intention_id);
+        for execution in executions {
+            state
+                .routine_executions
+                .insert(execution.execution_id.clone(), execution);
+        }
+        state
+    }
+
+    fn window_context(actor: &ActorId) -> ActorKnownPlanningContext {
+        // Empty facts derive no known workplaces, so the early work-block branch
+        // is skipped and resolution falls through to the execution scan.
+        ActorKnownPlanningContext::from_observed_parts(
+            actor.clone(),
+            PlaceId::new("place_window_test").unwrap(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            BTreeSet::new(),
+            BTreeMap::new(),
+            Vec::new(),
+        )
+    }
+
+    #[test]
+    fn embodied_routine_window_family_filters_executions_by_actor() {
+        let actor = ActorId::new("actor_window_primary").unwrap();
+        let other = ActorId::new("actor_window_other").unwrap();
+        let template = RoutineTemplateId::new("routine_go_to_work").unwrap();
+        let state = window_agent_state(
+            &actor,
+            &template,
+            vec![
+                window_execution(
+                    "routine_exec_primary",
+                    &actor,
+                    &template,
+                    RoutineFamily::EatMeal,
+                    RoutineStepStatus::InProgress,
+                ),
+                window_execution(
+                    "routine_exec_other",
+                    &other,
+                    &template,
+                    RoutineFamily::SleepNight,
+                    RoutineStepStatus::InProgress,
+                ),
+            ],
+        );
+        let context = window_context(&actor);
+
+        // Only the requested actor's execution may drive the family; a `==`->`!=`
+        // actor filter would surface the other actor's `SleepNight` execution.
+        assert_eq!(
+            embodied_routine_window_family(&state, &actor, &context),
+            Some(RoutineFamily::EatMeal)
+        );
+    }
+
+    #[test]
+    fn embodied_routine_window_family_ignores_resolved_executions() {
+        let actor = ActorId::new("actor_window_primary").unwrap();
+        let template = RoutineTemplateId::new("routine_go_to_work").unwrap();
+        let state = window_agent_state(
+            &actor,
+            &template,
+            vec![
+                window_execution(
+                    "routine_exec_resolved",
+                    &actor,
+                    &template,
+                    RoutineFamily::SleepNight,
+                    RoutineStepStatus::Completed,
+                ),
+                window_execution(
+                    "routine_exec_active",
+                    &actor,
+                    &template,
+                    RoutineFamily::EatMeal,
+                    RoutineStepStatus::InProgress,
+                ),
+            ],
+        );
+        let context = window_context(&actor);
+
+        // Only the unresolved execution may drive the family; deleting the `!`
+        // on the resolved filter would surface the resolved `SleepNight` one.
+        assert_eq!(
+            embodied_routine_window_family(&state, &actor, &context),
+            Some(RoutineFamily::EatMeal)
+        );
+    }
 }

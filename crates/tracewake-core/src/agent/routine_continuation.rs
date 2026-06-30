@@ -666,4 +666,32 @@ mod tests {
             .iter()
             .any(|target| target == "workshop_tomas")));
     }
+
+    #[test]
+    fn actor_known_food_source_requires_food_source_stable_id() {
+        // The food-source fact and a distinct non-food fact are both actor-known
+        // and observed-now. The resolver must select the value of the
+        // `actor_knows_food_source` fact specifically; a `stable_id != ...`
+        // mutant would instead surface the unrelated fact's value, so the two
+        // values are kept deliberately different.
+        let context = ActorKnownPlanningContext::from_observed_parts(
+            actor_id(),
+            place("home_tomas"),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            BTreeSet::new(),
+            BTreeMap::new(),
+            vec![
+                fact("actor_knows_food_source", "food_stew_home_tomas"),
+                fact("actor_knows_sleep_place", "home_tomas"),
+            ],
+        );
+
+        assert_eq!(
+            actor_known_food_source_for_goal(&context),
+            Some("food_stew_home_tomas".to_string())
+        );
+    }
 }
