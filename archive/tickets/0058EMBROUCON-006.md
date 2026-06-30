@@ -1,6 +1,6 @@
 # 0058EMBROUCON-006: Meta-lock guards and focused mutation
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — adds source-scan guards to `anti_regression_guards.rs`; runs focused mutation (evidence recorded in -007)
@@ -80,3 +80,31 @@ Run focused mutation over the touched seam files (`session.rs`, `routine_continu
 1. `cargo test -p tracewake-core --test anti_regression_guards guard_0058`
 2. `cargo test --workspace`
 3. `cargo mutants --in-diff <diff>` (or per-file `--file` over the seam files) `--iterate` — focused mutation, deliberately narrower than a full standing campaign per §6.4 / §9.3 (the correct verification boundary for a scoped seam-hardening ticket).
+
+## Outcome
+
+Completed: 2026-06-30
+
+Implemented the four 0058 meta-lock guards in `crates/tracewake-core/tests/anti_regression_guards.rs`:
+
+- `guard_0058_embodied_routine_family_has_no_pre_intention_workplace_selector`
+- `guard_0058_embodied_continue_time_advancing_follow_on_is_gated`
+- `guard_0058_embodied_continue_success_path_not_current_stuck`
+- `guard_0058_tui_continue_routine_forwards_only`
+
+Each guard is registered in `META_LOCK_REGISTRY` with its required `synthetic_*` negative id, `BehaviorAssertion` routing, and a non-zero witness minimum. The guard site accounting now points the runtime guards at `crates/tracewake-core/src/runtime/session.rs` and the TUI forwarding guard at `crates/tracewake-tui/src/app.rs`.
+
+Verification:
+
+- `cargo test -p tracewake-core --test anti_regression_guards guard_0058` — passed.
+- `cargo fmt --all --check` — passed.
+- `cargo test --workspace` — passed.
+
+Focused mutation:
+
+- Tool: `cargo-mutants 27.1.0`.
+- Scope: `crates/tracewake-core/src/runtime/session.rs` with the function regex `embodied_routine_window_family|run_embodied_continue_routine_follow_on|embodied_follow_on_advances_time|embodied_time_advancing_follow_on_diagnostic`.
+- Guard-only command: `cargo mutants --package tracewake-core --file crates/tracewake-core/src/runtime/session.rs --re 'embodied_routine_window_family|run_embodied_continue_routine_follow_on|embodied_follow_on_advances_time|embodied_time_advancing_follow_on_diagnostic' --baseline skip -j 2 --timeout 120 --output /tmp/tracewake-mutants-0058-006 -- -p tracewake-core --test anti_regression_guards guard_0058`.
+- Guard-only result: 20 mutants tested; 2 caught, 15 missed, 3 unviable. This confirmed the source-scan guards catch shape regressions, but do not by themselves kill ordinary semantic/operator mutants.
+- Behavioral rerun command: `cargo mutants --package tracewake-core --file crates/tracewake-core/src/runtime/session.rs --re 'embodied_routine_window_family|run_embodied_continue_routine_follow_on|embodied_follow_on_advances_time|embodied_time_advancing_follow_on_diagnostic' --iterate -j 2 --timeout 120 --output /tmp/tracewake-mutants-0058-006 -- -p tracewake-core embodied_continue`.
+- Behavioral rerun result: 15 remaining mutants tested; 8 caught, 7 missed, 0 unviable, 0 timeout. One miss was outside the selected 0058 seam (`crates/tracewake-core/src/replay/rebuild.rs:159`). The remaining six session misses are ordinary branch/artifact lookup fallback mutations at `session.rs:716`, `session.rs:741`, `session.rs:1147`, `session.rs:1149`, `session.rs:1154`, and `session.rs:1157`; they are recorded for -007 evidence/disposition rather than expanding this meta-lock ticket into a broader behavior-test campaign.
