@@ -1,6 +1,6 @@
 # 0058EMBROUCON-007: Acceptance closeout artifact
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: None
@@ -72,3 +72,18 @@ Note that the `archive/specs/` move and the `SPEC_LEDGER.md` "Archived implement
 1. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings`
 2. `cargo build --workspace --all-targets --locked && cargo test --workspace`
 3. The four local gates are the full-pipeline verification boundary for the closeout; focused-mutation results are captured per -006.
+
+## Outcome
+
+Completed: 2026-06-30
+
+Produced `reports/0058_embodied_routine_continuation_foundational_alignment_acceptance.md` from the house acceptance-artifact structure. The report records the audited baseline `4382f6db10b1cad247ea2793c94a6cda81f36d6f`, target implementation commit `2d98a221b547af8b8b687c3a9e36143f2c7cbb73`, per-ticket evidence for -001 through -006, parity/replay evidence for both `spec0058.*` rows, focused mutation commands and survivorful disposition, and the explicit non-certification posture.
+
+The report records §5 doctrine substance as proposed-but-not-ratified and defers the `archive/specs/`, `archive/reports/`, and `SPEC_LEDGER.md` moves to spec acceptance/series closeout.
+
+Verification:
+
+- `cargo fmt --all --check` passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` passed.
+- `cargo build --workspace --all-targets --locked` passed.
+- `cargo test --workspace` passed.
