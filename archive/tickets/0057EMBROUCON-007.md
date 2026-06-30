@@ -13,7 +13,7 @@ Spec 0057 §7. The feature is "done" only when it is TUI-playable *and* no-human
 ## Assumption Reassessment (2026-06-30)
 
 1. The evidence surfaces are produced by the leaf tickets: the shared resolver (001), the follow-on commit + receipt (002), typed-block/wait/stuck (003), marker guards (004), embodied golden + parity + firewall fixture + replay (005), and the doctrine amendments (006). The acceptance-artifact template is `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md`; the report convention is `reports/<NNNN>_<slug>_acceptance.md` (sibling `reports/0048_foundational_conformance_hardening_acceptance.md` exists).
-2. Spec assumption: `specs/0057_…_SPEC.md` §7 governs the evidence list; §0 "Ledger timing" defers the `docs/4-specs/SPEC_LEDGER.md` archived-row entry and the `archive/specs/` move to spec acceptance/closeout — those are a spec-promotion follow-up, not this ticket (recorded in the decomposition's Step 6 cross-spec follow-ups).
+2. Spec assumption: `archive/specs/0057_…_SPEC.md` §7 governs the evidence list; §0 "Ledger timing" defers the `docs/4-specs/SPEC_LEDGER.md` archived-row entry and the `archive/specs/` move to spec acceptance/closeout — those are a spec-promotion follow-up, not this ticket (recorded in the decomposition's Step 6 cross-spec follow-ups).
 3. **Cross-artifact boundary under audit**: the acceptance artifact consolidates evidence across `tracewake-core`/`-content`/`-tui` (the four-gate suite, the embodied golden, the parity entry, the firewall fixture) plus the named exact implementation commit — it audits the replay / actor-knowledge / no-human enforcement surfaces on the evidence-consumer basis, it does not modify them.
 4. INV-098 (feature acceptance is harsh — caused, agent-possible, eventful, epistemically bounded, TUI-playable, no-human runnable, replay-safe, regression-tested), INV-095 (TUI/view-model tests are acceptance tests), INV-094 (possession parity is tested). The capstone enumerates these as acceptance sub-cases mapped to the spec's §7 evidence list.
 5. **Evidence-consumer enforcement surface (substrate basis)**: the capstone audits/re-proves the replay, actor-knowledge-firewall, and no-human surfaces. Confirm: the recorded witnesses stay observer-only (no hidden-truth leak into the artifact's evidence rows — INV-093), and the four-gate suite + named tests are **re-run at acceptance time** (not copied from memory) to catch any post-implementation regression.
@@ -33,11 +33,11 @@ Spec 0057 §7. The feature is "done" only when it is TUI-playable *and* no-human
 
 ### 1. Author the acceptance artifact
 
-Create `reports/0057_embodied_routine_continuation_acceptance.md` from the `docs/4-specs/0003` review-artifact template, enumerating the §7 evidence: the four-gate suite results (re-run), the embodied go-to-work golden, the parity entry, the hidden-truth firewall fixture, the marker-not-progress guard, the blocked-continuation/stuck eligibility, replay stability, and the named exact implementation commit. Record any deviations from the spec plan. No certification gate is claimed.
+Create `archive/reports/0057_embodied_routine_continuation_acceptance.md` from the `docs/4-specs/0003` review-artifact template, enumerating the §7 evidence: the four-gate suite results (re-run), the embodied go-to-work golden, the parity entry, the hidden-truth firewall fixture, the marker-not-progress guard, the blocked-continuation/stuck eligibility, replay stability, and the named exact implementation commit. Record any deviations from the spec plan. No certification gate is claimed.
 
 ## Files to Touch
 
-- `reports/0057_embodied_routine_continuation_acceptance.md` (new — acceptance artifact; archived to `archive/reports/` on spec acceptance per `docs/archival-workflow.md`)
+- `archive/reports/0057_embodied_routine_continuation_acceptance.md` (new — acceptance artifact archived on spec acceptance per `docs/archival-workflow.md`)
 
 ## Out of Scope
 
@@ -68,13 +68,13 @@ Create `reports/0057_embodied_routine_continuation_acceptance.md` from the `docs
 
 1. `cargo test --locked -p tracewake-tui --test embodied_flow --test playable_capability_parity --test tui_acceptance && cargo test --locked -p tracewake-content --test golden_fixtures_run` — the named acceptance tests.
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace` — the four-gate suite.
-3. `grep -nF "0057_embodied_routine_continuation_acceptance" reports/0057_embodied_routine_continuation_acceptance.md` — artifact landed at the convention path.
+3. `grep -nF "0057_embodied_routine_continuation_acceptance" archive/reports/0057_embodied_routine_continuation_acceptance.md` — artifact landed at the convention path.
 
 ## Outcome
 
 Completed: 2026-06-30
 
-Created `reports/0057_embodied_routine_continuation_acceptance.md`, recording scoped acceptance evidence for exact implementation commit `4726527858d027b4559bac607969b2bc6dfee094`. The artifact consolidates the leaf-ticket evidence for the shared resolver, embodied follow-on commit, typed block/stuck surfacing, marker invariant guards, parity entry, possession parity, hidden-truth firewall fixture, replay/no-human evidence, and doctrine amendments. It explicitly claims no certification gate and does not promote the spec or update the spec ledger.
+Created `archive/reports/0057_embodied_routine_continuation_acceptance.md`, recording scoped acceptance evidence for exact implementation commit `4726527858d027b4559bac607969b2bc6dfee094`. The artifact consolidates the leaf-ticket evidence for the shared resolver, embodied follow-on commit, typed block/stuck surfacing, marker invariant guards, parity entry, possession parity, hidden-truth firewall fixture, replay/no-human evidence, and doctrine amendments. It explicitly claims no certification gate and did not itself promote the spec or update the spec ledger.
 
 Deviation from plan: none.
 
@@ -88,5 +88,5 @@ Verification:
 - `cargo clippy --workspace --all-targets -- -D warnings`
 - `cargo build --workspace --all-targets --locked`
 - `cargo test --workspace`
-- `grep -nF "0057_embodied_routine_continuation_acceptance" reports/0057_embodied_routine_continuation_acceptance.md`
+- `grep -nF "0057_embodied_routine_continuation_acceptance" archive/reports/0057_embodied_routine_continuation_acceptance.md`
 - `git diff --check`

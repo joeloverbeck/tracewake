@@ -1,6 +1,6 @@
 # 0057 Embodied Routine Continuation Behavioral Progress and Possession Parity Spec
 
-**Status**: PROPOSED
+**Status**: ACCEPTED
 
 This is a post-`FIRST-PROOF-CERT` **feature/capability** spec in the parallel `specs/NNNN`
 series. It is staged in `specs/` and is promoted to `archive/specs/` on acceptance; it is
@@ -310,8 +310,19 @@ firewall and the marker-is-not-progress rule. It amends no invariant.
 
 ## Outcome
 
-On acceptance, a possessed player who follows their routine through the `Continue routine`
-affordance makes the same behavioral progress an autonomous actor makes — reaching work by
-movement and completing a work block — with typed blockers/waits/stuck where progress is not
-possible, full possession parity, an intact hidden-truth firewall, and the `continue_routine`
-marker still self-reporting as non-progress.
+Completed: 2026-06-30
+
+A possessed player who follows their routine through the `Continue routine`
+affordance now makes the same routine behavioral progress an autonomous actor
+makes from the equivalent actor-known state: reaching work by movement and
+starting/completing a work block. When progress is not possible, continuation
+surfaces typed blockers, modeled waits, or stuck diagnostics rather than a
+silent accepted no-op. The implementation preserves possession parity, the
+hidden-truth firewall, replay reconstructability, and the rule that the
+`continue_routine` marker itself remains non-progress.
+
+Acceptance evidence is recorded in
+`archive/reports/0057_embodied_routine_continuation_acceptance.md` for exact
+implementation commit `4726527858d027b4559bac607969b2bc6dfee094`. This spec
+does not claim latest-main certification, Phase-4 entry, second-proof entry,
+`P0-CERT`, `FIRST-PROOF-CERT`, or any whole-project status.

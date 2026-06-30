@@ -62,7 +62,7 @@ Implementation evidence changed these areas across the leaf tickets:
 ## Computed Acceptance Status
 
 ```tracewake-acceptance-status
-artifact: reports/0057_embodied_routine_continuation_acceptance.md
+artifact: archive/reports/0057_embodied_routine_continuation_acceptance.md
 target_commit: 4726527858d027b4559bac607969b2bc6dfee094
 scope: spec-0057-feature-acceptance
 certification_gate_claim: none
@@ -249,9 +249,10 @@ certify latest main, a Phase-4 entry claim, `P0-CERT`, or any project-wide gate.
 
 ## Residual Convention-Only Items
 
-- The artifact is observer-only evidence and does not by itself promote
-  `specs/0057_...` to `archive/specs/` or add a `SPEC_LEDGER` row. Spec
-  promotion remains a separate closeout step.
+- The artifact was observer-only evidence at ticket 007 creation time and did
+  not by itself promote `0057` to `archive/specs/` or add a `SPEC_LEDGER` row.
+  The final series closeout moved the report/spec and added the ledger row in
+  the archive/truthing commit.
 - No mutation campaign was required by spec 0057. Mutation-perfect closure is
   not claimed.
 
