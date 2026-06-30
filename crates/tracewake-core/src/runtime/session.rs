@@ -1,10 +1,12 @@
+use crate::actions::pipeline::PipelineStage;
 use crate::actions::{
-    run_pipeline, ActionRegistry, PipelineContext, PipelineResult, ReportStatus, ValidationReport,
+    run_pipeline, ActionRegistry, PipelineContext, PipelineResult, ReasonCode, ReportStatus,
+    ValidationReport,
 };
 use crate::agent::{
     current_place_knowledge_context, ActorDecisionTransaction, ActorDecisionTransactionInput,
-    ActorDecisionTransactionOutcome, NoHumanActorKnownSurfaceBuilder,
-    NoHumanActorKnownSurfaceRequest, RoutineFamily,
+    ActorDecisionTransactionOutcome, BlockerCategory, NoHumanActorKnownSurfaceBuilder,
+    NoHumanActorKnownSurfaceRequest, RoutineFamily, StuckDiagnosticRecord, StuckResultingStatus,
 };
 use crate::checksum::{compute_physical_checksum, ChecksumContext, PhysicalChecksum};
 use crate::controller::ControllerBindings;
@@ -21,8 +23,8 @@ use crate::epistemics::projection::EpistemicProjection;
 use crate::events::log::EventLog;
 use crate::events::{EventEnvelope, EventKind};
 use crate::ids::{
-    ActorId, ContentManifestId, ContentVersion, ControllerId, DebugReportId, EventId, FixtureId,
-    ItemId, PlaceId, ProcessId, ProposalId,
+    ActionId, ActorId, ContentManifestId, ContentVersion, ControllerId, DebugReportId, EventId,
+    FixtureId, ItemId, PlaceId, ProcessId, ProposalId, StuckDiagnosticId, ValidationReportId,
 };
 use crate::projections::{
     build_debug_event_log_view, build_embodied_view_model, build_notebook_view,
@@ -31,13 +33,14 @@ use crate::projections::{
 };
 use crate::replay::{rebuild_projection, run_replay};
 use crate::scheduler::no_human::{
-    default_day_windows, run_no_human_day, NoHumanDayConfig, NoHumanDayReport,
+    append_embodied_routine_stuck_diagnostics, default_day_windows, run_no_human_day,
+    NoHumanDayConfig, NoHumanDayReport,
 };
 use crate::scheduler::{
     append_and_apply_actor_artifact, build_actor_decision_trace_event, build_actor_intention_event,
-    AdvanceUntilRequest, AdvanceUntilResult, DeterministicScheduler, OrderingKey, SchedulePhase,
-    SchedulerSourceId, WorldAdvanceError, WorldAdvanceOrigin, WorldAdvanceRequest,
-    WorldStepTransactionRequest,
+    build_actor_stuck_diagnostic_event, AdvanceUntilRequest, AdvanceUntilResult,
+    DeterministicScheduler, OrderingKey, SchedulePhase, SchedulerSourceId, WorldAdvanceError,
+    WorldAdvanceOrigin, WorldAdvanceRequest, WorldStepTransactionRequest,
 };
 use crate::state::{AgentState, ControllerMode, PhysicalState};
 use crate::time::SimTick;
@@ -591,12 +594,42 @@ impl LoadedWorldRuntime {
             ),
             include_idle_fallback: false,
         });
-        let ActorDecisionTransactionOutcome::Proposed(proposed) = outcome else {
-            return Ok(None);
+        let embodied_stuck_events = append_embodied_routine_stuck_diagnostics(
+            &mut self.event_log,
+            &mut self.agent_state,
+            actor_id,
+            decision_tick,
+            &self.content_manifest_id,
+        );
+        let proposed = match outcome {
+            ActorDecisionTransactionOutcome::Proposed(proposed) => proposed,
+            ActorDecisionTransactionOutcome::Stuck { diagnostic } => {
+                return self.run_embodied_continue_routine_stuck_outcome(
+                    actor_id,
+                    decision_tick,
+                    marker_result,
+                    &embodied_stuck_events,
+                    &diagnostic,
+                );
+            }
         };
         let decision_trace_record = proposed.decision_trace_record.clone();
         let lifecycle_effects = proposed.lifecycle_effects.clone();
         let follow_on_proposal = proposed.proposal.into_proposal();
+        if follow_on_proposal.action_id.as_str() == "continue_routine" {
+            let diagnostic = embodied_recursive_continue_routine_diagnostic(
+                actor_id,
+                decision_tick,
+                &follow_on_proposal,
+            );
+            return self.run_embodied_continue_routine_stuck_outcome(
+                actor_id,
+                decision_tick,
+                marker_result,
+                &embodied_stuck_events,
+                &diagnostic,
+            );
+        }
         let ordering_key = OrderingKey::new(
             decision_tick,
             SchedulePhase::HumanCommand,
@@ -618,6 +651,11 @@ impl LoadedWorldRuntime {
         };
         let mut follow_on_result = run_pipeline(&mut context, &follow_on_proposal);
         if follow_on_result.report.status == ReportStatus::Rejected {
+            let mut receipt_prefix = marker_result.appended_events.clone();
+            receipt_prefix.extend(embodied_stuck_events);
+            follow_on_result
+                .appended_events
+                .splice(0..0, receipt_prefix);
             return Ok(Some(follow_on_result));
         }
         let ordinary_event = first_appended_event(&follow_on_result).cloned();
@@ -627,7 +665,18 @@ impl LoadedWorldRuntime {
             decision_tick.value()
         ))
         .map_err(WorldAdvanceError::InvalidMarkerId)?;
-        let frame_event_id = latest_frame_event_id(&self.event_log);
+        let frame_event_id = latest_frame_event_id(&self.event_log).or_else(|| {
+            marker_result
+                .appended_events
+                .first()
+                .map(|event| event.event_id.clone())
+                .or_else(|| {
+                    self.event_log
+                        .events()
+                        .last()
+                        .map(|event| event.event_id.clone())
+                })
+        });
         for effect in &lifecycle_effects {
             let event = build_actor_intention_event(
                 actor_id,
@@ -679,11 +728,65 @@ impl LoadedWorldRuntime {
         {
             follow_on_result.appended_events.push(appended.clone());
         }
+        let mut receipt_prefix = marker_result.appended_events.clone();
+        receipt_prefix.extend(embodied_stuck_events);
         follow_on_result
             .appended_events
-            .splice(0..0, marker_result.appended_events.clone());
+            .splice(0..0, receipt_prefix);
         self.record_actor_current_place_perception(actor_id);
         Ok(Some(follow_on_result))
+    }
+
+    fn run_embodied_continue_routine_stuck_outcome(
+        &mut self,
+        actor_id: &ActorId,
+        decision_tick: SimTick,
+        marker_result: &PipelineResult,
+        embodied_stuck_events: &[EventEnvelope],
+        diagnostic: &StuckDiagnosticRecord,
+    ) -> Result<Option<PipelineResult>, RuntimeCommandError> {
+        let process_id = ProcessId::new(format!(
+            "process.embodied_continue_routine_stuck.{}.{}",
+            actor_id.as_str(),
+            decision_tick.value()
+        ))
+        .map_err(WorldAdvanceError::InvalidMarkerId)?;
+        let frame_event_id = latest_frame_event_id(&self.event_log);
+        let event = build_actor_stuck_diagnostic_event(
+            actor_id,
+            decision_tick,
+            &process_id,
+            diagnostic,
+            &self.content_manifest_id,
+            frame_event_id.as_ref(),
+        )?;
+        let event_id = append_and_apply_actor_artifact(
+            &mut self.event_log,
+            &mut self.agent_state,
+            actor_id,
+            event,
+        )?;
+        let appended = self
+            .event_log
+            .events()
+            .iter()
+            .find(|event| event.event_id == event_id)
+            .cloned()
+            .into_iter()
+            .collect::<Vec<_>>();
+        let mut appended_events = marker_result.appended_events.clone();
+        appended_events.extend(embodied_stuck_events.iter().cloned());
+        appended_events.extend(appended);
+        self.record_actor_current_place_perception(actor_id);
+        Ok(Some(PipelineResult {
+            report: embodied_continue_routine_stuck_report(
+                actor_id,
+                decision_tick,
+                diagnostic,
+                &appended_events,
+            ),
+            appended_events,
+        }))
     }
 
     fn advance_until(
@@ -1061,6 +1164,89 @@ fn routine_family_from_template_id(template_id: &str) -> Option<RoutineFamily> {
     } else {
         None
     }
+}
+
+fn embodied_continue_routine_stuck_report(
+    actor_id: &ActorId,
+    decision_tick: SimTick,
+    diagnostic: &StuckDiagnosticRecord,
+    appended_events: &[EventEnvelope],
+) -> ValidationReport {
+    ValidationReport {
+        validation_report_id: ValidationReportId::new(format!(
+            "report.embodied_continue_routine_stuck.{}.{}",
+            actor_id.as_str(),
+            decision_tick.value()
+        ))
+        .expect("embodied continue routine stuck report ids are generated from typed ids"),
+        proposal_id: ProposalId::new(format!(
+            "proposal.embodied_continue_routine_stuck.{}.{}",
+            actor_id.as_str(),
+            decision_tick.value()
+        ))
+        .expect("embodied continue routine stuck proposal ids are generated from typed ids"),
+        actor_id: Some(actor_id.clone()),
+        action_id: ActionId::new("continue_routine")
+            .expect("continue_routine is a stable action id"),
+        target_ids: vec![diagnostic.diagnostic_id.as_str().to_string()],
+        status: ReportStatus::Rejected,
+        failed_stage: Some(PipelineStage::MutationPlanConstruction),
+        reason_codes: vec![ReasonCode::RoutineStepBlocked],
+        checked_facts: Vec::new(),
+        actor_visible_facts: Vec::new(),
+        debug_only_facts: Vec::new(),
+        actor_visible_summary: diagnostic.actor_known_explanation.clone(),
+        debug_summary: format!(
+            "embodied continue_routine stuck: {}",
+            diagnostic.concrete_blocker
+        ),
+        would_mutate: true,
+        event_ids: appended_events
+            .iter()
+            .map(|event| event.event_id.clone())
+            .collect(),
+        checksum_before: None,
+        checksum_after: None,
+    }
+}
+
+fn embodied_recursive_continue_routine_diagnostic(
+    actor_id: &ActorId,
+    decision_tick: SimTick,
+    proposal: &crate::actions::Proposal,
+) -> StuckDiagnosticRecord {
+    StuckDiagnosticRecord::new(
+        StuckDiagnosticId::new(format!(
+            "stuck_embodied_continue_routine_recursive_{}_{}",
+            actor_id.as_str(),
+            decision_tick.value()
+        ))
+        .expect("embodied recursive continue diagnostic ids are generated from typed ids"),
+        actor_id.clone(),
+        decision_tick,
+        decision_tick.advance_by(1),
+        None,
+        None,
+        None,
+        proposal
+            .parameters
+            .get("routine_template_id")
+            .and_then(|template_id| crate::ids::RoutineTemplateId::new(template_id.clone()).ok()),
+        proposal
+            .parameters
+            .get("routine_execution_id")
+            .and_then(|execution_id| {
+                crate::ids::RoutineExecutionId::new(execution_id.clone()).ok()
+            }),
+        None,
+        None,
+        BlockerCategory::PlannerBudgetExhausted,
+        "recursive continue_routine follow-on",
+        "routine continuation could not select an ordinary follow-on action",
+        "embodied continue_routine resolved to continue_routine again",
+        "typed_stuck_diagnostic",
+        StuckResultingStatus::Failed,
+    )
 }
 
 #[cfg(test)]

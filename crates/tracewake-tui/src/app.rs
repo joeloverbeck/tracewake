@@ -243,7 +243,9 @@ impl TuiApp {
         let result = receipt
             .into_action_receipt()
             .expect("submit_semantic_action command returns an action receipt");
-        if result.report.action_id == entry.action_id {
+        if result.report.action_id == entry.action_id
+            && entry.action_id.as_str() != "continue_routine"
+        {
             debug_assert_eq!(
                 result.report.target_ids.as_slice(),
                 entry.target_ids.as_slice(),

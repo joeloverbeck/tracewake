@@ -2149,6 +2149,12 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
         witness_min: 1,
     },
     MetaLockRegistryEntry {
+        lock_id: "guard_0057_embodied_continue_non_proposed_outcome_is_typed_stuck",
+        negative_id: "synthetic_embodied_continue_stuck_falls_back_to_marker",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
         lock_id: "guard_007_mutation_efficacy_notes_cover_high_risk_shortcuts",
         negative_id: "synthetic_missing_mutation_efficacy_note",
         routing: MetaLockRouting::BehaviorAssertion,
@@ -2997,6 +3003,9 @@ fn behavior_assertion_inspected_site_count(entry: &MetaLockRegistryEntry) -> usi
         | "guard_006_scheduler_has_no_routine_family_to_primitive_dispatch"
         | "guard_006_continue_routine_marker_alone_is_not_behavioral_progress" => {
             non_empty_production_sites(&[production(SCHEDULER_RS).as_str()])
+        }
+        "guard_0057_embodied_continue_non_proposed_outcome_is_typed_stuck" => {
+            non_empty_production_sites(&[production(RUNTIME_SESSION_RS).as_str()])
         }
         "guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass" => {
             guarded_sources_for(GuardedLayer::Scheduler).len()
@@ -10256,6 +10265,31 @@ fn guard_006_continue_routine_marker_alone_is_not_behavioral_progress() {
     assert!(
         scheduler.contains("EventKind::ActionRejected"),
         "rejected actions must be excluded from behavioral progress"
+    );
+}
+
+#[test]
+fn guard_0057_embodied_continue_non_proposed_outcome_is_typed_stuck() {
+    let runtime_session = production(RUNTIME_SESSION_RS);
+    assert!(
+        runtime_session.contains("ActorDecisionTransactionOutcome::Stuck"),
+        "embodied continue_routine must handle stuck actor-decision outcomes explicitly"
+    );
+    assert!(
+        runtime_session.contains("run_embodied_continue_routine_stuck_outcome"),
+        "embodied continue_routine must return a typed stuck receipt instead of falling back to the marker receipt"
+    );
+    assert!(
+        runtime_session.contains("build_actor_stuck_diagnostic_event"),
+        "embodied continue_routine stuck outcomes must reuse the typed stuck diagnostic event schema"
+    );
+    assert!(
+        runtime_session.contains("append_embodied_routine_stuck_diagnostics"),
+        "embodied continue_routine submissions must scan the scheduler-owned stuck diagnostics"
+    );
+    assert!(
+        runtime_session.contains("recursive continue_routine follow-on"),
+        "recursive continue_routine follow-ons must be classified as typed stuck, not committed as another marker"
     );
 }
 

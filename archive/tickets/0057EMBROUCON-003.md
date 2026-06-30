@@ -1,6 +1,6 @@
 # 0057EMBROUCON-003: No silent wedge — typed block / modeled wait / embodied stuck eligibility
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — `tracewake-core` typed-outcome surfacing for a blocked embodied follow-on (`runtime/session.rs`) and cross-tick stuck eligibility for repeated no-progress continuations (`scheduler.rs`)
@@ -79,3 +79,26 @@ Feed the embodied submission's routine-progress state into the same expected-pro
 1. `cargo test --locked -p tracewake-core scheduler` — stuck-diagnostic eligibility (embodied + no-human parity of form).
 2. `cargo test --locked -p tracewake-core` — typed-outcome surfacing, no-leak, full core suite.
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace` — four-gate suite.
+
+## Outcome
+
+Completed: 2026-06-30
+
+Implemented typed non-silent handling for blocked embodied routine continuations:
+
+- `runtime/session.rs` now turns non-proposed actor-decision outcomes into a rejected `continue_routine` receipt with `ReasonCode::RoutineStepBlocked`, a typed `StuckDiagnosticRecorded` event, and the original `ContinueRoutineProposed` marker in the receipt event list.
+- Recursive `continue_routine` follow-ons are classified as typed stuck diagnostics instead of committing another marker-only continuation.
+- `scheduler.rs` exposes a narrow embodied stuck-scan helper that reuses the existing scheduler routine diagnostic vocabulary and emits `routine_expected_next_progress_stuck_detection` / `routine_repeated_idle_wait_stuck_detection` records from the same `RoutineExecution` progress-window state used by no-human windows.
+- The TUI submit path permits `continue_routine` receipts to return typed diagnostic targets while preserving the same-action target assertion for ordinary submissions.
+- Added an embodied-flow regression for blocked follow-ons and a scheduler in-module regression proving the embodied stuck scan emits the no-human diagnostic source tokens and de-duplicates through applied agent diagnostics.
+- Added a meta-lock covered anti-regression guard for the runtime path so future changes cannot fall back to marker-only accepted no-ops for non-proposed embodied continuation outcomes.
+
+Verification run:
+
+- `cargo fmt --all --check`
+- `cargo test --locked -p tracewake-core scheduler`
+- `cargo test --locked -p tracewake-core`
+- `cargo test --locked -p tracewake-tui`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

@@ -193,6 +193,48 @@ fn continue_routine_commits_embodied_follow_on_move_and_work() {
 }
 
 #[test]
+fn continue_routine_blocked_follow_on_returns_typed_stuck_diagnostic() {
+    let mut app = TuiApp::from_golden(fixtures::routine_no_teleport_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+
+    let continue_id = current_continue_routine_id(&mut app);
+    let continued = app.submit_semantic_action(&continue_id).unwrap();
+
+    assert_eq!(continued.report.status, ReportStatus::Rejected);
+    assert_eq!(continued.report.action_id.as_str(), "continue_routine");
+    assert!(continued
+        .report
+        .reason_codes
+        .contains(&ReasonCode::RoutineStepBlocked));
+    assert!(continued
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::ContinueRoutineProposed));
+    let diagnostic = continued
+        .appended_events
+        .iter()
+        .find(|event| event.event_type == EventKind::StuckDiagnosticRecorded)
+        .expect("blocked follow-on records a typed stuck diagnostic");
+    assert!(diagnostic
+        .payload
+        .iter()
+        .any(|field| field.key == "hidden_truth_referenced" && field.value == "false"));
+    assert!(diagnostic
+        .payload
+        .iter()
+        .any(|field| field.key == "blocker_code" && !field.value.is_empty()));
+    assert!(!continued
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::ActorMoved));
+    assert!(!continued
+        .appended_events
+        .iter()
+        .any(|event| event.event_type == EventKind::WorkBlockStarted));
+}
+
+#[test]
 fn body_exclusive_surface_disables_ordinary_actions_but_keeps_lifecycle_controls() {
     let mut app = TuiApp::from_golden(fixtures::sleep_eat_work_001()).unwrap();
     app.bind_actor(ActorId::new("actor_tomas").unwrap())

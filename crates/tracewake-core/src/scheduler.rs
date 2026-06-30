@@ -2315,7 +2315,7 @@ pub(crate) fn build_actor_decision_trace_event(
     Ok(event)
 }
 
-fn build_actor_stuck_diagnostic_event(
+pub(crate) fn build_actor_stuck_diagnostic_event(
     actor_id: &ActorId,
     tick: SimTick,
     process_id: &ProcessId,
@@ -2323,6 +2323,10 @@ fn build_actor_stuck_diagnostic_event(
     content_manifest_id: &ContentManifestId,
     frame_event_id: Option<&EventId>,
 ) -> Result<EventEnvelope, WorldAdvanceError> {
+    let mut causes = actor_step_cause(None, None, frame_event_id);
+    if causes.is_empty() {
+        causes.push(EventCause::Process(process_id.clone()));
+    }
     let mut event = EventEnvelope::new_caused_v1(
         EventId::new(format!(
             "event.world_step_stuck_diagnostic.{}.{}.{}",
@@ -2349,7 +2353,7 @@ fn build_actor_stuck_diagnostic_event(
             format!("world_step_stuck:{}", actor_id.as_str()),
         ),
         content_manifest_id.clone(),
-        actor_step_cause(None, None, frame_event_id),
+        causes,
     )
     .map_err(WorldAdvanceError::InvalidMarkerEnvelope)?;
     event.actor_id = Some(actor_id.clone());
@@ -3561,6 +3565,44 @@ pub mod no_human {
                 }),
             }
         }
+    }
+
+    pub(crate) fn append_embodied_routine_stuck_diagnostics(
+        log: &mut EventLog,
+        agent_state: &mut AgentState,
+        actor_id: &ActorId,
+        tick: SimTick,
+        content_manifest_id: &ContentManifestId,
+    ) -> Vec<EventEnvelope> {
+        let Ok(process_id) = ProcessId::new(format!(
+            "process.embodied_continue_routine_stuck_scan.{}.{}",
+            actor_id.as_str(),
+            tick.value()
+        )) else {
+            return Vec::new();
+        };
+        let window = DayWindow {
+            window_id: "embodied_continue_routine".to_string(),
+            start_tick: tick,
+            end_tick: tick,
+        };
+        let diagnostics = routine_stuck_diagnostic_kinds(agent_state, actor_id, &window);
+        let mut appended_events = Vec::new();
+        for (kind, execution_id) in diagnostics {
+            let event = append_stuck_diagnostic(
+                log,
+                &process_id,
+                actor_id,
+                &window,
+                content_manifest_id,
+                kind,
+                Some(execution_id),
+            );
+            if apply_agent_event(agent_state, &event).is_ok() {
+                appended_events.push(event);
+            }
+        }
+        appended_events
     }
 
     fn routine_stuck_diagnostic_kinds(
@@ -6127,6 +6169,72 @@ pub mod no_human {
                     (StuckDiagnosticKind::RepeatedIdleWait, waiting),
                 ]
             );
+        }
+
+        #[test]
+        fn embodied_continue_stuck_diagnostics_reuse_no_human_sources() {
+            let actor = actor_id();
+            let mut agent_state = agent_state(&actor);
+            let past_due = RoutineExecutionId::new("routine_exec_embodied_past_due").unwrap();
+            agent_state.routine_executions.insert(
+                past_due.clone(),
+                crate::agent::RoutineExecution::new(
+                    past_due,
+                    actor.clone(),
+                    RoutineTemplateId::new("routine_embodied_past_due").unwrap(),
+                    RoutineFamily::Wait,
+                    SimTick::ZERO,
+                    Some(SimTick::new(8)),
+                    None,
+                    None,
+                    DecisionTraceId::new("trace_embodied_past_due").unwrap(),
+                ),
+            );
+            let waiting = RoutineExecutionId::new("routine_exec_embodied_waiting").unwrap();
+            let mut waiting_execution = crate::agent::RoutineExecution::new(
+                waiting.clone(),
+                actor.clone(),
+                RoutineTemplateId::new("routine_embodied_waiting").unwrap(),
+                RoutineFamily::Wait,
+                SimTick::ZERO,
+                Some(SimTick::new(20)),
+                None,
+                None,
+                DecisionTraceId::new("trace_embodied_waiting").unwrap(),
+            );
+            waiting_execution.wait(SimTick::new(9));
+            waiting_execution.record_fallback_attempt();
+            agent_state
+                .routine_executions
+                .insert(waiting, waiting_execution);
+            let mut log = EventLog::new();
+
+            let emitted = append_embodied_routine_stuck_diagnostics(
+                &mut log,
+                &mut agent_state,
+                &actor,
+                SimTick::new(10),
+                &content_manifest_id(),
+            );
+
+            assert_eq!(emitted.len(), 2);
+            assert!(emitted
+                .iter()
+                .all(|event| event.event_type == EventKind::StuckDiagnosticRecorded));
+            let actual_sources = emitted
+                .iter()
+                .filter_map(|event| payload_value(event, "actual_source"))
+                .collect::<BTreeSet<_>>();
+            assert!(actual_sources.contains("routine_expected_next_progress_stuck_detection"));
+            assert!(actual_sources.contains("routine_repeated_idle_wait_stuck_detection"));
+            let duplicate_scan = append_embodied_routine_stuck_diagnostics(
+                &mut log,
+                &mut agent_state,
+                &actor,
+                SimTick::new(10),
+                &content_manifest_id(),
+            );
+            assert!(duplicate_scan.is_empty());
         }
 
         #[test]
