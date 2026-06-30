@@ -146,6 +146,53 @@ fn wait_command_during_sleep_is_reservation_conflict_without_world_advance() {
 }
 
 #[test]
+fn continue_routine_commits_embodied_follow_on_move_and_work() {
+    let mut app = TuiApp::from_golden(fixtures::ordinary_workday_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+
+    let first_continue = current_continue_routine_id(&mut app);
+    let moved = app.submit_semantic_action(&first_continue).unwrap();
+
+    assert_eq!(moved.report.status, ReportStatus::Accepted);
+    assert_eq!(moved.report.action_id.as_str(), "move");
+    assert_eq!(moved.report.target_ids, ["workshop_tomas".to_string()]);
+    let after_move_log = app.render_debug_event_log_panel();
+    assert!(after_move_log.contains("continue_routine_proposed"));
+    assert!(after_move_log.contains("actor_moved"));
+    assert!(
+        after_move_log.contains("intention_continued")
+            || after_move_log.contains("intention_started"),
+        "{after_move_log}"
+    );
+    assert!(after_move_log.contains("decision_trace_recorded"));
+    assert!(app
+        .render_current_view()
+        .unwrap()
+        .contains("workshop_tomas"));
+
+    let second_view = app.current_view().unwrap();
+    let second_continue_entry = second_view
+        .semantic_actions
+        .iter()
+        .find(|entry| entry.action_id.as_str() == "continue_routine" && entry.enabled)
+        .expect("current view exposes enabled continue_routine")
+        .clone();
+    let second_continue = second_continue_entry.semantic_action_id.clone();
+    let worked = app.submit_semantic_action(&second_continue).unwrap();
+
+    assert_eq!(worked.report.status, ReportStatus::Accepted);
+    assert_eq!(
+        worked.report.action_id.as_str(),
+        "work_block",
+        "entry={second_continue_entry:#?}"
+    );
+    let after_work_log = app.render_debug_event_log_panel();
+    assert!(after_work_log.contains("work_block_started"));
+    assert!(after_work_log.matches("continue_routine_proposed").count() >= 2);
+}
+
+#[test]
 fn body_exclusive_surface_disables_ordinary_actions_but_keeps_lifecycle_controls() {
     let mut app = TuiApp::from_golden(fixtures::sleep_eat_work_001()).unwrap();
     app.bind_actor(ActorId::new("actor_tomas").unwrap())
@@ -202,6 +249,17 @@ fn body_exclusive_surface_disables_ordinary_actions_but_keeps_lifecycle_controls
         body_exclusive_disabled.iter().all(|entry| !entry.enabled),
         "body-exclusive-disabled actions must report not-enabled:\n{body_exclusive_disabled:#?}"
     );
+}
+
+fn current_continue_routine_id(app: &mut TuiApp) -> SemanticActionId {
+    app.current_view()
+        .unwrap()
+        .semantic_actions
+        .iter()
+        .find(|entry| entry.action_id.as_str() == "continue_routine" && entry.enabled)
+        .expect("current view exposes enabled continue_routine")
+        .semantic_action_id
+        .clone()
 }
 
 #[test]

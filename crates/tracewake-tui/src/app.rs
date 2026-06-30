@@ -231,11 +231,6 @@ impl TuiApp {
         source_view: &EmbodiedViewModel,
     ) -> Result<RuntimeActionReceipt, AppError> {
         let actor_id = self.bound_actor_id.clone().ok_or(AppError::ActorNotBound)?;
-        // Deferral witness: embodied targeted-command routing is not yet wired, but the
-        // semantic-action surface already carries target_ids. Borrow it (no behavioral
-        // effect, no mutable operator to mutate) to keep the field's reachability guard
-        // satisfied until a live consumer lands.
-        let _ = &entry.target_ids;
         let receipt = self
             .runtime
             .submit_command(RuntimeCommand::submit_semantic_action(
@@ -248,6 +243,13 @@ impl TuiApp {
         let result = receipt
             .into_action_receipt()
             .expect("submit_semantic_action command returns an action receipt");
+        if result.report.action_id == entry.action_id {
+            debug_assert_eq!(
+                result.report.target_ids.as_slice(),
+                entry.target_ids.as_slice(),
+                "same-action receipts must preserve the submitted embodied action targets"
+            );
+        }
         if result.report.status == ReportStatus::Rejected {
             self.last_rejection = Some(result.report.clone());
         } else {

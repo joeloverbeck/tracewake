@@ -1,5 +1,6 @@
 use tracewake_content::fixtures;
 use tracewake_core::actions::{ReasonCode, ReportStatus};
+use tracewake_core::events::EventKind;
 use tracewake_core::ids::{ActionId, ActorId, SemanticActionId};
 use tracewake_tui::app::{AppError, TuiApp};
 use tracewake_tui::render::render_notebook;
@@ -97,7 +98,15 @@ fn run_real_pipeline_with_app(
                 .submit_semantic_action(&semantic_action_id)
                 .map_err(ScenarioError::from)?;
             submitted_status = Some(result.report.status.clone());
-            measured.typed = result.report.action_id == action.action_id;
+            measured.typed = if action.action_id.as_str() == "continue_routine" {
+                result.report.status == ReportStatus::Accepted
+                    && result
+                        .appended_events
+                        .iter()
+                        .any(|event| event.event_type == EventKind::ContinueRoutineProposed)
+            } else {
+                result.report.action_id == action.action_id
+            };
             if !action.availability.is_available() {
                 rendered = app.render_current_view().map_err(ScenarioError::from)?;
                 assert_actor_safe_why_not(entry, &rendered);
@@ -159,7 +168,15 @@ fn run_real_pipeline_with_app(
                 .submit_semantic_action(&semantic_action_id)
                 .map_err(ScenarioError::from)?;
             submitted_status = Some(result.report.status.clone());
-            measured.typed = result.report.action_id == action.action_id;
+            measured.typed = if action.action_id.as_str() == "continue_routine" {
+                result.report.status == ReportStatus::Accepted
+                    && result
+                        .appended_events
+                        .iter()
+                        .any(|event| event.event_type == EventKind::ContinueRoutineProposed)
+            } else {
+                result.report.action_id == action.action_id
+            };
             if !action.availability.is_available() {
                 rendered = app.render_current_view().map_err(ScenarioError::from)?;
                 assert_actor_safe_why_not(entry, &rendered);

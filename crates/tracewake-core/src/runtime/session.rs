@@ -1,7 +1,11 @@
 use crate::actions::{
     run_pipeline, ActionRegistry, PipelineContext, PipelineResult, ReportStatus, ValidationReport,
 };
-use crate::agent::current_place_knowledge_context;
+use crate::agent::{
+    current_place_knowledge_context, ActorDecisionTransaction, ActorDecisionTransactionInput,
+    ActorDecisionTransactionOutcome, NoHumanActorKnownSurfaceBuilder,
+    NoHumanActorKnownSurfaceRequest, RoutineFamily,
+};
 use crate::checksum::{compute_physical_checksum, ChecksumContext, PhysicalChecksum};
 use crate::controller::ControllerBindings;
 use crate::debug_capability::DebugSessionAuthority;
@@ -15,9 +19,10 @@ use crate::debug_reports::{
 };
 use crate::epistemics::projection::EpistemicProjection;
 use crate::events::log::EventLog;
+use crate::events::{EventEnvelope, EventKind};
 use crate::ids::{
-    ActorId, ContentManifestId, ContentVersion, ControllerId, DebugReportId, FixtureId, ItemId,
-    ProposalId,
+    ActorId, ContentManifestId, ContentVersion, ControllerId, DebugReportId, EventId, FixtureId,
+    ItemId, PlaceId, ProcessId, ProposalId,
 };
 use crate::projections::{
     build_debug_event_log_view, build_embodied_view_model, build_notebook_view,
@@ -29,6 +34,7 @@ use crate::scheduler::no_human::{
     default_day_windows, run_no_human_day, NoHumanDayConfig, NoHumanDayReport,
 };
 use crate::scheduler::{
+    append_and_apply_actor_artifact, build_actor_decision_trace_event, build_actor_intention_event,
     AdvanceUntilRequest, AdvanceUntilResult, DeterministicScheduler, OrderingKey, SchedulePhase,
     SchedulerSourceId, WorldAdvanceError, WorldAdvanceOrigin, WorldAdvanceRequest,
     WorldStepTransactionRequest,
@@ -464,6 +470,7 @@ impl LoadedWorldRuntime {
     ) -> Result<PipelineResult, RuntimeCommandError> {
         let expected_tick = self.scheduler.current_tick();
         let proposal_actor_id = proposal.actor_id.clone();
+        let is_continue_routine = proposal.action_id.as_str() == "continue_routine";
         let result = if uses_world_step {
             let step = self.scheduler.transact_world_one_tick(
                 &mut self.physical_state,
@@ -475,7 +482,7 @@ impl LoadedWorldRuntime {
                 WorldStepTransactionRequest {
                     advance: WorldAdvanceRequest {
                         expected_tick,
-                        origin: WorldAdvanceOrigin::Controller(controller_id),
+                        origin: WorldAdvanceOrigin::Controller(controller_id.clone()),
                         content_manifest_id: self.content_manifest_id.clone(),
                         authorized_sleep_interruptions: Vec::new(),
                     },
@@ -491,7 +498,7 @@ impl LoadedWorldRuntime {
             let ordering_key = OrderingKey::new(
                 expected_tick,
                 SchedulePhase::HumanCommand,
-                SchedulerSourceId::Controller(controller_id),
+                SchedulerSourceId::Controller(controller_id.clone()),
                 self.scheduler.assign_proposal_sequence(),
                 proposal.action_id.clone(),
                 proposal.target_ids.clone(),
@@ -514,7 +521,169 @@ impl LoadedWorldRuntime {
                 self.record_actor_current_place_perception(actor_id);
             }
         }
+        if !uses_world_step && result.report.status != ReportStatus::Rejected && is_continue_routine
+        {
+            if let Some(actor_id) = proposal_actor_id.as_ref() {
+                if let Some(follow_on) =
+                    self.run_embodied_continue_routine_follow_on(&controller_id, actor_id, &result)?
+                {
+                    return Ok(follow_on);
+                }
+            }
+        }
         Ok(result)
+    }
+
+    fn run_embodied_continue_routine_follow_on(
+        &mut self,
+        _controller_id: &ControllerId,
+        actor_id: &ActorId,
+        marker_result: &PipelineResult,
+    ) -> Result<Option<PipelineResult>, RuntimeCommandError> {
+        let Some(actor) = self.physical_state.actors().get(actor_id) else {
+            return Ok(None);
+        };
+        let decision_tick = self.scheduler.current_tick();
+        let current_place_id = actor.current_place_id.clone();
+        let actor_known_context =
+            NoHumanActorKnownSurfaceBuilder::from_projection(NoHumanActorKnownSurfaceRequest {
+                projection: &self.epistemic_projection,
+                agent_state: &self.agent_state,
+                actor_id: actor_id.clone(),
+                current_place_id: current_place_id.clone(),
+                decision_tick,
+                window_id: "embodied_continue_routine",
+                window_end_tick: decision_tick,
+                current_place_witness_event_id: latest_current_place_perception_event_id(
+                    &self.event_log,
+                    actor_id,
+                    decision_tick,
+                    &current_place_id,
+                ),
+                needs_witness_event_id: latest_need_event_id(&self.event_log, actor_id),
+                frame_event_id: latest_frame_event_id(&self.event_log),
+            })
+            .build(&self.agent_state)
+            .into_context();
+        let source_event_ids = self
+            .event_log
+            .events()
+            .iter()
+            .map(|event| event.event_id.clone())
+            .collect::<std::collections::BTreeSet<_>>();
+        let source_event_kinds = self
+            .event_log
+            .events()
+            .iter()
+            .map(|event| (event.event_id.clone(), event.event_type))
+            .collect::<std::collections::BTreeMap<_, _>>();
+        let outcome = ActorDecisionTransaction::run(ActorDecisionTransactionInput {
+            actor_id: actor_id.clone(),
+            decision_tick,
+            agent_state: &self.agent_state,
+            actor_known_context: &actor_known_context,
+            source_event_ids: Some(&source_event_ids),
+            source_event_kinds: Some(&source_event_kinds),
+            routine_window_family: embodied_routine_window_family(
+                &self.agent_state,
+                actor_id,
+                &actor_known_context,
+            ),
+            include_idle_fallback: false,
+        });
+        let ActorDecisionTransactionOutcome::Proposed(proposed) = outcome else {
+            return Ok(None);
+        };
+        let decision_trace_record = proposed.decision_trace_record.clone();
+        let lifecycle_effects = proposed.lifecycle_effects.clone();
+        let follow_on_proposal = proposed.proposal.into_proposal();
+        let ordering_key = OrderingKey::new(
+            decision_tick,
+            SchedulePhase::HumanCommand,
+            SchedulerSourceId::Actor(actor_id.clone()),
+            self.scheduler.assign_proposal_sequence(),
+            follow_on_proposal.action_id.clone(),
+            follow_on_proposal.target_ids.clone(),
+            format!("embodied_continue_routine:{}", actor_id.as_str()),
+        );
+        let mut context = PipelineContext {
+            registry: &self.registry,
+            state: &mut self.physical_state,
+            agent_state: &mut self.agent_state,
+            log: &mut self.event_log,
+            controller_bindings: Some(&self.controller_bindings),
+            epistemic_projection: Some(&mut self.epistemic_projection),
+            content_manifest_id: self.content_manifest_id.clone(),
+            ordering_key,
+        };
+        let mut follow_on_result = run_pipeline(&mut context, &follow_on_proposal);
+        if follow_on_result.report.status == ReportStatus::Rejected {
+            return Ok(Some(follow_on_result));
+        }
+        let ordinary_event = first_appended_event(&follow_on_result).cloned();
+        let process_id = ProcessId::new(format!(
+            "process.embodied_continue_routine.{}.{}",
+            actor_id.as_str(),
+            decision_tick.value()
+        ))
+        .map_err(WorldAdvanceError::InvalidMarkerId)?;
+        let frame_event_id = latest_frame_event_id(&self.event_log);
+        for effect in &lifecycle_effects {
+            let event = build_actor_intention_event(
+                actor_id,
+                decision_tick,
+                &process_id,
+                &follow_on_proposal,
+                &decision_trace_record,
+                effect,
+                &self.content_manifest_id,
+                ordinary_event.as_ref(),
+                frame_event_id.as_ref(),
+            )?;
+            let event_id = append_and_apply_actor_artifact(
+                &mut self.event_log,
+                &mut self.agent_state,
+                actor_id,
+                event,
+            )?;
+            if let Some(appended) = self
+                .event_log
+                .events()
+                .iter()
+                .find(|event| event.event_id == event_id)
+            {
+                follow_on_result.appended_events.push(appended.clone());
+            }
+        }
+        let trace_event = build_actor_decision_trace_event(
+            actor_id,
+            decision_tick,
+            &process_id,
+            &follow_on_proposal,
+            &decision_trace_record,
+            &self.content_manifest_id,
+            ordinary_event.as_ref(),
+            frame_event_id.as_ref(),
+        )?;
+        let trace_event_id = append_and_apply_actor_artifact(
+            &mut self.event_log,
+            &mut self.agent_state,
+            actor_id,
+            trace_event,
+        )?;
+        if let Some(appended) = self
+            .event_log
+            .events()
+            .iter()
+            .find(|event| event.event_id == trace_event_id)
+        {
+            follow_on_result.appended_events.push(appended.clone());
+        }
+        follow_on_result
+            .appended_events
+            .splice(0..0, marker_result.appended_events.clone());
+        self.record_actor_current_place_perception(actor_id);
+        Ok(Some(follow_on_result))
     }
 
     fn advance_until(
@@ -792,6 +961,105 @@ impl LoadedWorldRuntime {
             actor_id,
             &self.content_manifest_id,
         );
+    }
+}
+
+fn first_appended_event(result: &PipelineResult) -> Option<&EventEnvelope> {
+    result.appended_events.first()
+}
+
+fn latest_frame_event_id(log: &EventLog) -> Option<EventId> {
+    log.events()
+        .iter()
+        .rev()
+        .find(|event| {
+            matches!(
+                event.event_type,
+                EventKind::NoHumanDayStarted
+                    | EventKind::NoHumanAdvanceStarted
+                    | EventKind::DeclaredWorldProcessApplied
+            )
+        })
+        .map(|event| event.event_id.clone())
+}
+
+fn latest_current_place_perception_event_id(
+    log: &EventLog,
+    actor_id: &ActorId,
+    tick: SimTick,
+    place_id: &PlaceId,
+) -> Option<EventId> {
+    log.events()
+        .iter()
+        .rev()
+        .find(|event| {
+            event.event_type == EventKind::ObservationRecorded
+                && event.actor_id.as_ref() == Some(actor_id)
+                && event.sim_tick == tick
+                && event.place_id.as_ref() == Some(place_id)
+        })
+        .map(|event| event.event_id.clone())
+}
+
+fn latest_need_event_id(log: &EventLog, actor_id: &ActorId) -> Option<EventId> {
+    log.events()
+        .iter()
+        .rev()
+        .find(|event| {
+            event.event_type == EventKind::NeedDeltaApplied
+                && (event.actor_id.as_ref() == Some(actor_id)
+                    || event
+                        .payload
+                        .iter()
+                        .any(|field| field.key == "actor_id" && field.value == actor_id.as_str()))
+        })
+        .map(|event| event.event_id.clone())
+}
+
+fn embodied_routine_window_family(
+    agent_state: &AgentState,
+    actor_id: &ActorId,
+    actor_known_context: &crate::agent::ActorKnownPlanningContext,
+) -> Option<RoutineFamily> {
+    if actor_known_context
+        .known_workplaces()
+        .values()
+        .any(|place_id| place_id == actor_known_context.current_place_id())
+    {
+        return Some(RoutineFamily::WorkBlock);
+    }
+    let active_intention_id = agent_state.active_intention_by_actor().get(actor_id)?;
+    let active = agent_state.intentions().get(active_intention_id)?;
+    let selected_method = active.selected_routine_method.as_ref()?;
+    let family = agent_state
+        .routine_executions()
+        .values()
+        .filter(|execution| &execution.actor_id == actor_id)
+        .filter(|execution| &execution.template_id == selected_method)
+        .filter(|execution| !execution.step_status.is_resolved())
+        .map(|execution| execution.family)
+        .next()
+        .or_else(|| routine_family_from_template_id(selected_method.as_str()))?;
+    Some(family)
+}
+
+fn routine_family_from_template_id(template_id: &str) -> Option<RoutineFamily> {
+    if template_id.contains("go_to_work") {
+        Some(RoutineFamily::GoToWork)
+    } else if template_id.contains("work_block") {
+        Some(RoutineFamily::WorkBlock)
+    } else if template_id.contains("eat") {
+        Some(RoutineFamily::EatMeal)
+    } else if template_id.contains("sleep") {
+        Some(RoutineFamily::SleepNight)
+    } else if template_id.contains("return_home") {
+        Some(RoutineFamily::ReturnHome)
+    } else if template_id.contains("find_food") {
+        Some(RoutineFamily::FindFood)
+    } else if template_id.contains("leave_unsafe_place") {
+        Some(RoutineFamily::LeaveUnsafePlace)
+    } else {
+        None
     }
 }
 

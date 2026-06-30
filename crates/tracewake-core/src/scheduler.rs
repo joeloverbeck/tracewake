@@ -2157,7 +2157,7 @@ fn build_world_step_actor_frame_event(
     Ok(event)
 }
 
-fn append_and_apply_actor_artifact(
+pub(crate) fn append_and_apply_actor_artifact(
     log: &mut EventLog,
     agent_state: &mut AgentState,
     actor_id: &ActorId,
@@ -2192,7 +2192,7 @@ fn actor_step_cause(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn build_actor_decision_trace_event(
+pub(crate) fn build_actor_decision_trace_event(
     actor_id: &ActorId,
     tick: SimTick,
     process_id: &ProcessId,
@@ -2398,7 +2398,7 @@ fn build_actor_stuck_diagnostic_event(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn build_actor_intention_event(
+pub(crate) fn build_actor_intention_event(
     actor_id: &ActorId,
     tick: SimTick,
     process_id: &ProcessId,

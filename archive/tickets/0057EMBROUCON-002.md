@@ -1,6 +1,6 @@
 # 0057EMBROUCON-002: Embodied continuation commits the follow-on ordinary action
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — `tracewake-core` runtime command (`runtime/session.rs`, `runtime/receipt.rs`) sequences the `continue_routine` marker plus the resolved follow-on in one embodied transaction; `tracewake-tui` (`app.rs`) consumes the follow-on receipt
@@ -85,3 +85,24 @@ Remove the `let _ = &entry.target_ids;` deferral-witness borrow and its comment 
 1. `cargo test --locked -p tracewake-tui --test embodied_flow` — embodied behavioral progress + receipt surfacing.
 2. `cargo test --locked -p tracewake-core` — runtime sequencing, single-charge, replay-stability.
 3. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace` — four-gate suite.
+
+## Outcome
+
+Completed: 2026-06-30
+
+Implemented the embodied continuation follow-on path in the core runtime command. Accepted embodied `continue_routine` submissions now commit the marker, rebuild the actor-known planning surface, run the selected ordinary follow-on through the shared pipeline at the same scheduler tick, and return the follow-on `RuntimeActionReceipt` when a follow-on is available. The marker remains non-progress; the committed ordinary event is the progress of record.
+
+The TUI no longer carries the `target_ids` deferral witness. It still forwards the embodied action entry to core, and now asserts same-action receipt target parity while allowing `continue_routine` receipts to surface the ordinary follow-on. The parity scenario helper was updated so registered-action coverage for `continue_routine` measures the typed marker event rather than assuming the receipt action id remains `continue_routine`.
+
+Verification:
+
+- `cargo fmt --all --check`
+- `cargo test --locked -p tracewake-tui --test embodied_flow continue_routine_commits_embodied_follow_on_move_and_work`
+- `cargo test --locked -p tracewake-core runtime::session`
+- `cargo test --locked -p tracewake-core`
+- `cargo test --locked -p tracewake-tui`
+- `cargo test --workspace`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+
+Deviation note: no public receipt shape changed; `runtime/receipt.rs` required no edit because the existing `RuntimeActionReceipt` can carry the follow-on pipeline report and appended events.
