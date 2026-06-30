@@ -594,7 +594,7 @@ impl LoadedWorldRuntime {
             ),
             include_idle_fallback: false,
         });
-        let embodied_stuck_events = append_embodied_routine_stuck_diagnostics(
+        let prior_scheduler_stuck_events = append_embodied_routine_stuck_diagnostics(
             &mut self.event_log,
             &mut self.agent_state,
             actor_id,
@@ -608,7 +608,7 @@ impl LoadedWorldRuntime {
                     actor_id,
                     decision_tick,
                     marker_result,
-                    &embodied_stuck_events,
+                    &prior_scheduler_stuck_events,
                     &diagnostic,
                 );
             }
@@ -626,7 +626,7 @@ impl LoadedWorldRuntime {
                 actor_id,
                 decision_tick,
                 marker_result,
-                &embodied_stuck_events,
+                &prior_scheduler_stuck_events,
                 &diagnostic,
             );
         }
@@ -640,7 +640,7 @@ impl LoadedWorldRuntime {
                 actor_id,
                 decision_tick,
                 marker_result,
-                &embodied_stuck_events,
+                &prior_scheduler_stuck_events,
                 &diagnostic,
             );
         }
@@ -666,7 +666,7 @@ impl LoadedWorldRuntime {
         let mut follow_on_result = run_pipeline(&mut context, &follow_on_proposal);
         if follow_on_result.report.status == ReportStatus::Rejected {
             let mut receipt_prefix = marker_result.appended_events.clone();
-            receipt_prefix.extend(embodied_stuck_events);
+            receipt_prefix.extend(prior_scheduler_stuck_events);
             follow_on_result
                 .appended_events
                 .splice(0..0, receipt_prefix);
@@ -743,7 +743,7 @@ impl LoadedWorldRuntime {
             follow_on_result.appended_events.push(appended.clone());
         }
         let mut receipt_prefix = marker_result.appended_events.clone();
-        receipt_prefix.extend(embodied_stuck_events);
+        receipt_prefix.extend(prior_scheduler_stuck_events);
         follow_on_result
             .appended_events
             .splice(0..0, receipt_prefix);
@@ -756,7 +756,7 @@ impl LoadedWorldRuntime {
         actor_id: &ActorId,
         decision_tick: SimTick,
         marker_result: &PipelineResult,
-        embodied_stuck_events: &[EventEnvelope],
+        prior_scheduler_stuck_events: &[EventEnvelope],
         diagnostic: &StuckDiagnosticRecord,
     ) -> Result<Option<PipelineResult>, RuntimeCommandError> {
         let process_id = ProcessId::new(format!(
@@ -789,7 +789,7 @@ impl LoadedWorldRuntime {
             .into_iter()
             .collect::<Vec<_>>();
         let mut appended_events = marker_result.appended_events.clone();
-        appended_events.extend(embodied_stuck_events.iter().cloned());
+        appended_events.extend(prior_scheduler_stuck_events.iter().cloned());
         appended_events.extend(appended);
         self.record_actor_current_place_perception(actor_id);
         Ok(Some(PipelineResult {

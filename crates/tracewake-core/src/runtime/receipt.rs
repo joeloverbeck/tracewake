@@ -334,6 +334,29 @@ mod tests {
     }
 
     #[test]
+    fn embodied_continue_receipt_does_not_change_advance_until_stop_reason() {
+        let advance_until_result = AdvanceUntilResult {
+            start_tick: SimTick::new(12),
+            stop_tick: SimTick::new(12),
+            ticks_advanced: 0,
+            stop_reason: AdvanceUntilStopReason::UserPausedBeforeNextTick,
+            appended_event_ids: vec![EventId::new("event.embodied.marker").unwrap()],
+            actor_known_interval_delta: None,
+        };
+
+        let receipt =
+            ContinuedRuntimeReceipt::from_advance_until_result(advance_until_result.clone());
+
+        assert!(!receipt.advanced());
+        assert_eq!(receipt.appended_event_count(), 1);
+        assert_eq!(advance_until_result.ticks_advanced, 0);
+        assert_eq!(
+            advance_until_result.stop_reason,
+            AdvanceUntilStopReason::UserPausedBeforeNextTick
+        );
+    }
+
+    #[test]
     fn one_tick_receipt_derives_actor_visible_fields_from_world_advance_result() {
         let interval_delta = ActorKnownIntervalDelta::from_verified(
             ActorId::new("actor_tomas").unwrap(),

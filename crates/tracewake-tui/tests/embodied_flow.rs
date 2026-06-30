@@ -225,6 +225,86 @@ fn continue_routine_commits_embodied_follow_on_move_then_rejects_workplace_short
 }
 
 #[test]
+fn embodied_continue_success_does_not_emit_current_stuck_diagnostic() {
+    let mut app = TuiApp::from_golden(fixtures::ordinary_workday_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+
+    let first_continue = current_continue_routine_id(&mut app);
+    let moved = app.submit_semantic_action(&first_continue).unwrap();
+
+    assert_eq!(moved.report.status, ReportStatus::Accepted);
+    assert_eq!(moved.report.action_id.as_str(), "move");
+    assert_eq!(
+        event_count_by_kind(&moved.appended_events, EventKind::StuckDiagnosticRecorded),
+        0,
+        "successful embodied continuation must not fabricate a current stuck diagnostic"
+    );
+    assert!(
+        !app.render_debug_event_log_panel()
+            .contains("stuck_diagnostic_recorded"),
+        "post-success stuck accounting stays empty for actor_tomas"
+    );
+    assert!(!app.render_debug_stuck_panel().contains("actor_tomas"));
+}
+
+#[test]
+fn embodied_continue_stuck_emits_one_current_typed_diagnostic() {
+    let mut app = TuiApp::from_golden(fixtures::ordinary_workday_001()).unwrap();
+    app.bind_actor(ActorId::new("actor_tomas").unwrap())
+        .unwrap();
+
+    let first_continue = current_continue_routine_id(&mut app);
+    let moved = app.submit_semantic_action(&first_continue).unwrap();
+    assert_eq!(moved.report.status, ReportStatus::Accepted);
+
+    let second_continue = current_continue_routine_id(&mut app);
+    let stuck = app.submit_semantic_action(&second_continue).unwrap();
+
+    assert_eq!(stuck.report.status, ReportStatus::Rejected);
+    assert_eq!(stuck.report.action_id.as_str(), "continue_routine");
+    assert!(stuck
+        .report
+        .reason_codes
+        .contains(&ReasonCode::RoutineStepBlocked));
+    assert!(
+        !stuck.report.actor_visible_summary.is_empty(),
+        "typed stuck report must preserve an actor-known explanation"
+    );
+    let diagnostics = stuck
+        .appended_events
+        .iter()
+        .filter(|event| event.event_type == EventKind::StuckDiagnosticRecorded)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        diagnostics.len(),
+        1,
+        "current continuation stuck emits exactly one diagnostic"
+    );
+    let diagnostic = diagnostics[0];
+    assert!(stuck
+        .report
+        .event_ids
+        .iter()
+        .any(|event_id| event_id == &diagnostic.event_id));
+    assert!(diagnostic
+        .payload
+        .iter()
+        .any(|field| field.key == "hidden_truth_referenced" && field.value == "false"));
+    assert!(diagnostic
+        .payload
+        .iter()
+        .any(|field| field.key == "blocker_code" && !field.value.is_empty()));
+    assert_eq!(
+        app.render_debug_event_log_panel()
+            .matches("stuck_diagnostic_recorded")
+            .count(),
+        1,
+        "prior scheduler scan plus current stuck receipt must not duplicate diagnostics"
+    );
+}
+
+#[test]
 fn embodied_continue_wait_follow_on_is_not_direct_pipelined() {
     let mut app = TuiApp::from_golden(fixtures::ordinary_workday_001()).unwrap();
     app.bind_actor(ActorId::new("actor_tomas").unwrap())
@@ -418,6 +498,13 @@ fn current_continue_routine_id(app: &mut TuiApp) -> SemanticActionId {
         .expect("current view exposes enabled continue_routine")
         .semantic_action_id
         .clone()
+}
+
+fn event_count_by_kind(events: &[tracewake_core::events::EventEnvelope], kind: EventKind) -> usize {
+    events
+        .iter()
+        .filter(|event| event.event_type == kind)
+        .count()
 }
 
 #[test]

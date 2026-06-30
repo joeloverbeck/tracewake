@@ -1,6 +1,6 @@
 # 0058EMBROUCON-003: Stuck-diagnostic and receipt honesty
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — modifies `crates/tracewake-core/src/runtime/session.rs` (receipt/stuck assembly); test support in `scheduler.rs`; adds core behavioral tests
@@ -79,3 +79,22 @@ Add `embodied_continue_success_does_not_emit_current_stuck_diagnostic`, `embodie
 1. `cargo test -p tracewake-core embodied_continue_success`
 2. `cargo test -p tracewake-core embodied_continue_receipt_does_not_change_advance_until_stop_reason`
 3. `cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-06-30
+
+- Renamed the embodied follow-on receipt prefix in `crates/tracewake-core/src/runtime/session.rs` from an undifferentiated stuck-event collection to `prior_scheduler_stuck_events`, so the success/rejection receipt assembly explicitly distinguishes the prior scheduler-owned scan from the current `run_embodied_continue_routine_stuck_outcome` diagnostic.
+- Left `crates/tracewake-core/src/scheduler.rs` unchanged: `append_embodied_routine_stuck_diagnostics` already returns only prior scan diagnostics and the current stuck helper remains the single current-diagnostic authority.
+- Added real TUI/runtime-path coverage in `crates/tracewake-tui/tests/embodied_flow.rs`:
+  - `embodied_continue_success_does_not_emit_current_stuck_diagnostic` proves a successful move follow-on appends no current `StuckDiagnosticRecorded`, leaves the event log without `stuck_diagnostic_recorded`, and keeps stuck debug accounting empty for `actor_tomas`.
+  - `embodied_continue_stuck_emits_one_current_typed_diagnostic` proves a genuine continuation stuck returns a rejected `continue_routine` report with `RoutineStepBlocked`, exactly one current typed diagnostic, non-empty actor-visible explanation, no hidden-truth reference, a typed `blocker_code`, and no duplicate diagnostic after the prior scan.
+- Added `embodied_continue_receipt_does_not_change_advance_until_stop_reason` in `crates/tracewake-core/src/runtime/receipt.rs` to lock the raw `AdvanceUntilResult` stop reason and `ticks_advanced` arithmetic while the public continuation receipt derives only progress and event count.
+
+Verification:
+
+- `cargo test -p tracewake-tui --test embodied_flow embodied_continue_success_does_not_emit_current_stuck_diagnostic` passed.
+- `cargo test -p tracewake-tui --test embodied_flow embodied_continue_stuck_emits_one_current_typed_diagnostic` passed.
+- `cargo test -p tracewake-core embodied_continue_receipt_does_not_change_advance_until_stop_reason` passed.
+- `cargo fmt --all --check` passed.
+- `cargo test --workspace` passed.
