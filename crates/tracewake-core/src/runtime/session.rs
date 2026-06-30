@@ -279,10 +279,22 @@ impl LoadedWorldRuntime {
             snapshot,
             Some(&self.agent_state),
         );
-        let preflight = EmbodiedPreflightSource::new(
+        // Same event-log open-duration authority the reservation-conflict check uses,
+        // so the surface disables ordinary actions exactly when submit would reject
+        // them. A duplicate-terminal error is rejected upstream; treat it as no open
+        // duration here rather than failing the view.
+        let actor_in_body_exclusive_duration = crate::need_accounting::open_body_exclusive_starts(
+            &self.event_log,
+            actor_id,
+            context.current_tick(),
+        )
+        .map(|starts| !starts.is_empty())
+        .unwrap_or(false);
+        let preflight = EmbodiedPreflightSource::with_body_exclusive_duration(
             &self.physical_state,
             &self.registry,
             &self.content_manifest_id,
+            actor_in_body_exclusive_duration,
         );
         let mut view = build_embodied_view_model(&context, &source, &preflight, last_rejection)?;
         view.set_notebook(Some(build_notebook_view(

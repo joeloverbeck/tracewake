@@ -151,6 +151,7 @@ pub struct EmbodiedPreflightSource<'a> {
     state: &'a PhysicalState,
     registry: &'a ActionRegistry,
     content_manifest_id: &'a ContentManifestId,
+    actor_in_body_exclusive_duration: bool,
 }
 
 impl<'a> EmbodiedPreflightSource<'a> {
@@ -159,10 +160,25 @@ impl<'a> EmbodiedPreflightSource<'a> {
         registry: &'a ActionRegistry,
         content_manifest_id: &'a ContentManifestId,
     ) -> Self {
+        Self::with_body_exclusive_duration(state, registry, content_manifest_id, false)
+    }
+
+    /// Build a preflight source that knows whether the viewer actor currently
+    /// holds an unresolved body-exclusive start. The caller derives this from the
+    /// same event-log open-duration authority the reservation-conflict check uses
+    /// (`open_body_exclusive_starts`), so the surface's disabled state matches the
+    /// rejection an ordinary action would receive on submit.
+    pub fn with_body_exclusive_duration(
+        state: &'a PhysicalState,
+        registry: &'a ActionRegistry,
+        content_manifest_id: &'a ContentManifestId,
+        actor_in_body_exclusive_duration: bool,
+    ) -> Self {
         Self {
             state,
             registry,
             content_manifest_id,
+            actor_in_body_exclusive_duration,
         }
     }
 
@@ -183,6 +199,7 @@ impl<'a> EmbodiedPreflightSource<'a> {
             sim_tick,
             knowledge_context_id,
             knowledge_context_frontier,
+            actor_in_body_exclusive_duration: self.actor_in_body_exclusive_duration,
         }
     }
 }
@@ -700,6 +717,41 @@ pub fn build_embodied_view_model(
         &source.current_place_id,
         viewer_actor_id,
     ));
+    // While the actor holds an unresolved body-exclusive start (a sleep or work
+    // block), the reservation-conflict check rejects every non-lifecycle action on
+    // submit. That check is event-log-derived, so the per-action validators above
+    // cannot see it; disable those actions here so the surface reflects the
+    // rejection instead of offering enabled actions that always fail. Lifecycle
+    // controls (continue routine) remain available, and actions already disabled for
+    // a more specific reason keep it.
+    if preflight_context.actor_in_body_exclusive_duration {
+        semantic_actions = semantic_actions
+            .into_iter()
+            .map(|entry| {
+                if entry.enabled
+                    && !crate::actions::pipeline::is_lifecycle_control(&entry.action_id)
+                {
+                    SemanticActionEntry::with_availability(
+                        entry.semantic_action_id,
+                        entry.action_id,
+                        entry.target_ids,
+                        entry.label,
+                        ActionAvailability::disabled(
+                            vec![ReasonCode::ReservationConflict],
+                            "That actor is already in a body-exclusive action.".to_string(),
+                            vec![ActionAvailabilityProvenance::new(
+                                ActionAvailabilityProvenanceKind::HolderKnownContext,
+                                context.holder_known_context_id().as_str(),
+                            )],
+                            Vec::new(),
+                        ),
+                    )
+                } else {
+                    entry
+                }
+            })
+            .collect();
+    }
     semantic_actions.sort();
 
     Ok(EmbodiedViewModel {
@@ -1296,6 +1348,7 @@ struct SemanticActionPreflightContext<'a> {
     sim_tick: SimTick,
     knowledge_context_id: HolderKnownContextId,
     knowledge_context_frontier: u64,
+    actor_in_body_exclusive_duration: bool,
 }
 
 fn semantic_actions(
@@ -2597,6 +2650,66 @@ mod tests {
             }),
             "a closed container must not offer a place-into action"
         );
+    }
+
+    #[test]
+    fn embodied_surface_disables_non_lifecycle_actions_during_body_exclusive_duration() {
+        let state = state();
+        let viewer = actor_id("actor_tomas");
+        let current_place_id = place_id("shop_front");
+        let context = KnowledgeContext::embodied_at_frontier_with_all_facts_and_observations(
+            viewer.clone(),
+            SimTick::new(1),
+            0,
+            Vec::new(),
+            actor_known_current_place_facts(&state, &current_place_id),
+            actor_known_carried_item_facts(&state, &viewer),
+            Vec::new(),
+            Vec::new(),
+            vec![crate::epistemics::ActorKnownRouteFact::new(
+                current_place_id.clone(),
+                place_id("back_room"),
+                "visible_exit",
+            )],
+            actor_known_door_facts(&state, &current_place_id),
+            actor_known_container_facts(&state, &current_place_id),
+            actor_known_item_facts(&state, &current_place_id),
+            actor_known_local_actor_facts(&state, &viewer, &current_place_id),
+        );
+        let snapshot = EmbodiedTruthSnapshot::from_physical_state(&context, &state);
+        let source = EmbodiedProjectionSource::from_sealed_context(&context, snapshot, None);
+        let registry = registry();
+        let manifest = content_manifest_id();
+
+        let wait_entry = |view: &EmbodiedViewModel| {
+            view.semantic_actions
+                .iter()
+                .find(|entry| entry.semantic_action_id.as_str() == "wait.1_tick")
+                .cloned()
+                .expect("wait is always offered")
+        };
+
+        // Free actor: ordinary wait is available.
+        let free = EmbodiedPreflightSource::new(&state, &registry, &manifest);
+        let free_view = build_embodied_view_model(&context, &source, &free, None).unwrap();
+        assert!(wait_entry(&free_view).enabled);
+
+        // Actor holding an open body-exclusive duration: ordinary wait is disabled with
+        // the reservation-conflict reason, matching the submit-time rejection.
+        let in_duration = EmbodiedPreflightSource::with_body_exclusive_duration(
+            &state, &registry, &manifest, true,
+        );
+        let duration_view =
+            build_embodied_view_model(&context, &source, &in_duration, None).unwrap();
+        let wait = wait_entry(&duration_view);
+        assert!(
+            !wait.enabled,
+            "ordinary wait must be disabled during a body-exclusive duration"
+        );
+        assert!(wait
+            .availability
+            .reason_codes()
+            .contains(&ReasonCode::ReservationConflict));
     }
 
     #[test]
