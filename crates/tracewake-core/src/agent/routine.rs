@@ -373,6 +373,22 @@ pub enum RoutineStepStatus {
     Abandoned,
 }
 
+impl RoutineStepStatus {
+    /// A step in a resolved (closed) state: it has reached a committed completion,
+    /// a typed failure, an interruption, or an abandonment. Such a routine made its
+    /// progress or recorded its own terminal reason, so it must not also be flagged
+    /// as "stuck past its expected progress window" — that boundary is for routines
+    /// still pending progress, not ones already closed. `Suspended` is intentionally
+    /// excluded: a suspended routine may still owe progress and can legitimately
+    /// become stuck.
+    pub const fn is_resolved(self) -> bool {
+        matches!(
+            self,
+            Self::Completed | Self::Failed | Self::Interrupted | Self::Abandoned
+        )
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RoutineExecution {
     pub execution_id: RoutineExecutionId,
