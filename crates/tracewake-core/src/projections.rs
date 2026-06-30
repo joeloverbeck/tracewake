@@ -1092,13 +1092,17 @@ fn phase3a_status(agent_state: &AgentState, viewer_actor_id: &ActorId) -> Phase3
         .get(viewer_actor_id)
         .and_then(|intention_id| agent_state.intentions.get(intention_id));
     let intention_summary = intention.map(|intention| {
+        // A need-driven intention has no routine template. Report what is actually
+        // driving it (its source) rather than a misleading "routine_unknown" sentinel,
+        // which otherwise contradicts the sibling "Routine: none" line for the same
+        // `selected_routine_method == None` state.
         format!(
             "active:{}:{}",
             intention
                 .selected_routine_method
                 .as_ref()
                 .map(|id| id.as_str())
-                .unwrap_or("routine_unknown"),
+                .unwrap_or_else(|| intention.source.stable_id()),
             intention.current_step.as_deref().unwrap_or("step_pending")
         )
     });
@@ -1662,6 +1666,41 @@ mod tests {
 
     fn content_manifest_id() -> ContentManifestId {
         ContentManifestId::new("phase2a_manifest").unwrap()
+    }
+
+    #[test]
+    fn phase3a_status_need_driven_intention_reports_source_not_routine_unknown_sentinel() {
+        // A need-driven intention has no routine template. The embodied status must not
+        // leak the internal "routine_unknown" sentinel into the player-facing view, and
+        // it must stay consistent with the sibling routine summary (which renders None).
+        let viewer = actor_id("actor_tomas");
+        let mut agent_state = AgentState::default();
+        let intention_id = IntentionId::new("intention_tomas_rest").unwrap();
+        agent_state
+            .active_intention_by_actor
+            .insert(viewer.clone(), intention_id.clone());
+        agent_state.intentions.insert(
+            intention_id.clone(),
+            Intention::adopt(
+                intention_id,
+                viewer.clone(),
+                IntentionSource::NeedPressure,
+                CandidateGoalId::new("goal_tomas_sleep_or_rest").unwrap(),
+                None,
+                Some("sleep_or_rest".to_string()),
+                4,
+                SimTick::new(1),
+                DecisionTraceId::new("trace_tomas_rest").unwrap(),
+            ),
+        );
+
+        let status = phase3a_status(&agent_state, &viewer);
+        let intention_summary = status.intention_summary.as_deref().unwrap();
+        assert_eq!(intention_summary, "active:need_pressure:sleep_or_rest");
+        assert!(!intention_summary.contains("routine_unknown"));
+        // The routine summary stays None (rendered as "none"); the intention line no
+        // longer contradicts it with a phantom routine token.
+        assert!(status.routine_summary.is_none());
     }
 
     #[test]
