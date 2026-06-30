@@ -340,6 +340,17 @@ mod tests {
         )
     }
 
+    fn remembered_fact(stable_id: &str, value: &str) -> ActorKnownFact {
+        ActorKnownFact::remembered_belief(
+            actor_id(),
+            stable_id,
+            value,
+            "test:resolver",
+            Some(SimTick::new(4)),
+            source(),
+        )
+    }
+
     fn decision_selection(goal_kind: GoalKind) -> DecisionSelection {
         let selected_goal = CandidateGoal::new(
             CandidateGoalId::new("candidate_actor_tomas_go_to_work").unwrap(),
@@ -692,6 +703,35 @@ mod tests {
         assert_eq!(
             actor_known_food_source_for_goal(&context),
             Some("food_stew_home_tomas".to_string())
+        );
+    }
+
+    #[test]
+    fn actor_known_food_source_requires_observed_now_semantic_kind() {
+        // Two `actor_knows_food_source` facts that differ only by semantic kind
+        // and value, both actor-known. The resolver must prefer the
+        // `observed_now` fact; a `semantic_kind == "observed_now"` -> `!=` mutant
+        // would instead surface the remembered-belief fact's value. (A fast,
+        // standalone witness so this is caught before the slower full-sim
+        // scenarios that would otherwise only flag it via a timeout.)
+        let context = ActorKnownPlanningContext::from_observed_parts(
+            actor_id(),
+            place("home_tomas"),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::new(),
+            BTreeSet::new(),
+            BTreeMap::new(),
+            vec![
+                fact("actor_knows_food_source", "food_observed_home_tomas"),
+                remembered_fact("actor_knows_food_source", "food_remembered_home_tomas"),
+            ],
+        );
+
+        assert_eq!(
+            actor_known_food_source_for_goal(&context),
+            Some("food_observed_home_tomas".to_string())
         );
     }
 }
