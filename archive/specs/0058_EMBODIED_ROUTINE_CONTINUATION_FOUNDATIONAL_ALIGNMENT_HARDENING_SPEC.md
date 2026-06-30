@@ -1,10 +1,11 @@
 # 0058 Embodied Routine Continuation Foundational Alignment Hardening Spec
 
-**Intended repository path:** `specs/0058_EMBODIED_ROUTINE_CONTINUATION_FOUNDATIONAL_ALIGNMENT_HARDENING_SPEC.md`  
-**Series:** parallel `specs/NNNN` feature/hardening series, staged in `specs/` and archived to `archive/specs/` only after acceptance.  
-**Posture:** scoped feature-hardening implementation spec, not a project-wide certification audit.  
-**P0-CERT:** not applicable.  
-**First-proof / Phase-4 / second-proof:** not claimed.  
+**Status**: COMPLETED
+**Intended repository path:** `archive/specs/0058_EMBODIED_ROUTINE_CONTINUATION_FOUNDATIONAL_ALIGNMENT_HARDENING_SPEC.md`
+**Series:** parallel `specs/NNNN` feature/hardening series, staged in `specs/` and archived to `archive/specs/` only after acceptance.
+**Posture:** scoped feature-hardening implementation spec, not a project-wide certification audit.
+**P0-CERT:** not applicable.
+**First-proof / Phase-4 / second-proof:** not claimed.
 **Authority posture:** subordinate to live doctrine tiers. This spec mints no invariant, gate, glossary term, or design-risk ID. Any amendment language below is routed substance + home only, not ratified doctrine.
 
 ---
@@ -569,3 +570,33 @@ External sources shaped the testing and evidence discipline only. They are not u
 
 7. cargo-mutants documentation, “The mutants.out directory.” This describes `mutants.out`, result files, logs, diffs, and `previously_caught.txt`. This supports the acceptance artifact's mutation evidence requirements.  
    Source: `https://mutants.rs/mutants-out.html`
+
+## Outcome
+
+Completed: 2026-06-30
+
+Implemented the `0058EMBROUCON` ticket series in dependency order and archived tickets `0058EMBROUCON-001` through `0058EMBROUCON-007`.
+
+Implementation summary:
+
+- Removed the embodied pre-active-intention workplace selector and made active intention/current unresolved routine execution the authority for `continue_routine` family selection.
+- Added a temporal gateway that rejects time-advancing embodied follow-ons as typed stuck instead of direct-pipelining `wait`.
+- Split prior scheduler stuck diagnostics from current stuck outcomes and added success/stuck receipt honesty tests.
+- Added embodied/autonomous parity tests over equivalent actor-known state, including hidden-workplace and inactive/other-actor adversaries.
+- Added two real-pipeline `spec0058.*` TUI parity rows and runner checks for active-intention and temporal-authority consequences.
+- Added four 0058 meta-lock source guards with non-vacuous `synthetic_*` negative witnesses.
+- Produced `archive/reports/0058_embodied_routine_continuation_foundational_alignment_acceptance.md`.
+
+Verification:
+
+- `cargo fmt --all --check` passed.
+- `cargo clippy --workspace --all-targets -- -D warnings` passed.
+- `cargo build --workspace --all-targets --locked` passed.
+- `cargo test --workspace` passed.
+- Focused mutation evidence was recorded with `cargo-mutants 27.1.0`; the final iterate run remained survivorful (15 tested, 8 caught, 7 missed, 0 unviable, 0 timeout), so this spec makes no mutation-perfect or certification-style claim.
+
+Acceptance posture:
+
+- This closeout accepts scoped `0058` feature-hardening evidence only.
+- The acceptance report records a computed `non-pass` status for certification-style use because focused mutation remains survivorful.
+- This spec does not certify latest main, Phase-4 entry, second-proof entry, `FIRST-PROOF-CERT`, `P0-CERT`, or any whole-project status, and it mints no invariant, gate, glossary term, or risk ID.

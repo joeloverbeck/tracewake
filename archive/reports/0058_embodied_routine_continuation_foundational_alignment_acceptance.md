@@ -48,7 +48,7 @@ Implementation evidence changed these areas across the leaf tickets:
 ## Computed Acceptance Status
 
 ```tracewake-acceptance-status
-artifact: reports/0058_embodied_routine_continuation_foundational_alignment_acceptance.md
+artifact: archive/reports/0058_embodied_routine_continuation_foundational_alignment_acceptance.md
 target_commit: 2d98a221b547af8b8b687c3a9e36143f2c7cbb73
 audited_baseline: 4382f6db10b1cad247ea2793c94a6cda81f36d6f
 scope: spec-0058-feature-hardening-closeout-evidence
@@ -191,9 +191,9 @@ Spec §5 substance is recorded as proposed-but-not-ratified here:
 
 Any ratification belongs to a future upstream doctrine/spec amendment through the normal authority chain.
 
-## Deferred Archival
+## Archive Routing
 
-The `archive/specs/` move, `archive/reports/` move, and `docs/4-specs/SPEC_LEDGER.md` archived implementation-spec row are deferred to spec acceptance/series closeout per `docs/archival-workflow.md`. They are not part of the `0058EMBROUCON-007` ticket diff.
+The `archive/specs/` move, `archive/reports/` move, and `docs/4-specs/SPEC_LEDGER.md` archived implementation-spec row are performed in the spec acceptance/series closeout commit per `docs/archival-workflow.md`. They were not part of the `0058EMBROUCON-007` ticket diff.
 
 ## Residual Convention-Only Items
 

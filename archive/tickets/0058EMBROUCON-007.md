@@ -33,7 +33,7 @@ Spec §7 — produce the acceptance closeout artifact proving all tickets, the f
 
 ### 1. Produce the acceptance artifact
 
-Author `reports/0058_embodied_routine_continuation_foundational_alignment_acceptance.md` from `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md`, including: the implementation commit SHA (full length); an explicit statement that the audited baseline was `4382f6d` but the accepted implementation commit is the new one; a per-ticket evidence table (-001…-006); four-gate command transcripts (`cargo fmt --all --check`; `cargo clippy --workspace --all-targets -- -D warnings`; `cargo build --workspace --all-targets --locked`; `cargo test --workspace`); focused-mutation commands, tool version, scope, `mutants.out` summary, and missed/unviable/timeout disposition; replay evidence for marker + follow-on reconstruction; parity report evidence for all `spec0058.*` rows; the explicit non-certification statement; and a doctrine-amendment routing section recording the §5 substance as proposed-but-not-ratified (no new invariant/gate/glossary/risk id minted).
+Author `archive/reports/0058_embodied_routine_continuation_foundational_alignment_acceptance.md` from `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md`, including: the implementation commit SHA (full length); an explicit statement that the audited baseline was `4382f6d` but the accepted implementation commit is the new one; a per-ticket evidence table (-001…-006); four-gate command transcripts (`cargo fmt --all --check`; `cargo clippy --workspace --all-targets -- -D warnings`; `cargo build --workspace --all-targets --locked`; `cargo test --workspace`); focused-mutation commands, tool version, scope, `mutants.out` summary, and missed/unviable/timeout disposition; replay evidence for marker + follow-on reconstruction; parity report evidence for all `spec0058.*` rows; the explicit non-certification statement; and a doctrine-amendment routing section recording the §5 substance as proposed-but-not-ratified (no new invariant/gate/glossary/risk id minted).
 
 ### 2. Record (do not perform) the deferred archival
 
@@ -41,7 +41,7 @@ Note that the `archive/specs/` move and the `SPEC_LEDGER.md` "Archived implement
 
 ## Files to Touch
 
-- `reports/0058_embodied_routine_continuation_foundational_alignment_acceptance.md` (new)
+- `archive/reports/0058_embodied_routine_continuation_foundational_alignment_acceptance.md` (new)
 
 ## Out of Scope
 
@@ -77,9 +77,13 @@ Note that the `archive/specs/` move and the `SPEC_LEDGER.md` "Archived implement
 
 Completed: 2026-06-30
 
-Produced `reports/0058_embodied_routine_continuation_foundational_alignment_acceptance.md` from the house acceptance-artifact structure. The report records the audited baseline `4382f6db10b1cad247ea2793c94a6cda81f36d6f`, target implementation commit `2d98a221b547af8b8b687c3a9e36143f2c7cbb73`, per-ticket evidence for -001 through -006, parity/replay evidence for both `spec0058.*` rows, focused mutation commands and survivorful disposition, and the explicit non-certification posture.
+Produced `archive/reports/0058_embodied_routine_continuation_foundational_alignment_acceptance.md` from the house acceptance-artifact structure. The report records the audited baseline `4382f6db10b1cad247ea2793c94a6cda81f36d6f`, target implementation commit `2d98a221b547af8b8b687c3a9e36143f2c7cbb73`, per-ticket evidence for -001 through -006, parity/replay evidence for both `spec0058.*` rows, focused mutation commands and survivorful disposition, and the explicit non-certification posture.
 
 The report records §5 doctrine substance as proposed-but-not-ratified and defers the `archive/specs/`, `archive/reports/`, and `SPEC_LEDGER.md` moves to spec acceptance/series closeout.
+
+Outcome amended: 2026-06-30
+
+The deferred `archive/specs/`, `archive/reports/`, and `SPEC_LEDGER.md` closeout steps were performed in the subsequent spec acceptance/archive commit, outside the `0058EMBROUCON-007` ticket diff as planned.
 
 Verification:
 
