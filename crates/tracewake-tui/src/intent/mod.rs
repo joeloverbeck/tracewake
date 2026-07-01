@@ -1,3 +1,4 @@
+pub mod key_script;
 pub mod reducer;
 pub mod state;
 
