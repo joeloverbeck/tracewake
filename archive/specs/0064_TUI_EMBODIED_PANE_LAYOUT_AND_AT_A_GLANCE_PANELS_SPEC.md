@@ -1,6 +1,6 @@
 # 0064 TUI Embodied Pane Layout and At-a-Glance Panels Spec
 
-**Status**: PROPOSED
+**Status**: COMPLETED
 
 This is a post-`FIRST-PROOF-CERT` **feature/capability** spec in the parallel `specs/NNNN`
 series. It is staged in `specs/` and promoted to `archive/specs/` on acceptance; it is never
@@ -21,8 +21,10 @@ enriched actor data; it adds no core rule.
   list with no stable panel positions, no focus/inspection model, and no continuous keybinding/action
   visibility.
 - **Baseline commit.** Re-verified against repository `HEAD`
-  `85dd8836508a58305eb84d70caf52bda088a9bde`. Named symbols authoritative; line numbers provenance
-  only.
+  `54b252919184d5aad71cc8ff12109f0679f2bd23` (original authoring baseline
+  `85dd8836508a58305eb84d70caf52bda088a9bde` predated the `0063` closeout; the enriched
+  `VisibleActor` surface has since landed and is re-verified here). Named symbols authoritative; line
+  numbers provenance only.
 - **Source discipline.** Commit hashes are audit/provenance only. No latest-`main` certification,
   Phase-4 entry, or second-proof entry. A manifest is path inventory only.
 - **Authority posture.** Subordinate to foundation → architecture → execution → reference. Routes
@@ -40,15 +42,21 @@ In `tracewake-tui` only:
    Self/Body/Routine, Co-present actors, Actions/Affordances, Details/Why-not, Notebook/Leads,
    Recent actor-known changes, and an input-hints footer. Stable regions so a player builds
    peripheral memory.
-2. **Pane-to-view-model bindings** (all presentation-only unless noted): Place from `place_label`/
-   `visible_exits`/`visible_doors`/`visible_containers`/`visible_items`; Self from `phase3a_status`
-   and `carried_items`; Actions from `semantic_actions` (menu index is presentation-only, semantic id
-   stable); Details/Why-not from `last_rejection_why_not`/`WhyNotView` (actor-safe only); Notebook from
-   `NotebookView`/`NotebookLeadEntry`; Recent from `actor_known_interval_summary`
-   (`TypedActorKnownIntervalSummary`); Co-present actors from Spec `0063`'s enriched `VisibleActor`.
+2. **Pane-to-view-model bindings** (all presentation-only unless noted): Header/mode bar from
+   `viewer_actor_id`/`ViewMode`/`debug_available` (actor-safe identity, mode, focused pane, and a debug
+   *availability* marker only — never hidden debug truth in embodied mode, per INV-068); Place from
+   `place_label`/`visible_exits`/`visible_doors`/`visible_containers`/`visible_items`; Self from
+   `phase3a_status` and `carried_items`; Actions from `semantic_actions` (menu index is
+   presentation-only, semantic id stable); Details/Why-not from `last_rejection_why_not`/`WhyNotView`
+   (actor-safe only); Notebook from `NotebookView`/`NotebookLeadEntry`; Recent from
+   `actor_known_interval_summary` (`TypedActorKnownIntervalSummary`); Co-present actors from Spec
+   `0063`'s enriched `VisibleActor` (landed: `observed_activity`/`ObservedActivityView`).
 3. **`ratatui` buffer render path** (`ratatui` added as a `tracewake-tui` dependency; a snapshot
    dev-dependency such as `insta`/`cargo-insta`): `render_embodied_to_buffer(&EmbodiedScreenModel,
-   area) -> Buffer`, snapshotted at fixed sizes. No event loop yet.
+   area) -> Buffer`, snapshotted at fixed sizes. No event loop yet. The buffer path consumes the same
+   per-pane binding renderers (§4.5) as the existing text seams `render_embodied_view` and
+   `render_embodied_screen_dump` — one extraction, two render targets — so truncation, ordering, and
+   actor-safe filtering cannot drift between the buffer and dump paths.
 4. **Responsive behavior:** collapse to a single-column stack on narrow terminals with headings and
    focus controls; never silently omit safety-critical facts (why-not, actions, needs); explicit
    truncation markers with detail expansion; no color-only semantics.
@@ -56,17 +64,20 @@ In `tracewake-tui` only:
 ### 1.2 Out of scope (non-goals)
 
 - No `crossterm` event loop or raw mode (Spec `0065`).
-- No `UiIntent` reducer (Spec `0062`) — this spec renders; it does not read live input.
-- No new core view-model fields; the actor pane's *final* content depends on Spec `0063` landing, but
-  this spec introduces no core change of its own.
+- No `UiIntent` reducer logic — the reducer landed in Spec `0062`; this spec renders and does not read
+  live input through it.
+- No new core view-model fields; the actor pane's *final* content binds Spec `0063`'s enriched
+  `VisibleActor`, which has landed — this spec introduces no core change of its own.
 - No conversation panel (Spec `0067`); no debug dashboard (Spec `0068`).
 
 ## 2. Dependencies and ordering
 
-- **Depends on:** `0061` (screen model/dump). The Co-present actors pane reaches its **final** state
-  only after `0063`; until then it renders the id-only fallback with an explicit disposition.
+- **Depends on:** `0061` (screen model/dump) and `0063` (enriched `VisibleActor`) — both landed
+  (archived). The Co-present actors pane binds the enriched `VisibleActor`
+  (`observed_activity`/`ObservedActivityView`) directly, rendering each row's activity disposition;
+  `VisibleActor::identity_only` remains the *no-apparent-activity* case, not a dependency-wait fallback.
 - **Blocks:** `0065` (the shell draws these panes), and contributes surfaces to Spec `0069`.
-- **Parallelizable with:** `0065` after the screen model stabilizes; `0063` runs alongside.
+- **Parallelizable with:** `0065` after the screen model stabilizes.
 
 ## 3. Doctrine anchors
 
@@ -89,9 +100,10 @@ In `tracewake-tui` only:
   or blockers; each renders sealed view-model fields. The captured-projection rule holds.
 - **4.4 Overflow is explicit (seam: responsive/truncation).** Truncation markers and detail expansion;
   no silent disappearance of safety/why-not/action data; narrow-size collapse tested.
-- **4.5 Implementation decomposition.** Pane structs + layout; per-pane binding renderers; `ratatui`
-  buffer path + snapshot harness; responsive/truncation behavior; disposition wiring for the `0063`
-  actor pane. Separate tickets.
+- **4.5 Implementation decomposition.** Pane structs + layout; per-pane binding renderers (shared by
+  the buffer and text/dump paths); `ratatui` buffer path + snapshot harness; responsive/truncation
+  behavior; activity-disposition rendering over the landed `0063` enriched `VisibleActor` in the actor
+  pane. Separate tickets.
 
 ## 5. Doctrine amendments (routed as substance + home; not ratified here)
 
@@ -105,11 +117,15 @@ In `tracewake-tui` only:
 - Overflow: a fixture whose actors/actions exceed the pane shows truncation markers, not silent loss.
 - Narrow-collapse: `60x20` retains needs/why-not/actions.
 - Non-vacuity: a layout that clips all actors/actions fails a snapshot/accessibility check.
+- Buffer/text parity: at a fixed size, the `ratatui` buffer and the text/dump path expose the same
+  actor-safe pane content (same actors, actions, why-not, needs, truncation markers), so the two render
+  targets cannot diverge.
 
 ## 7. Acceptance artifact and evidence
 
 A review artifact recording the fixed-size pane/buffer snapshots, the actor-known-only negative, the
-overflow/collapse tests, and the non-vacuity witnesses, at the exact implementation commit.
+overflow/collapse tests, and the non-vacuity witnesses, at the implementation baseline commits, with
+the final report archived at `archive/reports/0064_tui_embodied_pane_layout_acceptance.md`.
 
 ## 8. Implementation constraints
 
@@ -136,3 +152,38 @@ overflow/collapse tests, and the non-vacuity witnesses, at the exact implementat
 | INV-025 (wrong beliefs are first-class) | aligns | Why-not/notebook panes present fallible actor-known belief, not truth. |
 | INV-068 (debug mode visibly non-diegetic) | aligns | Embodied panes carry no debug tokens; debug is Spec `0068`. |
 | INV-095 (TUI/view-model tests are acceptance tests) | aligns | Fixed-size pane/buffer snapshots are acceptance evidence with non-vacuity witnesses. |
+
+## Outcome
+
+Completed: 2026-07-02
+
+Accepted for the scoped TUI pane-layout feature line. The `0064TUIEMBPAN`
+ticket series introduced stable embodied pane regions, actor-safe pane
+bindings, a deterministic `ratatui` buffer render path, fixed-size pane text and
+buffer snapshots, responsive/narrow/floor behavior, explicit truncation with
+expansion recovery, buffer/text parity, and non-vacuity witnesses. The
+acceptance evidence is archived at
+`archive/reports/0064_tui_embodied_pane_layout_acceptance.md`.
+
+Commit roles:
+
+- Implementation commits: `edeffdb`, `9f49307`, `84c8b7e`, and `e699dbb`.
+- Evidence/report commit: `b8437db`.
+- Archive/truthing commit: the commit that archives this spec/report and adds
+  the ledger row.
+
+Verification run during ticket implementation and closeout:
+
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
+- `cargo test -p tracewake-tui`
+- Focused pane-layout, pane-binding, buffer-render, responsive, snapshot, source
+  census, dependency-allowlist, and `ratatui` confinement checks named in the
+  archived report.
+
+This closeout does not certify latest main after archive/truthing, Phase-4
+entry, second-proof entry, institutions, notices, travel, LOD, LLM/speech,
+story-sifting, `P0-CERT`, `FIRST-PROOF-CERT`, or any whole-project status. It
+mints no invariant, gate, glossary term, or risk ID.

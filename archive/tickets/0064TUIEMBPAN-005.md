@@ -8,12 +8,12 @@
 
 ## Problem
 
-Spec 0064 §7 requires a single review artifact recording the fixed-size pane/buffer snapshots, the actor-known-only negative, the overflow/collapse tests, and the non-vacuity witnesses, captured at the exact implementation commit. §6 enumerates the witness suite. This capstone assembles that evidence end-to-end after the implementation tickets land; it introduces no new production logic and exercises the pipeline the earlier tickets composed (INV-095: TUI/view-model tests are acceptance tests).
+Spec 0064 §7 requires a single review artifact recording the fixed-size pane/buffer snapshots, the actor-known-only negative, the overflow/collapse tests, and the non-vacuity witnesses, captured against the implementation baseline commits. §6 enumerates the witness suite. This capstone assembles that evidence end-to-end after the implementation tickets land; it introduces no new production logic and exercises the pipeline the earlier tickets composed (INV-095: TUI/view-model tests are acceptance tests).
 
 ## Assumption Reassessment (2026-07-02)
 
 1. This is an acceptance-only capstone: it adds no production code and no new test logic — it runs the suites authored by 0064TUIEMBPAN-002 (actor-known-only negative), 0064TUIEMBPAN-003 (fixed-size buffer/text goldens + parity), and 0064TUIEMBPAN-004 (narrow-collapse, overflow truncation, non-vacuity, floor), and records their witnesses. The acceptance-artifact path convention is `reports/<NNNN>_<slug>_acceptance.md` (e.g. `reports/tui-experience-overhaul-research-report.md` and the archived `archive/reports/0063_core_actor_known_co_present_activity_acceptance.md` establish the `reports/` home; archived to `archive/reports/` on spec acceptance).
-2. The witness suite is fixed by spec §6/§7 in `specs/0064_TUI_EMBODIED_PANE_LAYOUT_AND_AT_A_GLANCE_PANELS_SPEC.md`. Deps `003` and `004` are the leaf set — `003` transitively covers `001`/`002`, `004` covers `001`/`002` — so together they gate every implementation surface this artifact records. Re-enumerate expected snapshot sizes and counts from the fixtures at capture time rather than hardcoding.
+2. The witness suite is fixed by spec §6/§7 in `archive/specs/0064_TUI_EMBODIED_PANE_LAYOUT_AND_AT_A_GLANCE_PANELS_SPEC.md`. Deps `003` and `004` are the leaf set — `003` transitively covers `001`/`002`, `004` covers `001`/`002` — so together they gate every implementation surface this artifact records. Re-enumerate expected snapshot sizes and counts from the fixtures at capture time rather than hardcoding.
 3. Shared boundary under audit: this ticket reads/exercises the actor-known-only projection (002), the deterministic buffer render (003), and the responsive/non-vacuity behavior (004). It modifies none of them; it consumes their evidence.
 4. Constitutional invariant under audit: **INV-095 — TUI/view-model tests are acceptance tests** — this artifact is the acceptance evidence for the phase, mapped to the fixed-size snapshots + non-vacuity witnesses (spec §10). **INV-093 — Actor-knowledge leakage is a high-severity defect** motivates recording the actor-known-only negative as a first-class witness.
 5. Evidence-consumer basis for the epistemic/replay surfaces: this capstone audits (does not modify) the actor-knowledge filter (embodied panes carry no debug token) and the deterministic snapshot behavior (identical inputs → byte-identical goldens, INV-018 / spec §8). Confirm the recorded evidence introduces no leakage path and that the artifact's rows stay observer-only (no hidden truth captured into the report). No production enforcement surface changes here.
@@ -33,16 +33,16 @@ Spec 0064 §7 requires a single review artifact recording the fixed-size pane/bu
 
 ### 1. Author the acceptance artifact
 
-Add `reports/0064_tui_embodied_pane_layout_acceptance.md` recording, at the exact implementation commit: the fixed-size pane/buffer snapshots (`80x24`/`100x30`/`60x20`), the actor-known-only negative result, the overflow and narrow-collapse results, the non-vacuity witness, the buffer/text parity result, and the deterministic-render confirmation — each with the command run and its pass/fail, plus the scoped-verdict boilerplate matching the sibling `0063` acceptance report.
+Add `archive/reports/0064_tui_embodied_pane_layout_acceptance.md` recording, against the implementation baseline commits: the fixed-size pane/buffer snapshots (`80x24`/`100x30`/`60x20`), the actor-known-only negative result, the overflow and narrow-collapse results, the non-vacuity witness, the buffer/text parity result, and the deterministic-render confirmation — each with the command run and its pass/fail, plus the scoped-verdict boilerplate matching the sibling `0063` acceptance report.
 
 ## Files to Touch
 
-- `reports/0064_tui_embodied_pane_layout_acceptance.md` (new)
+- `archive/reports/0064_tui_embodied_pane_layout_acceptance.md` (archived at final spec closeout)
 
 ## Out of Scope
 
 - Any production or test-logic change (owned by 0064TUIEMBPAN-001..004).
-- The `docs/4-specs/SPEC_LEDGER.md` archived-row entry and the `archive/specs/` move — deferred to spec acceptance/archival per `docs/archival-workflow.md` (spec 0064 §0 Ledger timing: "no ledger row now").
+- The `docs/4-specs/SPEC_LEDGER.md` archived-row entry and the `archive/specs/` move — owned by final spec acceptance/archival per `docs/archival-workflow.md` (spec 0064 §0 Ledger timing: "no ledger row now"), not by this evidence-only ticket.
 - The §5 doctrine amendment (Architecture 13 / Execution 10) — routed to Spec 0070, not ratified here.
 
 ## Acceptance Criteria
@@ -51,7 +51,7 @@ Add `reports/0064_tui_embodied_pane_layout_acceptance.md` recording, at the exac
 
 1. `cargo test -p tracewake-tui` — the full `0064` witness suite (pane_bindings actor-known-only negative, embodied_pane_buffer goldens + parity, embodied_pane_responsive collapse/overflow/non-vacuity/floor) passes.
 2. `cargo test --workspace && cargo clippy --workspace --all-targets -- -D warnings && cargo fmt --all --check` — full gate green at the capture commit.
-3. The artifact records every spec §6 witness with its command and pass/fail and cites the exact commit.
+3. The artifact records every spec §6 witness with its command and pass/fail and cites the implementation baseline commits plus the evidence/report commit role.
 
 ### Invariants
 
@@ -74,7 +74,7 @@ Add `reports/0064_tui_embodied_pane_layout_acceptance.md` recording, at the exac
 
 Completed: 2026-07-02
 
-Added `reports/0064_tui_embodied_pane_layout_acceptance.md`, recording the
+Added `archive/reports/0064_tui_embodied_pane_layout_acceptance.md`, recording the
 Spec 0064 witness matrix, fixed-size pane text goldens, `ratatui` buffer
 snapshots, actor-known-only negative, overflow/collapse/non-vacuity/floor
 witnesses, buffer/text parity, deterministic-render checks, and scoped verdict
@@ -88,5 +88,5 @@ Verification run:
 - `cargo test --workspace`
 
 No production code or test logic was added by this ticket; it is evidence-only.
-The acceptance report remains live under `reports/` until final spec closeout
-archives the report and retargets references.
+Final spec closeout archived the report under `archive/reports/` and retargeted
+references.

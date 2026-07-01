@@ -2,10 +2,10 @@
 
 Status: accepted for ticket evidence closeout on 2026-07-02.
 
-This artifact records evidence for `0064TUIEMBPAN-005`, the capstone report for
-spec `0064` after tickets `001` through `004` landed. It is observer-only,
-non-diegetic evidence: it adds no production logic, no simulation fact, no
-doctrine, no new gate, and no fallback path.
+This archived artifact records evidence for `0064TUIEMBPAN-005`, the capstone
+report for spec `0064` after tickets `001` through `004` landed. It is
+observer-only, non-diegetic evidence: it adds no production logic, no simulation
+fact, no doctrine, no new gate, and no fallback path.
 
 ## Commit Roles
 
@@ -16,6 +16,9 @@ doctrine, no new gate, and no fallback path.
   - `e699dbb` `0064TUIEMBPAN-004` responsive collapse, truncation, non-vacuity, and floor behavior.
 - Evidence/report commit: the commit that adds this report and archives
   `0064TUIEMBPAN-005`.
+- Archive/truthing commit: the commit that moves this report to
+  `archive/reports/0064_tui_embodied_pane_layout_acceptance.md`, archives the
+  spec, and adds the ledger row.
 
 ## Gate Evidence
 
@@ -102,7 +105,10 @@ implementation commit `e699dbb`: stable embodied pane regions, actor-safe
 bindings, a deterministic `ratatui` buffer path, fixed-size snapshots,
 buffer/text parity, responsive retention of why-not/actions/needs, explicit
 truncation, non-vacuity, and a minimum-size floor all have named passing
-witnesses. This report does not certify latest main after the evidence/report
-commit, Phase-4 entry, second-proof entry, institutions, notices, travel, LOD,
-LLM/speech, story-sifting, `P0-CERT`, `FIRST-PROOF-CERT`, or any whole-project
-status. It mints no invariant, gate, glossary term, or risk ID.
+witnesses. Evidence/report commit `b8437db` added this report and archived
+`0064TUIEMBPAN-005`; the archive/truthing commit moves this report/spec and
+adds the ledger row. This report does not certify latest main after the
+archive/truthing commit, Phase-4 entry, second-proof entry, institutions,
+notices, travel, LOD, LLM/speech, story-sifting, `P0-CERT`,
+`FIRST-PROOF-CERT`, or any whole-project status. It mints no invariant, gate,
+glossary term, or risk ID.
