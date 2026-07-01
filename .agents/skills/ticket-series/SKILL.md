@@ -89,6 +89,12 @@ For each ticket:
    before implementing, and never read the quantifier as meaning only the
    spec's cited instance. The cited site is where the defect was found, not
    the scope of the fix.
+   When adding new Rust production source files under `crates/*/src`, search
+   for repository source-census and anti-regression guards before the broad
+   workspace gate, for example `anti_regression_guards`, `source census`,
+   `production source`, or the new path's crate/module stem. Update the guard
+   intentionally or record why it does not apply instead of discovering the
+   missing classification only at final gate time.
 2. Identify the narrow implementation surface and the exact acceptance
    criteria, including the full member list of any enumerated criterion.
 3. Make the minimal code/doc/test changes that satisfy the ticket while
@@ -544,18 +550,14 @@ Final responses must include:
   archive-truthing commit mapping, or N/A if all evidence genuinely refers to
   one commit>.`
 
-These fields may be embedded in concise prose, but the final answer must make
-each answer explicit. Before calling the goal completion tool or sending the
-final response, draft from the literal scaffold below with every label present
-and `None` values where applicable; do not omit a field because it seems obvious
-from the prose. For active `/goal` runs, draft the final response from the
-scaffold before calling the goal-completion tool; if any field cannot be
-answered, do not mark the goal complete until the missing evidence is gathered
-or the deviation is recorded. Include the goal-tool usage summary after marking
-the goal complete.
-
-Use this scaffold for final responses unless the user requested a narrower
-status-only reply:
+Use the literal scaffold below for final responses unless the user requested a
+narrower status-only reply. Keep every label present with explicit `None` or
+`N/A` values where applicable; do not replace required labels with prose or omit
+a field because it seems obvious from surrounding context. For active `/goal`
+runs, draft the scaffold before calling the goal-completion tool; if any field
+cannot be answered, do not mark the goal complete until the missing evidence is
+gathered or the deviation is recorded. Include the goal-tool usage summary after
+marking the goal complete.
 
 ```md
 Tickets completed and archived: <list or None>.

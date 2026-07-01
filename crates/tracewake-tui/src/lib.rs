@@ -6,6 +6,7 @@ pub mod input;
 pub mod launch;
 pub mod render;
 pub mod run;
+pub mod screen;
 pub mod transcript;
 
 pub fn startup_message() -> &'static str {
