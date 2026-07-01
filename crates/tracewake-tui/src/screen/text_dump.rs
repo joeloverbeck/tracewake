@@ -417,9 +417,9 @@ mod tests {
                 source: VisibleItemSource::Carried,
                 portable: true,
             }],
-            vec![VisibleActor {
-                actor_id: ActorId::new("actor_tomas").unwrap(),
-            }],
+            vec![VisibleActor::identity_only(
+                ActorId::new("actor_tomas").unwrap(),
+            )],
             vec![SemanticActionEntry::new(
                 SemanticActionId::new("semantic_wait").unwrap(),
                 ActionId::new("wait").unwrap(),

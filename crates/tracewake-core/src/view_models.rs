@@ -446,9 +446,41 @@ impl ActorKnownActivitySourceKind {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ObservedActivityView {
+    pub kind: ObservedActorActivityKind,
+    pub actor_safe_summary: String,
+    pub source: ActorKnownActivitySourceKind,
+    pub source_summary: String,
+    pub observed_tick: SimTick,
+    pub staleness_label: String,
+    pub uncertainty_label: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct VisibleActor {
     pub actor_id: ActorId,
+    pub display_label: String,
+    pub presence_source_summary: String,
+    pub presence_observed_tick: SimTick,
+    pub presence_staleness_label: String,
+    pub presence_uncertainty_label: Option<String>,
+    pub observed_activity: Option<ObservedActivityView>,
+}
+
+impl VisibleActor {
+    pub fn identity_only(actor_id: ActorId) -> Self {
+        let display_label = actor_id.as_str().to_string();
+        Self {
+            actor_id,
+            display_label,
+            presence_source_summary: "identity-only local actor".to_string(),
+            presence_observed_tick: SimTick::new(0),
+            presence_staleness_label: "current".to_string(),
+            presence_uncertainty_label: None,
+            observed_activity: None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
