@@ -1,6 +1,6 @@
 # 0060EMBSTUCKDUP-001: Idempotent embodied stuck-diagnostic emission on repeated blocked continue-routine
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: Yes — `tracewake-core` (`runtime/session.rs` stuck-outcome path); new regression test(s) in `tracewake-core` and/or `tracewake-tui`. No new events, schemas, or fixtures.
@@ -85,3 +85,48 @@ The function must return `Ok(Some(PipelineResult { ... }))` in both branches so 
 
 1. `cargo test -p tracewake-core runtime::session` and `cargo test -p tracewake-tui --test command_loop_session`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-07-01
+
+Implemented the shared idempotency guard in
+`LoadedWorldRuntime::run_embodied_continue_routine_stuck_outcome`: the stuck
+diagnostic event is still built with the deterministic `(actor, tick,
+diagnostic_id)` id, but an already-recorded event id is reused for the receipt
+instead of being appended again. The path still returns a rejected
+`PipelineResult` with the typed actor-visible why-not, so repeated same-tick
+blocked continue-routine submissions re-present the explanation and preserve a
+single `StuckDiagnosticRecorded` event.
+
+Added core and TUI regression coverage:
+
+- `runtime::session::tests::embodied_stuck_outcome_is_idempotent_for_same_tick_diagnostic`
+  calls the shared stuck-outcome helper twice at the same tick and asserts one
+  logged stuck diagnostic.
+- `embodied_continue_stuck_emits_one_current_typed_diagnostic` now repeats the
+  blocked embodied continue-routine selection and asserts the receipt reports
+  the existing diagnostic while the event log still contains one stuck
+  diagnostic.
+- `repeated_blocked_continue_routine_renders_why_not_without_panic` drives the
+  real TUI command loop with `ordinary_workday_001` / `actor_tomas`
+  (`wait`, `1`, `1`, `1`) and confirms the repeated blocked selections render
+  why-not output and keep the prompt alive.
+
+Verification:
+
+- `cargo test -p tracewake-core runtime::session::tests::embodied_stuck_outcome_is_idempotent_for_same_tick_diagnostic`
+  passed.
+- `cargo test -p tracewake-tui --test embodied_flow embodied_continue_stuck_emits_one_current_typed_diagnostic`
+  passed.
+- `cargo test -p tracewake-tui --test command_loop_session` passed.
+- `cargo test -p tracewake-tui --test command_loop_session repeated_blocked_continue_routine_renders_why_not_without_panic`
+  passed after formatting.
+- `cargo fmt --all --check` passed after formatting.
+- `cargo test --workspace` passed after implementation and before the final
+  rustfmt-only line wrap in `command_loop_session.rs`.
+
+Deviation: the TUI command-loop reproduction uses numeric menu selection `1`
+for the offered continue-routine action because the command parser's `do`
+syntax expects a current semantic action id, not the typed action id
+`continue_routine`.

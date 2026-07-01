@@ -181,6 +181,25 @@ fn top_level_no_human_day_command_is_not_a_play_verb() {
     assert!(!output.contains("DEBUG NON-DIEGETIC: No Human Day"));
 }
 
+#[test]
+fn repeated_blocked_continue_routine_renders_why_not_without_panic() {
+    let output = run_session_with_args(
+        &["ordinary_workday_001", "actor_tomas"],
+        "wait\n1\n1\n1\nquit\n",
+    );
+
+    assert!(output.contains("Accepted: wait.1_tick"));
+    assert!(output.contains("Accepted: continue.routine.intention_tomas_go_work"));
+    assert!(
+        output.matches("Why-not:").count() >= 2,
+        "both blocked continue_routine selections should render why-not:\n{output}"
+    );
+    assert!(
+        output.contains("routine continuation cannot safely commit a time-advancing follow-on yet")
+    );
+    assert!(output.contains("tracewake>"));
+}
+
 fn first_menu_id(output: &str, one_based_index: usize) -> String {
     let prefix = format!("{one_based_index}. ");
     let line = output

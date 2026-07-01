@@ -302,6 +302,31 @@ fn embodied_continue_stuck_emits_one_current_typed_diagnostic() {
         1,
         "prior scheduler scan plus current stuck receipt must not duplicate diagnostics"
     );
+
+    let repeated_continue = current_continue_routine_id(&mut app);
+    let repeated_stuck = app.submit_semantic_action(&repeated_continue).unwrap();
+
+    assert_eq!(repeated_stuck.report.status, ReportStatus::Rejected);
+    assert_eq!(repeated_stuck.report.action_id.as_str(), "continue_routine");
+    assert!(repeated_stuck
+        .report
+        .reason_codes
+        .contains(&ReasonCode::RoutineStepBlocked));
+    assert_eq!(
+        event_count_by_kind(
+            &repeated_stuck.appended_events,
+            EventKind::StuckDiagnosticRecorded
+        ),
+        1,
+        "repeat receipt should report the already-recorded stuck diagnostic"
+    );
+    assert_eq!(
+        app.render_debug_event_log_panel()
+            .matches("stuck_diagnostic_recorded")
+            .count(),
+        1,
+        "same-tick repeat keeps one event-log diagnostic"
+    );
 }
 
 #[test]
