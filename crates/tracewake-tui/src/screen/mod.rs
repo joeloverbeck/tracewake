@@ -1,9 +1,11 @@
+pub mod buffer_render;
 pub mod model;
 pub mod pane_bindings;
 pub mod pane_layout;
 pub mod struct_dump;
 pub mod text_dump;
 
+pub use buffer_render::{buffer_to_plain_text, render_embodied_to_buffer};
 pub use model::{
     build_embodied_screen_model, EmbodiedScreenModel, FocusedPane, RenderOptions, ScreenMetadata,
     TerminalSize,

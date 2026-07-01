@@ -1,0 +1,53 @@
+REGION Header / Mode
+actor=actor_tomas mode=Embodied focus=place debug_available=false
+REGION Details / Why-not
+why_not:
+- none
+REGION Actions / Affordances
+actions:
+1. Continue routine [continue.routine.intention_tomas_go_work]
+2. Move to workshop_tomas [move.to.workshop_tomas]
+3. Sleep here [sleep.here]
+4. Wait [wait.1_tick]
+REGION Self / Body / Routine
+status:
+Needs:
+- fatigue band=comfortable cause=fixture_initial
+- hunger band=comfortable cause=fixture_initial
+- safety band=comfortable cause=fixture_initial
+Intention: active:routine_tomas_go_to_work:move
+Routine: routine:routine_tomas_go_to_work
+inventory:
+- none
+REGION Place / Situation
+place:
+Tomas home (home_tomas)
+exits:
+- workshop_tomas
+doors:
+- none
+containers:
+- none
+items:
+- none
+REGION Co-present Actors
+actors:
+- none
+REGION Notebook / Leads
+notebook:
+viewer=actor_tomas
+Beliefs:
+- none
+Observations:
+- obs.perception.event.perception.actor_tomas.0.current_place.home_tomas channel=direct_sight confidence=1000 tick=0 :: direct_sight observation
+- obs.perception.event.perception.actor_tomas.0.visible_exit.workshop_tomas channel=direct_sight confidence=1000 tick=0 :: direct_sight observation
+- obs.perception.event.perception.actor_tomas.0.visible_sleep_affordance.bed_tomas channel=direct_sight confidence=1000 tick=0 :: direct_sight observation
+Contradictions:
+- none
+Leads:
+- none
+REGION Recent Actor-known Changes
+actor_known_interval:
+- none
+REGION Input Hints
+focus panes; inspect focused; open details

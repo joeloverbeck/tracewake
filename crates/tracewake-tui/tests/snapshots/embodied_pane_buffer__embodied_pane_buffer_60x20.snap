@@ -1,0 +1,23 @@
+---
+source: crates/tracewake-tui/tests/embodied_pane_buffer.rs
+expression: "buffer_text_for_size(60, 20)"
+---
+[Header / Mode]
+actor=actor_tomas mode=Embodied focus=place debug_available=
+[Details / Why-not]
+why_not:
+[Actions / Affordances]
+actions:
+[Self / Body / Routine]
+status:
+[Place / Situation]
+place:
+[Co-present Actors]
+actors:
+[Notebook / Leads]
+notebook:
+[Recent Actor-known Changes]
+actor_known_interval:
+- none
+[Input Hints]
+focus panes; inspect focused; open details
