@@ -11,12 +11,79 @@ pub struct PaneRegionBinding {
     pub lines: Vec<String>,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PaneVisibilityError {
+    pub region: PaneRegion,
+    pub reason: &'static str,
+}
+
 pub fn render_pane_region_bindings(screen: &EmbodiedScreenModel) -> Vec<PaneRegionBinding> {
     let pane_dumps = embodied_screen_pane_dumps(screen);
     embodied_pane_layout(screen)
         .into_iter()
         .map(|layout| render_region_binding(screen, &pane_dumps, layout))
         .collect()
+}
+
+pub fn visible_region_lines(
+    binding: &PaneRegionBinding,
+    max_lines: usize,
+) -> Result<Vec<String>, PaneVisibilityError> {
+    if max_lines == 0 {
+        if is_non_vacuity_region(binding.region) && !binding.lines.is_empty() {
+            return Err(PaneVisibilityError {
+                region: binding.region,
+                reason: "safety-critical region clipped to zero visible lines",
+            });
+        }
+        return Ok(Vec::new());
+    }
+
+    if binding.lines.len() <= max_lines {
+        return Ok(binding.lines.clone());
+    }
+
+    let omitted = binding.lines.len() - max_lines + 1;
+    let mut visible = binding
+        .lines
+        .iter()
+        .take(max_lines.saturating_sub(1))
+        .cloned()
+        .collect::<Vec<_>>();
+    visible.push(format!("... {omitted} more; focus details to inspect"));
+    Ok(visible)
+}
+
+pub fn expanded_region_lines(binding: &PaneRegionBinding) -> Vec<String> {
+    binding.lines.clone()
+}
+
+pub fn validate_non_vacuous_region(
+    binding: &PaneRegionBinding,
+    visible_lines: &[String],
+) -> Result<(), PaneVisibilityError> {
+    if is_non_vacuity_region(binding.region)
+        && !binding.lines.is_empty()
+        && visible_lines
+            .iter()
+            .all(|line| line.starts_with("... ") || line.trim().is_empty())
+    {
+        return Err(PaneVisibilityError {
+            region: binding.region,
+            reason: "non-vacuity region has no visible actor-safe content",
+        });
+    }
+    Ok(())
+}
+
+fn is_non_vacuity_region(region: PaneRegion) -> bool {
+    matches!(
+        region,
+        PaneRegion::ActionsAffordances
+            | PaneRegion::CoPresentActors
+            | PaneRegion::DetailsWhyNot
+            | PaneRegion::SelfBodyRoutine
+    )
 }
 
 fn render_region_binding(
@@ -170,6 +237,39 @@ mod tests {
         assert_eq!(
             render_pane_region_bindings(&screen),
             render_pane_region_bindings(&screen)
+        );
+    }
+
+    #[test]
+    fn visible_region_lines_marks_truncation_and_expansion_recovers_content() {
+        let actions = PaneRegionBinding {
+            region: PaneRegion::ActionsAffordances,
+            title: "Actions / Affordances",
+            lines: vec![
+                "actions:".to_string(),
+                "1. Wait [wait.1_tick]".to_string(),
+                "2. Sleep here [sleep.here]".to_string(),
+            ],
+        };
+
+        let visible = visible_region_lines(&actions, 2).unwrap();
+
+        assert_eq!(visible[0], "actions:");
+        assert_eq!(visible[1], "... 2 more; focus details to inspect");
+        assert_eq!(expanded_region_lines(&actions), actions.lines);
+    }
+
+    #[test]
+    fn non_vacuity_region_fails_when_clipped_to_zero_lines() {
+        let bindings = render_pane_region_bindings(&fixture_screen(true));
+        let actions = binding_for(&bindings, PaneRegion::ActionsAffordances);
+
+        assert_eq!(
+            visible_region_lines(actions, 0).unwrap_err(),
+            PaneVisibilityError {
+                region: PaneRegion::ActionsAffordances,
+                reason: "safety-critical region clipped to zero visible lines",
+            }
         );
     }
 

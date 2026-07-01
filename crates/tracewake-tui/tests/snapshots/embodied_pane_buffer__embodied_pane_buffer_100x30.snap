@@ -9,7 +9,7 @@ place:                                             why_not:
 Tomas home (home_tomas)                            - none
 exits:
 - workshop_tomas
-doors:
+... 6 more; focus details to inspect
 [Co-present Actors]
 actors:
 - none
@@ -23,12 +23,12 @@ viewer=actor_tomas
 Beliefs:
 - none
 Observations:                                      [Self / Body / Routine]
-- obs.perception.event.perception.actor_tomas.0.cu status:
+... 7 more; focus details to inspect               status:
 [Recent Actor-known Changes]                       Needs:
 actor_known_interval:                              - fatigue band=comfortable cause=fixture_initial
 - none                                             - hunger band=comfortable cause=fixture_initial
                                                    - safety band=comfortable cause=fixture_initial
                                                    Intention: active:routine_tomas_go_to_work:move
                                                    Routine: routine:routine_tomas_go_to_work
-                                                   inventory:
+                                                   ... 2 more; focus details to inspect
 [Input Hints]

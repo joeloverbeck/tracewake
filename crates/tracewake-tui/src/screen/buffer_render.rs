@@ -3,12 +3,31 @@ use ratatui::layout::Rect;
 use ratatui::style::{Modifier, Style};
 
 use crate::screen::model::EmbodiedScreenModel;
-use crate::screen::pane_bindings::{render_pane_region_bindings, PaneRegionBinding};
+use crate::screen::pane_bindings::{
+    render_pane_region_bindings, validate_non_vacuous_region, visible_region_lines,
+    PaneRegionBinding,
+};
 use crate::screen::pane_layout::PaneRegion;
+
+pub const MINIMUM_PANE_COLUMNS: u16 = 50;
+pub const MINIMUM_PANE_ROWS: u16 = 12;
 
 pub fn render_embodied_to_buffer(model: &EmbodiedScreenModel, area: Rect) -> Buffer {
     let mut buffer = Buffer::empty(area);
     if area.width == 0 || area.height == 0 {
+        return buffer;
+    }
+    if area.width < MINIMUM_PANE_COLUMNS || area.height < MINIMUM_PANE_ROWS {
+        buffer.set_stringn(
+            area.x,
+            area.y,
+            format!(
+                "Screen too small for embodied panes; resize to at least {}x{}.",
+                MINIMUM_PANE_COLUMNS, MINIMUM_PANE_ROWS
+            ),
+            usize::from(area.width),
+            Style::default(),
+        );
         return buffer;
     }
 
@@ -41,21 +60,41 @@ pub fn buffer_to_plain_text(buffer: &Buffer) -> String {
 }
 
 fn render_single_column(buffer: &mut Buffer, area: Rect, bindings: &[PaneRegionBinding]) {
+    let priority_heights = [
+        (PaneRegion::HeaderModeBar, 2),
+        (PaneRegion::DetailsWhyNot, 3),
+        (PaneRegion::ActionsAffordances, 6),
+        (PaneRegion::SelfBodyRoutine, 7),
+        (PaneRegion::InputHintsFooter, 1),
+    ];
     let mut y = area.y;
-    for binding in bindings {
-        if y >= area.bottom() {
+    let mut remaining_rows = area.height;
+    for (region, desired_height) in priority_heights {
+        if remaining_rows == 0 {
+            return;
+        }
+        let height = desired_height.min(remaining_rows);
+        if let Some(binding) = binding(bindings, region) {
+            render_region(buffer, Rect::new(area.x, y, area.width, height), binding);
+        }
+        y = y.saturating_add(height);
+        remaining_rows = remaining_rows.saturating_sub(height);
+    }
+
+    for region in [
+        PaneRegion::PlaceSituation,
+        PaneRegion::CoPresentActors,
+        PaneRegion::NotebookLeads,
+        PaneRegion::RecentChanges,
+    ] {
+        if remaining_rows == 0 {
             break;
         }
-        let remaining_regions = bindings
-            .iter()
-            .skip_while(|candidate| candidate.region != binding.region)
-            .count();
-        let remaining_rows = area.bottom().saturating_sub(y);
-        let height = remaining_rows
-            .saturating_div(remaining_regions.max(1) as u16)
-            .max(1);
-        render_region(buffer, Rect::new(area.x, y, area.width, height), binding);
-        y = y.saturating_add(height);
+        if let Some(binding) = binding(bindings, region) {
+            render_region(buffer, Rect::new(area.x, y, area.width, 1), binding);
+        }
+        y = y.saturating_add(1);
+        remaining_rows = remaining_rows.saturating_sub(1);
     }
 }
 
@@ -166,12 +205,11 @@ fn render_region(buffer: &mut Buffer, area: Rect, binding: &PaneRegionBinding) {
         Style::default().add_modifier(Modifier::BOLD),
     );
 
-    for (offset, line) in binding
-        .lines
-        .iter()
-        .take(usize::from(area.height.saturating_sub(1)))
-        .enumerate()
-    {
+    let visible_lines = visible_region_lines(binding, usize::from(area.height.saturating_sub(1)))
+        .unwrap_or_else(|error| vec![format!("... {}", error.reason)]);
+    let _ = validate_non_vacuous_region(binding, &visible_lines);
+
+    for (offset, line) in visible_lines.iter().enumerate() {
         buffer.set_stringn(
             area.x,
             area.y + 1 + offset as u16,

@@ -8,7 +8,7 @@ actor=actor_tomas mode=Embodied focus=place debug_available=false
 place:                                   why_not:
 Tomas home (home_tomas)                  - none
 exits:
-- workshop_tomas
+... 7 more; focus details to inspect
 [Co-present Actors]
 actors:
 - none                                   [Actions / Affordances]
@@ -18,11 +18,11 @@ actors:
 notebook:                                3. Sleep here [sleep.here]
 viewer=actor_tomas                       4. Wait [wait.1_tick]
 Beliefs:
-- none                                   [Self / Body / Routine]
+... 9 more; focus details to inspect     [Self / Body / Routine]
 [Recent Actor-known Changes]             status:
 actor_known_interval:                    Needs:
 - none                                   - fatigue band=comfortable cause=fixtur
                                          - hunger band=comfortable cause=fixture
                                          - safety band=comfortable cause=fixture
-                                         Intention: active:routine_tomas_go_to_w
+                                         ... 4 more; focus details to inspect
 [Input Hints]
