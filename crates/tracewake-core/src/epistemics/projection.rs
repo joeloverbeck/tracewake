@@ -4235,4 +4235,250 @@ mod tests {
         assert_eq!(first_ids, ["belief_01", "belief_02", "belief_10"]);
         assert_eq!(second_ids, first_ids);
     }
+
+    #[test]
+    fn observed_and_source_activity_wire_strings_round_trip_through_parse() {
+        // Every canonical wire string produced by `stable_id` must parse back to
+        // its own variant. This pins the exact string for each `stable_id` arm
+        // and each `parse_*` match arm, so replacing a returned string or
+        // deleting a parse arm breaks the round trip.
+        let observed = [
+            ObservedActorActivityKind::Sleeping,
+            ObservedActorActivityKind::Eating,
+            ObservedActorActivityKind::Working,
+            ObservedActorActivityKind::Moving,
+            ObservedActorActivityKind::Speaking,
+            ObservedActorActivityKind::Waiting,
+            ObservedActorActivityKind::ContinuingRoutine,
+            ObservedActorActivityKind::ApparentIdle,
+            ObservedActorActivityKind::ActivityNotApparent,
+        ];
+        for kind in observed {
+            assert_eq!(
+                parse_observed_activity_kind(kind.stable_id()),
+                Some(kind),
+                "observed activity kind {kind:?} must round-trip through its wire string",
+            );
+        }
+        assert_eq!(parse_observed_activity_kind("not_a_kind"), None);
+
+        let sources = [
+            ActorKnownActivitySourceKind::DirectPerception,
+            ActorKnownActivitySourceKind::IndirectPerception,
+            ActorKnownActivitySourceKind::Memory,
+            ActorKnownActivitySourceKind::Testimony,
+            ActorKnownActivitySourceKind::Record,
+            ActorKnownActivitySourceKind::Inference,
+        ];
+        for kind in sources {
+            assert_eq!(
+                parse_activity_source_kind(kind.stable_id()),
+                Some(kind),
+                "activity source kind {kind:?} must round-trip through its wire string",
+            );
+        }
+        assert_eq!(parse_activity_source_kind("not_a_source"), None);
+    }
+
+    #[test]
+    fn actor_known_local_actor_novelty_is_activity_field_sensitive() {
+        let observed = actor_id("actor_mara");
+        let event = event_id("event_visible_actor");
+        let tick = SimTick::new(4);
+
+        // Baseline record carries a non-`ActivityNotApparent` activity so the
+        // activity-not-apparent early return does not fire and the field
+        // comparison chain (observed_activity, activity_summary, activity_source,
+        // activity_source_summary, observed_tick) is exercised.
+        let record = ActorKnownProjectionRecord::LocalActor {
+            actor_id: actor_id("actor_tomas"),
+            observed_actor_id: observed.clone(),
+            place_id: place_id("home_tomas"),
+            observed_activity: ObservedActorActivityKind::Sleeping,
+            activity_summary: Some("napping".to_string()),
+            activity_source: ActorKnownActivitySourceKind::DirectPerception,
+            activity_source_summary: "event:visible".to_string(),
+            activity_observed_tick: tick,
+            source: ActorKnownProjectionSource::VisibleActor,
+            source_event_id: event.clone(),
+            source_tick: tick,
+        };
+
+        let fact = |observed_activity,
+                    activity_summary: Option<&str>,
+                    activity_source,
+                    activity_source_summary: &str| {
+            ActorKnownLocalActorFact::with_observed_activity(
+                observed.clone(),
+                observed_activity,
+                activity_summary.map(str::to_string),
+                activity_source,
+                activity_source_summary,
+                tick,
+                "current",
+                None,
+                "evt.local_actor",
+            )
+        };
+        let context_with = |facts: Vec<ActorKnownLocalActorFact>| {
+            context_with_actor_known_facts(
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                facts,
+            )
+        };
+
+        // All activity fields match: the record is not novel. Flipping any `==`
+        // to `!=` in the comparison chain would drop the match and wrongly
+        // report novelty.
+        assert_record_novelty(
+            "local actor all activity fields match",
+            &record,
+            context_with(vec![fact(
+                ObservedActorActivityKind::Sleeping,
+                Some("napping"),
+                ActorKnownActivitySourceKind::DirectPerception,
+                "event:visible",
+            )]),
+            false,
+        );
+
+        // Each single-field difference must be treated as novel. If any `&&` in
+        // the chain became `||`, one differing field would still match and
+        // novelty would be lost.
+        assert_record_novelty(
+            "local actor observed_activity differs",
+            &record,
+            context_with(vec![fact(
+                ObservedActorActivityKind::Eating,
+                Some("napping"),
+                ActorKnownActivitySourceKind::DirectPerception,
+                "event:visible",
+            )]),
+            true,
+        );
+        assert_record_novelty(
+            "local actor activity_summary differs",
+            &record,
+            context_with(vec![fact(
+                ObservedActorActivityKind::Sleeping,
+                Some("resting"),
+                ActorKnownActivitySourceKind::DirectPerception,
+                "event:visible",
+            )]),
+            true,
+        );
+        assert_record_novelty(
+            "local actor activity_source differs",
+            &record,
+            context_with(vec![fact(
+                ObservedActorActivityKind::Sleeping,
+                Some("napping"),
+                ActorKnownActivitySourceKind::Memory,
+                "event:visible",
+            )]),
+            true,
+        );
+        assert_record_novelty(
+            "local actor activity_source_summary differs",
+            &record,
+            context_with(vec![fact(
+                ObservedActorActivityKind::Sleeping,
+                Some("napping"),
+                ActorKnownActivitySourceKind::DirectPerception,
+                "event:other",
+            )]),
+            true,
+        );
+
+        // The activity-not-apparent early return only fires when the record has
+        // no apparent activity AND no summary. With a summary-less but
+        // apparent-activity record, a non-matching fact must remain novel;
+        // turning the guard's `&&` into `||` would short-circuit to "known".
+        let record_without_summary = ActorKnownProjectionRecord::LocalActor {
+            actor_id: actor_id("actor_tomas"),
+            observed_actor_id: observed.clone(),
+            place_id: place_id("home_tomas"),
+            observed_activity: ObservedActorActivityKind::Sleeping,
+            activity_summary: None,
+            activity_source: ActorKnownActivitySourceKind::DirectPerception,
+            activity_source_summary: "event:visible".to_string(),
+            activity_observed_tick: tick,
+            source: ActorKnownProjectionSource::VisibleActor,
+            source_event_id: event,
+            source_tick: tick,
+        };
+        assert_record_novelty(
+            "local actor summary-less apparent activity stays novel against mismatch",
+            &record_without_summary,
+            context_with(vec![fact(
+                ObservedActorActivityKind::Eating,
+                None,
+                ActorKnownActivitySourceKind::DirectPerception,
+                "event:visible",
+            )]),
+            true,
+        );
+    }
+
+    #[test]
+    fn local_actor_canonical_serialization_gates_on_activity_fields() {
+        let tick = SimTick::new(6);
+        let local_actor = |observed_activity, activity_summary: Option<&str>, activity_tick| {
+            ActorKnownProjectionRecord::LocalActor {
+                actor_id: actor_id("actor_tomas"),
+                observed_actor_id: actor_id("actor_mara"),
+                place_id: place_id("home_tomas"),
+                observed_activity,
+                activity_summary: activity_summary.map(str::to_string),
+                activity_source: ActorKnownActivitySourceKind::DirectPerception,
+                activity_source_summary: "event:visible".to_string(),
+                activity_observed_tick: activity_tick,
+                source: ActorKnownProjectionSource::VisibleActor,
+                source_event_id: event_id("event_visible_actor"),
+                source_tick: tick,
+            }
+        };
+
+        // No apparent activity, no summary, and the activity tick equal to the
+        // source tick collapse to the bare base key with no activity suffix.
+        // Flipping either `==` to `!=` would append the activity suffix.
+        let base = local_actor(ObservedActorActivityKind::ActivityNotApparent, None, tick)
+            .serialize_canonical();
+        assert!(
+            !base.contains("|activity="),
+            "collapsed local-actor key must omit the activity suffix: {base}",
+        );
+
+        // An apparent activity alone must force the activity suffix. If the
+        // guard's first `&&` became `||`, the no-summary/equal-tick operands
+        // would collapse it back to the base form.
+        let with_activity =
+            local_actor(ObservedActorActivityKind::Sleeping, None, tick).serialize_canonical();
+        assert!(
+            with_activity.contains("|activity="),
+            "apparent activity must add the activity suffix: {with_activity}",
+        );
+
+        // A summary alone (still activity-not-apparent, equal ticks) must also
+        // force the suffix. If the guard's second `&&` became `||`, the equal
+        // ticks would collapse it back to the base form.
+        let with_summary = local_actor(
+            ObservedActorActivityKind::ActivityNotApparent,
+            Some("resting"),
+            tick,
+        )
+        .serialize_canonical();
+        assert!(
+            with_summary.contains("|activity="),
+            "activity summary must add the activity suffix: {with_summary}",
+        );
+    }
 }

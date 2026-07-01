@@ -1791,4 +1791,88 @@ mod tests {
             "ledger_placeholder".to_string()
         )));
     }
+
+    #[test]
+    fn actor_known_local_actor_fact_canonical_key_gates_on_each_activity_flag() {
+        let actor = actor_id("actor_mara");
+        let fact = |observed_activity,
+                    activity_summary: Option<&str>,
+                    observed_tick,
+                    uncertainty_label: Option<&str>| {
+            ActorKnownLocalActorFact::with_observed_activity(
+                actor.clone(),
+                observed_activity,
+                activity_summary.map(str::to_string),
+                ActorKnownActivitySourceKind::DirectPerception,
+                "src",
+                observed_tick,
+                "current",
+                uncertainty_label.map(str::to_string),
+                "evt.local_actor",
+            )
+        };
+
+        // A wholly default fact (no apparent activity, no summary, tick 0,
+        // "current" staleness, no uncertainty) collapses to the bare
+        // `actor:source_key` key with no activity fields.
+        let bare = fact(
+            ObservedActorActivityKind::ActivityNotApparent,
+            None,
+            SimTick::new(0),
+            None,
+        )
+        .canonical_key();
+        assert!(
+            !bare.contains(":activity="),
+            "default local-actor fact key must omit activity fields: {bare}",
+        );
+
+        // Each disjunct alone must force the full activity-bearing key. If any
+        // `||` in the guard became `&&`, the sole satisfied condition would be
+        // ANDed with an unsatisfied one and collapse back to the bare key.
+        for (label, fact) in [
+            (
+                "apparent activity",
+                fact(
+                    ObservedActorActivityKind::Sleeping,
+                    None,
+                    SimTick::new(0),
+                    None,
+                ),
+            ),
+            (
+                "activity summary",
+                fact(
+                    ObservedActorActivityKind::ActivityNotApparent,
+                    Some("resting"),
+                    SimTick::new(0),
+                    None,
+                ),
+            ),
+            (
+                "uncertainty label",
+                fact(
+                    ObservedActorActivityKind::ActivityNotApparent,
+                    None,
+                    SimTick::new(0),
+                    Some("uncertain"),
+                ),
+            ),
+            (
+                "non-zero observed tick",
+                fact(
+                    ObservedActorActivityKind::ActivityNotApparent,
+                    None,
+                    SimTick::new(1),
+                    None,
+                ),
+            ),
+        ] {
+            let key = fact.canonical_key();
+            assert!(
+                key.contains(":activity="),
+                "{label} alone must produce the full activity-bearing key: {key}",
+            );
+        }
+    }
 }
