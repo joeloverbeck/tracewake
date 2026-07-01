@@ -1,6 +1,6 @@
 # 0059AUTSCHROU-004: Anti-regression guards + synthetic negatives
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: Yes — adds source/behavior anti-regression guards and synthetic negative fixtures (test-only)
@@ -71,3 +71,19 @@ Add the five `synthetic_0059_*` negative identifiers using the established `nega
 
 1. `cargo test -p tracewake-core --test anti_regression_guards` — the guards file is the correct verification boundary for this deliverable (verified target: 92 existing tests list cleanly).
 2. `cargo test --workspace` — full-pipeline confirmation the new guards integrate without disturbing sibling guard suites.
+
+## Outcome
+
+Completed: 2026-07-01
+
+Implemented the 0059 anti-regression lock in `crates/tracewake-core/tests/anti_regression_guards.rs` by adding the three spec-named `guard_0059_*` tests, registering the guard entries in the meta-lock registry, and adding live synthetic negative checks for all five required `synthetic_0059_*` identifiers. The source guards now reject a scheduler routine-family producer that returns a family from a clock/window branch before active-intention authority or reintroduces a `min_by`/`execution_id` routine-execution selector. The census guard checks current transaction/generation sources and proves the no-active, conflicting-hint, other-actor, window-keyed, and eligible-execution synthetic bypasses are live.
+
+Verification passed:
+
+- `cargo test -p tracewake-core --test anti_regression_guards guard_0059`
+- `cargo test -p tracewake-core --test anti_regression_guards`
+- `cargo test -p tracewake-core --test anti_regression_guards guard_0059_synthetic_negative_census_is_live`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
