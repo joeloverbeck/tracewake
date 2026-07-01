@@ -1008,7 +1008,7 @@ fn tui_runs_no_human_day_and_inspects_real_post_run_panels() {
     assert!(embodied.contains("- hunger: band=rising cause=tick_delta"));
     assert!(!embodied.contains("value=410"));
     assert!(embodied.contains("Intention:"));
-    assert!(embodied.contains("active:routine_tomas_go_work:work_block"));
+    assert!(embodied.contains("active:routine_tomas_go_work:wait"));
     assert!(!embodied.contains("Knowledge context"));
     assert!(!embodied.contains("DEBUG NON-DIEGETIC"));
     assert!(!embodied.contains("routine_events="));

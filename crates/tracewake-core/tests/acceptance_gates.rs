@@ -348,6 +348,14 @@ fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
         4,
         18,
     );
+    add_active_routine_intention(
+        &mut agent_state,
+        "intention_anna_work",
+        "actor_anna",
+        "routine_anna_work",
+        "work_block",
+        4,
+    );
     add_routine_execution(
         &mut agent_state,
         "routine_exec_elena_sleep",
@@ -356,6 +364,14 @@ fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
         RoutineFamily::SleepNight,
         24,
         32,
+    );
+    add_active_routine_intention(
+        &mut agent_state,
+        "intention_elena_sleep",
+        "actor_elena",
+        "routine_elena_sleep",
+        "sleep",
+        24,
     );
     add_routine_execution(
         &mut agent_state,
@@ -366,13 +382,21 @@ fn capstone_world_and_agents() -> (PhysicalState, AgentState, Vec<ActorId>) {
         4,
         10,
     );
+    add_active_routine_intention(
+        &mut agent_state,
+        "intention_tomas_work",
+        "actor_tomas",
+        "routine_tomas_work",
+        "move",
+        4,
+    );
     add_routine_execution(
         &mut agent_state,
         "routine_exec_tomas_work",
         "actor_tomas",
         "routine_tomas_work",
         RoutineFamily::WorkBlock,
-        10,
+        4,
         24,
     );
 
@@ -486,6 +510,33 @@ fn add_routine_execution(
             DecisionTraceId::new(format!("trace_{execution_id}")).unwrap(),
         ),
     );
+}
+
+fn add_active_routine_intention(
+    agent_state: &mut AgentSeed,
+    intention_id: &str,
+    actor_id: &str,
+    template_id: &str,
+    current_step: &str,
+    start_tick: u64,
+) {
+    let intention_id = IntentionId::new(intention_id).unwrap();
+    let actor_id = ActorId::new(actor_id).unwrap();
+    let intention = Intention::adopt(
+        intention_id.clone(),
+        actor_id.clone(),
+        IntentionSource::FixtureRoutineAssignment,
+        CandidateGoalId::new(format!("goal_{template_id}")).unwrap(),
+        Some(RoutineTemplateId::new(template_id).unwrap()),
+        Some(current_step.to_string()),
+        5,
+        SimTick::new(start_tick),
+        DecisionTraceId::new(format!("trace_{intention_id}")).unwrap(),
+    );
+    agent_state
+        .active_intention_by_actor_mut()
+        .insert(actor_id, intention_id.clone());
+    agent_state.intentions_mut().insert(intention_id, intention);
 }
 
 fn has_event(log: &EventLog, kind: EventKind) -> bool {
@@ -828,6 +879,14 @@ fn no_human_day_runner_smoke_uses_no_controller_and_pipeline_events() {
         RoutineFamily::SleepNight,
         0,
         4,
+    );
+    add_active_routine_intention(
+        &mut agent_seed,
+        "intention_tomas_sleep",
+        "actor_tomas",
+        "routine_tomas_sleep",
+        "sleep",
+        0,
     );
     let mut agent_state = agent_seed.build();
     let mut registry = registry();

@@ -1,6 +1,6 @@
 # 0059AUTSCHROU-001: Bind autonomous routine family to the active-intention chain
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — rewrites the autonomous routine-family selector in `crates/tracewake-core/src/scheduler.rs`; no new events, schemas, fixtures, or crates
@@ -77,3 +77,26 @@ Remove the `.min_by(start_tick, execution_id)` family-selection use of `eligible
 1. `cargo test -p tracewake-core --test embodied_autonomous_parity` — narrowest behavioral boundary for the parity property this change preserves.
 2. `cargo test -p tracewake-core scheduler::` — exercises the in-module scheduler unit tests including the `routine_window_family_*` cases.
 3. `cargo test --workspace` — full-pipeline confirmation that no consumer of the rebound derivation regressed.
+
+## Outcome
+
+Completed: 2026-07-01
+
+The autonomous no-human `routine_window_family` producer now derives routine family through the actor's active intention and selected routine method instead of the clock/window-keyed `eligible_routine_execution_for_actor` selector. Matching routine executions are still checked for unresolved and due-within-window status as validation gates, but `start_tick`, `deadline_tick`, and execution ordering no longer choose among families. If a matching execution exists but is resolved or not due, the producer returns `None` rather than resurrecting a family through template fallback. The retained `eligible_routine_execution_for_actor` path remains available for `active_routine_execution_for_actor` bookkeeping.
+
+The scheduler unit tests now cover the active-intention requirement, resolved matching execution rejection, foreign execution ignoring, and deadline exclusion. No-human capstone, acceptance, and TUI fixtures were updated to seed authoritative active routine intentions, and the TUI post-run golden/assertion now reflects the real Commons/wait panel while preserving the debug metrics for the failed work attempt.
+
+Verification run:
+- `cargo test -p tracewake-core --test doc_invariant_references`
+- `cargo test -p tracewake-core scheduler::`
+- `cargo test -p tracewake-core --test embodied_autonomous_parity`
+- `cargo test -p tracewake-content --test golden_fixtures_run`
+- `cargo test -p tracewake-core --test acceptance_gates integrated_no_human_day_capstone_emerges_from_one_autonomous_run`
+- `cargo test -p tracewake-core --test no_human_capstone`
+- `cargo test -p tracewake-tui --test command_loop_session no_human_day_command_loop_renders_phase3a_behavior_rows`
+- `cargo test -p tracewake-tui --test playable_capability_parity playable_capability_scenarios_match_checked_in_real_pipeline_goldens`
+- `cargo test -p tracewake-tui --test tui_acceptance tui_runs_no_human_day_and_inspects_real_post_run_panels`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

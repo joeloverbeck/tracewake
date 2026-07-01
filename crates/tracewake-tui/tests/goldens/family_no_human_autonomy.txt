@@ -1,13 +1,17 @@
 Actor: actor_tomas
-Place: Tomas workshop (workshop_tomas)
+Place: Commons (commons)
 Needs:
 - fatigue: band=rising cause=tick_delta
 - hunger: band=rising cause=tick_delta
 - safety: band=comfortable cause=fixture_initial
-Intention: active:routine_tomas_go_work:work_block
+Intention: active:routine_tomas_go_work:wait
 Routine: routine:routine_tomas_go_work
 Exits:
-- commons
+- home_elena
+- home_mara
+- home_tomas
+- office_anna
+- workshop_tomas
 Doors:
 Containers:
 Items:
@@ -15,6 +19,9 @@ Inventory:
 Actors:
 Actions:
 1. Continue routine [continue.routine.intention_tomas_go_work]
-2. Move to commons [move.to.commons]
-3. Wait [wait.1_tick]
-4. Work at workplace_tomas [work.block.workplace_tomas]
+2. Move to home_elena [move.to.home_elena]
+3. Move to home_mara [move.to.home_mara]
+4. Move to home_tomas [move.to.home_tomas]
+5. Move to office_anna [move.to.office_anna]
+6. Move to workshop_tomas [move.to.workshop_tomas]
+7. Wait [wait.1_tick]

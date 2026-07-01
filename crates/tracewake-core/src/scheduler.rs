@@ -3243,8 +3243,38 @@ pub mod no_human {
         window: &DayWindow,
         actor_known_state: &ActorKnownPlanningContext,
     ) -> Option<RoutineFamily> {
-        let family = eligible_routine_execution_for_actor(agent_state, actor_id, window)
-            .map(|(_, execution)| execution.family)?;
+        let active = active_intention_for_actor(agent_state, actor_id)?;
+        if active.actor_id != *actor_id || active.status.is_terminal() {
+            return None;
+        }
+        let selected_method = active.selected_routine_method.as_ref()?;
+        let mut saw_matching_execution = false;
+        let mut unresolved_family = None;
+        for execution in agent_state
+            .routine_executions
+            .values()
+            .filter(|execution| &execution.actor_id == actor_id)
+            .filter(|execution| &execution.template_id == selected_method)
+        {
+            saw_matching_execution = true;
+            if !execution.step_status.is_resolved() {
+                if execution.start_tick <= window.start_tick
+                    && execution
+                        .deadline_tick
+                        .is_none_or(|deadline| window.start_tick < deadline)
+                {
+                    unresolved_family = Some(execution.family);
+                }
+                break;
+            }
+        }
+        let family = if let Some(family) = unresolved_family {
+            family
+        } else if saw_matching_execution {
+            return None;
+        } else {
+            routine_family_from_template_id(selected_method.as_str())?
+        };
         if family == RoutineFamily::WorkBlock
             && !actor_known_state
                 .known_workplaces()
@@ -3254,6 +3284,26 @@ pub mod no_human {
             Some(RoutineFamily::GoToWork)
         } else {
             Some(family)
+        }
+    }
+
+    fn routine_family_from_template_id(template_id: &str) -> Option<RoutineFamily> {
+        if template_id.contains("go_to_work") {
+            Some(RoutineFamily::GoToWork)
+        } else if template_id.contains("work_block") {
+            Some(RoutineFamily::WorkBlock)
+        } else if template_id.contains("eat") {
+            Some(RoutineFamily::EatMeal)
+        } else if template_id.contains("sleep") {
+            Some(RoutineFamily::SleepNight)
+        } else if template_id.contains("return_home") {
+            Some(RoutineFamily::ReturnHome)
+        } else if template_id.contains("find_food") {
+            Some(RoutineFamily::FindFood)
+        } else if template_id.contains("leave_unsafe_place") {
+            Some(RoutineFamily::LeaveUnsafePlace)
+        } else {
+            None
         }
     }
 
@@ -5002,6 +5052,30 @@ pub mod no_human {
             execution
         }
 
+        fn set_active_intention(
+            agent_state: &mut AgentState,
+            actor_id: &ActorId,
+            intention_id: &str,
+            template_id: &str,
+        ) {
+            let intention_id = IntentionId::new(intention_id).unwrap();
+            let intention = crate::agent::Intention::adopt(
+                intention_id.clone(),
+                actor_id.clone(),
+                crate::agent::IntentionSource::RoutineDuty,
+                CandidateGoalId::new(format!("goal_{template_id}")).unwrap(),
+                Some(RoutineTemplateId::new(template_id).unwrap()),
+                Some("current_step".to_string()),
+                5,
+                SimTick::ZERO,
+                DecisionTraceId::new(format!("trace_{template_id}")).unwrap(),
+            );
+            agent_state
+                .active_intention_by_actor
+                .insert(actor_id.clone(), intention_id.clone());
+            agent_state.intentions.insert(intention_id, intention);
+        }
+
         #[test]
         fn duration_completion_appends_exact_matching_routine_step_once() {
             let process_id = ProcessId::new("process_duration_completion_witness").unwrap();
@@ -6482,7 +6556,7 @@ pub mod no_human {
         }
 
         #[test]
-        fn routine_window_family_excludes_not_yet_started_execution_at_window_start() {
+        fn routine_window_family_requires_active_intention_before_window_execution() {
             let actor_id = actor_id();
             let mut agent_state = agent_state(&actor_id);
             let mid_window_execution_id =
@@ -6500,6 +6574,12 @@ pub mod no_human {
                     None,
                     DecisionTraceId::new("trace_mid_window").unwrap(),
                 ),
+            );
+            set_active_intention(
+                &mut agent_state,
+                &actor_id,
+                "intention_mid_window_authority",
+                "routine_mid_window",
             );
             let window = DayWindow {
                 window_id: "morning".to_string(),
@@ -6530,7 +6610,7 @@ pub mod no_human {
                 crate::agent::RoutineExecution::new(
                     already_open_execution_id,
                     actor_id.clone(),
-                    RoutineTemplateId::new("routine_already_open").unwrap(),
+                    RoutineTemplateId::new("routine_wait").unwrap(),
                     RoutineFamily::Wait,
                     SimTick::new(2),
                     Some(SimTick::new(8)),
@@ -6539,10 +6619,100 @@ pub mod no_human {
                     DecisionTraceId::new("trace_already_open").unwrap(),
                 ),
             );
+            set_active_intention(
+                &mut agent_state,
+                &actor_id,
+                "intention_wait_authority",
+                "routine_wait",
+            );
 
             assert_eq!(
                 routine_window_family(&agent_state, &actor_id, &window, &actor_known_state),
                 Some(RoutineFamily::Wait)
+            );
+        }
+
+        #[test]
+        fn routine_window_family_ignores_foreign_and_resolved_executions() {
+            let actor_id = actor_id();
+            let other_actor = ActorId::new("actor_window_other").unwrap();
+            let mut agent_state = agent_state(&actor_id);
+            set_active_intention(
+                &mut agent_state,
+                &actor_id,
+                "intention_eat_authority",
+                "routine_eat_meal",
+            );
+            let resolved_execution_id = RoutineExecutionId::new("routine_exec_resolved").unwrap();
+            let mut resolved_execution = crate::agent::RoutineExecution::new(
+                resolved_execution_id.clone(),
+                actor_id.clone(),
+                RoutineTemplateId::new("routine_eat_meal").unwrap(),
+                RoutineFamily::SleepNight,
+                SimTick::ZERO,
+                Some(SimTick::new(1)),
+                Some(SimTick::new(4)),
+                None,
+                DecisionTraceId::new("trace_resolved").unwrap(),
+            );
+            resolved_execution.step_status = crate::agent::RoutineStepStatus::Completed;
+            agent_state
+                .routine_executions
+                .insert(resolved_execution_id, resolved_execution);
+            agent_state.routine_executions.insert(
+                RoutineExecutionId::new("routine_exec_foreign").unwrap(),
+                crate::agent::RoutineExecution::new(
+                    RoutineExecutionId::new("routine_exec_foreign").unwrap(),
+                    other_actor,
+                    RoutineTemplateId::new("routine_eat_meal").unwrap(),
+                    RoutineFamily::WorkBlock,
+                    SimTick::ZERO,
+                    Some(SimTick::new(1)),
+                    Some(SimTick::new(4)),
+                    None,
+                    DecisionTraceId::new("trace_foreign").unwrap(),
+                ),
+            );
+            let actor_known_state = ActorKnownPlanningContext::from_observed_parts(
+                actor_id.clone(),
+                PlaceId::new("kitchen").unwrap(),
+                BTreeMap::new(),
+                BTreeMap::new(),
+                BTreeMap::new(),
+                BTreeSet::new(),
+                BTreeSet::new(),
+                BTreeMap::new(),
+                Vec::new(),
+            );
+            let window = DayWindow {
+                window_id: "meal".to_string(),
+                start_tick: SimTick::ZERO,
+                end_tick: SimTick::new(4),
+            };
+
+            assert_eq!(
+                routine_window_family(&agent_state, &actor_id, &window, &actor_known_state),
+                None
+            );
+
+            agent_state.routine_executions.insert(
+                RoutineExecutionId::new("routine_exec_active_eat").unwrap(),
+                crate::agent::RoutineExecution::new(
+                    RoutineExecutionId::new("routine_exec_active_eat").unwrap(),
+                    actor_id.clone(),
+                    RoutineTemplateId::new("routine_eat_meal").unwrap(),
+                    RoutineFamily::EatMeal,
+                    SimTick::ZERO,
+                    Some(SimTick::new(1)),
+                    Some(SimTick::new(4)),
+                    None,
+                    DecisionTraceId::new("trace_active_eat").unwrap(),
+                ),
+            );
+
+            assert_eq!(
+                routine_window_family(&agent_state, &actor_id, &window, &actor_known_state),
+                Some(RoutineFamily::EatMeal)
             );
         }
 
@@ -6610,7 +6780,7 @@ pub mod no_human {
                 crate::agent::RoutineExecution::new(
                     live_execution_id.clone(),
                     actor_id.clone(),
-                    RoutineTemplateId::new("routine_live").unwrap(),
+                    RoutineTemplateId::new("routine_wait").unwrap(),
                     RoutineFamily::Wait,
                     SimTick::new(1),
                     Some(SimTick::new(5)),
@@ -6618,6 +6788,12 @@ pub mod no_human {
                     None,
                     DecisionTraceId::new("trace_live").unwrap(),
                 ),
+            );
+            set_active_intention(
+                &mut agent_state,
+                &actor_id,
+                "intention_live_wait_authority",
+                "routine_wait",
             );
             let window = DayWindow {
                 window_id: "deadline_check".to_string(),
@@ -6862,6 +7038,12 @@ pub mod no_human {
                     None,
                     DecisionTraceId::new("trace_midday").unwrap(),
                 ),
+            );
+            set_active_intention(
+                &mut agent_state,
+                &actor_id,
+                "intention_midday_eat_authority",
+                "routine_midday",
             );
             let mut log = EventLog::new();
             let window = DayWindow {
@@ -7384,6 +7566,12 @@ pub mod no_human {
                     None,
                     DecisionTraceId::new("trace_blocked_work").unwrap(),
                 ),
+            );
+            set_active_intention(
+                &mut agent_state,
+                &actor_id,
+                "intention_blocked_work_authority",
+                "routine_blocked_work",
             );
             let mut log = EventLog::new();
             let mut role_notice = EventEnvelope::new_v1(
