@@ -16,8 +16,9 @@ use crate::projections::{
 };
 use crate::time::SimTick;
 use crate::view_models::{
-    DebugBeliefEntry, DebugBeliefsView, DebugContradictionEntry, DebugEpistemicsView,
-    DebugHolderBeliefs, DebugObservationEntry, DebugObservationsView,
+    ActorKnownActivitySourceKind, DebugBeliefEntry, DebugBeliefsView, DebugContradictionEntry,
+    DebugEpistemicsView, DebugHolderBeliefs, DebugObservationEntry, DebugObservationsView,
+    ObservedActorActivityKind,
 };
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -141,6 +142,11 @@ pub enum ActorKnownProjectionRecord {
         actor_id: ActorId,
         observed_actor_id: ActorId,
         place_id: PlaceId,
+        observed_activity: ObservedActorActivityKind,
+        activity_summary: Option<String>,
+        activity_source: ActorKnownActivitySourceKind,
+        activity_source_summary: String,
+        activity_observed_tick: SimTick,
         source: ActorKnownProjectionSource,
         source_event_id: EventId,
         source_tick: SimTick,
@@ -1004,11 +1010,28 @@ fn actor_known_record_is_novel_to_context(
                 && fact.portable() == *portable
         }),
         ActorKnownProjectionRecord::LocalActor {
-            observed_actor_id, ..
-        } => !context
-            .actor_known_local_actors()
-            .iter()
-            .any(|fact| fact.actor_id() == observed_actor_id),
+            observed_actor_id,
+            observed_activity,
+            activity_summary,
+            activity_source,
+            activity_source_summary,
+            activity_observed_tick,
+            ..
+        } => !context.actor_known_local_actors().iter().any(|fact| {
+            if fact.actor_id() != observed_actor_id {
+                return false;
+            }
+            if *observed_activity == ObservedActorActivityKind::ActivityNotApparent
+                && activity_summary.is_none()
+            {
+                return true;
+            }
+            fact.observed_activity() == *observed_activity
+                && fact.activity_summary() == activity_summary.as_deref()
+                && fact.activity_source() == *activity_source
+                && fact.activity_source_summary() == activity_source_summary
+                && fact.observed_tick() == *activity_observed_tick
+        }),
     }
 }
 
@@ -1349,18 +1372,40 @@ impl ActorKnownProjectionRecord {
             Self::LocalActor {
                 observed_actor_id,
                 place_id,
+                observed_activity,
+                activity_summary,
+                activity_source,
+                activity_source_summary,
+                activity_observed_tick,
                 source,
                 source_event_id,
                 source_tick,
                 ..
-            } => format!(
-                "local_actor|id={}|place={}|source={}|event={}|tick={}",
-                observed_actor_id.as_str(),
-                place_id.as_str(),
-                source.stable_id(),
-                source_event_id.as_str(),
-                source_tick.value()
-            ),
+            } => {
+                let base = format!(
+                    "local_actor|id={}|place={}|source={}|event={}|tick={}",
+                    observed_actor_id.as_str(),
+                    place_id.as_str(),
+                    source.stable_id(),
+                    source_event_id.as_str(),
+                    source_tick.value()
+                );
+                if *observed_activity == ObservedActorActivityKind::ActivityNotApparent
+                    && activity_summary.is_none()
+                    && *activity_observed_tick == *source_tick
+                {
+                    base
+                } else {
+                    format!(
+                        "{base}|activity={}|activity_source={}|activity_source_summary={}|activity_tick={}|activity_summary={}",
+                        observed_activity.stable_id(),
+                        activity_source.stable_id(),
+                        activity_source_summary,
+                        activity_observed_tick.value(),
+                        activity_summary.as_deref().unwrap_or("")
+                    )
+                }
+            }
         }
     }
 }
@@ -1746,10 +1791,28 @@ fn actor_known_records_from_observation(
             else {
                 return Vec::new();
             };
+            let observed_activity =
+                observation_payload_value(observation, "observed_activity_kind")
+                    .and_then(parse_observed_activity_kind)
+                    .unwrap_or(ObservedActorActivityKind::ActivityNotApparent);
+            let activity_summary =
+                observation_payload_value(observation, "activity_summary").map(ToString::to_string);
+            let activity_source = observation_payload_value(observation, "activity_source_kind")
+                .and_then(parse_activity_source_kind)
+                .unwrap_or(ActorKnownActivitySourceKind::DirectPerception);
+            let activity_source_summary =
+                observation_payload_value(observation, "activity_source_summary")
+                    .map(ToString::to_string)
+                    .unwrap_or_else(|| source_summary(observation.source()));
             vec![ActorKnownProjectionRecord::LocalActor {
                 actor_id,
                 observed_actor_id,
                 place_id: observation.observer_place_id().clone(),
+                observed_activity,
+                activity_summary,
+                activity_source,
+                activity_source_summary,
+                activity_observed_tick: observation.observed_tick(),
                 source: ActorKnownProjectionSource::VisibleActor,
                 source_event_id,
                 source_tick: observation.observed_tick(),
@@ -1773,6 +1836,33 @@ fn actor_known_records_from_observation(
         }
         _ => Vec::new(),
     }
+}
+
+fn parse_observed_activity_kind(value: &str) -> Option<ObservedActorActivityKind> {
+    Some(match value {
+        "sleeping" => ObservedActorActivityKind::Sleeping,
+        "eating" => ObservedActorActivityKind::Eating,
+        "working" => ObservedActorActivityKind::Working,
+        "moving" => ObservedActorActivityKind::Moving,
+        "speaking" => ObservedActorActivityKind::Speaking,
+        "waiting" => ObservedActorActivityKind::Waiting,
+        "continuing_routine" => ObservedActorActivityKind::ContinuingRoutine,
+        "apparent_idle" => ObservedActorActivityKind::ApparentIdle,
+        "activity_not_apparent" => ObservedActorActivityKind::ActivityNotApparent,
+        _ => return None,
+    })
+}
+
+fn parse_activity_source_kind(value: &str) -> Option<ActorKnownActivitySourceKind> {
+    Some(match value {
+        "direct_perception" => ActorKnownActivitySourceKind::DirectPerception,
+        "indirect_perception" => ActorKnownActivitySourceKind::IndirectPerception,
+        "memory" => ActorKnownActivitySourceKind::Memory,
+        "testimony" => ActorKnownActivitySourceKind::Testimony,
+        "record" => ActorKnownActivitySourceKind::Record,
+        "inference" => ActorKnownActivitySourceKind::Inference,
+        _ => return None,
+    })
 }
 
 fn actor_known_record_from_starting_belief(
@@ -2735,6 +2825,11 @@ mod tests {
             actor_id: actor,
             observed_actor_id: actor_id("actor_mara"),
             place_id: place_id("home_tomas"),
+            observed_activity: ObservedActorActivityKind::ActivityNotApparent,
+            activity_summary: None,
+            activity_source: ActorKnownActivitySourceKind::DirectPerception,
+            activity_source_summary: "actor".to_string(),
+            activity_observed_tick: tick,
             source: ActorKnownProjectionSource::VisibleActor,
             source_event_id: event,
             source_tick: tick,
@@ -2989,6 +3084,11 @@ mod tests {
             actor_id: actor.clone(),
             observed_actor_id: actor_id("actor_tomas"),
             place_id: place_id("workroom"),
+            observed_activity: ObservedActorActivityKind::ActivityNotApparent,
+            activity_summary: None,
+            activity_source: ActorKnownActivitySourceKind::DirectPerception,
+            activity_source_summary: "event:event_visible_actor".to_string(),
+            activity_observed_tick: SimTick::new(5),
             source: ActorKnownProjectionSource::VisibleActor,
             source_event_id: event_id("event_visible_actor"),
             source_tick: SimTick::new(5),
@@ -3035,6 +3135,11 @@ mod tests {
             actor_id: actor.clone(),
             observed_actor_id: actor_id("actor_mara"),
             place_id: place_id("home_tomas"),
+            observed_activity: ObservedActorActivityKind::ActivityNotApparent,
+            activity_summary: None,
+            activity_source: ActorKnownActivitySourceKind::DirectPerception,
+            activity_source_summary: "event:event_visible_actor".to_string(),
+            activity_observed_tick: SimTick::new(4),
             source: ActorKnownProjectionSource::VisibleActor,
             source_event_id: event_id("event_visible_actor"),
             source_tick: SimTick::new(4),
@@ -3086,9 +3191,39 @@ mod tests {
             actor_records.as_slice(),
             [ActorKnownProjectionRecord::LocalActor {
                 observed_actor_id,
+                observed_activity: ObservedActorActivityKind::ActivityNotApparent,
+                activity_summary: None,
+                activity_source: ActorKnownActivitySourceKind::DirectPerception,
                 source: ActorKnownProjectionSource::VisibleActor,
                 ..
             }] if observed_actor_id.as_str() == "actor_mara"
+        ));
+
+        let active_actor_records = actor_known_records_from_observation(&visible_observation(
+            "visible_actor",
+            "actor_mara",
+            vec![
+                PayloadField::new("observed_activity_kind", "working"),
+                PayloadField::new("activity_summary", "working at the bench"),
+                PayloadField::new("activity_source_kind", "direct_perception"),
+                PayloadField::new("activity_source_summary", "saw bench work"),
+            ],
+        ));
+        assert!(matches!(
+            active_actor_records.as_slice(),
+            [ActorKnownProjectionRecord::LocalActor {
+                observed_actor_id,
+                observed_activity: ObservedActorActivityKind::Working,
+                activity_summary: Some(summary),
+                activity_source: ActorKnownActivitySourceKind::DirectPerception,
+                activity_source_summary,
+                activity_observed_tick,
+                source: ActorKnownProjectionSource::VisibleActor,
+                ..
+            }] if observed_actor_id.as_str() == "actor_mara"
+                && summary == "working at the bench"
+                && activity_source_summary == "saw bench work"
+                && *activity_observed_tick == SimTick::new(4)
         ));
 
         let item_records = actor_known_records_from_observation(&visible_observation(
@@ -3566,6 +3701,11 @@ mod tests {
                 actor_id: actor.clone(),
                 observed_actor_id: actor_id("actor_mara"),
                 place_id: place_id("home_tomas"),
+                observed_activity: ObservedActorActivityKind::ActivityNotApparent,
+                activity_summary: None,
+                activity_source: ActorKnownActivitySourceKind::DirectPerception,
+                activity_source_summary: "event:event_visible_actor".to_string(),
+                activity_observed_tick: SimTick::new(4),
                 source: ActorKnownProjectionSource::VisibleActor,
                 source_event_id: event_id("event_visible_actor"),
                 source_tick: SimTick::new(4),

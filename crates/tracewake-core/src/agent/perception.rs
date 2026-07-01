@@ -515,15 +515,36 @@ pub fn current_place_knowledge_context(
                 }
             }
             ActorKnownProjectionRecord::LocalActor {
-                observed_actor_id, ..
+                observed_actor_id,
+                observed_activity,
+                activity_summary,
+                activity_source,
+                activity_source_summary,
+                activity_observed_tick,
+                ..
             } => {
                 if included_by_policy {
                     provenance.push(provenance_for_projection_record(
                         classified.record(),
                         source_event_key,
                     ));
-                    local_actors.push(ActorKnownLocalActorFact::new(
+                    let staleness_label = match classified.freshness() {
+                        crate::epistemics::ActorKnownProjectionFreshness::CurrentlyPerceived => {
+                            "current"
+                        }
+                        crate::epistemics::ActorKnownProjectionFreshness::Remembered => "stale",
+                    };
+                    let uncertainty_label =
+                        (staleness_label == "stale").then(|| "stale observation".to_string());
+                    local_actors.push(ActorKnownLocalActorFact::with_observed_activity(
                         observed_actor_id.clone(),
+                        *observed_activity,
+                        activity_summary.clone(),
+                        *activity_source,
+                        activity_source_summary.clone(),
+                        *activity_observed_tick,
+                        staleness_label,
+                        uncertainty_label,
                         source_key,
                     ));
                 }
@@ -852,6 +873,28 @@ mod tests {
         )
     }
 
+    fn state_with_visible_local_actor() -> PhysicalState {
+        let actor = actor_id("actor_tomas");
+        let mara = actor_id("actor_mara");
+        let home = place_id("home_tomas");
+        let mut actors = BTreeMap::new();
+        actors.insert(actor.clone(), ActorBody::new(actor, home.clone()));
+        actors.insert(mara.clone(), ActorBody::new(mara, home.clone()));
+        let mut places = BTreeMap::new();
+        places.insert(home.clone(), PlaceState::new(home, "Tomas home"));
+        PhysicalState::from_test_seed_parts(
+            actors,
+            places,
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            crate::state::NeedModelState::new(5, 3),
+        )
+    }
+
     #[test]
     fn current_place_perception_emits_window_keyed_observation_events() {
         let events = current_place_perception_events(
@@ -1131,6 +1174,111 @@ mod tests {
             payload_value(&events[0], "perceived_kind"),
             Some("current_place")
         );
+    }
+
+    #[test]
+    fn current_place_context_seals_observed_activity_from_visible_actor_observation() {
+        let actor = actor_id("actor_tomas");
+        let manifest_id = manifest_id();
+        let state = state_with_visible_local_actor();
+        let no_activity_event =
+            current_place_perception_events(&state, &actor, SimTick::new(3), &manifest_id)
+                .into_iter()
+                .find(|event| payload_value(event, "perceived_kind") == Some("visible_actor"))
+                .expect("local actor perception should exist");
+        let mut no_activity_projection = EpistemicProjection::new(manifest_id.clone());
+        project_perception_event(&mut no_activity_projection, &no_activity_event);
+        let no_activity_context = current_place_knowledge_context(
+            &state,
+            Some(&no_activity_projection),
+            &actor,
+            SimTick::new(3),
+            &manifest_id,
+            1,
+        );
+        let no_activity_fact = no_activity_context
+            .actor_known_local_actors()
+            .iter()
+            .find(|fact| fact.actor_id().as_str() == "actor_mara")
+            .expect("visible actor fact should seal");
+        assert_eq!(
+            no_activity_fact.observed_activity(),
+            crate::view_models::ObservedActorActivityKind::ActivityNotApparent
+        );
+        assert_eq!(no_activity_fact.activity_summary(), None);
+
+        let mut projection = EpistemicProjection::new(manifest_id.clone());
+        let mut event =
+            current_place_perception_events(&state, &actor, SimTick::new(4), &manifest_id)
+                .into_iter()
+                .find(|event| payload_value(event, "perceived_kind") == Some("visible_actor"))
+                .expect("local actor perception should exist");
+        event
+            .payload
+            .push(PayloadField::new("observed_activity_kind", "working"));
+        event.payload.push(PayloadField::new(
+            "activity_summary",
+            "working at the bench",
+        ));
+        event.payload.push(PayloadField::new(
+            "activity_source_kind",
+            "direct_perception",
+        ));
+        event.payload.push(PayloadField::new(
+            "activity_source_summary",
+            "saw bench work",
+        ));
+        project_perception_event(&mut projection, &event);
+
+        let current_context = current_place_knowledge_context(
+            &state,
+            Some(&projection),
+            &actor,
+            SimTick::new(4),
+            &manifest_id,
+            1,
+        );
+        let current_fact = current_context
+            .actor_known_local_actors()
+            .iter()
+            .find(|fact| fact.actor_id().as_str() == "actor_mara")
+            .expect("visible actor fact should seal");
+        assert_eq!(
+            current_fact.observed_activity(),
+            crate::view_models::ObservedActorActivityKind::Working
+        );
+        assert_eq!(
+            current_fact.activity_summary(),
+            Some("working at the bench")
+        );
+        assert_eq!(
+            current_fact.activity_source(),
+            crate::view_models::ActorKnownActivitySourceKind::DirectPerception
+        );
+        assert_eq!(current_fact.activity_source_summary(), "saw bench work");
+        assert_eq!(current_fact.observed_tick(), SimTick::new(4));
+        assert_eq!(current_fact.staleness_label(), "current");
+        assert_eq!(current_fact.uncertainty_label(), None);
+
+        let stale_context = current_place_knowledge_context(
+            &state,
+            Some(&projection),
+            &actor,
+            SimTick::new(5),
+            &manifest_id,
+            1,
+        );
+        let stale_fact = stale_context
+            .actor_known_local_actors()
+            .iter()
+            .find(|fact| fact.actor_id().as_str() == "actor_mara")
+            .expect("remembered visible actor fact should seal");
+        assert_eq!(
+            stale_fact.observed_activity(),
+            crate::view_models::ObservedActorActivityKind::Working
+        );
+        assert_eq!(stale_fact.staleness_label(), "stale");
+        assert_eq!(stale_fact.uncertainty_label(), Some("stale observation"));
     }
 
     #[test]

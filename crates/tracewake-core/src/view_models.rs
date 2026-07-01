@@ -403,6 +403,22 @@ pub enum ObservedActorActivityKind {
     ActivityNotApparent,
 }
 
+impl ObservedActorActivityKind {
+    pub const fn stable_id(self) -> &'static str {
+        match self {
+            ObservedActorActivityKind::Sleeping => "sleeping",
+            ObservedActorActivityKind::Eating => "eating",
+            ObservedActorActivityKind::Working => "working",
+            ObservedActorActivityKind::Moving => "moving",
+            ObservedActorActivityKind::Speaking => "speaking",
+            ObservedActorActivityKind::Waiting => "waiting",
+            ObservedActorActivityKind::ContinuingRoutine => "continuing_routine",
+            ObservedActorActivityKind::ApparentIdle => "apparent_idle",
+            ObservedActorActivityKind::ActivityNotApparent => "activity_not_apparent",
+        }
+    }
+}
+
 /// Modeled information channel by which an actor-known activity was learned.
 ///
 /// Variants map to the Foundation 04 source families and stay coarse until a
@@ -415,6 +431,19 @@ pub enum ActorKnownActivitySourceKind {
     Testimony,
     Record,
     Inference,
+}
+
+impl ActorKnownActivitySourceKind {
+    pub const fn stable_id(self) -> &'static str {
+        match self {
+            ActorKnownActivitySourceKind::DirectPerception => "direct_perception",
+            ActorKnownActivitySourceKind::IndirectPerception => "indirect_perception",
+            ActorKnownActivitySourceKind::Memory => "memory",
+            ActorKnownActivitySourceKind::Testimony => "testimony",
+            ActorKnownActivitySourceKind::Record => "record",
+            ActorKnownActivitySourceKind::Inference => "inference",
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
