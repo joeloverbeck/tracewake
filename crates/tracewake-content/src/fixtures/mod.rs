@@ -1,4 +1,8 @@
 mod aged_food_record_surfaces_as_remembered_belief_not_observation_001;
+mod co_present_actor_activity_not_apparent_001;
+mod co_present_actor_occluded_no_row_001;
+mod co_present_actor_stale_remembered_activity_001;
+mod co_present_actor_visible_working_001;
 mod competing_food_source_facts_001;
 mod container_item_move_001;
 mod debug_attach_001;
@@ -84,6 +88,10 @@ use crate::schema::{
 use crate::serialization::serialize_fixture;
 
 pub use aged_food_record_surfaces_as_remembered_belief_not_observation_001::aged_food_record_surfaces_as_remembered_belief_not_observation_001;
+pub use co_present_actor_activity_not_apparent_001::co_present_actor_activity_not_apparent_001;
+pub use co_present_actor_occluded_no_row_001::co_present_actor_occluded_no_row_001;
+pub use co_present_actor_stale_remembered_activity_001::co_present_actor_stale_remembered_activity_001;
+pub use co_present_actor_visible_working_001::co_present_actor_visible_working_001;
 pub use competing_food_source_facts_001::competing_food_source_facts_001;
 pub use container_item_move_001::container_item_move_001;
 pub use debug_attach_001::debug_attach_001;
@@ -192,6 +200,10 @@ pub fn all() -> Vec<GoldenFixture> {
         embodied_view_omits_unobserved_food_at_open_place_001(),
         embodied_view_omits_unknown_sleep_affordance_001(),
         embodied_exits_require_perceived_or_known_route_001(),
+        co_present_actor_visible_working_001(),
+        co_present_actor_activity_not_apparent_001(),
+        co_present_actor_occluded_no_row_001(),
+        co_present_actor_stale_remembered_activity_001(),
         knowledge_blocker_accuse_001(),
         sound_uncertainty_001(),
         no_human_epistemic_check_001(),
