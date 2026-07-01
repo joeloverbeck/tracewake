@@ -386,6 +386,37 @@ pub enum VisibleItemSource {
     Carried,
 }
 
+/// Coarse actor-known activity observed through modeled information sources.
+///
+/// The taxonomy is intentionally closed and coarse; extend it only by a
+/// deliberate spec revision rather than by rendering prose as authority.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ObservedActorActivityKind {
+    Sleeping,
+    Eating,
+    Working,
+    Moving,
+    Speaking,
+    Waiting,
+    ContinuingRoutine,
+    ApparentIdle,
+    ActivityNotApparent,
+}
+
+/// Modeled information channel by which an actor-known activity was learned.
+///
+/// Variants map to the Foundation 04 source families and stay coarse until a
+/// spec deliberately widens the actor-known activity contract.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ActorKnownActivitySourceKind {
+    DirectPerception,
+    IndirectPerception,
+    Memory,
+    Testimony,
+    Record,
+    Inference,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct VisibleActor {
     pub actor_id: ActorId,
@@ -963,6 +994,80 @@ mod tests {
     use crate::actions::pipeline::PipelineStage;
     use crate::actions::{ReasonCode, ReportStatus, ValidationReport};
     use crate::ids::{ProposalId, ValidationReportId};
+
+    #[test]
+    fn observed_activity_taxonomies_are_closed_and_exhaustive() {
+        let activity_kinds = [
+            ObservedActorActivityKind::Sleeping,
+            ObservedActorActivityKind::Eating,
+            ObservedActorActivityKind::Working,
+            ObservedActorActivityKind::Moving,
+            ObservedActorActivityKind::Speaking,
+            ObservedActorActivityKind::Waiting,
+            ObservedActorActivityKind::ContinuingRoutine,
+            ObservedActorActivityKind::ApparentIdle,
+            ObservedActorActivityKind::ActivityNotApparent,
+        ];
+        let activity_names: Vec<&str> = activity_kinds
+            .into_iter()
+            .map(|kind| match kind {
+                ObservedActorActivityKind::Sleeping => "Sleeping",
+                ObservedActorActivityKind::Eating => "Eating",
+                ObservedActorActivityKind::Working => "Working",
+                ObservedActorActivityKind::Moving => "Moving",
+                ObservedActorActivityKind::Speaking => "Speaking",
+                ObservedActorActivityKind::Waiting => "Waiting",
+                ObservedActorActivityKind::ContinuingRoutine => "ContinuingRoutine",
+                ObservedActorActivityKind::ApparentIdle => "ApparentIdle",
+                ObservedActorActivityKind::ActivityNotApparent => "ActivityNotApparent",
+            })
+            .collect();
+        assert_eq!(
+            activity_names,
+            [
+                "Sleeping",
+                "Eating",
+                "Working",
+                "Moving",
+                "Speaking",
+                "Waiting",
+                "ContinuingRoutine",
+                "ApparentIdle",
+                "ActivityNotApparent",
+            ]
+        );
+
+        let source_kinds = [
+            ActorKnownActivitySourceKind::DirectPerception,
+            ActorKnownActivitySourceKind::IndirectPerception,
+            ActorKnownActivitySourceKind::Memory,
+            ActorKnownActivitySourceKind::Testimony,
+            ActorKnownActivitySourceKind::Record,
+            ActorKnownActivitySourceKind::Inference,
+        ];
+        let source_names: Vec<&str> = source_kinds
+            .into_iter()
+            .map(|kind| match kind {
+                ActorKnownActivitySourceKind::DirectPerception => "DirectPerception",
+                ActorKnownActivitySourceKind::IndirectPerception => "IndirectPerception",
+                ActorKnownActivitySourceKind::Memory => "Memory",
+                ActorKnownActivitySourceKind::Testimony => "Testimony",
+                ActorKnownActivitySourceKind::Record => "Record",
+                ActorKnownActivitySourceKind::Inference => "Inference",
+            })
+            .collect();
+        assert_eq!(
+            source_names,
+            [
+                "DirectPerception",
+                "IndirectPerception",
+                "Memory",
+                "Testimony",
+                "Record",
+                "Inference",
+            ]
+        );
+    }
 
     #[test]
     fn typed_actor_known_interval_summary_getters_report_constructed_values() {
