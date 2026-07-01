@@ -81,6 +81,14 @@ ledger row, and final response:
 
 If a surface intentionally names a different role, say so explicitly.
 
+## Final Response Scaffold
+
+Use the literal final-response scaffold from `SKILL.md` unless the user asked
+for a narrower status-only reply. Keep every required label present, including
+explicit `None` or `N/A` values, so commit roles, skipped checks, AGENTS gate
+deviations, unrelated pre-existing changes, and goal usage are not lost during
+long closeouts.
+
 ## Post-Commit Audit
 
 After the final commit and final gates, rerun compact current-state checks:
