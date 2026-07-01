@@ -20,6 +20,9 @@ use tracewake_core::location::Location;
 use tracewake_core::state::{ActorBody, FoodSupplyState, WorkplaceState};
 use tracewake_core::time::SimTick;
 
+const SCHEDULER_RS: &str = include_str!("../src/scheduler.rs");
+const TRANSACTION_RS: &str = include_str!("../src/agent/transaction.rs");
+const GENERATION_RS: &str = include_str!("../src/agent/generation.rs");
 const TICK: SimTick = SimTick::new(8);
 
 #[test]
@@ -225,6 +228,161 @@ fn fail_closed_0059_scheduler_routine_active_intention_authority_records_typed_n
             "{outcome:#?}"
         );
         assert!(outcome.hidden_truth_actor_known_only(), "{outcome:#?}");
+    }
+}
+
+#[test]
+fn mutation_guard_0059_scheduler_world_step_and_routine_authority_predicates_are_live() {
+    let due_loaded = function_body_if_present(SCHEDULER_RS, "fn due_loaded_actor_ids")
+        .expect("due_loaded_actor_ids source body must be visible to mutation guard");
+    for required in [
+        "**next_decision_tick <= target_tick",
+        "&& state.actors().contains_key(*actor_id)",
+        "&& agent_state.needs_by_actor().contains_key(*actor_id)",
+        ".map(|(actor_id, _)| actor_id.clone())",
+    ] {
+        assert!(
+            due_loaded.contains(required),
+            "0059 focused mutation guard requires due-loaded predicate snippet: {required}"
+        );
+    }
+
+    let world_step = function_body_if_present(SCHEDULER_RS, "pub fn transact_world_one_tick")
+        .expect("transact_world_one_tick source body must be visible to mutation guard");
+    for required in [
+        "request.advance.expected_tick != self.current_tick",
+        "proposal.action_id.as_str() == \"wait\"",
+        "rejected && proposal.origin == ProposalOrigin::Human",
+        "if proposal.origin == ProposalOrigin::Human\n                && controlled_pipeline_results",
+        "payload_value(event, \"accounting_phase\") == Some(\"world_step\")",
+        "world_process_markers_observed += 1",
+        "proposal.origin == ProposalOrigin::Human",
+        ".is_some_and(|result| result.report.status == ReportStatus::Rejected)",
+        ".filter(|actor_id| !controlled_actor_ids.contains(actor_id))",
+        ".filter(|actor_id| !deferred_reserved_actor_ids.contains(actor_id))",
+        "actor_transactions_attempted += 1",
+        "routine_window_family: None",
+        "include_idle_fallback: true",
+        "} else if !scratch_agent_state.needs_by_actor().contains_key(&actor_id) {",
+    ] {
+        assert!(
+            world_step.contains(required),
+            "0059 focused mutation guard requires world-step authority snippet: {required}"
+        );
+    }
+    assert_eq!(
+        world_step
+            .matches("result.report.status == ReportStatus::Rejected")
+            .count(),
+        2,
+        "0059 focused mutation guard requires both controlled rejection predicates"
+    );
+
+    let routine_family = function_body_if_present(SCHEDULER_RS, "fn routine_window_family")
+        .expect("routine_window_family source body must be visible to mutation guard");
+    for required in [
+        "let active = active_intention_for_actor(agent_state, actor_id)?;",
+        "if active.actor_id != *actor_id || active.status.is_terminal()",
+        "let selected_method = active.selected_routine_method.as_ref()?;",
+        ".filter(|execution| &execution.actor_id == actor_id)",
+        ".filter(|execution| &execution.template_id == selected_method)",
+        "if !execution.step_status.is_resolved()",
+        "execution.start_tick <= window.start_tick",
+        "execution.start_tick <= window.start_tick\n                    && execution",
+        ".is_none_or(|deadline| window.start_tick < deadline)",
+        "if family == RoutineFamily::WorkBlock",
+        "&& !actor_known_state",
+        ".any(|place_id| place_id == actor_known_state.current_place_id())",
+    ] {
+        assert!(
+            routine_family.contains(required),
+            "0059 focused mutation guard requires routine-family authority snippet: {required}"
+        );
+    }
+
+    let family_from_template =
+        function_body_if_present(SCHEDULER_RS, "fn routine_family_from_template_id")
+            .expect("routine_family_from_template_id source body must be visible");
+    for required in [
+        "template_id.contains(\"go_to_work\")",
+        "template_id.contains(\"work_block\")",
+        "template_id.contains(\"eat\")",
+        "template_id.contains(\"sleep\")",
+    ] {
+        assert!(
+            family_from_template.contains(required),
+            "0059 focused mutation guard requires template family mapping: {required}"
+        );
+    }
+
+    let eligible =
+        function_body_if_present(SCHEDULER_RS, "fn eligible_routine_execution_for_actor")
+            .expect("eligible_routine_execution_for_actor source body must be visible");
+    for required in [
+        ".filter(|(_, execution)| &execution.actor_id == actor_id)",
+        "execution.start_tick <= window.start_tick",
+        "execution.start_tick <= window.start_tick\n                    && execution",
+        ".is_none_or(|deadline| window.start_tick < deadline)",
+        "!matches!(",
+        "RoutineStepStatus::Completed",
+        ".min_by(|(_, left), (_, right)|",
+        "left.execution_id.cmp(&right.execution_id)",
+    ] {
+        assert!(
+            eligible.contains(required),
+            "0059 focused mutation guard requires eligible-execution bookkeeping snippet: {required}"
+        );
+    }
+}
+
+#[test]
+fn mutation_guard_0059_transaction_and_generation_predicates_are_live() {
+    let transaction_run = function_body_if_present(TRANSACTION_RS, "pub fn run")
+        .expect("ActorDecisionTransaction::run source body must be visible");
+    for required in [
+        ".filter(|candidate| candidate.goal_kind != GoalKind::IdleWithReason)",
+        "routine_window_goal_from_hint(input.routine_window_family, active_intention.as_ref())",
+        "routine_window_hint.goal_kind",
+        "annotate_ignored_routine_window_hint(&mut selection.trace, diagnostic)",
+    ] {
+        assert!(
+            transaction_run.contains(required),
+            "0059 focused mutation guard requires transaction snippet: {required}"
+        );
+    }
+
+    let generation = function_body_if_present(GENERATION_RS, "pub fn generate_candidate_goals(")
+        .expect("generate_candidate_goals source body must be visible");
+    for required in [
+        "(NeedKind::Hunger, NeedBand::Rising)",
+        "(NeedKind::Hunger, NeedBand::Urgent)",
+        "(NeedKind::Hunger, NeedBand::Severe)",
+        "(NeedKind::Fatigue, NeedBand::Urgent)",
+        "(NeedKind::Fatigue, NeedBand::Severe)",
+        "(NeedKind::Safety, NeedBand::Severe)",
+        "CandidateGoalSource::RoutineDuty",
+        "routine_window_goal_matches_active_intention(active, *goal_kind)",
+    ] {
+        assert!(
+            generation.contains(required),
+            "0059 focused mutation guard requires candidate-generation snippet: {required}"
+        );
+    }
+
+    let compatibility = function_body_if_present(
+        GENERATION_RS,
+        "pub(crate) fn routine_window_goal_matches_active_intention",
+    )
+    .expect("routine_window_goal_matches_active_intention source body must be visible");
+    for required in [
+        "Some(active_goal) if active_goal == hint_goal => true",
+        "Some(GoalKind::PerformWorkBlock) if hint_goal == GoalKind::GoToWork => true",
+        "_ => false",
+    ] {
+        assert!(
+            compatibility.contains(required),
+            "0059 focused mutation guard requires routine-window compatibility snippet: {required}"
+        );
     }
 }
 
@@ -709,6 +867,29 @@ fn place(value: &str) -> PlaceId {
 
 fn event(value: &str) -> EventId {
     EventId::new(value).unwrap()
+}
+
+fn function_body_if_present<'a>(source: &'a str, marker: &str) -> Option<&'a str> {
+    source
+        .split(marker)
+        .nth(1)
+        .and_then(|after_marker| after_marker.find('{').map(|start| (after_marker, start)))
+        .and_then(|(after_marker, start)| {
+            let mut depth = 0_i32;
+            for (offset, byte) in after_marker[start..].bytes().enumerate() {
+                match byte {
+                    b'{' => depth += 1,
+                    b'}' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            return Some(&after_marker[start..start + offset + 1]);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            None
+        })
 }
 
 #[test]

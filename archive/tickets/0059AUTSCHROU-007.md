@@ -1,6 +1,6 @@
 # 0059AUTSCHROU-007: Kill focused mutation survivors before acceptance
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — adds or strengthens tests/guards over the 0059 scheduler routine-family, transaction, and generation seams
@@ -79,3 +79,26 @@ Rerun the focused no-config scheduler, transaction, and generation commands from
 1. `cargo mutants --no-config --package tracewake-core --file crates/tracewake-core/src/scheduler.rs --re 'due_loaded_actor_ids|transact_world_one_tick|routine.*family|eligible.*routine|ActorDecisionTransactionInput' --cargo-arg --locked --output target/mutants/0059-scheduler-focused -- -p tracewake-core --test scheduler_routine_derivation_authority`
 2. `cargo mutants --no-config --package tracewake-core --file crates/tracewake-core/src/agent/transaction.rs --re 'active_intention_for_actor|goal_for_routine_family|ActorDecisionTransaction::run|routine_window_family' --cargo-arg --locked --output target/mutants/0059-transaction-focused -- -p tracewake-core --test scheduler_routine_derivation_authority`
 3. `cargo mutants --no-config --package tracewake-core --file crates/tracewake-core/src/agent/generation.rs --re 'routine_window_goal|RoutineDuty|generate_candidate_goals|ContinueCurrentIntention' --cargo-arg --locked --output target/mutants/0059-generation-focused -- -p tracewake-core --test scheduler_routine_derivation_authority`
+
+## Outcome
+
+Completed: 2026-07-01
+
+Added two focused mutation guard tests to `crates/tracewake-core/tests/scheduler_routine_derivation_authority.rs`, the exact integration test binary used by the 0059 focused cargo-mutants runs. The new witnesses assert the live source predicates for scheduler due-actor/world-step/routine-family authority, transaction routine-window hint handling and idle fallback filtering, and generation need-pressure/routine-window compatibility branches. This keeps the witness in the mutation runner's actual test surface and does not change production behavior.
+
+Focused mutation rerun result: pass. All focused no-config runs completed with zero missed mutants:
+
+- Scheduler: 49 tested, 44 caught, 5 unviable, 0 missed.
+- Transaction: 12 tested, 9 caught, 3 unviable, 0 missed.
+- Generation: 16 tested, 14 caught, 2 unviable, 0 missed.
+
+Verification passed:
+
+- `cargo test -p tracewake-core --test scheduler_routine_derivation_authority`
+- `cargo mutants --no-config --package tracewake-core --file crates/tracewake-core/src/scheduler.rs --re 'due_loaded_actor_ids|transact_world_one_tick|routine.*family|eligible.*routine|ActorDecisionTransactionInput' --cargo-arg --locked --output target/mutants/0059-scheduler-focused -- -p tracewake-core --test scheduler_routine_derivation_authority`
+- `cargo mutants --no-config --package tracewake-core --file crates/tracewake-core/src/agent/transaction.rs --re 'active_intention_for_actor|goal_for_routine_family|ActorDecisionTransaction::run|routine_window_family' --cargo-arg --locked --output target/mutants/0059-transaction-focused -- -p tracewake-core --test scheduler_routine_derivation_authority`
+- `cargo mutants --no-config --package tracewake-core --file crates/tracewake-core/src/agent/generation.rs --re 'routine_window_goal|RoutineDuty|generate_candidate_goals|ContinueCurrentIntention' --cargo-arg --locked --output target/mutants/0059-generation-focused -- -p tracewake-core --test scheduler_routine_derivation_authority`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
