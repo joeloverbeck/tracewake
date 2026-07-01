@@ -1539,6 +1539,8 @@ const WORKSPACE_SOURCE_CLASSIFICATIONS: &[WorkspaceSourceClassification] = &[
     WorkspaceSourceClassification { path: "crates/tracewake-tui/src/run.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-tui/src/screen/mod.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-tui/src/screen/model.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-tui/src/screen/pane_bindings.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-tui/src/screen/pane_layout.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-tui/src/screen/struct_dump.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-tui/src/screen/text_dump.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-tui/src/transcript.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
