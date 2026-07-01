@@ -47,6 +47,17 @@ const TUI_SEAM_EVIDENCE: &[TuiSeamEvidence] = &[
             "closed presentation enum owners match named variants without wildcard fallback",
     },
     TuiSeamEvidence {
+        requirement: "TUI-0061-004",
+        layer: "tui/view-model",
+        test_name: "embodied_screen_model_field_disposition",
+        source: include_str!("tui_seam_conformance.rs"),
+        evidence_kind: EvidenceKind::StaticSourceGuard,
+        evidence_class: EvidenceClass::Positive,
+        invariants: &["INV-067", "INV-069", "INV-095"],
+        acceptance_condition:
+            "every EmbodiedViewModel field has a named EmbodiedScreenModel pane disposition",
+    },
+    TuiSeamEvidence {
         requirement: "SPINE-AC-009",
         layer: "tui/debug",
         test_name: "debug_panel_does_not_change_embodied_affordances",
@@ -113,7 +124,14 @@ const TUI_SEAM_EVIDENCE: &[TuiSeamEvidence] = &[
 fn tui_seam_conformance_maps_tui_spine_requirements_to_named_tests() {
     for evidence in TUI_SEAM_EVIDENCE {
         assert!(
-            ["PAR-002", "PAR-003", "SPINE-AC-009", "SPINE-AC-012"].contains(&evidence.requirement),
+            [
+                "PAR-002",
+                "PAR-003",
+                "SPINE-AC-009",
+                "SPINE-AC-012",
+                "TUI-0061-004"
+            ]
+            .contains(&evidence.requirement),
             "unexpected TUI seam requirement {}",
             evidence.requirement
         );
@@ -164,6 +182,120 @@ fn render_embodied_view_uses_sealed_view_model_accessors() {
         assert!(
             render_source.contains(required_accessor),
             "render_embodied_view must use sealed accessor {required_accessor}"
+        );
+    }
+}
+
+#[test]
+fn embodied_screen_model_field_disposition() {
+    let view_model_source = include_str!("../../tracewake-core/src/view_models.rs");
+    let screen_model_source = include_str!("../src/screen/model.rs");
+    let builder_body = source_after(
+        screen_model_source,
+        "pub fn build_embodied_screen_model(\n    view: &EmbodiedViewModel,",
+    );
+
+    let view_model_fields = [
+        ("view_model_id", "ScreenMetadata", "view.view_model_id()"),
+        ("mode", "ScreenMetadata", "view.mode()"),
+        ("viewer_actor_id", "ScreenMetadata", "view.viewer_actor_id()"),
+        ("sim_tick", "ScreenMetadata", "view.sim_tick()"),
+        ("place_id", "PlacePane", "view.place_id.clone()"),
+        ("place_label", "PlacePane", "view.place_label.clone()"),
+        ("visible_exits", "ExitsPane", "view.visible_exits.clone()"),
+        ("visible_doors", "DoorsPane", "view.visible_doors.clone()"),
+        (
+            "visible_containers",
+            "ContainersPane",
+            "view.visible_containers.clone()",
+        ),
+        ("visible_items", "ItemsPane", "view.visible_items.clone()"),
+        ("carried_items", "InventoryPane", "view.carried_items.clone()"),
+        ("local_actors", "ActorsPane", "view.local_actors.clone()"),
+        (
+            "semantic_actions",
+            "ActionsPane",
+            "view.semantic_actions.clone()",
+        ),
+        (
+            "phase3a_status",
+            "Phase3AStatusPane",
+            "view.phase3a_status.clone()",
+        ),
+        (
+            "last_rejection_summary",
+            "WhyNotPane",
+            "view.last_rejection_summary.clone()",
+        ),
+        (
+            "last_rejection_why_not",
+            "WhyNotPane",
+            "view.last_rejection_why_not.clone()",
+        ),
+        (
+            "holder_known_context_id",
+            "ScreenMetadata",
+            "view.holder_known_context_id()",
+        ),
+        (
+            "holder_known_context_hash",
+            "ScreenMetadata",
+            "view.holder_known_context_hash()",
+        ),
+        (
+            "holder_known_context_frontier",
+            "ScreenMetadata",
+            "view.holder_known_context_frontier()",
+        ),
+        (
+            "holder_known_context_source_summary",
+            "ScreenMetadata",
+            "holder_known_context_source_summary()",
+        ),
+        (
+            "actor_known_interval_summary",
+            "ActorKnownIntervalPane",
+            "view.actor_known_interval_summary()",
+        ),
+        ("notebook", "NotebookPane", "view.notebook.clone()"),
+        ("debug_available", "DebugPaneDisposition", "view.debug_available()"),
+    ];
+    assert_eq!(
+        view_model_fields.len(),
+        23,
+        "ticket 0061TUIEMBSCR-004 expects the current 23-field view-model disposition set"
+    );
+
+    let view_struct = source_between(
+        view_model_source,
+        "pub struct EmbodiedViewModel {",
+        "}\n\nimpl EmbodiedViewModel",
+    );
+    for (field_name, pane_type, builder_snippet) in view_model_fields {
+        assert!(
+            view_struct.contains(&format!("{field_name}:")),
+            "EmbodiedViewModel source is missing expected field {field_name}"
+        );
+        assert!(
+            screen_model_source.contains(&format!("pub struct {pane_type}")),
+            "screen model source is missing named pane {pane_type} for {field_name}"
+        );
+        assert!(
+            builder_body.contains(builder_snippet),
+            "build_embodied_screen_model lacks explicit disposition for {field_name}: {builder_snippet}"
+        );
+    }
+
+    for forbidden in [
+        "let EmbodiedViewModel {",
+        "..",
+        "_ =>",
+        "Default::default()",
+        "todo!()",
+    ] {
+        assert!(
+            !builder_body.contains(forbidden),
+            "build_embodied_screen_model must not use wildcard/default laundering token {forbidden}"
         );
     }
 }
