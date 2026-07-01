@@ -16,6 +16,9 @@ Options:
   --archived-ticket PATH   Archived ticket path expected to exist. Repeatable.
   --checklist              Print the final manual readiness checklist.
   --ready-template         Alias for --checklist.
+  --final-response-template
+                           Print the required final response scaffold.
+  --require-clean          Fail if git status --short prints any paths.
 
 The helper emits commands and results for mechanical closeout checks. Inspect
 matches manually; historical archive prose can be valid.`);
@@ -38,6 +41,16 @@ for (let i = 0; i < args.length; i += 1) {
 
   if (arg === "--checklist" || arg === "--ready-template") {
     options.checklist = true;
+    continue;
+  }
+
+  if (arg === "--final-response-template") {
+    options.finalResponseTemplate = true;
+    continue;
+  }
+
+  if (arg === "--require-clean") {
+    options.requireClean = true;
     continue;
   }
 
@@ -113,6 +126,38 @@ function run(label, command, argsForCommand, expectedExitCodes = [0]) {
   return false;
 }
 
+function checkGitStatus() {
+  console.log("\n## Git status");
+  console.log("git 'status' '--short'");
+  const result = spawnSync("git", ["status", "--short"], {
+    encoding: "utf8",
+    maxBuffer: 10 * 1024 * 1024,
+  });
+  if (result.stdout) {
+    process.stdout.write(result.stdout);
+  }
+  if (result.stderr) {
+    process.stderr.write(result.stderr);
+  }
+
+  const status = result.status ?? 1;
+  if (status !== 0) {
+    console.log(`status: ${status} (unexpected)`);
+    return false;
+  }
+
+  if (result.stdout.trim()) {
+    const cleanMessage = options.requireClean
+      ? "unexpected because --require-clean was set"
+      : "expected; non-empty output requires manual review";
+    console.log(`status: ${status} (${cleanMessage})`);
+    return !options.requireClean;
+  }
+
+  console.log(`status: ${status} (expected; clean)`);
+  return true;
+}
+
 function capture(label, command, argsForCommand, expectedExitCodes = [0]) {
   console.log(`\n## ${label}`);
   console.log([command, ...argsForCommand.map(shellQuote)].join(" "));
@@ -170,8 +215,23 @@ function printReadinessChecklist() {
 - Final response names implementation baseline, evidence/report, and archive/truthing commit roles when they differ.`);
 }
 
+function printFinalResponseTemplate() {
+  console.log(`
+## Final response scaffold
+Tickets completed and archived: <list or None>.
+Spec archived: <archive path, None - no matching live spec existed, explicit user no-archive instruction, or live blocking evidence>.
+Verification commands run: <commands>.
+Checks not run: <commands and why, or None>.
+Required AGENTS gate deviations: <command/flag differences and why, or None>.
+Enumerated-criterion members deferred/dropped: <recorded dispositions, or None>.
+Unrelated pre-existing changes left untouched: <paths/summary, or None>.
+Commits made: <list or None>.
+Commit roles: <implementation baseline commit / evidence-report commit / archive-truthing commit mapping, or N/A>.
+Goal usage: <goal-tool usage summary, or N/A>.`);
+}
+
 let ok = true;
-ok = run("Git status", "git", ["status", "--short"], [0]) && ok;
+ok = checkGitStatus() && ok;
 ok = run("Matching active tickets", "bash", ["-lc", `rg --files tickets | rg ${shellQuote(options.ticketPrefix)}`], [1]) && ok;
 
 const archivedTicketList = capture("Archived tickets by prefix", "rg", ["--files", "archive/tickets"], [0, 1]);
@@ -335,6 +395,11 @@ if (existsSync("docs/4-specs/SPEC_LEDGER.md")) {
 
 if (options.checklist) {
   printReadinessChecklist();
+  printFinalResponseTemplate();
+}
+
+if (options.finalResponseTemplate && !options.checklist) {
+  printFinalResponseTemplate();
 }
 
 process.exit(ok ? 0 : 1);

@@ -39,6 +39,10 @@ audit instead of restarting intake.
 - Never run Git index-mutating commands in parallel. This includes `git add`,
   `git mv`, `git commit`, `git restore --staged`, report/spec archive moves, and
   any closeout command that stages, moves, commits, or unstages files.
+- Before sending the final response or marking a `/goal` complete, draft the
+  response from the literal `## Reporting` scaffold below. If any scaffold field
+  cannot be answered, stop and gather the missing evidence or record the
+  deviation before goal completion.
 
 ## Startup
 
@@ -587,5 +591,6 @@ aligned with this skill's trigger wording and closeout expectations.
 - `references/final-closeout.md`: detailed final closeout audit sequence,
   commit-role guidance, and post-commit verification checks.
 - `scripts/closeout-audit.mjs`: optional helper that emits mechanical closeout
-  checks for active paths, archived paths, stale live references, and Git status
-  when the ticket prefix and reference artifact paths are known.
+  checks for active paths, archived paths, stale live references, Git status,
+  readiness checks, and the final-response scaffold when the ticket prefix and
+  reference artifact paths are known.
