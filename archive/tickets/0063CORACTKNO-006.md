@@ -12,7 +12,7 @@ Spec 0063 §7 requires a single review artifact recording the positive / negativ
 stale / possession-parity fixtures, the two-hop evidence rows, and the anti-contamination results
 at the exact implementation commit, with **no decorative locks** — each guard cited must carry a
 behavior witness (report §6.5). This capstone consolidates the evidence produced by tickets
-001–005 into `reports/0063_core_actor_known_co_present_activity_acceptance.md`, mapping each Spec 0063
+001–005 into `archive/reports/0063_core_actor_known_co_present_activity_acceptance.md`, mapping each Spec 0063
 §6 obligation and the engaged acceptance gates to the concrete passing test, and renders the feature
 verdict. It introduces no new production logic; it exercises and records the pipeline the earlier
 tickets composed (INV-098 — feature acceptance is harsh).
@@ -70,7 +70,7 @@ tickets composed (INV-098 — feature acceptance is harsh).
 
 ### 1. Assemble the acceptance artifact
 
-Create `reports/0063_core_actor_known_co_present_activity_acceptance.md` recording, at the exact
+Create `archive/reports/0063_core_actor_known_co_present_activity_acceptance.md` recording, at the exact
 implementation commit: the two-hop evidence rows (Hop 1 core→`observed_activity`, Hop 2
 `observed_activity`→rendered/dumped pane, plus the hop-removal negative); the positive / anti-leak /
 occlusion / stale / possession-parity witnesses mapped to their named tests and fixtures; the
@@ -79,7 +79,7 @@ anti-contamination results; and the feature verdict. Each cited guard names its 
 
 ## Files to Touch
 
-- `reports/0063_core_actor_known_co_present_activity_acceptance.md` (new)
+- `archive/reports/0063_core_actor_known_co_present_activity_acceptance.md` (new)
 
 ## Out of Scope
 
@@ -124,7 +124,7 @@ anti-contamination results; and the feature verdict. Each cited guard names its 
 
 Completed: 2026-07-01
 
-Created `reports/0063_core_actor_known_co_present_activity_acceptance.md` as the Spec 0063
+Created `archive/reports/0063_core_actor_known_co_present_activity_acceptance.md` as the Spec 0063
 acceptance-evidence capstone. The artifact records implementation commit
 `a02f54064fe332a961926da6f0d566c19222d75b`, maps every Spec 0063 §6 obligation to a named passing
 behavior witness, cites the ticket-004 fixture matrix, records anti-contamination results, and
