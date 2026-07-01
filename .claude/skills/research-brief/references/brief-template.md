@@ -87,6 +87,12 @@ commit and a separate commit-under-test, with only a governance- or doc-only fix
 the **commit-under-test** (the broadest implementation state the acceptance certifies); if it and the
 capstone-code commit diverge over the §2 seams, diff both and state which commit the source-equivalence claim
 rests on (an empty diff against either is sufficient when they agree).
+This §1 source-equivalence statement is **not exclusive to a re-audit pass**: a *new* spec auditing the
+**adjacent** surface of just-merged work (e.g. a hardening spec for the autonomous derivation a prior
+spec deliberately left untouched) carries that prior spec's proven findings forward as established, so
+it owes the same keystone→baseline seam diff and the same §1 statement — reached from the SKILL.md
+Step 6 *Auditing recently-completed work* trigger, even though this brief is not a re-audit of the same
+surface.
 **Mixed delta (code identical, an adjacent layer changed by an *intervening* spec).** Distinct from the
 "more than one implementation commit" case above (where the gov/doc fix sits *between* two commits the same
 acceptance names): here a **separate later spec** changed an adjacent layer after the keystone, and that
@@ -198,7 +204,12 @@ Exactly what Session 2 outputs — leave no ambiguity:
   `0002` would clash with an archived `0002_*` staging file). When the live-ledger number
   and the staging-sequence number diverge, do not assert the live number — continue the
   visible staging sequence and carry the choice as a labeled `assumption:` line, or surface
-  it as a bounded interview question. **Identify the *current* staging epoch first:** a repo
+  it as a bounded interview question. **The `NNNN` staging space is shared between specs and their
+  ticket prefixes** (e.g. `0049` → the `0049MUTWIT-*` tickets, `0058` → the `0058EMBROUCON-*` tickets),
+  so an apparent *spec-series* hole may simply be a number spent on a ticket batch — this is expected and
+  is **not** a renumber/restart signal. Continue from the highest *spec* filename regardless of such holes,
+  and confirm the chosen number is not already taken by a ticket prefix (`ls archive/tickets/ tickets/`).
+  **Identify the *current* staging epoch first:** a repo
   may have restarted numbering, so `archive/specs/` can hold two overlapping series (e.g. an
   older `0002…0008` and a newer `0002 → 0004` re-hardening epoch). Continue the **most recent
   contiguous series** — cross-checked against the recent `SPEC_LEDGER.md` entries — *not* the
@@ -240,7 +251,7 @@ produced, but its *shape* depends on the verdict (e.g. a full spec if warranted,
 report if clean). Prefer (i) "always produce, with the verdict as a section" when the artifact's value
 survives a negative verdict (e.g. it locks already-correct properties); choose (iii) when a negative verdict
 still warrants a substantial evidence-complete document but in a *different form* than the spec; reserve
-(ii) "produce only if positive" for when a negative verdict means there is genuinely nothing to author. **For a multi-pass / lineage campaign, the predecessor passes' established production mode governs this choice over the current invocation's surface phrasing** (see §A §1 *lineage predecessor*): when every prior pass always produced a verdict-embedded report, default to (i) even though the invocation reads conditionally ("decide whether X is needed, and *if so*…") — re-open the mode only if something material changed since the predecessor. The
+(ii) "produce only if positive" for when a negative verdict means there is genuinely nothing to author. **For a multi-pass / lineage campaign, the predecessor passes' established production mode governs this choice over the current invocation's surface phrasing** (see §A §1 *lineage predecessor*): when every prior pass always produced a verdict-embedded report, default to (i) even though the invocation reads conditionally ("decide whether X is needed, and *if so*…") — re-open the mode only if something material changed since the predecessor. **Do not spend an interview question re-litigating (i)-vs-(iii) just because the pass's own upstream triage already suggests a likely-*clean* verdict:** the lineage production mode still governs, and mode (i)'s anti-regression lock is precisely the value a clean verdict yields. Confirm the mode with the user only when no lineage predecessor established one. The
 §(a) determination/verdict is returned **regardless of mode** — under (ii), "nothing authored on a negative
 verdict" refers to the spec/artifact *file* only; the reasoned verdict is still surfaced as Session 2's
 response on a clean outcome (so the brief should instruct: produce the spec iff positive, otherwise return

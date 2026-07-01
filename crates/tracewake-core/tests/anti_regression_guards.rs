@@ -15,6 +15,7 @@ use tracewake_core::time::SimTick;
 
 const SCHEDULER_RS: &str = include_str!("../src/scheduler.rs");
 const ACTOR_KNOWN_RS: &str = include_str!("../src/agent/actor_known.rs");
+const GENERATION_RS: &str = include_str!("../src/agent/generation.rs");
 const NO_HUMAN_SURFACE_RS: &str = include_str!("../src/agent/no_human_surface.rs");
 const PERCEPTION_RS: &str = include_str!("../src/agent/perception.rs");
 const TRANSACTION_RS: &str = include_str!("../src/agent/transaction.rs");
@@ -2187,6 +2188,25 @@ const META_LOCK_REGISTRY: &[MetaLockRegistryEntry] = &[
         witness_min: 1,
     },
     MetaLockRegistryEntry {
+        lock_id: "guard_0059_scheduler_routine_family_authority_cannot_bypass_active_intention",
+        negative_id: "synthetic_0059_window_keyed_routine_family",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id:
+            "guard_0059_no_clock_keyed_routine_family_selector_without_active_intention_binding",
+        negative_id: "synthetic_0059_eligible_execution_min_by_start",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_min: 1,
+    },
+    MetaLockRegistryEntry {
+        lock_id: "guard_0059_synthetic_negative_census_is_live",
+        negative_id: "synthetic_0059_routine_window_family_without_active_intention",
+        routing: MetaLockRouting::BehaviorAssertion,
+        witness_min: 5,
+    },
+    MetaLockRegistryEntry {
         lock_id: "guard_007_mutation_efficacy_notes_cover_high_risk_shortcuts",
         negative_id: "synthetic_missing_mutation_efficacy_note",
         routing: MetaLockRouting::BehaviorAssertion,
@@ -3053,6 +3073,16 @@ fn behavior_assertion_inspected_site_count(entry: &MetaLockRegistryEntry) -> usi
         }
         "guard_0058_tui_continue_routine_forwards_only" => {
             non_empty_production_sites(&[production(TUI_APP_RS).as_str()])
+        }
+        "guard_0059_scheduler_routine_family_authority_cannot_bypass_active_intention"
+        | "guard_0059_no_clock_keyed_routine_family_selector_without_active_intention_binding" => {
+            non_empty_production_sites(&[production(SCHEDULER_RS).as_str()])
+        }
+        "guard_0059_synthetic_negative_census_is_live" => {
+            synthetic_0059_negative_ids()
+                .iter()
+                .filter(|negative_id| ANTI_REGRESSION_GUARDS_RS.contains(**negative_id))
+                .count()
         }
         "guard_006_scheduler_has_no_direct_routine_or_need_proposal_bypass" => {
             guarded_sources_for(GuardedLayer::Scheduler).len()
@@ -10590,6 +10620,318 @@ fn tui_continue_routine_forwarding_errors(source: &str) -> Vec<String> {
         }
     }
     errors
+}
+
+#[test]
+fn guard_0059_scheduler_routine_family_authority_cannot_bypass_active_intention() {
+    let scheduler = production(SCHEDULER_RS);
+    let errors = scheduler_routine_family_authority_errors(&scheduler);
+    assert!(
+        errors.is_empty(),
+        "scheduler routine-window family must be bound to active intention: {errors:?}"
+    );
+
+    let synthetic = r#"
+        fn routine_window_family(
+            agent_state: &AgentState,
+            actor_id: &ActorId,
+            window: &DayWindow,
+            actor_known_state: &ActorKnownPlanningContext,
+        ) -> Option<RoutineFamily> {
+            if window.start_tick.value() >= 8 && window.start_tick.value() < 17 {
+                return Some(RoutineFamily::WorkBlock);
+            }
+            let active = active_intention_for_actor(agent_state, actor_id)?;
+            let _ = actor_known_state.current_place_id();
+            Some(RoutineFamily::EatMeal)
+        }
+    "#;
+    assert!(
+        scheduler_routine_family_authority_errors(synthetic)
+            .iter()
+            .any(|error| error.contains("window-keyed family before active intention")),
+        "synthetic_0059_window_keyed_routine_family must fail the source guard"
+    );
+}
+
+#[test]
+fn guard_0059_no_clock_keyed_routine_family_selector_without_active_intention_binding() {
+    let scheduler = production(SCHEDULER_RS);
+    let errors = scheduler_clock_keyed_routine_family_selector_errors(&scheduler);
+    assert!(
+        errors.is_empty(),
+        "scheduler routine-window family must not select family by clock/execution ordering: {errors:?}"
+    );
+
+    let synthetic = r#"
+        fn routine_window_family(
+            agent_state: &AgentState,
+            actor_id: &ActorId,
+            window: &DayWindow,
+            actor_known_state: &ActorKnownPlanningContext,
+        ) -> Option<RoutineFamily> {
+            let (_id, execution) = agent_state
+                .routine_executions
+                .iter()
+                .filter(|(_, execution)| &execution.actor_id == actor_id)
+                .filter(|(_, execution)| execution.start_tick <= window.start_tick)
+                .min_by(|(_, left), (_, right)| {
+                    left.start_tick
+                        .cmp(&right.start_tick)
+                        .then_with(|| left.execution_id.cmp(&right.execution_id))
+                })?;
+            let _active = active_intention_for_actor(agent_state, actor_id)?;
+            let _ = actor_known_state.current_place_id();
+            Some(execution.family)
+        }
+    "#;
+    let synthetic_errors = scheduler_clock_keyed_routine_family_selector_errors(synthetic);
+    assert!(
+        synthetic_errors
+            .iter()
+            .any(|error| error.contains("min_by routine execution selector")),
+        "synthetic_0059_eligible_execution_min_by_start must fail the clock-keyed selector guard: {synthetic_errors:?}"
+    );
+}
+
+#[test]
+fn guard_0059_synthetic_negative_census_is_live() {
+    let anti_regression_source = production(ANTI_REGRESSION_GUARDS_RS);
+    for negative_id in synthetic_0059_negative_ids() {
+        assert!(
+            anti_regression_source.contains(negative_id),
+            "{negative_id} must be registered in the 0059 synthetic negative census"
+        );
+    }
+    let transaction = production(TRANSACTION_RS);
+    let generation = production(GENERATION_RS);
+    let transaction_errors = routine_window_hint_authority_errors(&transaction);
+    let generation_errors = routine_window_candidate_generation_errors(&generation);
+    assert!(
+        transaction_errors.is_empty(),
+        "routine-window hint consumer must fail closed through active intention: {transaction_errors:?}"
+    );
+    assert!(
+        generation_errors.is_empty(),
+        "routine-window candidate generation must filter RoutineDuty through active intention: {generation_errors:?}"
+    );
+
+    let without_active = r#"
+        fn routine_window_goal_from_hint(
+            family: Option<RoutineFamily>,
+            active_intention: Option<&Intention>,
+        ) -> RoutineWindowHint {
+            let hint_goal = goal_for_routine_family(family?)?;
+            RoutineWindowHint { goal_kind: Some(hint_goal), diagnostic: None }
+        }
+    "#;
+    assert!(
+        routine_window_hint_authority_errors(without_active)
+            .iter()
+            .any(|error| error.contains("hint accepted without active-intention gate")),
+        "synthetic_0059_routine_window_family_without_active_intention must fail the consumer guard"
+    );
+
+    let conflicting_hint = r#"
+        fn routine_window_goal_from_hint(
+            family: Option<RoutineFamily>,
+            active_intention: Option<&Intention>,
+        ) -> RoutineWindowHint {
+            let hint_goal = goal_for_routine_family(family?)?;
+            let Some(active_intention) = active_intention else {
+                return RoutineWindowHint { goal_kind: None, diagnostic: Some("routine_window_family_ignored_without_active_intention".to_string()) };
+            };
+            let _ = active_intention;
+            RoutineWindowHint { goal_kind: Some(hint_goal), diagnostic: None }
+        }
+    "#;
+    assert!(
+        routine_window_hint_authority_errors(conflicting_hint)
+            .iter()
+            .any(|error| error.contains("missing conflict diagnostic")),
+        "synthetic_0059_conflicting_routine_window_hint must fail the consumer guard"
+    );
+
+    let other_actor = r#"
+        fn routine_window_family(
+            agent_state: &AgentState,
+            actor_id: &ActorId,
+            window: &DayWindow,
+            actor_known_state: &ActorKnownPlanningContext,
+        ) -> Option<RoutineFamily> {
+            let active = active_intention_for_actor(agent_state, actor_id)?;
+            let execution = agent_state
+                .routine_executions
+                .values()
+                .find(|execution| execution.start_tick <= window.start_tick)?;
+            let _ = actor_known_state.current_place_id();
+            Some(execution.family)
+        }
+    "#;
+    assert!(
+        scheduler_routine_family_authority_errors(other_actor)
+            .iter()
+            .any(|error| error.contains("routine execution scan must filter actor")),
+        "synthetic_0059_other_actor_execution_temptation must fail the producer guard"
+    );
+
+    let generation_without_active_filter = r#"
+        fn generate_candidate_goals(input: &CandidateGenerationInput) -> CandidateGenerationOutput {
+            if let Some(goal_kind) = input.routine_window_goal {
+                candidates.push(candidate(
+                    input,
+                    goal_kind.stable_id(),
+                    CandidateGoalSource::RoutineDuty,
+                    goal_kind,
+                    GoalPriority::RoutineWindowDuty,
+                    "routine window is active",
+                    Vec::new(),
+                    ApplicabilityResult::Applicable,
+                    None,
+                ));
+            }
+            CandidateGenerationOutput { candidates, actor_known_inputs_used: Vec::new() }
+        }
+    "#;
+    assert!(
+        routine_window_candidate_generation_errors(generation_without_active_filter)
+            .iter()
+            .any(|error| error.contains("RoutineDuty candidate lacks active-intention compatibility filter")),
+        "synthetic_0059_routine_window_family_without_active_intention must fail candidate generation"
+    );
+}
+
+fn synthetic_0059_negative_ids() -> [&'static str; 5] {
+    [
+        "synthetic_0059_window_keyed_routine_family",
+        "synthetic_0059_eligible_execution_min_by_start",
+        "synthetic_0059_routine_window_family_without_active_intention",
+        "synthetic_0059_conflicting_routine_window_hint",
+        "synthetic_0059_other_actor_execution_temptation",
+    ]
+}
+
+fn scheduler_routine_family_authority_errors(source: &str) -> Vec<String> {
+    let Some(body) = function_body_if_present(source, "fn routine_window_family") else {
+        return vec!["missing routine_window_family".to_string()];
+    };
+    let active_index = body.find("active_intention_for_actor");
+    let window_index = body.find("window.start_tick");
+    let routine_executions_index = body.find("routine_executions");
+    let selected_method_index = body.find("selected_routine_method");
+    let actor_filter_index = body.find("&execution.actor_id == actor_id");
+    let mut errors = Vec::new();
+
+    if active_index.is_none() {
+        errors.push("missing active_intention_for_actor authority".to_string());
+    }
+    if selected_method_index.is_none() {
+        errors.push("missing selected_routine_method authority".to_string());
+    }
+    if let (Some(window), Some(active)) = (window_index, active_index) {
+        if window < active {
+            errors.push("window-keyed family before active intention".to_string());
+        }
+    }
+    if let (Some(routine_executions), Some(active)) = (routine_executions_index, active_index) {
+        if routine_executions < active {
+            errors.push("routine executions inspected before active intention".to_string());
+        }
+    }
+    if routine_executions_index.is_some()
+        && actor_filter_index.is_none_or(|actor_filter| {
+            routine_executions_index.is_some_and(|scan| actor_filter < scan)
+        })
+    {
+        errors.push("routine execution scan must filter actor".to_string());
+    }
+    if body.contains("return Some(RoutineFamily::")
+        && active_index.is_none_or(|active| {
+            body.find("return Some(RoutineFamily::")
+                .is_some_and(|return_index| return_index < active)
+        })
+    {
+        errors.push("routine family return before active intention".to_string());
+    }
+    errors
+}
+
+fn scheduler_clock_keyed_routine_family_selector_errors(source: &str) -> Vec<String> {
+    let Some(body) = function_body_if_present(source, "fn routine_window_family") else {
+        return vec!["missing routine_window_family".to_string()];
+    };
+    let mut errors = Vec::new();
+    for forbidden in [
+        ".min_by(",
+        "eligible_routine_execution_for_actor(",
+        "execution_id.cmp",
+    ] {
+        if body.contains(forbidden) {
+            errors.push(format!(
+                "routine_window_family contains clock/execution-keyed selector: {forbidden}"
+            ));
+        }
+    }
+    if body.contains(".min_by(|") {
+        errors.push("min_by routine execution selector".to_string());
+    }
+    let active_index = body.find("active_intention_for_actor");
+    for clock_token in ["window.start_tick", "start_tick", "deadline_tick"] {
+        if let Some(token_index) = body.find(clock_token) {
+            if active_index.is_none_or(|active| token_index < active) {
+                errors.push(format!(
+                    "clock token {clock_token} appears before active-intention binding"
+                ));
+            }
+        }
+    }
+    errors
+}
+
+fn routine_window_hint_authority_errors(source: &str) -> Vec<String> {
+    let Some(body) = function_body_if_present(source, "fn routine_window_goal_from_hint") else {
+        return vec!["missing routine_window_goal_from_hint".to_string()];
+    };
+    let mut errors = Vec::new();
+    if !body.contains("active_intention") {
+        errors.push("missing active_intention parameter".to_string());
+    }
+    if !body.contains("routine_window_goal_matches_active_intention") {
+        errors.push("missing conflict diagnostic path".to_string());
+    }
+    if !body.contains("routine_window_family_ignored_without_active_intention") {
+        errors.push("missing no-active diagnostic".to_string());
+    }
+    if !body.contains("routine_window_family_ignored_conflicts_with_active_intention") {
+        errors.push("missing conflict diagnostic".to_string());
+    }
+    let accepted_hint = body.find("goal_kind: Some(hint_goal)");
+    let active_gate = body.find("let Some(active_intention)");
+    if let Some(accepted_hint) = accepted_hint {
+        if active_gate.is_none_or(|gate| accepted_hint < gate)
+            || !body.contains("routine_window_goal_matches_active_intention")
+        {
+            errors.push("hint accepted without active-intention gate".to_string());
+        }
+    }
+    errors
+}
+
+fn routine_window_candidate_generation_errors(source: &str) -> Vec<String> {
+    let Some(body) = function_body_if_present(source, "fn generate_candidate_goals") else {
+        return vec!["missing generate_candidate_goals".to_string()];
+    };
+    let routine_duty = body.find("CandidateGoalSource::RoutineDuty");
+    if routine_duty.is_some()
+        && !(body.contains("input")
+            && body.contains("active_intention")
+            && body.contains("routine_window_goal_matches_active_intention"))
+    {
+        return vec![
+            "RoutineDuty candidate lacks active-intention compatibility filter".to_string(),
+        ];
+    }
+    Vec::new()
 }
 
 #[test]

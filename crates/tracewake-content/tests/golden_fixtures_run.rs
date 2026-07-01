@@ -16,10 +16,11 @@ use tracewake_core::agent::{
     current_place_perception_events, generate_candidate_goals, plan_local_actions,
     select_goal_and_trace, select_method_from_templates, ActorDecisionTransaction,
     ActorDecisionTransactionInput, ActorDecisionTransactionOutcome, ActorKnownFact,
-    BlockerCategory, CandidateGenerationInput, DecisionInput, DecisionTraceRecord, GoalKind,
-    LocalPlanRequest, NeedChangeCause, NeedKind, NeedState, NoHumanActorKnownSurfaceBuilder,
-    NoHumanActorKnownSurfaceRequest, PlannerGoal, ResponsibleLayer, RoutineCondition,
-    RoutineFamily, RoutineStep, RoutineTemplate, SourceEventIds,
+    BlockerCategory, CandidateGenerationInput, CandidateGoalSource, DecisionInput,
+    DecisionTraceRecord, GoalKind, LocalPlanRequest, NeedChangeCause, NeedKind, NeedState,
+    NoHumanActorKnownSurfaceBuilder, NoHumanActorKnownSurfaceRequest, PlannerGoal,
+    ResponsibleLayer, RoutineCondition, RoutineFamily, RoutineStep, RoutineTemplate,
+    SourceEventIds,
 };
 use tracewake_core::checksum::{
     compute_agent_state_checksum, compute_holder_known_context_hash, compute_physical_checksum,
@@ -1620,7 +1621,11 @@ fn planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit() {
     )
     .unwrap();
 
-    assert!(generated.candidates.len() >= 3);
+    assert!(generated.candidates.len() >= 2);
+    assert!(!generated
+        .candidates
+        .iter()
+        .any(|candidate| candidate.source == CandidateGoalSource::RoutineDuty));
     assert_eq!(selection.selected_goal.goal_kind, GoalKind::Eat);
     assert!(!selection.trace.rejected_goals.is_empty());
     assert!(selection.trace.hidden_truth_audit_result.actor_known_only);
@@ -2196,10 +2201,8 @@ fn no_human_day_fixture_has_roster_activity_and_metrics_envelope() {
         actors_with_ordinary_actions,
         expected_roster.into_iter().collect()
     );
-    assert!(
-        has_no_human_event(&log, EventKind::WorkBlockCompleted)
-            || has_no_human_event(&log, EventKind::WorkBlockFailed)
-    );
+    assert!(!has_no_human_event(&log, EventKind::WorkBlockCompleted));
+    assert!(!has_no_human_event(&log, EventKind::WorkBlockFailed));
     assert!(
         has_event(&log, EventKind::SleepCompleted) || has_event(&log, EventKind::SleepInterrupted)
     );

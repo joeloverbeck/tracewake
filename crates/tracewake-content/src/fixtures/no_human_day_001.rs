@@ -165,7 +165,7 @@ pub fn no_human_day_001() -> GoldenFixture {
                 "autonomous_no_human_event=NoHumanDayCompleted",
                 "autonomous_no_human_event=FoodConsumed|EatFailed",
                 "autonomous_no_human_event=SleepCompleted",
-                "autonomous_no_human_event=WorkBlockCompleted|WorkBlockFailed",
+                "routine_execution_status=routine_exec_tomas_work:Completed",
                 "canonical_mara_recovery_resolution=fail_only_empty_food_source",
             ],
             acceptance_assertions: vec![

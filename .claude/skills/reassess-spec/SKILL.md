@@ -29,7 +29,7 @@ This gate holds under auto mode and any autonomous-execution context. Auto-mode 
 
 **Argument** (required): `<spec-path>` — path to the spec file under `specs/` or `docs/4-specs/`. If missing, ask for it before proceeding.
 
-**Glob resolution**: if the argument contains wildcards, resolve via `ls`/`find`; proceed if exactly one match (note the resolution inline), disambiguate if many, stop with an error if none.
+**Glob resolution**: if the argument contains wildcards, resolve via `ls`/`find`; proceed if exactly one match (note the resolution inline), disambiguate if many. On **zero** matches at the literal path, before erroring retry the glob under the sibling spec locations (`archive/specs/`, `docs/4-specs/`) — a spec is commonly misfiled (a PROPOSED spec staged in `archive/`, or an accepted one left in `specs/`). If exactly one match surfaces in a sibling location, proceed with it and **note the location mismatch inline** — it is itself a placement signal to carry into the Step 1 placement-consistency check. Stop with an error only when zero matches exist across all spec locations.
 
 **Inline user hint (optional)**: text accompanying the path — a parenthetical, post-dash note, or follow-on message (e.g. `specs/0016_PHASE_3A_*.md (Note: I'm worried the determinism contract is under-specified)`) — is an audit-lens constraint. It shapes severity assignment at Step 5 and may reframe Questions at Step 6; it is NOT a second path argument and does NOT override foundation-doctrine alignment or approved recommendations. When a hint materially shaped a finding's classification, cite it in the Step 6 presentation. A hint that would force a doctrine hard-fail (a constitutional-invariant violation or a Phase acceptance-gate violation) is flagged as a CRITICAL Issue, not applied.
 
@@ -80,7 +80,7 @@ Load each before the corresponding work begins. Loading all of them in one paral
 **Output**:
 - **Findings report** — presented in chat at Step 6 (Issues / Improvements / Additions, severity-ranked; open Questions; optional Substantial Redesign Flag).
 - **Pre-apply verification table** — emitted in chat at Step 7 before any Write/Edit.
-- **Updated spec at `<spec_path>`** — edited in place on approval. For classification (d): Status flipped to `Done`/`Accepted-and-landed`, Outcome/Acceptance-evidence populated, and the `docs/4-specs/SPEC_LEDGER.md` entry updated when present.
+- **Updated spec at `<spec_path>`** — edited in place on approval (or at its corrected path when the Step 1 placement-consistency check approved a relocation — see the placement-correction note in `references/spec-writing-rules.md`). For classification (d): Status flipped to `Done`/`Accepted-and-landed`, Outcome/Acceptance-evidence populated, and the `docs/4-specs/SPEC_LEDGER.md` entry updated when present.
 - **Post-apply confirmation** — emitted at Step 8 (grep-proofs that eliminated references are gone and corrected ones resolve).
 
 ## Prerequisites
@@ -123,7 +123,11 @@ Read both before any analysis:
 1. **The spec file** (entire).
 2. **`docs/0-foundation/02_CONSTITUTIONAL_INVARIANTS.md`** — skip only if read earlier this session and unmodified.
 
-Parse the spec's metadata (Spec ID, Phase, Status if present, Date, authority order, source-authority summary, evidence ledger) and its sections. Tracewake specs do not share one fixed template; the section set varies (e.g. `archive/specs/0002_*` uses Evidence ledger / Source authority summary / Purpose / Scope / Non-goals / Binding invariants / Binding architecture constraints / Relationship to prior spec / Workspace shape / Determinism contract / Event log and replay contract / Entity-component model …). Take the spec's own section set as authoritative, and use sibling specs (`archive/specs/0002_*`, `docs/4-specs/0001_*`) and `docs/4-specs/README.md` as the convention exemplars.
+Parse the spec's metadata (Spec ID, Phase, Status if present, Date, authority order, source-authority summary, evidence ledger) and its sections.
+
+**Placement-consistency check**: compare the spec's actual directory against its `Status` field and any `Intended repository path:` header. The convention is that PROPOSED/unaccepted specs live in `specs/` and move to `archive/specs/` only on acceptance (the `NNNN_*_HARDENING_SPEC` genre included). A PROPOSED/unaccepted spec found in `archive/specs/`, an accepted/Done spec still in `specs/`, or a directory that contradicts the spec's own `Intended repository path:` is a placement mismatch — surface it (typically as a Step 6 Question) and, on approval, correct the location as part of the reassessment (see the placement-correction note in `references/spec-writing-rules.md`). Do not silently edit a misfiled spec in place.
+
+Tracewake specs do not share one fixed template; the section set varies (e.g. `archive/specs/0002_*` uses Evidence ledger / Source authority summary / Purpose / Scope / Non-goals / Binding invariants / Binding architecture constraints / Relationship to prior spec / Workspace shape / Determinism contract / Event log and replay contract / Entity-component model …). Take the spec's own section set as authoritative, and use sibling specs (`archive/specs/0002_*`, `docs/4-specs/0001_*`) and `docs/4-specs/README.md` as the convention exemplars.
 
 **Non-standard sections**: treat each distinct implementation item, required-area entry, scope line, or numbered deliverable as a deliverable for validation purposes, regardless of the heading it sits under.
 

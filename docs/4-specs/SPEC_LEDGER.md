@@ -100,6 +100,7 @@ Archived specs remain history. They may explain why the upper-tier overhaul happ
 | `archive/specs/0056_FOUNDATIONAL_CONFORMANCE_SEVENTH_HARDENING_SEALED_VALIDATED_CONTENT_BOOTSTRAP_OPERATOR_GATED_DEBUG_AUTHORITY_FAIL_CLOSED_TAXONOMY_AND_CURRENT_SYMBOL_NEGATIVE_FIXTURES_HARDENING_SPEC.md` | Seventh-pass foundational conformance hardening across sealed validated-content bootstrap authority, operator-gated non-embodied debug authority, current-symbol negative fixtures, doctrine-complete fail-closed acceptance taxonomy, closed computed-result grammar, taxonomy self-mutation coverage, CI-forced artifact ingestion, standing mutation evidence, and post-closure doctrine/conformance truthing. | Completed by the `0056FOUCONSEV` ticket series plus `archive/reports/0056_foundational_conformance_seventh_hardening_acceptance.md`; verdict is scoped spec-0056 hardening evidence accepted for exact implementation commit `9000c392a7c3a3c13589037e4e4bf55c56364b07` plus this report/spec archive closeout. The final clean standing mutation campaign at `37062d6` recorded denominator `3451`, `2681` caught, `770` unviable, `0` missed, and `0` timeouts, with no survivor row and no bounded forcing function. The series supersedes the 0054 evidence for this seam and incorporates the 0055 solo-maintainer compensating-control posture, but does not certify latest main after the exact commit, Phase-4 entry, second-proof entry, institutions, notices, travel, LOD, LLM/speech, story-sifting, future feature surfaces, or any unqualified whole-project status. It mints no invariant, gate, glossary term, or risk ID. |
 | `archive/specs/0057_EMBODIED_ROUTINE_CONTINUATION_BEHAVIORAL_PROGRESS_AND_POSSESSION_PARITY_SPEC.md` | Scoped feature hardening that made embodied `continue_routine` commit the actor-known follow-on ordinary action or typed outcome, preserving marker non-progress while proving TUI playability, no-human parity, possession parity, hidden-truth firewall behavior, replay reconstructability, and doctrine alignment. | Completed by the `0057EMBROUCON` ticket series plus `archive/reports/0057_embodied_routine_continuation_acceptance.md`; verdict is scoped spec-0057 feature evidence accepted for exact implementation commit `4726527858d027b4559bac607969b2bc6dfee094` plus this report/spec archive closeout. This does not certify latest main, Phase-4 entry, second-proof entry, institutions, notices, travel, LOD, LLM/speech, story-sifting, `P0-CERT`, `FIRST-PROOF-CERT`, or any whole-project status; it mints no invariant, gate, glossary term, or risk ID. |
 | `archive/specs/0058_EMBODIED_ROUTINE_CONTINUATION_FOUNDATIONAL_ALIGNMENT_HARDENING_SPEC.md` | Scoped feature hardening that removed the embodied routine pre-active-intention workplace selector, added a temporal gateway for time-advancing follow-ons, locked stuck-receipt honesty, proved embodied/autonomous no-fork parity, added `spec0058.*` playable parity rows, and added meta-lock source guards for the 0057/0058 seam. | Completed by the `0058EMBROUCON` ticket series plus `archive/reports/0058_embodied_routine_continuation_foundational_alignment_acceptance.md`; verdict is scoped spec-0058 feature-hardening evidence produced for exact implementation commit `2d98a221b547af8b8b687c3a9e36143f2c7cbb73` plus this report/spec archive closeout. Focused mutation remained survivorful, so the acceptance artifact records computed `non-pass` for certification-style use. This does not certify latest main, Phase-4 entry, second-proof entry, institutions, notices, travel, LOD, LLM/speech, story-sifting, `P0-CERT`, `FIRST-PROOF-CERT`, or any whole-project status; it mints no invariant, gate, glossary term, or risk ID. |
+| `archive/specs/0059_AUTONOMOUS_SCHEDULER_ROUTINE_DERIVATION_ACTIVE_INTENTION_AUTHORITY_HARDENING_SPEC.md` | Scoped feature hardening that rebound autonomous scheduler routine-family derivation to the active-intention chain, hardened transaction/generation hint handling, added A1-A10/fail-closed behavioral proof, installed anti-regression guards and synthetic negatives, and closed focused mutation survivors to zero missed mutants. | Completed by the `0059AUTSCHROU` ticket series plus `archive/reports/0059_autonomous_scheduler_routine_derivation_acceptance.md`; verdict is scoped spec-0059 feature-hardening evidence produced for exact implementation commit `be545794aab8972d8c3327fa526f7e96daad7d30` plus this report/spec archive closeout. The final focused no-config mutation reruns recorded 77 tested, 67 caught, 10 unviable, 0 missed, and 0 timeouts/errors. This does not certify latest main, Phase-4 entry, second-proof entry, institutions, notices, travel, LOD, LLM/speech, story-sifting, `P0-CERT`, `FIRST-PROOF-CERT`, or any whole-project status; it mints no invariant, gate, glossary term, or risk ID. |
 
 ## `0049MUTWIT` source/navigation record
 
@@ -122,6 +123,27 @@ them alongside the standing configured mutation perimeter and any newer
 production-path witnesses named by later specs. Spec 0050 preserves this line
 while replacing the overbroad 0048 reachability locks with current
 production-path behavior witnesses.
+
+## `0058MUTWIT` source/navigation record
+
+`0058MUTWIT` is a ticket-only mutation-debt follow-up to the six embodied-seam
+survivors recorded by the spec-0058 focused acceptance artifact. It has no live
+or archived spec package and does not mint a product feature, doctrine
+amendment, gate, risk ID, glossary term, latest-`main` certification claim, or
+rewrite of the original 0058 artifact's exact-commit non-pass result.
+
+The line is implemented by `archive/tickets/0058MUTWIT-001.md`. The ticket
+re-ran the 0058 survivor hypothesis under the checked-in standing
+full-workspace mutation scope and recorded 16 selected mutants, 14 caught, 2
+unviable, 0 missed, and 0 timeouts. The six owned session-line survivors from
+the 0058 artifact were caught under that scope, so no new witnesses or
+production changes were added and the zero-floor mutation baseline remained
+empty.
+
+For current re-verification, use the named `0058MUTWIT-001` command record as a
+ticket-scoped full-workspace reproduction of the 0058 survivor set. It does not
+turn the original spec-0058 acceptance artifact into a certification-style pass
+for its exact implementation commit.
 
 ## Next known execution move
 

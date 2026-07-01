@@ -1,4 +1,7 @@
 use crate::actions::Proposal;
+use crate::agent::generation::{
+    goal_for_active_intention, routine_window_goal_matches_active_intention,
+};
 use crate::agent::{
     generate_candidate_goals_from_agent_state, resolve_routine_step_follow_on,
     select_goal_and_trace, select_phase3a_method, ActorKnownPlanningContext, ActorKnownProvenance,
@@ -123,15 +126,15 @@ impl ActorDecisionTransaction {
                 diagnostic: Box::new(diagnostic),
             };
         }
+        let routine_window_hint =
+            routine_window_goal_from_hint(input.routine_window_family, active_intention.as_ref());
         let generated = generate_candidate_goals_from_agent_state(&LiveCandidateGenerationInput {
             actor_id: input.actor_id.clone(),
             decision_tick: input.decision_tick,
             agent_state: input.agent_state,
             active_intention: active_intention.clone(),
             actor_known_facts: actor_known_facts.clone(),
-            routine_window_goal: input
-                .routine_window_family
-                .and_then(goal_for_routine_family),
+            routine_window_goal: routine_window_hint.goal_kind,
         });
         let mut candidates = if input.include_idle_fallback {
             generated.candidates
@@ -159,7 +162,7 @@ impl ActorDecisionTransaction {
                     )),
                 };
             }
-            let Some(selection) = select_goal_and_trace(DecisionInput {
+            let Some(mut selection) = select_goal_and_trace(DecisionInput {
                 actor_id: input.actor_id.clone(),
                 decision_tick: input.decision_tick,
                 candidates: candidates.clone(),
@@ -187,6 +190,9 @@ impl ActorDecisionTransaction {
                     }),
                 };
             };
+            if let Some(diagnostic) = routine_window_hint.diagnostic.as_deref() {
+                annotate_ignored_routine_window_hint(&mut selection.trace, diagnostic);
+            }
             if !selection.trace.hidden_truth_audit_result.actor_known_only {
                 return ActorDecisionTransactionOutcome::Stuck {
                     diagnostic: Box::new(stuck_diagnostic_for_hidden_truth_audit(
@@ -304,6 +310,73 @@ fn goal_for_routine_family(family: RoutineFamily) -> Option<GoalKind> {
         RoutineFamily::ContinueCurrentIntention => Some(GoalKind::ContinueCurrentIntention),
         RoutineFamily::MorningWake | RoutineFamily::Wait | RoutineFamily::IdleWithReason => None,
     }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct RoutineWindowHint {
+    goal_kind: Option<GoalKind>,
+    diagnostic: Option<String>,
+}
+
+fn routine_window_goal_from_hint(
+    family: Option<RoutineFamily>,
+    active_intention: Option<&crate::agent::Intention>,
+) -> RoutineWindowHint {
+    let Some(family) = family else {
+        return RoutineWindowHint {
+            goal_kind: None,
+            diagnostic: None,
+        };
+    };
+    let Some(hint_goal) = goal_for_routine_family(family) else {
+        return RoutineWindowHint {
+            goal_kind: None,
+            diagnostic: None,
+        };
+    };
+    let Some(active_intention) = active_intention else {
+        return RoutineWindowHint {
+            goal_kind: None,
+            diagnostic: Some("routine_window_family_ignored_without_active_intention".to_string()),
+        };
+    };
+    if active_intention.status.is_terminal() {
+        return RoutineWindowHint {
+            goal_kind: None,
+            diagnostic: Some("routine_window_family_ignored_without_active_intention".to_string()),
+        };
+    }
+    if goal_for_active_intention(active_intention).is_none() {
+        return RoutineWindowHint {
+            goal_kind: None,
+            diagnostic: Some(
+                "routine_window_family_ignored_malformed_active_intention".to_string(),
+            ),
+        };
+    }
+    if routine_window_goal_matches_active_intention(active_intention, hint_goal) {
+        RoutineWindowHint {
+            goal_kind: Some(hint_goal),
+            diagnostic: None,
+        }
+    } else {
+        RoutineWindowHint {
+            goal_kind: None,
+            diagnostic: Some(
+                "routine_window_family_ignored_conflicts_with_active_intention".to_string(),
+            ),
+        }
+    }
+}
+
+fn annotate_ignored_routine_window_hint(trace: &mut DecisionTrace, diagnostic: &str) {
+    if trace.hidden_truth_audit_result.notes.is_empty() {
+        trace.hidden_truth_audit_result.notes = diagnostic.to_string();
+    } else {
+        trace.hidden_truth_audit_result.notes =
+            format!("{};{}", trace.hidden_truth_audit_result.notes, diagnostic);
+    }
+    trace.debug_only_details = format!("{};{}", trace.debug_only_details, diagnostic);
 }
 
 fn dangling_provenance_diagnostic(
@@ -772,6 +845,38 @@ mod tests {
         )
     }
 
+    fn context_with_active_intention_facts() -> ActorKnownPlanningContext {
+        let home = place("home_tomas");
+        let mut facts = known_context().actor_known_facts().to_vec();
+        facts.push(ActorKnownFact::observed_now(
+            actor_id(),
+            "active_intention_present",
+            "intention_tomas_eat",
+            "agent_state:active_intention",
+            Some(SimTick::new(12)),
+            test_source(),
+        ));
+        facts.push(ActorKnownFact::observed_now(
+            actor_id(),
+            "next_step_available",
+            "eat",
+            "agent_state:active_intention_next_step",
+            Some(SimTick::new(12)),
+            test_source(),
+        ));
+        ActorKnownPlanningContext::from_observed_parts(
+            actor_id(),
+            home.clone(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeSet::from(["food_stew".to_string()]),
+            BTreeSet::from([home]),
+            BTreeMap::new(),
+            facts,
+        )
+    }
+
     fn no_exit_context() -> ActorKnownPlanningContext {
         let home = place("home_tomas");
         ActorKnownPlanningContext::from_observed_parts(
@@ -842,15 +947,25 @@ mod tests {
         state
     }
 
-    fn agent_state_with_fatigue(value: i32) -> AgentState {
+    fn agent_state_with_active_eat_intention() -> AgentState {
         let mut state = AgentState::default();
-        state.needs_by_actor.insert(
+        let intention = Intention::adopt(
+            IntentionId::new("intention_tomas_eat").unwrap(),
             actor_id(),
-            BTreeMap::from([(
-                NeedKind::Fatigue,
-                NeedState::initial(NeedKind::Fatigue, value, NeedChangeCause::TickDelta),
-            )]),
+            IntentionSource::RoutineDuty,
+            CandidateGoalId::new("goal_tomas_eat").unwrap(),
+            Some(RoutineTemplateId::new("routine_eat_meal").unwrap()),
+            Some("eat".to_string()),
+            5,
+            SimTick::new(12),
+            DecisionTraceId::new("trace_tomas_eat").unwrap(),
         );
+        state
+            .active_intention_by_actor
+            .insert(actor_id(), intention.intention_id.clone());
+        state
+            .intentions
+            .insert(intention.intention_id.clone(), intention);
         state
     }
 
@@ -1458,8 +1573,8 @@ mod tests {
     }
 
     #[test]
-    fn duplicate_failed_candidates_are_retired_together() {
-        let agent_state = agent_state_with_fatigue(900);
+    fn routine_window_hint_without_active_intention_does_not_create_routine_duty() {
+        let agent_state = agent_state_with_hunger(900);
         let context = known_context();
 
         let outcome = ActorDecisionTransaction::run(ActorDecisionTransactionInput {
@@ -1469,22 +1584,61 @@ mod tests {
             actor_known_context: &context,
             source_event_ids: None,
             source_event_kinds: None,
-            routine_window_family: Some(RoutineFamily::SleepNight),
+            routine_window_family: Some(RoutineFamily::WorkBlock),
             include_idle_fallback: true,
         });
 
-        let ActorDecisionTransactionOutcome::Stuck { diagnostic } = outcome else {
-            panic!("expected fail-closed diagnostic after duplicate method misses");
+        let ActorDecisionTransactionOutcome::Proposed(proposed) = outcome else {
+            panic!("expected ordinary severe-hunger proposal");
         };
 
-        assert_eq!(diagnostic.concrete_blocker, "no applicable method");
+        assert_eq!(proposed.proposal.action_id().as_str(), "eat");
+        assert!(!proposed
+            .decision_trace
+            .candidate_goals_considered
+            .iter()
+            .any(|candidate| candidate.source == crate::agent::CandidateGoalSource::RoutineDuty));
+        assert!(proposed
+            .decision_trace
+            .hidden_truth_audit_result
+            .notes
+            .contains("routine_window_family_ignored_without_active_intention"));
+    }
+
+    #[test]
+    fn conflicting_routine_window_hint_is_ignored_and_active_intention_wins() {
+        let agent_state = agent_state_with_active_eat_intention();
+        let context = context_with_active_intention_facts();
+
+        let outcome = ActorDecisionTransaction::run(ActorDecisionTransactionInput {
+            actor_id: actor_id(),
+            decision_tick: SimTick::new(12),
+            agent_state: &agent_state,
+            actor_known_context: &context,
+            source_event_ids: None,
+            source_event_kinds: None,
+            routine_window_family: Some(RoutineFamily::WorkBlock),
+            include_idle_fallback: true,
+        });
+
+        let ActorDecisionTransactionOutcome::Proposed(proposed) = outcome else {
+            panic!("expected active intention proposal");
+        };
+
+        assert_eq!(proposed.proposal.action_id().as_str(), "wait");
         assert_eq!(
-            diagnostic.typed_diagnostic.responsible_layer,
-            ResponsibleLayer::MethodSelection
+            proposed.decision_trace.selected_goal_id.as_ref().unwrap(),
+            &CandidateGoalId::new("goal_actor_tomas_12_continue_current_intention").unwrap()
         );
-        assert_eq!(
-            diagnostic.typed_diagnostic.blocker_code,
-            BlockerCode::NoApplicableMethod
-        );
+        assert!(!proposed
+            .decision_trace
+            .candidate_goals_considered
+            .iter()
+            .any(|candidate| candidate.source == crate::agent::CandidateGoalSource::RoutineDuty));
+        assert!(proposed
+            .decision_trace
+            .hidden_truth_audit_result
+            .notes
+            .contains("routine_window_family_ignored_conflicts_with_active_intention"));
     }
 }
