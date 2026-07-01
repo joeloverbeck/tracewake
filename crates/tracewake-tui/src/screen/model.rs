@@ -254,7 +254,10 @@ mod tests {
         assert_eq!(screen.place.place_label, view.place_label);
         assert_eq!(screen.exits.visible_exits, view.visible_exits);
         assert_eq!(screen.doors.visible_doors, view.visible_doors);
-        assert_eq!(screen.containers.visible_containers, view.visible_containers);
+        assert_eq!(
+            screen.containers.visible_containers,
+            view.visible_containers
+        );
         assert_eq!(screen.items.visible_items, view.visible_items);
         assert_eq!(screen.inventory.carried_items, view.carried_items);
         assert_eq!(screen.actors.local_actors, view.local_actors);
@@ -264,7 +267,10 @@ mod tests {
             screen.why_not.last_rejection_summary,
             view.last_rejection_summary
         );
-        assert_eq!(screen.why_not.last_rejection_why_not, view.last_rejection_why_not);
+        assert_eq!(
+            screen.why_not.last_rejection_why_not,
+            view.last_rejection_why_not
+        );
         assert_eq!(screen.notebook.notebook, view.notebook);
         assert_eq!(
             screen.actor_known_interval.summary.as_ref(),

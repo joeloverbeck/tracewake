@@ -1,6 +1,6 @@
 # 0061 TUI Embodied Screen Model and Headless Render Seam Spec
 
-**Status**: PROPOSED
+**Status**: COMPLETED
 
 This is a post-`FIRST-PROOF-CERT` **feature/capability** spec in the parallel `specs/NNNN`
 series. It is staged in `specs/` and is promoted to `archive/specs/` on acceptance; it is
@@ -184,3 +184,52 @@ implementation commit. Screen dumps are declared first-class review artifacts, n
 | INV-068 (debug mode visibly non-diegetic) | aligns | Debug-token hygiene extends to every embodied dump. |
 | INV-095 (TUI/view-model tests are acceptance tests) | aligns | Screen dumps become acceptance artifacts with disposition conformance. |
 | INV-099 (truth may validate, not plan) | aligns | Screen model never reads hidden truth; renders sealed view-model fields only. |
+
+## Outcome
+
+Completed: 2026-07-01
+
+Implemented the scoped Spec 0061 TUI screen-model seam in dependency order:
+
+- `0061TUIEMBSCR-001` added `tracewake-tui::screen::model`, `EmbodiedScreenModel`,
+  `RenderOptions`, and `build_embodied_screen_model(&EmbodiedViewModel, RenderOptions)`.
+- `0061TUIEMBSCR-002` added the framework-free plain-text `SCREEN` / `PANE` dump renderer.
+- `0061TUIEMBSCR-003` added the structured `ScreenDump` projection over the same screen-model pane source.
+- `0061TUIEMBSCR-004` added `embodied_screen_model_field_disposition` to the existing
+  `tui_seam_conformance` registry.
+- `0061TUIEMBSCR-005` added the `ordinary_workday_001` fixed-size goldens, structured snapshot,
+  acceptance test, source-census classification update, and acceptance artifact.
+
+Commit roles:
+
+- Spec correction commit: `2dda85f`.
+- Implementation baseline commits: `f441cc6`, `0f508b6`, and `8b697b8`.
+- Conformance/test guard commit: `5b479c8`.
+- Evidence/report commit: `82e40c0ef6202699000076e378bb809230f0aab6`.
+- Archive/truthing commit: this commit moving the report/spec and repairing references.
+
+Acceptance artifact:
+
+- `archive/reports/0061_tui_embodied_screen_model_acceptance.md`.
+
+Verification:
+
+- `cargo test -p tracewake-tui --test embodied_screen_dump` passed after the report existed.
+- `cargo test -p tracewake-tui` passed after the report existed.
+- `cargo test --workspace` passed after the report existed.
+- Earlier, `cargo test --workspace` exposed the required source-census update for the new
+  `crates/tracewake-tui/src/screen/*.rs` production files; after adding them to the existing TUI
+  source classification table,
+  `cargo test -p tracewake-core --test anti_regression_guards workspace_source_classification_census_matches_production_tree`
+  passed.
+
+Deviations:
+
+- The plain-text dump remains a preserved parallel render alongside `render_embodied_view`; it does
+  not wrap or replace the older pure render seam.
+- `ScreenDump` carries the stable holder-known context hash and deliberately omits holder-known
+  frontier/source-summary fields to bound snapshot churn, as specified.
+
+This scoped feature evidence does not certify latest main, Phase-4 entry, second-proof entry,
+institutions, notices, travel, LOD, LLM/speech, story-sifting, `P0-CERT`, `FIRST-PROOF-CERT`, or
+any whole-project status; it mints no invariant, gate, glossary term, or risk ID.

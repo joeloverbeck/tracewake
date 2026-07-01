@@ -69,14 +69,20 @@ pub(crate) fn embodied_screen_pane_dumps(screen: &EmbodiedScreenModel) -> Vec<Pa
         },
         PaneDump {
             name: "containers",
-            lines: list_or_none(screen.containers.visible_containers.iter().map(|container| {
-                format!(
-                    "- {} open={} locked={}",
-                    container.container_id.as_str(),
-                    container.is_open,
-                    container.is_locked
-                )
-            })),
+            lines: list_or_none(
+                screen
+                    .containers
+                    .visible_containers
+                    .iter()
+                    .map(|container| {
+                        format!(
+                            "- {} open={} locked={}",
+                            container.container_id.as_str(),
+                            container.is_open,
+                            container.is_locked
+                        )
+                    }),
+            ),
         },
         PaneDump {
             name: "items",
@@ -155,7 +161,9 @@ fn render_item(item: &tracewake_core::view_models::VisibleItem) -> String {
 fn visible_item_source_label(source: &VisibleItemSource) -> String {
     match source {
         VisibleItemSource::Place => "place".to_string(),
-        VisibleItemSource::Container(container_id) => format!("container:{}", container_id.as_str()),
+        VisibleItemSource::Container(container_id) => {
+            format!("container:{}", container_id.as_str())
+        }
         VisibleItemSource::Carried => "carried".to_string(),
     }
 }
@@ -196,10 +204,7 @@ fn render_why_not(why_not: Option<&WhyNotView>, screen: &EmbodiedScreenModel) ->
             why_not.reason_codes.join(",")
         )];
         if !why_not.actor_visible_facts.is_empty() {
-            lines.push(format!(
-                "facts={}",
-                why_not.actor_visible_facts.join(",")
-            ));
+            lines.push(format!("facts={}", why_not.actor_visible_facts.join(",")));
         }
         lines
     } else if let Some(summary) = &screen.why_not.last_rejection_summary {
@@ -216,16 +221,18 @@ fn render_notebook(screen: &EmbodiedScreenModel) -> Vec<String> {
 
     let mut lines = vec![format!("viewer={}", notebook.viewer_actor_id.as_str())];
     lines.push("Beliefs:".to_string());
-    lines.extend(list_or_none(notebook.source_bound_beliefs.iter().map(|belief| {
-        format!(
-            "- {} confidence={} source={} tick={} :: {}",
-            belief.belief_id,
-            belief.confidence_label,
-            belief.source_summary,
-            belief.acquired_tick,
-            belief.summary
-        )
-    })));
+    lines.extend(list_or_none(notebook.source_bound_beliefs.iter().map(
+        |belief| {
+            format!(
+                "- {} confidence={} source={} tick={} :: {}",
+                belief.belief_id,
+                belief.confidence_label,
+                belief.source_summary,
+                belief.acquired_tick,
+                belief.summary
+            )
+        },
+    )));
     lines.push("Observations:".to_string());
     lines.extend(list_or_none(notebook.recent_observations.iter().map(
         |observation| {
@@ -240,14 +247,14 @@ fn render_notebook(screen: &EmbodiedScreenModel) -> Vec<String> {
         },
     )));
     lines.push("Contradictions:".to_string());
-    lines.extend(
-        list_or_none(notebook.known_contradictions.iter().map(|contradiction| {
+    lines.extend(list_or_none(notebook.known_contradictions.iter().map(
+        |contradiction| {
             format!(
                 "- {} :: {}",
                 contradiction.contradiction_id, contradiction.summary
             )
-        })),
-    );
+        },
+    )));
     lines.push("Leads:".to_string());
     lines.extend(list_or_none(notebook.typed_leads.iter().map(|lead| {
         format!(
@@ -256,7 +263,12 @@ fn render_notebook(screen: &EmbodiedScreenModel) -> Vec<String> {
         )
     })));
     if notebook.typed_leads.is_empty() {
-        lines.extend(notebook.possible_leads.iter().map(|lead| format!("- {lead}")));
+        lines.extend(
+            notebook
+                .possible_leads
+                .iter()
+                .map(|lead| format!("- {lead}")),
+        );
     }
     lines
 }
@@ -311,8 +323,8 @@ fn focused_pane_label(pane: FocusedPane) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tracewake_core::debug_capability::DEBUG_NON_DIEGETIC_MARKER;
     use tracewake_core::checksum::HolderKnownContextHash;
+    use tracewake_core::debug_capability::DEBUG_NON_DIEGETIC_MARKER;
     use tracewake_core::ids::{
         ActionId, ActorId, ContainerId, DoorId, HolderKnownContextId, ItemId, PlaceId,
         SemanticActionId, ViewModelId,

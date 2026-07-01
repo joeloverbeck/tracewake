@@ -11,8 +11,8 @@
 Spec 0061 §6–§7 require the seam's acceptance evidence: fixed-size plain-text dump goldens, a
 structured `ScreenDump` snapshot for an embodied fixture, the field-disposition conformance result,
 a debug-token-absence negative, and a determinism (byte-identical) check — all assembled into a
-review artifact recording them at the exact implementation commit, with screen dumps declared
-first-class review artifacts. This capstone ticket adds the golden/snapshot harness exercising the
+review artifact recording them with explicit implementation baseline and evidence/report commit
+roles, with screen dumps declared first-class review artifacts. This capstone ticket adds the golden/snapshot harness exercising the
 dumps (002/003) and the disposition guard (004) end-to-end, and authors the acceptance artifact. It
 introduces no new production logic; it exercises and locks the pipeline the prior tickets composed.
 
@@ -77,7 +77,7 @@ structured `ScreenDump` snapshot file.
 
 ### 3. Acceptance artifact
 
-Author `reports/0061_tui_embodied_screen_model_acceptance.md` recording the fixed-size dump goldens,
+Author `archive/reports/0061_tui_embodied_screen_model_acceptance.md` recording the fixed-size dump goldens,
 the structured `ScreenDump` snapshot, the field-disposition conformance result (004), and the
 debug-token-absence negative — declaring screen dumps first-class review artifacts (Spec 0061 §7).
 
@@ -88,14 +88,14 @@ debug-token-absence negative — declaring screen dumps first-class review artif
 - `crates/tracewake-tui/tests/goldens/embodied_screen_100x30.txt` (new)
 - `crates/tracewake-tui/tests/goldens/embodied_screen_60x20.txt` (new)
 - `crates/tracewake-tui/tests/goldens/embodied_screen_dump.snapshot.txt` (new — structured `ScreenDump` snapshot)
-- `reports/0061_tui_embodied_screen_model_acceptance.md` (new)
+- `archive/reports/0061_tui_embodied_screen_model_acceptance.md` (new)
 
 ## Out of Scope
 
 - The screen model, builder, and dump renderers (001/002/003) and the disposition guard (004) —
   exercised here, not modified.
-- The `docs/4-specs/SPEC_LEDGER.md` archived row and the `archive/specs/` move — deferred to spec
-  acceptance per Spec 0061 §0 (feature-spec archival convention), not part of this ticket.
+- The `docs/4-specs/SPEC_LEDGER.md` archived row and the `archive/specs/` move — handled by the
+  final Spec 0061 closeout after this ticket completed.
 - Any `ratatui`/`crossterm` buffer path (Spec 0064/0065) or raw-buffer visual review.
 
 ## Acceptance Criteria
@@ -108,7 +108,7 @@ debug-token-absence negative — declaring screen dumps first-class review artif
 3. No embodied dump (plain-text or any structured per-pane dump) contains a `DEBUG NON-DIEGETIC`
    token.
 4. Repeated `build_embodied_screen_model` + both dumps on the same view model are byte-identical.
-5. `reports/0061_tui_embodied_screen_model_acceptance.md` records all four evidence items.
+5. `archive/reports/0061_tui_embodied_screen_model_acceptance.md` records all four evidence items.
 
 ### Invariants
 
@@ -136,7 +136,7 @@ Completed: 2026-07-01
 Added the `ordinary_workday_001` embodied screen-dump capstone test harness,
 fixed-size plain-text dump goldens at `80x24`, `100x30`, and `60x20`, a
 structured `ScreenDump` snapshot, and the acceptance report
-`reports/0061_tui_embodied_screen_model_acceptance.md`. The test proves
+`archive/reports/0061_tui_embodied_screen_model_acceptance.md`. The test proves
 byte-identical repeated screen-model build plus plain-text and structured
 dumps, and verifies no embodied dump carries `DEBUG NON-DIEGETIC`.
 

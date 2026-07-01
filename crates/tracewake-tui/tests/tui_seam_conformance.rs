@@ -198,7 +198,11 @@ fn embodied_screen_model_field_disposition() {
     let view_model_fields = [
         ("view_model_id", "ScreenMetadata", "view.view_model_id()"),
         ("mode", "ScreenMetadata", "view.mode()"),
-        ("viewer_actor_id", "ScreenMetadata", "view.viewer_actor_id()"),
+        (
+            "viewer_actor_id",
+            "ScreenMetadata",
+            "view.viewer_actor_id()",
+        ),
         ("sim_tick", "ScreenMetadata", "view.sim_tick()"),
         ("place_id", "PlacePane", "view.place_id.clone()"),
         ("place_label", "PlacePane", "view.place_label.clone()"),
@@ -210,7 +214,11 @@ fn embodied_screen_model_field_disposition() {
             "view.visible_containers.clone()",
         ),
         ("visible_items", "ItemsPane", "view.visible_items.clone()"),
-        ("carried_items", "InventoryPane", "view.carried_items.clone()"),
+        (
+            "carried_items",
+            "InventoryPane",
+            "view.carried_items.clone()",
+        ),
         ("local_actors", "ActorsPane", "view.local_actors.clone()"),
         (
             "semantic_actions",
@@ -258,7 +266,11 @@ fn embodied_screen_model_field_disposition() {
             "view.actor_known_interval_summary()",
         ),
         ("notebook", "NotebookPane", "view.notebook.clone()"),
-        ("debug_available", "DebugPaneDisposition", "view.debug_available()"),
+        (
+            "debug_available",
+            "DebugPaneDisposition",
+            "view.debug_available()",
+        ),
     ];
     assert_eq!(
         view_model_fields.len(),
