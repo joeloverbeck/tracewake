@@ -774,12 +774,15 @@ impl LoadedWorldRuntime {
             &self.content_manifest_id,
             frame_event_id.as_ref(),
         )?;
-        let event_id = append_and_apply_actor_artifact(
-            &mut self.event_log,
-            &mut self.agent_state,
-            actor_id,
-            event,
-        )?;
+        let event_id = event.event_id.clone();
+        if !self.event_log.contains_event_id(&event_id) {
+            append_and_apply_actor_artifact(
+                &mut self.event_log,
+                &mut self.agent_state,
+                actor_id,
+                event,
+            )?;
+        }
         let appended = self
             .event_log
             .events()
@@ -1481,6 +1484,91 @@ mod tests {
 
         assert!(runtime.actor_exists(&known_actor_id));
         assert!(!runtime.actor_exists(&absent_actor_id));
+    }
+
+    #[test]
+    fn embodied_stuck_outcome_is_idempotent_for_same_tick_diagnostic() {
+        let mut runtime = loaded_runtime();
+        let actor_id = ActorId::new("actor_runtime").unwrap();
+        let decision_tick = SimTick::ZERO;
+        let marker_result = PipelineResult {
+            report: ValidationReport {
+                validation_report_id: ValidationReportId::new("report_marker").unwrap(),
+                proposal_id: ProposalId::new("proposal_marker").unwrap(),
+                actor_id: Some(actor_id.clone()),
+                action_id: ActionId::new("continue_routine").unwrap(),
+                target_ids: Vec::new(),
+                status: ReportStatus::Accepted,
+                failed_stage: None,
+                reason_codes: Vec::new(),
+                checked_facts: Vec::new(),
+                actor_visible_facts: Vec::new(),
+                debug_only_facts: Vec::new(),
+                actor_visible_summary: "marker accepted".to_string(),
+                debug_summary: "marker accepted".to_string(),
+                would_mutate: false,
+                event_ids: Vec::new(),
+                checksum_before: None,
+                checksum_after: None,
+            },
+            appended_events: Vec::new(),
+        };
+        let wait_proposal = crate::actions::Proposal::new(
+            ProposalId::new("proposal_wait_follow_on").unwrap(),
+            crate::actions::ProposalOrigin::Test,
+            Some(actor_id.clone()),
+            ActionId::new("wait").unwrap(),
+            decision_tick,
+        );
+        let diagnostic =
+            embodied_time_advancing_follow_on_diagnostic(&actor_id, decision_tick, &wait_proposal);
+
+        let first = runtime
+            .run_embodied_continue_routine_stuck_outcome(
+                &actor_id,
+                decision_tick,
+                &marker_result,
+                &[],
+                &diagnostic,
+            )
+            .unwrap()
+            .expect("stuck outcome returns a receipt");
+        let second = runtime
+            .run_embodied_continue_routine_stuck_outcome(
+                &actor_id,
+                decision_tick,
+                &marker_result,
+                &[],
+                &diagnostic,
+            )
+            .unwrap()
+            .expect("repeat stuck outcome returns a receipt");
+
+        assert_eq!(first.report.status, ReportStatus::Rejected);
+        assert_eq!(second.report.status, ReportStatus::Rejected);
+        assert!(second
+            .report
+            .reason_codes
+            .contains(&ReasonCode::RoutineStepBlocked));
+        assert_eq!(
+            second
+                .appended_events
+                .iter()
+                .filter(|event| event.event_type == EventKind::StuckDiagnosticRecorded)
+                .count(),
+            1,
+            "repeat receipt should include the already-recorded diagnostic"
+        );
+        assert_eq!(
+            runtime
+                .event_log
+                .events()
+                .iter()
+                .filter(|event| event.event_type == EventKind::StuckDiagnosticRecorded)
+                .count(),
+            1,
+            "same tick diagnostic is recorded once in the event log"
+        );
     }
 
     #[test]
