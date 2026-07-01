@@ -10,6 +10,7 @@ use crate::ids::{
 };
 use crate::location::Location;
 use crate::time::SimTick;
+use crate::view_models::{ActorKnownActivitySourceKind, ObservedActorActivityKind};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ViewMode {
@@ -596,13 +597,53 @@ impl ActorKnownItemFact {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ActorKnownLocalActorFact {
     actor_id: ActorId,
+    observed_activity: ObservedActorActivityKind,
+    activity_summary: Option<String>,
+    activity_source: ActorKnownActivitySourceKind,
+    activity_source_summary: String,
+    observed_tick: SimTick,
+    staleness_label: String,
+    uncertainty_label: Option<String>,
     source_key: String,
 }
 
 impl ActorKnownLocalActorFact {
     pub fn new(actor_id: ActorId, source_key: impl Into<String>) -> Self {
+        let source_key = source_key.into();
+        Self::with_observed_activity(
+            actor_id,
+            ObservedActorActivityKind::ActivityNotApparent,
+            None,
+            ActorKnownActivitySourceKind::DirectPerception,
+            source_key.clone(),
+            SimTick::new(0),
+            "current",
+            None,
+            source_key,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_observed_activity(
+        actor_id: ActorId,
+        observed_activity: ObservedActorActivityKind,
+        activity_summary: Option<String>,
+        activity_source: ActorKnownActivitySourceKind,
+        activity_source_summary: impl Into<String>,
+        observed_tick: SimTick,
+        staleness_label: impl Into<String>,
+        uncertainty_label: Option<String>,
+        source_key: impl Into<String>,
+    ) -> Self {
         Self {
             actor_id,
+            observed_activity,
+            activity_summary,
+            activity_source,
+            activity_source_summary: activity_source_summary.into(),
+            observed_tick,
+            staleness_label: staleness_label.into(),
+            uncertainty_label,
             source_key: source_key.into(),
         }
     }
@@ -611,11 +652,58 @@ impl ActorKnownLocalActorFact {
         &self.actor_id
     }
 
+    pub fn observed_activity(&self) -> ObservedActorActivityKind {
+        self.observed_activity
+    }
+
+    pub fn activity_summary(&self) -> Option<&str> {
+        self.activity_summary.as_deref()
+    }
+
+    pub fn activity_source(&self) -> ActorKnownActivitySourceKind {
+        self.activity_source
+    }
+
+    pub fn activity_source_summary(&self) -> &str {
+        &self.activity_source_summary
+    }
+
+    pub fn observed_tick(&self) -> SimTick {
+        self.observed_tick
+    }
+
+    pub fn staleness_label(&self) -> &str {
+        &self.staleness_label
+    }
+
+    pub fn uncertainty_label(&self) -> Option<&str> {
+        self.uncertainty_label.as_deref()
+    }
+
     pub fn source_key(&self) -> &str {
         &self.source_key
     }
 
     fn canonical_key(&self) -> String {
+        if self.observed_activity != ObservedActorActivityKind::ActivityNotApparent
+            || self.activity_summary.is_some()
+            || self.uncertainty_label.is_some()
+            || self.observed_tick.value() != 0
+            || self.staleness_label != "current"
+        {
+            return format!(
+                "{}:{}:activity={}:activity_source={}:activity_source_summary={}:observed_tick={}:staleness={}:summary={}:uncertainty={}",
+                self.actor_id.as_str(),
+                self.source_key,
+                self.observed_activity.stable_id(),
+                self.activity_source.stable_id(),
+                self.activity_source_summary,
+                self.observed_tick.value(),
+                self.staleness_label,
+                self.activity_summary.as_deref().unwrap_or(""),
+                self.uncertainty_label.as_deref().unwrap_or("")
+            );
+        }
         format!("{}:{}", self.actor_id.as_str(), self.source_key)
     }
 }
@@ -1399,6 +1487,50 @@ mod tests {
     }
 
     #[test]
+    fn local_actor_fact_carries_observed_activity_without_churning_no_activity_key() {
+        let no_activity = ActorKnownLocalActorFact::new(actor_id("actor_mara"), "evt.local_actor");
+        assert_eq!(
+            no_activity.observed_activity(),
+            ObservedActorActivityKind::ActivityNotApparent
+        );
+        assert_eq!(no_activity.activity_summary(), None);
+        assert_eq!(
+            no_activity.activity_source(),
+            ActorKnownActivitySourceKind::DirectPerception
+        );
+        assert_eq!(no_activity.staleness_label(), "current");
+        assert_eq!(no_activity.uncertainty_label(), None);
+        assert_eq!(no_activity.canonical_key(), "actor_mara:evt.local_actor");
+
+        let working = ActorKnownLocalActorFact::with_observed_activity(
+            actor_id("actor_mara"),
+            ObservedActorActivityKind::Working,
+            Some("working at the bench".to_string()),
+            ActorKnownActivitySourceKind::DirectPerception,
+            "saw bench work",
+            SimTick::new(9),
+            "stale",
+            Some("stale observation".to_string()),
+            "evt.local_actor",
+        );
+        assert_eq!(
+            working.observed_activity(),
+            ObservedActorActivityKind::Working
+        );
+        assert_eq!(working.activity_summary(), Some("working at the bench"));
+        assert_eq!(
+            working.activity_source(),
+            ActorKnownActivitySourceKind::DirectPerception
+        );
+        assert_eq!(working.activity_source_summary(), "saw bench work");
+        assert_eq!(working.observed_tick(), SimTick::new(9));
+        assert_eq!(working.staleness_label(), "stale");
+        assert_eq!(working.uncertainty_label(), Some("stale observation"));
+        assert!(working.canonical_key().contains("activity=working"));
+        assert!(working.canonical_key().contains("staleness=stale"));
+    }
+
+    #[test]
     fn interval_delta_rejects_each_holder_axis_and_only_regressing_frontiers() {
         let actor = actor_id("actor_tomas");
         let other_actor = actor_id("actor_mara");
@@ -1658,5 +1790,89 @@ mod tests {
         assert!(context.permits_scope(&PrivacyScope::InstitutionPlaceholder(
             "ledger_placeholder".to_string()
         )));
+    }
+
+    #[test]
+    fn actor_known_local_actor_fact_canonical_key_gates_on_each_activity_flag() {
+        let actor = actor_id("actor_mara");
+        let fact = |observed_activity,
+                    activity_summary: Option<&str>,
+                    observed_tick,
+                    uncertainty_label: Option<&str>| {
+            ActorKnownLocalActorFact::with_observed_activity(
+                actor.clone(),
+                observed_activity,
+                activity_summary.map(str::to_string),
+                ActorKnownActivitySourceKind::DirectPerception,
+                "src",
+                observed_tick,
+                "current",
+                uncertainty_label.map(str::to_string),
+                "evt.local_actor",
+            )
+        };
+
+        // A wholly default fact (no apparent activity, no summary, tick 0,
+        // "current" staleness, no uncertainty) collapses to the bare
+        // `actor:source_key` key with no activity fields.
+        let bare = fact(
+            ObservedActorActivityKind::ActivityNotApparent,
+            None,
+            SimTick::new(0),
+            None,
+        )
+        .canonical_key();
+        assert!(
+            !bare.contains(":activity="),
+            "default local-actor fact key must omit activity fields: {bare}",
+        );
+
+        // Each disjunct alone must force the full activity-bearing key. If any
+        // `||` in the guard became `&&`, the sole satisfied condition would be
+        // ANDed with an unsatisfied one and collapse back to the bare key.
+        for (label, fact) in [
+            (
+                "apparent activity",
+                fact(
+                    ObservedActorActivityKind::Sleeping,
+                    None,
+                    SimTick::new(0),
+                    None,
+                ),
+            ),
+            (
+                "activity summary",
+                fact(
+                    ObservedActorActivityKind::ActivityNotApparent,
+                    Some("resting"),
+                    SimTick::new(0),
+                    None,
+                ),
+            ),
+            (
+                "uncertainty label",
+                fact(
+                    ObservedActorActivityKind::ActivityNotApparent,
+                    None,
+                    SimTick::new(0),
+                    Some("uncertain"),
+                ),
+            ),
+            (
+                "non-zero observed tick",
+                fact(
+                    ObservedActorActivityKind::ActivityNotApparent,
+                    None,
+                    SimTick::new(1),
+                    None,
+                ),
+            ),
+        ] {
+            let key = fact.canonical_key();
+            assert!(
+                key.contains(":activity="),
+                "{label} alone must produce the full activity-bearing key: {key}",
+            );
+        }
     }
 }

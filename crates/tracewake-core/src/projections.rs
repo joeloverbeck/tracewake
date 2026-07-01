@@ -26,8 +26,9 @@ use crate::view_models::{
     ActionAvailability, ActionAvailabilityProvenance, ActionAvailabilityProvenanceKind,
     DebugEventLogView, DebugEventSummary, EmbodiedViewModel, NeedStatusEntry, NotebookBeliefEntry,
     NotebookContradictionEntry, NotebookLeadEntry, NotebookObservationEntry, NotebookView,
-    Phase3AEmbodiedStatus, SemanticActionEntry, ViewMode, VisibleActor, VisibleContainer,
-    VisibleDoor, VisibleExit, VisibleItem, VisibleItemSource, WhyNotView,
+    ObservedActivityView, ObservedActorActivityKind, Phase3AEmbodiedStatus, SemanticActionEntry,
+    ViewMode, VisibleActor, VisibleContainer, VisibleDoor, VisibleExit, VisibleItem,
+    VisibleItemSource, WhyNotView,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -87,7 +88,7 @@ pub struct EmbodiedProjectionSource<'a> {
     actor_known_doors: Vec<ActorKnownDoorSurface>,
     actor_known_containers: Vec<ActorKnownContainerSurface>,
     actor_known_items: Vec<ActorKnownItemSurface>,
-    actor_known_local_actors: Vec<ActorId>,
+    actor_known_local_actors: Vec<ActorKnownLocalActorFact>,
 }
 
 pub struct EmbodiedTruthSnapshot {
@@ -409,15 +410,39 @@ fn actor_known_items_for_context(context: &KnowledgeContext) -> Vec<ActorKnownIt
     items
 }
 
-fn actor_known_local_actors_for_context(context: &KnowledgeContext) -> Vec<ActorId> {
-    let mut actors = context
-        .actor_known_local_actors()
-        .iter()
-        .map(|fact: &ActorKnownLocalActorFact| fact.actor_id().clone())
-        .collect::<Vec<_>>();
+fn actor_known_local_actors_for_context(
+    context: &KnowledgeContext,
+) -> Vec<ActorKnownLocalActorFact> {
+    let mut actors = context.actor_known_local_actors().to_vec();
     actors.sort();
     actors.dedup();
     actors
+}
+
+fn visible_actor_from_fact(fact: &ActorKnownLocalActorFact) -> VisibleActor {
+    let observed_activity = (fact.observed_activity()
+        != ObservedActorActivityKind::ActivityNotApparent)
+        .then(|| ObservedActivityView {
+            kind: fact.observed_activity(),
+            actor_safe_summary: fact
+                .activity_summary()
+                .unwrap_or(fact.observed_activity().stable_id())
+                .to_string(),
+            source: fact.activity_source(),
+            source_summary: fact.activity_source_summary().to_string(),
+            observed_tick: fact.observed_tick(),
+            staleness_label: fact.staleness_label().to_string(),
+            uncertainty_label: fact.uncertainty_label().map(ToString::to_string),
+        });
+    VisibleActor {
+        actor_id: fact.actor_id().clone(),
+        display_label: fact.actor_id().as_str().to_string(),
+        presence_source_summary: fact.source_key().to_string(),
+        presence_observed_tick: fact.observed_tick(),
+        presence_staleness_label: fact.staleness_label().to_string(),
+        presence_uncertainty_label: fact.uncertainty_label().map(ToString::to_string),
+        observed_activity,
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -689,8 +714,7 @@ pub fn build_embodied_view_model(
     let mut local_actors = source
         .actor_known_local_actors
         .iter()
-        .cloned()
-        .map(|actor_id| VisibleActor { actor_id })
+        .map(visible_actor_from_fact)
         .collect::<Vec<_>>();
     local_actors.sort();
 
@@ -2739,6 +2763,66 @@ mod tests {
             .local_actors
             .iter()
             .any(|actor| actor.actor_id == actor_id("actor_mara")));
+    }
+
+    #[test]
+    fn embodied_projection_transfers_sealed_local_actor_activity() {
+        let state = state();
+        let current_place_id = place_id("shop_front");
+        let context = KnowledgeContext::embodied_at_frontier_with_all_facts_and_observations(
+            actor_id("actor_tomas"),
+            SimTick::new(5),
+            9,
+            Vec::new(),
+            actor_known_current_place_facts(&state, &current_place_id),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            Vec::new(),
+            vec![
+                ActorKnownLocalActorFact::with_observed_activity(
+                    actor_id("actor_mara"),
+                    ObservedActorActivityKind::Working,
+                    Some("working at the counter".to_string()),
+                    crate::view_models::ActorKnownActivitySourceKind::DirectPerception,
+                    "saw counter work",
+                    SimTick::new(5),
+                    "current",
+                    None,
+                    "event_visible_actor_mara",
+                ),
+                ActorKnownLocalActorFact::new(actor_id("actor_elena"), "event_visible_actor_elena"),
+            ],
+        );
+        let source = source_for(&context, &state, None);
+        let view = view_from_source(&context, &source, &state, None);
+
+        let mara = view
+            .local_actors
+            .iter()
+            .find(|actor| actor.actor_id == actor_id("actor_mara"))
+            .expect("sealed local actor should reach view model");
+        assert_eq!(mara.display_label, "actor_mara");
+        assert_eq!(mara.presence_source_summary, "event_visible_actor_mara");
+        assert_eq!(mara.presence_observed_tick, SimTick::new(5));
+        let activity = mara
+            .observed_activity
+            .as_ref()
+            .expect("activity fact should become observed activity view");
+        assert_eq!(activity.kind, ObservedActorActivityKind::Working);
+        assert_eq!(activity.actor_safe_summary, "working at the counter");
+        assert_eq!(activity.source_summary, "saw counter work");
+        assert_eq!(activity.staleness_label, "current");
+
+        let elena = view
+            .local_actors
+            .iter()
+            .find(|actor| actor.actor_id == actor_id("actor_elena"))
+            .expect("identity-only local actor should reach view model");
+        assert!(elena.observed_activity.is_none());
     }
 
     #[test]

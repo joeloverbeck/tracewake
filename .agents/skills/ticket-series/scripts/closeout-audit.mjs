@@ -230,6 +230,10 @@ Commit roles: <implementation baseline commit / evidence-report commit / archive
 Goal usage: <goal-tool usage summary, or N/A>.`);
 }
 
+const commitRoleReviewPattern =
+  "implementation baseline|evidence/report|archive/truthing|exact .*commit|exact commit|the commit that adds|commit that adds this report";
+const commitRoleReviewRegex = new RegExp(commitRoleReviewPattern.replace("evidence/report", "evidence\\/report"), "i");
+
 let ok = true;
 ok = checkGitStatus() && ok;
 ok = run("Matching active tickets", "bash", ["-lc", `rg --files tickets | rg ${shellQuote(options.ticketPrefix)}`], [1]) && ok;
@@ -355,7 +359,7 @@ if (currentStatePaths.length > 0) {
     "rg",
     [
       "-n",
-      "implementation baseline|evidence/report|archive/truthing|exact .*commit|exact commit",
+      commitRoleReviewPattern,
       ...currentStatePaths,
     ],
     [0, 1],
@@ -387,7 +391,7 @@ if (existsSync("docs/4-specs/SPEC_LEDGER.md")) {
       printReviewMatches(
         "SPEC_LEDGER commit-role wording sweep (manual review)",
         ledgerRows.stdout,
-        /implementation baseline|evidence\/report|archive\/truthing|exact .*commit|exact commit/i,
+        commitRoleReviewRegex,
       );
     }
   }

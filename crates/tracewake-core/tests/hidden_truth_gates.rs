@@ -37,6 +37,9 @@ use tracewake_core::state::{
     ActorBody, AgentState, ContainerState, FoodSupplyState, PhysicalState, PlaceState,
 };
 use tracewake_core::time::SimTick;
+use tracewake_core::view_models::{
+    ActorKnownActivitySourceKind, ObservedActorActivityKind, VisibleActor,
+};
 
 const ACTOR_KNOWN_RS: &str = include_str!("../src/agent/actor_known.rs");
 const DEBUG_CAPABILITY_RS: &str = include_str!("../src/debug_capability.rs");
@@ -1819,6 +1822,265 @@ fn actor_known_local_actor_reaches_embodied_view_model_with_context_provenance()
     );
     assert!(!view.debug_available());
     assert!(!view.holder_known_context_source_summary().contains("debug"));
+}
+
+#[test]
+fn actor_known_observed_activity_reaches_embodied_visible_actor() {
+    let observed_actor = ActorId::new("actor_tomas").unwrap();
+    let world = local_actor_world(&[
+        (actor_id(), "home_mara"),
+        (observed_actor.clone(), "home_mara"),
+    ]);
+    let context = local_actor_context(
+        "home_mara",
+        "Mara home",
+        vec![ActorKnownLocalActorFact::with_observed_activity(
+            observed_actor.clone(),
+            ObservedActorActivityKind::Working,
+            Some("working at bench".to_string()),
+            ActorKnownActivitySourceKind::DirectPerception,
+            "event:event_visible_actor_tomas",
+            SimTick::new(3),
+            "current",
+            None,
+            "event_visible_actor_tomas",
+        )],
+    );
+
+    let view = embodied_view(&context, &world);
+    let actor = visible_actor(&view.local_actors, &observed_actor);
+    let activity = actor
+        .observed_activity
+        .as_ref()
+        .expect("observed activity reaches visible actor");
+
+    assert_eq!(activity.kind, ObservedActorActivityKind::Working);
+    assert_eq!(activity.actor_safe_summary, "working at bench");
+    assert_eq!(
+        activity.source,
+        ActorKnownActivitySourceKind::DirectPerception
+    );
+    assert_eq!(activity.source_summary, "event:event_visible_actor_tomas");
+    assert_eq!(activity.observed_tick, SimTick::new(3));
+    assert_eq!(activity.staleness_label, "current");
+    assert!(activity.uncertainty_label.is_none());
+}
+
+#[test]
+fn unperceived_activity_truth_does_not_create_visible_actor_activity() {
+    let observed_actor = ActorId::new("actor_tomas").unwrap();
+    let world = local_actor_world(&[
+        (actor_id(), "home_mara"),
+        (observed_actor.clone(), "home_mara"),
+    ]);
+    let context = local_actor_context(
+        "home_mara",
+        "Mara home",
+        vec![ActorKnownLocalActorFact::new(
+            observed_actor.clone(),
+            "event_visible_actor_tomas",
+        )],
+    );
+
+    let view = embodied_view(&context, &world);
+    let actor = visible_actor(&view.local_actors, &observed_actor);
+
+    assert!(
+        actor.observed_activity.is_none(),
+        "physical co-presence alone must not infer hidden activity"
+    );
+}
+
+#[test]
+fn occluded_actor_absent_from_actor_known_context_produces_no_visible_actor_row() {
+    let occluded_actor = ActorId::new("actor_tomas").unwrap();
+    let world = local_actor_world(&[
+        (actor_id(), "front_room"),
+        (occluded_actor.clone(), "back_room"),
+    ]);
+    let context = local_actor_context("front_room", "Front room", Vec::new());
+
+    let view = embodied_view(&context, &world);
+
+    assert!(
+        !view
+            .local_actors
+            .iter()
+            .any(|actor| actor.actor_id == occluded_actor),
+        "hidden physical actor must be omitted when no sealed local-actor fact exists"
+    );
+}
+
+#[test]
+fn stale_actor_known_activity_preserves_stale_disposition() {
+    let observed_actor = ActorId::new("actor_tomas").unwrap();
+    let world = local_actor_world(&[
+        (actor_id(), "home_mara"),
+        (observed_actor.clone(), "home_mara"),
+    ]);
+    let context = local_actor_context(
+        "home_mara",
+        "Mara home",
+        vec![ActorKnownLocalActorFact::with_observed_activity(
+            observed_actor.clone(),
+            ObservedActorActivityKind::Working,
+            Some("working earlier".to_string()),
+            ActorKnownActivitySourceKind::Memory,
+            "event:event_visible_actor_tomas",
+            SimTick::new(2),
+            "stale",
+            Some("stale observation".to_string()),
+            "event_visible_actor_tomas",
+        )],
+    );
+
+    let view = embodied_view(&context, &world);
+    let activity = visible_actor(&view.local_actors, &observed_actor)
+        .observed_activity
+        .as_ref()
+        .expect("stale activity reaches visible actor")
+        .clone();
+
+    assert_eq!(activity.source, ActorKnownActivitySourceKind::Memory);
+    assert_eq!(activity.staleness_label, "stale");
+    assert_eq!(
+        activity.uncertainty_label.as_deref(),
+        Some("stale observation")
+    );
+}
+
+#[test]
+fn possession_parity_uses_each_holder_actor_known_local_activity() {
+    let actor_mara = actor_id();
+    let actor_tomas = ActorId::new("actor_tomas").unwrap();
+    let world = local_actor_world(&[
+        (actor_mara.clone(), "workshop"),
+        (actor_tomas.clone(), "workshop"),
+    ]);
+    let mara_context = KnowledgeContext::embodied_at_frontier_with_all_facts_and_observations(
+        actor_mara.clone(),
+        SimTick::new(5),
+        10,
+        Vec::new(),
+        vec![ActorKnownCurrentPlaceFact::new(
+            place_id("workshop"),
+            "Workshop",
+            "event_visible_place_workshop_mara",
+        )],
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        vec![ActorKnownLocalActorFact::with_observed_activity(
+            actor_tomas.clone(),
+            ObservedActorActivityKind::Working,
+            Some("working at bench".to_string()),
+            ActorKnownActivitySourceKind::DirectPerception,
+            "event:event_mara_sees_tomas",
+            SimTick::new(5),
+            "current",
+            None,
+            "event_mara_sees_tomas",
+        )],
+    );
+    let tomas_context = KnowledgeContext::embodied_at_frontier_with_all_facts_and_observations(
+        actor_tomas.clone(),
+        SimTick::new(5),
+        11,
+        Vec::new(),
+        vec![ActorKnownCurrentPlaceFact::new(
+            place_id("workshop"),
+            "Workshop",
+            "event_visible_place_workshop_tomas",
+        )],
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        vec![ActorKnownLocalActorFact::with_observed_activity(
+            actor_mara.clone(),
+            ObservedActorActivityKind::ActivityNotApparent,
+            None,
+            ActorKnownActivitySourceKind::DirectPerception,
+            "event:event_tomas_sees_mara",
+            SimTick::new(5),
+            "current",
+            None,
+            "event_tomas_sees_mara",
+        )],
+    );
+
+    let mara_view = embodied_view(&mara_context, &world);
+    let tomas_view = embodied_view(&tomas_context, &world);
+
+    assert_eq!(
+        visible_actor(&mara_view.local_actors, &actor_tomas)
+            .observed_activity
+            .as_ref()
+            .map(|activity| activity.kind),
+        Some(ObservedActorActivityKind::Working)
+    );
+    assert!(
+        visible_actor(&tomas_view.local_actors, &actor_mara)
+            .observed_activity
+            .is_none(),
+        "Tomas's possession view must use Tomas's actor-known row, not Mara's"
+    );
+}
+
+fn local_actor_world(actors: &[(ActorId, &str)]) -> PhysicalState {
+    let mut seed = PhysicalSeed::default();
+    for (_, place) in actors {
+        seed.places_mut()
+            .entry(place_id(place))
+            .or_insert_with(|| PlaceState::new(place_id(place), place.to_string()));
+    }
+    for (actor, place) in actors {
+        seed.actors_mut().insert(
+            actor.clone(),
+            ActorBody::new(actor.clone(), place_id(place)),
+        );
+    }
+    seed.build()
+}
+
+fn local_actor_context(
+    current_place_id: &str,
+    current_place_label: &str,
+    local_actors: Vec<ActorKnownLocalActorFact>,
+) -> KnowledgeContext {
+    KnowledgeContext::embodied_at_frontier_with_all_facts_and_observations(
+        actor_id(),
+        SimTick::new(5),
+        9,
+        Vec::new(),
+        vec![ActorKnownCurrentPlaceFact::new(
+            place_id(current_place_id),
+            current_place_label,
+            format!("event_visible_place_{current_place_id}"),
+        )],
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        local_actors,
+    )
+}
+
+fn visible_actor<'a>(actors: &'a [VisibleActor], actor_id: &ActorId) -> &'a VisibleActor {
+    actors
+        .iter()
+        .find(|actor| &actor.actor_id == actor_id)
+        .unwrap_or_else(|| panic!("missing visible actor {}", actor_id.as_str()))
 }
 
 #[test]

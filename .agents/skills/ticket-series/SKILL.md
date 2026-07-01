@@ -93,12 +93,14 @@ For each ticket:
    before implementing, and never read the quantifier as meaning only the
    spec's cited instance. The cited site is where the defect was found, not
    the scope of the fix.
-   When adding new Rust production source files under `crates/*/src`, search
-   for repository source-census and anti-regression guards before the broad
-   workspace gate, for example `anti_regression_guards`, `source census`,
-   `production source`, or the new path's crate/module stem. Update the guard
-   intentionally or record why it does not apply instead of discovering the
-   missing classification only at final gate time.
+   When adding new Rust production source files under `crates/*/src`, including
+   content fixture modules such as `crates/tracewake-content/src/fixtures/*.rs`,
+   search for repository source-census and anti-regression guards before the
+   broad workspace gate, for example `anti_regression_guards`, `source census`,
+   `production source`, `workspace_source_classification`, or the new path's
+   crate/module stem. Update the guard intentionally or record why it does not
+   apply instead of discovering the missing classification only at final gate
+   time.
 2. Identify the narrow implementation surface and the exact acceptance
    criteria, including the full member list of any enumerated criterion.
 3. Make the minimal code/doc/test changes that satisfy the ticket while
@@ -287,6 +289,11 @@ final ticket is ordinary implementation work. If the final ticket is itself the
 capstone acceptance artifact or spec-closeout vehicle, it may be combined with
 the spec archive/truthing commit; record that choice and any resulting
 deviations in the ticket and spec outcomes.
+If a capstone or acceptance-report ticket creates a tracked `reports/...`
+artifact first, treat that live report path as an intermediate ticket state
+unless the user explicitly stops before spec closeout. The final spec closeout
+must still archive the report under `archive/reports/...` and retarget current
+references before completion.
 
 1. Re-read the reference spec and verify every acceptance item is either done,
    explicitly rejected, deferred, or not implemented.

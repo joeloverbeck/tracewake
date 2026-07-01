@@ -57,8 +57,24 @@ const FROZEN_FIXTURE_FINGERPRINTS: &[(&str, &str)] = &[
         "aged_food_record_surfaces_as_remembered_belief_not_observation_001",
         "twf1-5594c16c721cde82",
     ),
-    ("container_item_move_001", "twf1-bc90d56dcf16b9d3"),
+    (
+        "co_present_actor_activity_not_apparent_001",
+        "twf1-768822a5fff8bc4b",
+    ),
+    (
+        "co_present_actor_occluded_no_row_001",
+        "twf1-84a035122fcf7b80",
+    ),
+    (
+        "co_present_actor_stale_remembered_activity_001",
+        "twf1-b41b447983047ca7",
+    ),
+    (
+        "co_present_actor_visible_working_001",
+        "twf1-866a8910375ac2c3",
+    ),
     ("competing_food_source_facts_001", "twf1-1df8941c296b27d9"),
+    ("container_item_move_001", "twf1-bc90d56dcf16b9d3"),
     ("debug_attach_001", "twf1-7818100e3c7b9fd1"),
     ("debug_omniscience_excluded_001", "twf1-87f6032bf6fbdfba"),
     ("door_access_001", "twf1-eb38689018fcec34"),

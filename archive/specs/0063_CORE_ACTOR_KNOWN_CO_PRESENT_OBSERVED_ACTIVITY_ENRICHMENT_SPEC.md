@@ -1,6 +1,14 @@
 # 0063 Core Actor-Known Co-Present Observed-Activity Enrichment Spec
 
-**Status**: PROPOSED
+**Status**: ACCEPTED
+
+Completed: 2026-07-01
+
+Accepted for the scoped feature implementation through ticket series `0063CORACTKNO-001` through
+`0063CORACTKNO-006`. Implementation commits run from `318648a` through
+`a02f54064fe332a961926da6f0d566c19222d75b`; acceptance evidence is recorded in
+`archive/reports/0063_core_actor_known_co_present_activity_acceptance.md` and archived ticket
+`0063CORACTKNO-006`.
 
 This is a post-`FIRST-PROOF-CERT` **feature/capability** spec in the parallel `specs/NNNN`
 series. It is staged in `specs/` and promoted to `archive/specs/` on acceptance; it is never
@@ -82,7 +90,9 @@ Extend the actor-known co-present awareness data across `tracewake-core` (and su
 ## 2. Dependencies and ordering
 
 - **Depends on:** `0061` for the `EmbodiedScreenModel`/`ScreenDump` field contract that will carry
-  the new activity fields into dumps; may begin once that contract is published.
+  the new activity fields into dumps. This dependency is **satisfied**: `0061` has landed and is
+  archived (`archive/specs/0061_TUI_EMBODIED_SCREEN_MODEL_AND_HEADLESS_RENDER_SEAM_SPEC.md`; recorded
+  `Completed` in `docs/4-specs/SPEC_LEDGER.md`), so this spec is unblocked on that axis.
 - **Blocks:** the *final* state of the actor pane in Spec `0064`, and the co-present parity rows in
   Spec `0069`.
 - **Crate-crossing:** `tracewake-core` (view model, projection, perception, knowledge context),
@@ -187,4 +197,7 @@ locks: each guard carries a behavior witness (report §6.5).
 | INV-102 (cognition inputs require provenance) | aligns | Each activity view carries source + freshness provenance. |
 | INV-006 (possession transfers no world knowledge) | aligns | Possession-parity fixtures prove each actor sees only its own actor-known activity. |
 | INV-022 (raw prose is not authoritative state) | aligns | Actor-safe summaries attach to typed sources; they create no facts. |
+| INV-024 (no telepathy) | aligns | Activity reaches a viewer only through the modeled perception gate (§4.2); truth with no actor-known source yields no row. |
+| INV-067 (embodied mode shows actor-known reality) | aligns | The enriched `VisibleActor` is populated only from embodied-only actor-known projection (§1.3); it exposes no hidden other-mind or true routine/target. |
+| INV-093 (actor-knowledge leakage is a high-severity defect) | aligns | The negative/anti-leak fixture (§6) tests the embodied view model against hidden-truth leakage; a leaked activity row fails the guard. |
 | INV-112 (holder-known time must plan) | aligns | Staleness labels derive from holder-known freshness, not free truth time. |
