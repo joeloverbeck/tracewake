@@ -310,6 +310,12 @@ fn embodied_screen_model_field_disposition() {
             "build_embodied_screen_model must not use wildcard/default laundering token {forbidden}"
         );
     }
+
+    let text_dump_source = include_str!("../src/screen/text_dump.rs");
+    assert!(
+        text_dump_source.contains(".map(render_actor_line)"),
+        "ActorsPane local_actors must render through the actor activity disposition formatter"
+    );
 }
 
 fn source_after<'a>(source: &'a str, needle: &str) -> &'a str {
@@ -353,10 +359,34 @@ fn closed_presentation_enum_matches_are_exhaustive_without_wildcards() {
         source_after(render_source, "fn visible_item_source_label"),
         "visible_item_source_label",
     );
+    let text_dump_source = include_str!("../src/screen/text_dump.rs");
+    assert_match_has_no_wildcard_arm(
+        source_after(text_dump_source, "pub(crate) fn activity_kind_label"),
+        "activity_kind_label",
+    );
+    assert_match_has_no_wildcard_arm(
+        source_after(text_dump_source, "pub(crate) fn activity_source_label"),
+        "activity_source_label",
+    );
     assert_match_has_no_wildcard_arm(
         source_after(debug_panels_source, "pub fn debug_view_model_panel_key"),
         "debug_view_model_panel_key",
     );
+
+    for variant in enum_variant_names(view_model_source, "ObservedActorActivityKind") {
+        assert!(
+            source_after(text_dump_source, "pub(crate) fn activity_kind_label")
+                .contains(&format!("ObservedActorActivityKind::{variant}")),
+            "activity_kind_label is missing ObservedActorActivityKind::{variant}"
+        );
+    }
+    for variant in enum_variant_names(view_model_source, "ActorKnownActivitySourceKind") {
+        assert!(
+            source_after(text_dump_source, "pub(crate) fn activity_source_label")
+                .contains(&format!("ActorKnownActivitySourceKind::{variant}")),
+            "activity_source_label is missing ActorKnownActivitySourceKind::{variant}"
+        );
+    }
 
     for variant in enum_variant_names(view_model_source, "DebugViewModel") {
         assert!(

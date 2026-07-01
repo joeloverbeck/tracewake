@@ -16,7 +16,7 @@ Containers:
 Items:
 Inventory:
 Actors:
-- actor_elena
+- actor_elena (actor_elena) presence_source=direct perception presence_tick=0 presence_staleness=current presence_uncertainty=none activity=not apparent
 Actions:
 1. Check strongbox_tomas [check.container.strongbox_tomas] disabled: The container is closed. reasons=container_closed
 2. close door_house_street [close.door.door_house_street]

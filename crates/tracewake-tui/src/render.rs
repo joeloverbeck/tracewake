@@ -2,6 +2,8 @@ use tracewake_core::actions::report::ValidationReport;
 use tracewake_core::view_models::VisibleItemSource;
 use tracewake_core::view_models::{EmbodiedViewModel, NotebookView};
 
+use crate::screen::text_dump::render_actor_line;
+
 pub const DEBUG_TOKENS: &[&str] = &[
     "DEBUG NON-DIEGETIC",
     "Knowledge context",
@@ -126,7 +128,7 @@ pub fn render_embodied_view(view: &EmbodiedViewModel) -> String {
 
     lines.push("Actors:".to_string());
     for actor in &view.local_actors {
-        lines.push(format!("- {}", actor.actor_id.as_str()));
+        lines.push(render_actor_line(actor));
     }
 
     lines.push("Actions:".to_string());
@@ -303,9 +305,10 @@ mod tests {
     use tracewake_core::projections::IntervalStopReason;
     use tracewake_core::time::SimTick;
     use tracewake_core::view_models::{
-        ActionAvailability, EmbodiedViewModel, NotebookLeadEntry, NotebookView,
-        Phase3AEmbodiedStatus, SemanticActionEntry, TypedActorKnownIntervalSummary, ViewMode,
-        VisibleDoor, VisibleExit, VisibleItem, VisibleItemSource, WhyNotFailureKind, WhyNotView,
+        ActionAvailability, ActorKnownActivitySourceKind, EmbodiedViewModel, NotebookLeadEntry,
+        NotebookView, ObservedActivityView, ObservedActorActivityKind, Phase3AEmbodiedStatus,
+        SemanticActionEntry, TypedActorKnownIntervalSummary, ViewMode, VisibleActor, VisibleDoor,
+        VisibleExit, VisibleItem, VisibleItemSource, WhyNotFailureKind, WhyNotView,
     };
 
     fn context() -> KnowledgeContext {
@@ -396,6 +399,37 @@ mod tests {
         assert!(rendered.contains("open.door.door_market_store"));
         assert!(rendered.contains("Market stall"));
         assert!(!rendered.contains("Debug: available=true"));
+    }
+
+    #[test]
+    fn renderer_prints_actor_known_activity_from_visible_actor() {
+        let mut view = minimal_view_with_interval(None);
+        view.local_actors = vec![VisibleActor {
+            actor_id: ActorId::new("actor_tomas").unwrap(),
+            display_label: "Tomas".to_string(),
+            presence_source_summary: "event:event_visible_actor_tomas".to_string(),
+            presence_observed_tick: SimTick::new(4),
+            presence_staleness_label: "current".to_string(),
+            presence_uncertainty_label: None,
+            observed_activity: Some(ObservedActivityView {
+                kind: ObservedActorActivityKind::Working,
+                actor_safe_summary: "working at bench".to_string(),
+                source: ActorKnownActivitySourceKind::DirectPerception,
+                source_summary: "event:event_visible_actor_tomas".to_string(),
+                observed_tick: SimTick::new(4),
+                staleness_label: "current".to_string(),
+                uncertainty_label: None,
+            }),
+        }];
+
+        let rendered = render_embodied_view(&view);
+
+        assert!(rendered.contains("- Tomas (actor_tomas)"));
+        assert!(rendered.contains("activity=working"));
+        assert!(rendered.contains("activity_source=direct perception"));
+        assert!(rendered.contains("presence_source=direct perception"));
+        assert!(!rendered.contains("workplace_tomas"));
+        assert!(!rendered.contains("event_visible_actor_tomas"));
     }
 
     #[test]

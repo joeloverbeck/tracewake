@@ -1,4 +1,7 @@
-use tracewake_core::view_models::{VisibleItemSource, WhyNotView};
+use tracewake_core::view_models::{
+    ActorKnownActivitySourceKind, ObservedActivityView, ObservedActorActivityKind, VisibleActor,
+    VisibleItemSource, WhyNotView,
+};
 
 use crate::screen::model::{EmbodiedScreenModel, FocusedPane};
 
@@ -94,13 +97,7 @@ pub(crate) fn embodied_screen_pane_dumps(screen: &EmbodiedScreenModel) -> Vec<Pa
         },
         PaneDump {
             name: "actors",
-            lines: list_or_none(
-                screen
-                    .actors
-                    .local_actors
-                    .iter()
-                    .map(|actor| format!("- {}", actor.actor_id.as_str())),
-            ),
+            lines: list_or_none(screen.actors.local_actors.iter().map(render_actor_line)),
         },
         PaneDump {
             name: "actions",
@@ -156,6 +153,74 @@ fn render_item(item: &tracewake_core::view_models::VisibleItem) -> String {
         item.portable,
         visible_item_source_label(&item.source)
     )
+}
+
+pub(crate) fn render_actor_line(actor: &VisibleActor) -> String {
+    if actor.observed_activity.is_none()
+        && actor.display_label == actor.actor_id.as_str()
+        && actor.presence_source_summary == "identity-only local actor"
+        && actor.presence_staleness_label == "current"
+        && actor.presence_uncertainty_label.is_none()
+    {
+        return format!("- {}", actor.actor_id.as_str());
+    }
+
+    let presence_uncertainty = actor
+        .presence_uncertainty_label
+        .as_deref()
+        .unwrap_or("none");
+    let activity = actor
+        .observed_activity
+        .as_ref()
+        .map(render_activity_disposition)
+        .unwrap_or_else(|| "activity=not apparent".to_string());
+    format!(
+        "- {} ({}) presence_source=direct perception presence_tick={} presence_staleness={} presence_uncertainty={} {}",
+        actor.display_label,
+        actor.actor_id.as_str(),
+        actor.presence_observed_tick.value(),
+        actor.presence_staleness_label,
+        presence_uncertainty,
+        activity
+    )
+}
+
+pub(crate) fn render_activity_disposition(activity: &ObservedActivityView) -> String {
+    let uncertainty = activity.uncertainty_label.as_deref().unwrap_or("none");
+    format!(
+        "activity={} activity_summary={} activity_source={} activity_tick={} activity_staleness={} activity_uncertainty={}",
+        activity_kind_label(activity.kind),
+        activity.actor_safe_summary,
+        activity_source_label(activity.source),
+        activity.observed_tick.value(),
+        activity.staleness_label,
+        uncertainty
+    )
+}
+
+pub(crate) fn activity_kind_label(kind: ObservedActorActivityKind) -> &'static str {
+    match kind {
+        ObservedActorActivityKind::Sleeping => "sleeping",
+        ObservedActorActivityKind::Eating => "eating",
+        ObservedActorActivityKind::Working => "working",
+        ObservedActorActivityKind::Moving => "moving",
+        ObservedActorActivityKind::Speaking => "speaking",
+        ObservedActorActivityKind::Waiting => "waiting",
+        ObservedActorActivityKind::ContinuingRoutine => "continuing routine",
+        ObservedActorActivityKind::ApparentIdle => "apparently idle",
+        ObservedActorActivityKind::ActivityNotApparent => "not apparent",
+    }
+}
+
+pub(crate) fn activity_source_label(source: ActorKnownActivitySourceKind) -> &'static str {
+    match source {
+        ActorKnownActivitySourceKind::DirectPerception => "direct perception",
+        ActorKnownActivitySourceKind::IndirectPerception => "indirect perception",
+        ActorKnownActivitySourceKind::Memory => "memory",
+        ActorKnownActivitySourceKind::Testimony => "testimony",
+        ActorKnownActivitySourceKind::Record => "record",
+        ActorKnownActivitySourceKind::Inference => "inference",
+    }
 }
 
 fn visible_item_source_label(source: &VisibleItemSource) -> String {
@@ -370,6 +435,86 @@ mod tests {
             render_embodied_screen_dump(&screen),
             render_embodied_screen_dump(&screen)
         );
+    }
+
+    #[test]
+    fn render_actor_line_preserves_identity_only_dump() {
+        let actor = VisibleActor::identity_only(ActorId::new("actor_tomas").unwrap());
+
+        assert_eq!(render_actor_line(&actor), "- actor_tomas");
+    }
+
+    #[test]
+    fn render_actor_line_disposes_observed_activity_and_presence() {
+        let actor = VisibleActor {
+            actor_id: ActorId::new("actor_tomas").unwrap(),
+            display_label: "Tomas".to_string(),
+            presence_source_summary: "event:event_visible_actor_tomas".to_string(),
+            presence_observed_tick: SimTick::new(7),
+            presence_staleness_label: "current".to_string(),
+            presence_uncertainty_label: None,
+            observed_activity: Some(ObservedActivityView {
+                kind: ObservedActorActivityKind::Working,
+                actor_safe_summary: "working at bench".to_string(),
+                source: ActorKnownActivitySourceKind::DirectPerception,
+                source_summary: "event:event_visible_actor_tomas".to_string(),
+                observed_tick: SimTick::new(7),
+                staleness_label: "stale".to_string(),
+                uncertainty_label: Some("stale observation".to_string()),
+            }),
+        };
+
+        let line = render_actor_line(&actor);
+
+        assert!(line.contains("- Tomas (actor_tomas)"));
+        assert!(line.contains("presence_source=direct perception"));
+        assert!(line.contains("presence_tick=7"));
+        assert!(line.contains("activity=working"));
+        assert!(line.contains("activity_summary=working at bench"));
+        assert!(line.contains("activity_source=direct perception"));
+        assert!(line.contains("activity_staleness=stale"));
+        assert!(line.contains("activity_uncertainty=stale observation"));
+        assert!(!line.contains("event_visible_actor_tomas"));
+    }
+
+    #[test]
+    fn render_activity_disposition_covers_closed_activity_and_source_variants() {
+        for (kind, expected) in [
+            (ObservedActorActivityKind::Sleeping, "sleeping"),
+            (ObservedActorActivityKind::Eating, "eating"),
+            (ObservedActorActivityKind::Working, "working"),
+            (ObservedActorActivityKind::Moving, "moving"),
+            (ObservedActorActivityKind::Speaking, "speaking"),
+            (ObservedActorActivityKind::Waiting, "waiting"),
+            (
+                ObservedActorActivityKind::ContinuingRoutine,
+                "continuing routine",
+            ),
+            (ObservedActorActivityKind::ApparentIdle, "apparently idle"),
+            (
+                ObservedActorActivityKind::ActivityNotApparent,
+                "not apparent",
+            ),
+        ] {
+            assert_eq!(activity_kind_label(kind), expected);
+        }
+
+        for (source, expected) in [
+            (
+                ActorKnownActivitySourceKind::DirectPerception,
+                "direct perception",
+            ),
+            (
+                ActorKnownActivitySourceKind::IndirectPerception,
+                "indirect perception",
+            ),
+            (ActorKnownActivitySourceKind::Memory, "memory"),
+            (ActorKnownActivitySourceKind::Testimony, "testimony"),
+            (ActorKnownActivitySourceKind::Record, "record"),
+            (ActorKnownActivitySourceKind::Inference, "inference"),
+        ] {
+            assert_eq!(activity_source_label(source), expected);
+        }
     }
 
     fn fixture_screen() -> EmbodiedScreenModel {
