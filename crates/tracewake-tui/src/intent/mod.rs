@@ -1,5 +1,6 @@
 pub mod key_script;
 pub mod reducer;
+pub mod semantic_script;
 pub mod state;
 
 pub use state::PresentationState;
