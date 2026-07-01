@@ -47,11 +47,15 @@ Introduce, in `tracewake-tui` only, a pure screen-model and headless render/dump
 the existing `EmbodiedViewModel` and any future terminal drawing:
 
 1. **`EmbodiedScreenModel`** — a presentation-only structure built purely from an
-   `&EmbodiedViewModel`, grouping its existing fields (`place_label`, `visible_exits`,
+   `&EmbodiedViewModel`, grouping its existing fields (`place_label`, `place_id`, `visible_exits`,
    `visible_doors`, `visible_containers`, `visible_items`, `carried_items`, `local_actors`,
-   `semantic_actions`, `phase3a_status`, `last_rejection_why_not`, `notebook`,
-   `actor_known_interval_summary`, `debug_available`) into named panes. It holds no simulation
-   authority and no physical-state handle.
+   `semantic_actions`, `phase3a_status`, `last_rejection_summary`, `last_rejection_why_not`,
+   `notebook`, `actor_known_interval_summary`, `debug_available`) into named panes. This list is
+   the current public field set; the closed-disposition guard (§4.4) additionally covers the
+   crate-private fields `render_embodied_view` already consumes through sealed accessors
+   (`viewer_actor_id`, `sim_tick`, `holder_known_context_id`/`_hash`/`_frontier`/`_source_summary`),
+   which must each be rendered or explicitly suppressed. It holds no simulation authority and no
+   physical-state handle.
 2. **`build_embodied_screen_model(view: &EmbodiedViewModel, opts: RenderOptions) -> EmbodiedScreenModel`**
    — deterministic, side-effect-free. `RenderOptions` carries only presentation inputs
    (terminal size, focused pane, theme flags), never a truth handle.
@@ -60,12 +64,19 @@ the existing `EmbodiedViewModel` and any future terminal drawing:
 4. **Structured screen dump** — a `ScreenDump` value (mode, terminal size, focused pane, per-pane
    dumps, action refs, `debug_marker_present`, view-model id, holder-known context hash) that
    tests and tools parse. Embodied dumps carry only actor-known metadata already on the view
-   model; no debug-only world truth.
+   model; no debug-only world truth. The holder-known *frontier* and *source summary* accessors
+   (`holder_known_context_frontier`, `holder_known_context_source_summary`) are deliberately
+   excluded from `ScreenDump` to bound snapshot churn (§9.1 #6); only the stable context hash is
+   carried.
 5. **Preserve the existing pure seam.** `render_embodied_view(&EmbodiedViewModel) -> String`
-   (`crates/tracewake-tui/src/render.rs`) remains a public pure function. It becomes either a
-   thin wrapper over the canonical dump or a preserved parallel render; it must not be swallowed
-   by an event loop. `TuiApp::render_current_view` (`crates/tracewake-tui/src/app.rs`) continues
-   to route through the pure path.
+   (`crates/tracewake-tui/src/render.rs`) remains a public pure function **and remains the
+   fat, field-naming site**: it keeps its `#[deny(unused_variables)]` annotation and its sealed
+   accessor usage, so the existing `render_embodied_view_uses_sealed_view_model_accessors`
+   conformance guard (`crates/tracewake-tui/tests/tui_seam_conformance.rs`) continues to hold
+   unchanged. `build_embodied_screen_model` and the dump renderers are added *alongside* it (a
+   preserved parallel render), not as a wrapper that would strip the field-naming guard; the seam
+   must not be swallowed by an event loop. `TuiApp::render_current_view`
+   (`crates/tracewake-tui/src/app.rs`) continues to route through the pure path.
 6. **Debug-token hygiene preserved.** The existing guarantee that `DEBUG NON-DIEGETIC` markers do
    not appear in embodied output extends to every new embodied dump.
 
@@ -109,10 +120,18 @@ the existing `EmbodiedViewModel` and any future terminal drawing:
   truth read.
 - **4.3 Two dumps, one source (seam: dump renderers).** Plain-text and structured `ScreenDump` are
   two projections of the same `EmbodiedScreenModel`; they must not diverge in what they claim.
-- **4.4 Every current `EmbodiedViewModel` field has a pane disposition (seam:
-  `tui_seam_conformance`).** The conformance test must prove each existing field is assigned to a
-  named pane (rendered or explicitly suppressed), so later field additions cannot be laundered
-  through a wildcard/default arm.
+- **4.4 Every current `EmbodiedViewModel` field has a pane disposition (seam: existing
+  `crates/tracewake-tui/tests/tui_seam_conformance.rs`).** A new, distinctly-named test —
+  `embodied_screen_model_field_disposition` — is *added to* that existing file and registered in
+  its `TUI_SEAM_EVIDENCE` table under a new requirement id, alongside the current guards
+  `render_embodied_view_uses_sealed_view_model_accessors` (already proves `render_embodied_view`
+  names every field with no rest/wildcard omission) and
+  `closed_presentation_enum_matches_are_exhaustive_without_wildcards` (already forbids wildcard
+  laundering of closed presentation enums). The new test must prove each existing
+  `EmbodiedViewModel` field — public and crate-private — is assigned to a named
+  `EmbodiedScreenModel` pane (rendered or explicitly suppressed), so later field additions cannot
+  be laundered through a wildcard/default arm. It does not introduce a colliding second
+  `tui_seam_conformance` seam.
 - **4.5 Implementation decomposition (one ticket per reviewable diff).** Screen-model types +
   builder; plain-text dump; structured `ScreenDump`; `render_embodied_view` reframed as wrapper;
   conformance/disposition guard. Each is a separately reviewable ticket.
@@ -127,8 +146,11 @@ the existing `EmbodiedViewModel` and any future terminal drawing:
 
 - Fixed-size plain-text dump goldens at `80x24`, `100x30`, and a narrow `60x20`.
 - Structured `ScreenDump` snapshot for at least one embodied fixture (e.g. `ordinary_workday_001`).
-- `tui_seam_conformance`: every `EmbodiedViewModel` field maps to a pane disposition; source/compile
-  guard against wildcard/default laundering.
+- `embodied_screen_model_field_disposition` (new test added to the existing
+  `crates/tracewake-tui/tests/tui_seam_conformance.rs` and registered in `TUI_SEAM_EVIDENCE`):
+  every `EmbodiedViewModel` field maps to a pane disposition; source/compile guard against
+  wildcard/default laundering. It complements — does not replace — the existing
+  `render_embodied_view_uses_sealed_view_model_accessors` guard.
 - Negative: no `DEBUG NON-DIEGETIC` token in any embodied dump.
 - Determinism: repeated `build_embodied_screen_model` + dump on the same view model is byte-identical.
 
