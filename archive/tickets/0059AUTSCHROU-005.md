@@ -1,6 +1,6 @@
 # 0059AUTSCHROU-005: Focused mutation run + triage
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Medium
 **Engine Changes**: None
@@ -76,3 +76,26 @@ Any run-discovered real mutant needing a new behavioral witness (rather than an 
 1. `cargo mutants --package tracewake-core --file crates/tracewake-core/src/agent/transaction.rs --re 'active_intention_for_actor|goal_for_routine_family|ActorDecisionTransaction|routine_window_family' --output target/mutants/0059-transaction -- -p tracewake-core --test scheduler_routine_derivation_authority` — focused run over the transaction seam (per-file denominator preserved).
 2. `cargo mutants --package tracewake-core --file crates/tracewake-core/src/agent/generation.rs --re 'routine_window_goal|RoutineDuty|generate_candidate_goals' --output target/mutants/0059-generation -- -p tracewake-core --test scheduler_routine_derivation_authority` — focused run over the generation seam.
 3. A focused per-file run is the correct verification boundary here (not the full standing campaign): 0059 §8 mandates focused mutation over the touched seams only, with the file-targeted denominator and survivor ledger preserved.
+
+## Outcome
+
+Completed: 2026-07-01
+
+Focused mutation was run and triaged with `cargo-mutants 27.1.0` from the Tracewake workspace. The checked-in `.cargo/mutants.toml` standing `examine_globs` broadened the ticket's suggested scheduler command, so the focused denominator was rerun with `--no-config` and explicit `--cargo-arg --locked` to preserve the file-targeted perimeter. Output artifacts are under gitignored `target/mutants/0059-*-focused`.
+
+Commands run:
+
+- `cargo mutants --package tracewake-core --file crates/tracewake-core/src/scheduler.rs --re 'due_loaded_actor_ids|transact_world_one_tick|routine.*family|eligible.*routine|ActorDecisionTransactionInput' --output target/mutants/0059-scheduler -- -p tracewake-core --test scheduler_routine_derivation_authority` -> broadened by config; 78 tested, 68 missed, 1 caught, 9 unviable.
+- `cargo mutants --no-config --package tracewake-core --file crates/tracewake-core/src/scheduler.rs --re 'due_loaded_actor_ids|transact_world_one_tick|routine.*family|eligible.*routine|ActorDecisionTransactionInput' --cargo-arg --locked --output target/mutants/0059-scheduler-focused -- -p tracewake-core --test scheduler_routine_derivation_authority` -> 49 tested, 44 missed, 0 caught, 5 unviable.
+- `cargo mutants --no-config --package tracewake-core --file crates/tracewake-core/src/agent/transaction.rs --re 'active_intention_for_actor|goal_for_routine_family|ActorDecisionTransaction::run|routine_window_family' --cargo-arg --locked --output target/mutants/0059-transaction-focused -- -p tracewake-core --test scheduler_routine_derivation_authority` -> 12 tested, 1 missed, 8 caught, 3 unviable.
+- `cargo mutants --no-config --package tracewake-core --file crates/tracewake-core/src/agent/generation.rs --re 'routine_window_goal|RoutineDuty|generate_candidate_goals|ContinueCurrentIntention' --cargo-arg --locked --output target/mutants/0059-generation-focused -- -p tracewake-core --test scheduler_routine_derivation_authority` -> 16 tested, 8 missed, 6 caught, 2 unviable.
+
+Focused result: non-pass. Across the focused no-config runs, 77 mutants were tested: 53 missed, 14 caught, 10 unviable, 0 timeout/error. The survivor list is exact in:
+
+- `target/mutants/0059-scheduler-focused/mutants.out/missed.txt`
+- `target/mutants/0059-transaction-focused/mutants.out/missed.txt`
+- `target/mutants/0059-generation-focused/mutants.out/missed.txt`
+
+High-risk 0059 survivors requiring new witness work include scheduler `no_human::routine_window_family` mutants around active actor/status authority, selected routine method matching, unresolved/terminal execution handling, start/deadline validation, family fallback, and actor/template ownership checks; transaction survivor `crates/tracewake-core/src/agent/transaction.rs:145:57` changing the idle-fallback filter; and generation survivors at `routine_window_goal_matches_active_intention` that change or disable the `PerformWorkBlock -> GoToWork` compatibility rule. These are not disposed as equivalent or unviable by this evidence-only ticket.
+
+Follow-up routing: created `tickets/0059AUTSCHROU-007.md` to add the required survivor-killing witnesses and rerun focused mutation before the final 0059 acceptance artifact can claim pass. Until 007 closes, the focused mutation report for 0059 must remain non-pass.
