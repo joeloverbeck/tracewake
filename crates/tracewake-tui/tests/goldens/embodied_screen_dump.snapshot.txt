@@ -1,0 +1,49 @@
+mode=Embodied
+terminal_size=80x24
+focused_pane=Place
+view_model_id=view.actor_tomas.0
+holder_known_context_hash=hkc1-87c5d6db0cd32294
+debug_marker_present=false
+action_refs=continue.routine.intention_tomas_go_work,move.to.workshop_tomas,sleep.here,wait.1_tick
+pane=place
+  Tomas home (home_tomas)
+pane=exits
+  - workshop_tomas
+pane=doors
+  - none
+pane=containers
+  - none
+pane=items
+  - none
+pane=inventory
+  - none
+pane=actors
+  - none
+pane=actions
+  1. Continue routine [continue.routine.intention_tomas_go_work]
+  2. Move to workshop_tomas [move.to.workshop_tomas]
+  3. Sleep here [sleep.here]
+  4. Wait [wait.1_tick]
+pane=status
+  Needs:
+  - fatigue band=comfortable cause=fixture_initial
+  - hunger band=comfortable cause=fixture_initial
+  - safety band=comfortable cause=fixture_initial
+  Intention: active:routine_tomas_go_to_work:move
+  Routine: routine:routine_tomas_go_to_work
+pane=why_not
+  - none
+pane=notebook
+  viewer=actor_tomas
+  Beliefs:
+  - none
+  Observations:
+  - obs.perception.event.perception.actor_tomas.0.current_place.home_tomas channel=direct_sight confidence=1000 tick=0 :: direct_sight observation
+  - obs.perception.event.perception.actor_tomas.0.visible_exit.workshop_tomas channel=direct_sight confidence=1000 tick=0 :: direct_sight observation
+  - obs.perception.event.perception.actor_tomas.0.visible_sleep_affordance.bed_tomas channel=direct_sight confidence=1000 tick=0 :: direct_sight observation
+  Contradictions:
+  - none
+  Leads:
+  - none
+pane=actor_known_interval
+  - none
