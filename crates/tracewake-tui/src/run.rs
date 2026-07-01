@@ -104,7 +104,7 @@ fn render_submit_error<W: Write>(writer: &mut W, error: &AppError) -> std::io::R
     writeln!(writer, "Error: {}", describe_app_error(error))
 }
 
-fn semantic_id_for_wait_alias(view: &EmbodiedViewModel) -> Option<SemanticActionId> {
+pub(crate) fn semantic_id_for_wait_alias(view: &EmbodiedViewModel) -> Option<SemanticActionId> {
     let mut matching_wait_actions = view
         .semantic_actions
         .iter()
@@ -116,7 +116,7 @@ fn semantic_id_for_wait_alias(view: &EmbodiedViewModel) -> Option<SemanticAction
     Some(semantic_action_id)
 }
 
-fn render_debug<W: Write>(
+pub(crate) fn render_debug<W: Write>(
     app: &mut TuiApp,
     debug_command: DebugCommand,
     writer: &mut W,

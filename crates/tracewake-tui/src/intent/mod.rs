@@ -1,3 +1,4 @@
+pub mod reducer;
 pub mod state;
 
 pub use state::PresentationState;

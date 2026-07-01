@@ -1523,6 +1523,7 @@ const WORKSPACE_SOURCE_CLASSIFICATIONS: &[WorkspaceSourceClassification] = &[
     WorkspaceSourceClassification { path: "crates/tracewake-tui/src/debug_panels.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-tui/src/input.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-tui/src/intent/mod.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-tui/src/intent/reducer.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-tui/src/intent/state.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-tui/src/launch.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-tui/src/lib.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
