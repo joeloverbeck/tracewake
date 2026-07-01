@@ -455,6 +455,24 @@ mod tests {
     }
 
     #[test]
+    fn goal_from_routine_tokens_discriminates_work_branches() {
+        // Isolates the `go_to_work` clause: the token lacks the substring
+        // `go_work`, so replacing `||` with `&&` on the GoToWork branch would
+        // fall through to the `_work` branch and yield PerformWorkBlock.
+        assert_eq!(
+            goal_from_routine_tokens("go_to_work", ""),
+            Some(GoalKind::GoToWork)
+        );
+        // Isolates the `work_block` clause: the token contains neither
+        // `routine_work` nor `_work`, so replacing `||` with `&&` between
+        // `work_block` and `routine_work` collapses the branch to None.
+        assert_eq!(
+            goal_from_routine_tokens("work_block", ""),
+            Some(GoalKind::PerformWorkBlock)
+        );
+    }
+
+    #[test]
     fn severe_fatigue_generates_severe_sleep_candidate() {
         let output = generate_candidate_goals(&CandidateGenerationInput {
             actor_id: actor_id(),
