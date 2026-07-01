@@ -137,6 +137,8 @@ Clock/window eligibility may decide that an actor is due for a transaction or th
 
 ### F-0059-01 — Autonomous routine family must be active-intention-bound
 
+**Invariants:** INV-035, INV-103, INV-112
+
 Any autonomous routine-family helper must either be removed or made a thin wrapper around active-intention derivation. A compliant helper has the following semantics:
 
 1. find the single active intention for `actor_id` via `agent_state.active_intention_by_actor`;
@@ -149,6 +151,8 @@ Any autonomous routine-family helper must either be removed or made a thin wrapp
 If the implementation baseline contains a helper named `routine_window_family`, `eligible_routine_execution_for_actor`, or a renamed equivalent, it must satisfy the above contract. A helper that chooses `min_by(start_tick, execution_id)`, prefers a nonterminal scheduled execution, or otherwise selects a family without matching the active-intention chain is a violation to fix under this spec.
 
 ### F-0059-02 — Transaction must fail closed or ignore conflict; it must not override
+
+**Invariants:** INV-103, INV-104, INV-105
 
 The transaction seam may keep `ActorDecisionTransactionInput::routine_window_family` only if the value is treated as a consistency check or non-authoritative hint. Required behavior:
 
@@ -163,9 +167,13 @@ No implementation may silently let a caller-supplied routine-window family outra
 
 ### F-0059-03 — Actor-known context validates and parameterizes after authority is bound
 
+**Invariants:** INV-100, INV-103, INV-104
+
 The active intention chooses the routine family. Actor-known context may then answer actor-known questions such as known workplace, known food source, known sleep affordance, route knowledge, possession-relevant input facts, and blocker explanations. It may not select work merely because the actor is at a workplace, select eat because food is visible, or select sleep because a bed is known when the active intention is a different routine family.
 
 ### F-0059-04 — Replay evidence must show source ancestry
+
+**Invariants:** INV-018, INV-098, INV-105
 
 Every fail-closed outcome and every accepted continuation must be replayable from the event log and actor-known context. Required evidence includes:
 
@@ -179,6 +187,8 @@ Every fail-closed outcome and every accepted continuation must be replayable fro
 - source event ids and source event kinds used by the transaction.
 
 ### F-0059-05 — No shortcut through shared resolver
+
+**Invariants:** INV-103, INV-104, INV-112
 
 The shared follow-on resolver in `crates/tracewake-core/src/agent/routine_continuation.rs` remains downstream. 0059 must not bypass it, fork it, or create a scheduler-owned primitive-action path. The resolver receives an already-authorized routine method/step/family context; it must not be asked to launder a scheduler-chosen family into actor cognition.
 
