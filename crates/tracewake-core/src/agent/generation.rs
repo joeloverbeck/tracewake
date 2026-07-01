@@ -135,7 +135,12 @@ pub fn generate_candidate_goals(input: &CandidateGenerationInput) -> CandidateGe
         }
     }
 
-    if let Some(goal_kind) = input.routine_window_goal {
+    if let Some(goal_kind) = input.routine_window_goal.filter(|goal_kind| {
+        input
+            .active_intention
+            .as_ref()
+            .is_some_and(|active| routine_window_goal_matches_active_intention(active, *goal_kind))
+    }) {
         candidates.push(candidate(
             input,
             goal_kind.stable_id(),
@@ -166,6 +171,47 @@ pub fn generate_candidate_goals(input: &CandidateGenerationInput) -> CandidateGe
         candidates,
         active_needs,
         actor_known_inputs_used: actor_known_input_refs(&input.actor_known_facts),
+    }
+}
+
+pub(crate) fn goal_for_active_intention(active: &Intention) -> Option<GoalKind> {
+    let method = active.selected_routine_method.as_ref()?.as_str();
+    let step = active.current_step.as_deref().unwrap_or_default();
+    goal_from_routine_tokens(method, step)
+}
+
+pub(crate) fn routine_window_goal_matches_active_intention(
+    active: &Intention,
+    hint_goal: GoalKind,
+) -> bool {
+    match goal_for_active_intention(active) {
+        Some(active_goal) if active_goal == hint_goal => true,
+        Some(GoalKind::PerformWorkBlock) if hint_goal == GoalKind::GoToWork => true,
+        _ => false,
+    }
+}
+
+fn goal_from_routine_tokens(method: &str, step: &str) -> Option<GoalKind> {
+    let token = format!("{method}:{step}");
+    if token.contains("leave_unsafe_place") {
+        Some(GoalKind::LeaveUnsafePlace)
+    } else if token.contains("find_food") {
+        Some(GoalKind::FindFood)
+    } else if token.contains("go_to_work") || token.contains("go_work") {
+        Some(GoalKind::GoToWork)
+    } else if token.contains("work_block")
+        || token.contains("routine_work")
+        || token.contains("_work")
+    {
+        Some(GoalKind::PerformWorkBlock)
+    } else if token.contains("return_home") {
+        Some(GoalKind::ReturnHome)
+    } else if token.contains("eat") {
+        Some(GoalKind::Eat)
+    } else if token.contains("sleep") {
+        Some(GoalKind::SleepOrRest)
+    } else {
+        None
     }
 }
 
@@ -364,6 +410,48 @@ mod tests {
             generate_candidate_goals(&input),
             generate_candidate_goals(&input)
         );
+    }
+
+    #[test]
+    fn routine_window_goal_requires_consistent_active_intention() {
+        let without_active = generate_candidate_goals(&CandidateGenerationInput {
+            actor_id: actor_id(),
+            decision_tick: SimTick::new(12),
+            needs: Vec::new(),
+            active_intention: None,
+            actor_known_facts: Vec::new(),
+            routine_window_goal: Some(GoalKind::GoToWork),
+        });
+        assert!(!without_active
+            .candidates
+            .iter()
+            .any(|candidate| candidate.source == CandidateGoalSource::RoutineDuty));
+
+        let conflicting_active = generate_candidate_goals(&CandidateGenerationInput {
+            actor_id: actor_id(),
+            decision_tick: SimTick::new(12),
+            needs: Vec::new(),
+            active_intention: Some(active_intention()),
+            actor_known_facts: Vec::new(),
+            routine_window_goal: Some(GoalKind::Eat),
+        });
+        assert!(!conflicting_active
+            .candidates
+            .iter()
+            .any(|candidate| candidate.source == CandidateGoalSource::RoutineDuty));
+
+        let consistent_active = generate_candidate_goals(&CandidateGenerationInput {
+            actor_id: actor_id(),
+            decision_tick: SimTick::new(12),
+            needs: Vec::new(),
+            active_intention: Some(active_intention()),
+            actor_known_facts: Vec::new(),
+            routine_window_goal: Some(GoalKind::PerformWorkBlock),
+        });
+        assert!(consistent_active.candidates.iter().any(|candidate| {
+            candidate.source == CandidateGoalSource::RoutineDuty
+                && candidate.goal_kind == GoalKind::PerformWorkBlock
+        }));
     }
 
     #[test]

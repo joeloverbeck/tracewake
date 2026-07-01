@@ -1,6 +1,6 @@
 # 0059AUTSCHROU-002: Transaction fail-closed / non-override for routine_window_family
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Medium
 **Engine Changes**: Yes — hardens `ActorDecisionTransaction::run` and routine-window candidate generation in `crates/tracewake-core/src/agent/transaction.rs` and `crates/tracewake-core/src/agent/generation.rs`; reuses the existing `StuckDiagnosticRecorded` diagnostic surface (no new event kind)
@@ -80,3 +80,28 @@ Ensure `resolve_routine_step_follow_on` (`crates/tracewake-core/src/agent/routin
 
 1. `cargo test -p tracewake-core agent::transaction:: agent::generation::` — narrowest boundary for the transaction/generation fail-closed contract (note: multiple positional filters are accepted directly by `cargo test`).
 2. `cargo test --workspace` — full-pipeline confirmation that gating the candidate did not regress ordinary no-human need/idle routing.
+
+## Outcome
+
+Completed: 2026-07-01
+
+`ActorDecisionTransaction::run` now treats `routine_window_family` as a non-authoritative hint. The transaction converts the hint to a routine-window goal only when the actor has a live active intention whose selected routine method/current step is compatible with the hinted goal. Incompatible, absent, terminal, or malformed active-intention chains suppress the routine-window goal and annotate the decision trace with deterministic diagnostic reasons such as `routine_window_family_ignored_without_active_intention` and `routine_window_family_ignored_conflicts_with_active_intention`.
+
+`generate_candidate_goals` now independently gates `RoutineDuty` candidates on active-intention consistency, so a direct caller cannot create a routine-window duty candidate in the absence of active authority. The compatibility rule allows exact active-intention matches plus the existing active work-block to go-to-work refinement, preserving actor-known movement toward work without allowing unrelated scheduler/window overrides.
+
+Downstream no-human fixture and TUI expectations were updated to the hardened behavior: the `no_human_day_001` run no longer emits `WorkBlockCompleted`/`WorkBlockFailed` solely from a later work-window hint, while the routine execution panel still records `routine_exec_tomas_work` as completed. The planner-trace fixture now asserts that a no-active routine-window hint does not add a `RoutineDuty` candidate.
+
+Verification run:
+- `cargo test -p tracewake-core agent::transaction::`
+- `cargo test -p tracewake-core agent::generation::`
+- `cargo test -p tracewake-content --test golden_fixtures_run planner_trace_fixture_exposes_selection_rejections_and_hidden_truth_audit`
+- `cargo test -p tracewake-content --test golden_fixtures_run no_human_day_fixture_has_roster_activity_and_metrics_envelope`
+- `cargo test -p tracewake-tui --test tui_acceptance tui_runs_no_human_day_and_inspects_real_post_run_panels`
+- `cargo test -p tracewake-tui --test command_loop_session no_human_day_command_loop_renders_phase3a_behavior_rows`
+- `cargo test -p tracewake-core scheduler::no_human::tests::no_human_proposal_comes_from_transaction_candidate_for_routine_family`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
+
+Note: the ticket's combined `cargo test -p tracewake-core agent::transaction:: agent::generation::` command is not accepted by this Cargo invocation; the two filters were run separately.

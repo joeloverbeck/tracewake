@@ -7030,7 +7030,7 @@ pub mod no_human {
                 crate::agent::RoutineExecution::new(
                     RoutineExecutionId::new("routine_exec_midday").unwrap(),
                     actor_id.clone(),
-                    RoutineTemplateId::new("routine_midday").unwrap(),
+                    RoutineTemplateId::new("routine_eat_meal").unwrap(),
                     RoutineFamily::EatMeal,
                     SimTick::ZERO,
                     Some(SimTick::new(1)),
@@ -7043,7 +7043,7 @@ pub mod no_human {
                 &mut agent_state,
                 &actor_id,
                 "intention_midday_eat_authority",
-                "routine_midday",
+                "routine_eat_meal",
             );
             let mut log = EventLog::new();
             let window = DayWindow {
