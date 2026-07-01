@@ -3,6 +3,7 @@ use tracewake_core::ids::{ActorId, ItemId, SemanticActionId};
 
 use crate::app::{AppError, TuiApp};
 use crate::render::render_rejection;
+use crate::screen::{FocusedPane, TerminalSize};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TranscriptSection {
@@ -93,6 +94,51 @@ pub fn render_transcript_sections(sections: &[TranscriptSection]) -> String {
         .map(|section| format!("== {} ==\n{}", section.name, section.body))
         .collect::<Vec<_>>()
         .join("\n\n")
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ScriptedInputSource {
+    Key,
+    Semantic,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ScriptedTranscriptStep {
+    pub step_index: usize,
+    pub input_source: ScriptedInputSource,
+    pub input: String,
+    pub intent: String,
+    pub semantic_action_id: Option<String>,
+    pub mode: String,
+    pub bound_actor_id: String,
+    pub terminal_size: TerminalSize,
+    pub focused_pane: FocusedPane,
+    pub debug_marker_present: bool,
+    pub debug_output: Option<String>,
+    pub rendered_pane_text: String,
+}
+
+pub fn render_scripted_transcript_step(step: &ScriptedTranscriptStep) -> TranscriptSection {
+    let semantic_action_id = step.semantic_action_id.as_deref().unwrap_or("none");
+    let debug_output = step.debug_output.as_deref().unwrap_or("none");
+    section(
+        &format!("script.step.{}", step.step_index),
+        format!(
+            "input_source: {:?}\ninput: {}\nintent: {}\nsemantic_action_id: {}\nmode: {}\nbound_actor_id: {}\nterminal_size: {}x{}\nfocused_pane: {:?}\ndebug_marker_present: {}\ndebug_output:\n{}\nrendered_pane_text:\n{}",
+            step.input_source,
+            step.input,
+            step.intent,
+            semantic_action_id,
+            step.mode,
+            step.bound_actor_id,
+            step.terminal_size.columns,
+            step.terminal_size.rows,
+            step.focused_pane,
+            step.debug_marker_present,
+            debug_output,
+            step.rendered_pane_text
+        ),
+    )
 }
 
 fn section(name: &str, body: String) -> TranscriptSection {
