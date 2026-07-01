@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 
 function usage() {
   console.log(`Usage:
@@ -135,11 +136,29 @@ function testPath(label, argsForTest) {
   return run(label, "test", argsForTest, [0]);
 }
 
+function existingPaths(paths) {
+  return Array.from(new Set(paths.filter(Boolean))).filter((path) => existsSync(path));
+}
+
+function printReviewMatches(label, text, pattern) {
+  console.log(`\n## ${label}`);
+  let count = 0;
+  for (const line of text.split(/\r?\n/)) {
+    if (pattern.test(line)) {
+      console.log(line);
+      count += 1;
+    }
+  }
+  console.log(`status: ${count > 0 ? 0 : 1} (expected)`);
+}
+
 function printReadinessChecklist() {
   console.log(`
 ## Final readiness checklist
 - Latest archive/truthing commit identified: <commit sha>
-- Final gates were rerun after that archive/truthing commit:
+- Final gates covered the archive/truthing tree. Either they ran after the
+  commit, or the commit only recorded already-gated content and post-commit
+  status confirmed no content changed:
   - cargo fmt --all --check
   - cargo clippy --workspace --all-targets -- -D warnings
   - cargo build --workspace --all-targets --locked
@@ -249,6 +268,69 @@ if (archivePatterns.length > 0) {
     ["-n", archivePatterns.join("|"), "docs", "reports", "archive"],
     [0, 1],
   ) && ok;
+}
+
+const currentStatePaths = existingPaths([
+  options.activeSpec,
+  options.archivedSpec,
+  options.activeReport,
+  options.archivedReport,
+  ...options.activeTicket,
+  ...archivedTicketPaths,
+]);
+
+if (currentStatePaths.length > 0) {
+  run(
+    "Current-state wording sweep (manual review)",
+    "rg",
+    [
+      "-n",
+      "pending|remaining|TODO|deferred|out of scope|not run|live path|archive bookkeeping",
+      ...currentStatePaths,
+    ],
+    [0, 1],
+  );
+  run(
+    "Commit-role wording sweep (manual review)",
+    "rg",
+    [
+      "-n",
+      "implementation baseline|evidence/report|archive/truthing|exact .*commit|exact commit",
+      ...currentStatePaths,
+    ],
+    [0, 1],
+  );
+}
+
+if (existsSync("docs/4-specs/SPEC_LEDGER.md")) {
+  const ledgerPatterns = [
+    options.ticketPrefix,
+    options.activeSpec,
+    options.archivedSpec,
+    options.activeReport,
+    options.archivedReport,
+  ].filter(Boolean).map(regexEscape);
+
+  if (ledgerPatterns.length > 0) {
+    const ledgerRows = capture(
+      "SPEC_LEDGER matched rows (for wording review)",
+      "rg",
+      ["-n", ledgerPatterns.join("|"), "docs/4-specs/SPEC_LEDGER.md"],
+      [0, 1],
+    );
+    if (ledgerRows.stdout) {
+      printReviewMatches(
+        "SPEC_LEDGER current-state wording sweep (manual review)",
+        ledgerRows.stdout,
+        /pending|remaining|TODO|deferred|out of scope|not run|live path|archive bookkeeping/i,
+      );
+      printReviewMatches(
+        "SPEC_LEDGER commit-role wording sweep (manual review)",
+        ledgerRows.stdout,
+        /implementation baseline|evidence\/report|archive\/truthing|exact .*commit|exact commit/i,
+      );
+    }
+  }
 }
 
 if (options.checklist) {

@@ -61,9 +61,12 @@ If any tracked content changes after a gate run, rerun the affected required
 gate set after the final edit or record the exact skipped/deviated command and
 reason in the spec outcome and final response.
 
-Before final response or goal completion, compare the latest archive/truthing
-commit with the last full gate run. If the archive/truthing commit is newer,
-stop and rerun all four required gates against that committed tree.
+Before final response or goal completion, compare the tree covered by the last
+full gate run with the final archive/truthing commit. If tracked or generated
+content changed after the gate run, stop and rerun all four required gates
+against the final tree. If the gates ran before the commit and the commit only
+records the already-gated content, confirm the post-commit status is clean and
+record that no content changed between gate run and commit.
 
 ## Commit Roles
 
