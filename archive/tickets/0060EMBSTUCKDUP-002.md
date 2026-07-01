@@ -1,6 +1,6 @@
 # 0060EMBSTUCKDUP-002: TUI command loop keeps the session alive on a runtime rejection
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Small
 **Engine Changes**: Yes — `tracewake-tui` (`run.rs` action-submission error handling); new regression test in `tracewake-tui`. No core, event, schema, or fixture changes.
@@ -69,3 +69,34 @@ In `crates/tracewake-tui/src/run.rs` `submit_and_render` (~87-92): replace the c
 
 1. `cargo test -p tracewake-tui --test command_loop_session`
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace`
+
+## Outcome
+
+Completed: 2026-07-01
+
+Changed `submit_and_render` so action-submission errors other than
+`SemanticActionNotFound` are rendered through the existing actor-facing
+`describe_app_error` path instead of being converted into a fatal
+`std::io::Error`. The special missing-current-action message remains unchanged,
+and genuine writer I/O failures still propagate through `writeln!`.
+
+Added `run::tests::runtime_submit_error_is_rendered_without_aborting_loop` to
+prove the submit-error catch-all renders `Error: Runtime(...)` and returns
+`Ok(())` for a constructed `AppError::Runtime`. The real command-loop repro from
+`0060EMBSTUCKDUP-001`,
+`repeated_blocked_continue_routine_renders_why_not_without_panic`, remains the
+end-to-end proof that the user's offered-action path keeps the prompt alive and
+re-presents the typed why-not.
+
+Verification:
+
+- `cargo test -p tracewake-tui run::tests::runtime_submit_error_is_rendered_without_aborting_loop`
+  passed.
+- `cargo test -p tracewake-tui --test command_loop_session` passed.
+- `cargo fmt --all --check` passed.
+- `cargo test --workspace` passed.
+
+Deviation: after `0060EMBSTUCKDUP-001`, the original duplicate-event runtime
+error no longer occurs through the real command loop, so the `AppError::Runtime`
+catch-all is covered by a direct unit test rather than a newly fabricated
+runtime-error fixture in `command_loop_session.rs`.

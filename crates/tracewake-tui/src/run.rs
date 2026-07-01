@@ -89,7 +89,7 @@ fn submit_and_render<W: Write>(
         Err(AppError::SemanticActionNotFound(action_id)) => {
             return writeln!(writer, "Error: no such current action: {action_id}");
         }
-        Err(error) => return Err(std::io::Error::other(format!("{error:?}"))),
+        Err(error) => return render_submit_error(writer, &error),
     };
     match result.report.status {
         ReportStatus::Accepted => writeln!(writer, "Accepted: {}", semantic_action_id.as_str())?,
@@ -98,6 +98,10 @@ fn submit_and_render<W: Write>(
         }
     }
     writeln!(writer, "{}", app_result(app.render_current_view())?)
+}
+
+fn render_submit_error<W: Write>(writer: &mut W, error: &AppError) -> std::io::Result<()> {
+    writeln!(writer, "Error: {}", describe_app_error(error))
 }
 
 fn semantic_id_for_wait_alias(view: &EmbodiedViewModel) -> Option<SemanticActionId> {
@@ -230,6 +234,7 @@ fn help_text() -> &'static str {
 mod tests {
     use super::*;
     use tracewake_core::ids::ActorId;
+    use tracewake_core::runtime::RuntimeCommandError;
 
     #[test]
     fn scripted_loop_dispatches_commands_and_exits_cleanly() {
@@ -280,6 +285,20 @@ mod tests {
             rendered.contains("Accepted: wait.1_tick"),
             "the command loop must keep running after a bad selection: {rendered}"
         );
+    }
+
+    #[test]
+    fn runtime_submit_error_is_rendered_without_aborting_loop() {
+        let mut output = Vec::new();
+
+        render_submit_error(
+            &mut output,
+            &AppError::Runtime(RuntimeCommandError::SchedulerRestoreFailed),
+        )
+        .unwrap();
+
+        let rendered = String::from_utf8(output).unwrap();
+        assert_eq!(rendered, "Error: Runtime(SchedulerRestoreFailed)\n");
     }
 
     #[test]
