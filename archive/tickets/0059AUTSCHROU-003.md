@@ -1,6 +1,6 @@
 # 0059AUTSCHROU-003: Metamorphic A1–A10 + fail-closed behavioral proof
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: HIGH
 **Effort**: Large
 **Engine Changes**: Yes — adds a new behavioral/metamorphic integration test module (test-only; no production code)
@@ -78,3 +78,20 @@ Add a test proving the autonomous derivation fails closed when the active-intent
 1. `cargo test -p tracewake-core --test scheduler_routine_derivation_authority` — the new module is the correct verification boundary for this deliverable (resolves once this ticket creates the target).
 2. `cargo test -p tracewake-core --test scheduler_routine_derivation_authority -- --list` — enumerate the case functions to confirm the A1–A10 + fail-closed set is complete before the full run.
 3. `cargo test --workspace` — full-pipeline confirmation the new integration target compiles and passes alongside the rest.
+
+## Outcome
+
+Completed: 2026-07-01
+
+Added `crates/tracewake-core/tests/scheduler_routine_derivation_authority.rs`, covering A1-A10 plus a fail-closed diagnostic sweep under the required `0059_scheduler_routine_active_intention_authority` naming family. The suite drives real candidate-generation and transaction surfaces through no-human actor-known contexts, asserting that routine-window hints either match active-intention authority or are ignored with typed trace diagnostics.
+
+The tests cover workplace temptation against eat/sleep intentions, inactive/resolved/foreign execution decoys, no-active and malformed chains, work route failure without hidden-truth leakage, hidden-workplace truth, and caller-supplied conflicts. The fail-closed sweep checks absent, missing-index, terminal, and malformed active-intention chains for typed non-override notes and absence of unauthorized `RoutineDuty` candidates.
+
+Verification run:
+- `cargo test -p tracewake-core --test scheduler_routine_derivation_authority`
+- `cargo test -p tracewake-core --test scheduler_routine_derivation_authority -- --list`
+- `cargo test -p tracewake-core --test embodied_autonomous_parity`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
