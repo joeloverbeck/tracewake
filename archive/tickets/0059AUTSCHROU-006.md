@@ -1,6 +1,6 @@
 # 0059AUTSCHROU-006: Acceptance artifact + archival posture (capstone)
 
-**Status**: PENDING
+**Status**: COMPLETED
 **Priority**: MEDIUM
 **Effort**: Small
 **Engine Changes**: None
@@ -73,3 +73,17 @@ State in the artifact that the `docs/4-specs/SPEC_LEDGER.md` Archived-implementa
 1. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace` — re-run the four local gates at capstone time and record the output.
 2. `for s in "## Requirement" "## Verdict" "## Behavioral" "## Fail-closed" "## Anti-regression" "## Local gate" "## Focused mutation" "## Non-certification" "## Computed result"; do grep -qiF "$s" reports/0059_autonomous_scheduler_routine_derivation_acceptance.md || echo "MISSING $s"; done` — confirm §9 section coverage (must print nothing).
 3. A command-based completeness check plus the re-run gates is the correct verification boundary for an acceptance-only capstone (no new production logic to test).
+
+## Outcome
+
+Completed: 2026-07-01
+
+Created `reports/0059_autonomous_scheduler_routine_derivation_acceptance.md` with the required 0059 capstone sections: header/non-certification posture, exact-source ledger, requirement ledger, fix-plus-lock verdict update, behavioral evidence, fail-closed evidence, anti-regression guard evidence, local gate transcripts, focused mutation report, non-certification wording, and computed result. The artifact records scoped result `pass` for exact implementation commit `be545794aab8972d8c3327fa526f7e96daad7d30`, with no latest-main, whole-project, Phase-4, or second-proof claim.
+
+Verification passed:
+
+- Section coverage check for the required §9 headings printed nothing.
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`
