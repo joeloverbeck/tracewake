@@ -33,7 +33,7 @@
 
 ### 1. Author the acceptance artifact
 
-Create `reports/0059_autonomous_scheduler_routine_derivation_acceptance.md` following `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md`, with the §9 sections: header (spec id 0059, implementation commit, baseline commit, repository, status, non-certification posture); exact-source ledger; requirement ledger (F-0059-01…05 → evidence/status/source path/test path); verdict update (fix-plus-lock; summarize the helper/path repaired); behavioral evidence (A1–A10 expected/actual + action/stuck/diagnostic ids + source-event ancestry, from 003); fail-closed evidence; anti-regression guard evidence (guard names, synthetic ids, census liveness, from 004); local gate transcripts (the four gates re-run); focused mutation report (denominator, results, survivor disposition, from 005 and 007); non-certification wording; computed result (`pass`/`non-pass`).
+Create `archive/reports/0059_autonomous_scheduler_routine_derivation_acceptance.md` following `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md`, with the §9 sections: header (spec id 0059, implementation commit, baseline commit, repository, status, non-certification posture); exact-source ledger; requirement ledger (F-0059-01…05 → evidence/status/source path/test path); verdict update (fix-plus-lock; summarize the helper/path repaired); behavioral evidence (A1–A10 expected/actual + action/stuck/diagnostic ids + source-event ancestry, from 003); fail-closed evidence; anti-regression guard evidence (guard names, synthetic ids, census liveness, from 004); local gate transcripts (the four gates re-run); focused mutation report (denominator, results, survivor disposition, from 005 and 007); non-certification wording; computed result (`pass`/`non-pass`).
 
 ### 2. Record the archival posture (deferred, not performed here)
 
@@ -41,7 +41,7 @@ State in the artifact that the `docs/4-specs/SPEC_LEDGER.md` Archived-implementa
 
 ## Files to Touch
 
-- `reports/0059_autonomous_scheduler_routine_derivation_acceptance.md` (new)
+- `archive/reports/0059_autonomous_scheduler_routine_derivation_acceptance.md` (new)
 
 ## Out of Scope
 
@@ -53,7 +53,7 @@ State in the artifact that the `docs/4-specs/SPEC_LEDGER.md` Archived-implementa
 
 ### Tests That Must Pass
 
-1. `reports/0059_autonomous_scheduler_routine_derivation_acceptance.md` exists and contains every §9 section (header/non-certification posture, exact-source ledger, requirement ledger, verdict update, behavioral evidence, fail-closed evidence, anti-regression guard evidence, local gate transcripts, focused mutation report, non-certification wording, computed result).
+1. `archive/reports/0059_autonomous_scheduler_routine_derivation_acceptance.md` exists and contains every §9 section (header/non-certification posture, exact-source ledger, requirement ledger, verdict update, behavioral evidence, fail-closed evidence, anti-regression guard evidence, local gate transcripts, focused mutation report, non-certification wording, computed result).
 2. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace` — the four local gates are re-run at capstone time and their output is recorded in the artifact.
 3. The computed result is `pass` only if every scoped 0059 requirement passes and focused mutation is non-survivorful or all survivors are accepted equivalent/unviable; otherwise `non-pass` with named blockers — recorded in pass/non-pass grammar (no "basically green").
 
@@ -71,14 +71,16 @@ State in the artifact that the `docs/4-specs/SPEC_LEDGER.md` Archived-implementa
 ### Commands
 
 1. `cargo fmt --all --check && cargo clippy --workspace --all-targets -- -D warnings && cargo build --workspace --all-targets --locked && cargo test --workspace` — re-run the four local gates at capstone time and record the output.
-2. `for s in "## Requirement" "## Verdict" "## Behavioral" "## Fail-closed" "## Anti-regression" "## Local gate" "## Focused mutation" "## Non-certification" "## Computed result"; do grep -qiF "$s" reports/0059_autonomous_scheduler_routine_derivation_acceptance.md || echo "MISSING $s"; done` — confirm §9 section coverage (must print nothing).
+2. `for s in "## Requirement" "## Verdict" "## Behavioral" "## Fail-closed" "## Anti-regression" "## Local gate" "## Focused mutation" "## Non-certification" "## Computed result"; do grep -qiF "$s" archive/reports/0059_autonomous_scheduler_routine_derivation_acceptance.md || echo "MISSING $s"; done` — confirm §9 section coverage (must print nothing).
 3. A command-based completeness check plus the re-run gates is the correct verification boundary for an acceptance-only capstone (no new production logic to test).
 
 ## Outcome
 
 Completed: 2026-07-01
 
-Created `reports/0059_autonomous_scheduler_routine_derivation_acceptance.md` with the required 0059 capstone sections: header/non-certification posture, exact-source ledger, requirement ledger, fix-plus-lock verdict update, behavioral evidence, fail-closed evidence, anti-regression guard evidence, local gate transcripts, focused mutation report, non-certification wording, and computed result. The artifact records scoped result `pass` for exact implementation commit `be545794aab8972d8c3327fa526f7e96daad7d30`, with no latest-main, whole-project, Phase-4, or second-proof claim.
+Created `archive/reports/0059_autonomous_scheduler_routine_derivation_acceptance.md` with the required 0059 capstone sections: header/non-certification posture, exact-source ledger, requirement ledger, fix-plus-lock verdict update, behavioral evidence, fail-closed evidence, anti-regression guard evidence, local gate transcripts, focused mutation report, non-certification wording, and computed result. The artifact records scoped result `pass` for exact implementation commit `be545794aab8972d8c3327fa526f7e96daad7d30`, with no latest-main, whole-project, Phase-4, or second-proof claim.
+
+The final spec closeout subsequently completed the `SPEC_LEDGER.md` row and moved the governing spec/report to `archive/`; those archival steps remained outside the ticket-006 implementation commit itself.
 
 Verification passed:
 

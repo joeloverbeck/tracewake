@@ -1,7 +1,7 @@
 # 0059 Autonomous Scheduler Routine Derivation Active-Intention Authority Hardening Spec
 
-**Status:** PROPOSED  
-**Intended repository path:** `specs/0059_AUTONOMOUS_SCHEDULER_ROUTINE_DERIVATION_ACTIVE_INTENTION_AUTHORITY_HARDENING_SPEC.md`  
+**Status:** COMPLETED  
+**Intended repository path:** `archive/specs/0059_AUTONOMOUS_SCHEDULER_ROUTINE_DERIVATION_ACTIVE_INTENTION_AUTHORITY_HARDENING_SPEC.md`  
 **Series:** embodied/autonomous routine-continuation hardening follow-up to archived specs 0057 and 0058  
 **Target repository:** `joeloverbeck/tracewake`  
 **Target baseline commit:** `dffeefa8e4105b7f4c6637f9bdb29dddea519a99`  
@@ -587,3 +587,22 @@ External research lane: separate from repository evidence
 ## Appendix B — Boundary-awareness note
 
 The boundary-awareness doctrine/spec tree was fetched to run the tier-fit test and confirm scope boundaries. Those files are not treated as conformance targets for 0059 remediation beyond their authority role. This spec corrects no boundary-awareness document and authorizes no downstream doctrine edit by itself.
+
+## Outcome
+
+Completed: 2026-07-01
+
+Implemented the scoped 0059 fix-plus-lock package. The autonomous scheduler routine-family producer now binds family derivation to the actor's active intention before any actor-known or execution-window validation, the transaction/generation consumers treat caller-supplied routine-window family as a non-authoritative compatible hint, and the behavioral/guard/mutation layers lock the seam.
+
+Deviations from the original plan: focused mutation in 005 initially produced real survivors, so a follow-up ticket `0059AUTSCHROU-007` was added and completed before the capstone. The acceptance report was moved to `archive/reports/0059_autonomous_scheduler_routine_derivation_acceptance.md` during final spec closeout.
+
+Verification passed:
+
+- `cargo test -p tracewake-core --test scheduler_routine_derivation_authority`
+- `cargo test -p tracewake-core --test anti_regression_guards`
+- `cargo test -p tracewake-core --test anti_regression_guards guard_0059_synthetic_negative_census_is_live`
+- Focused no-config mutation reruns: scheduler 49 tested / 44 caught / 5 unviable / 0 missed; transaction 12 tested / 9 caught / 3 unviable / 0 missed; generation 16 tested / 14 caught / 2 unviable / 0 missed.
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo build --workspace --all-targets --locked`
+- `cargo test --workspace`

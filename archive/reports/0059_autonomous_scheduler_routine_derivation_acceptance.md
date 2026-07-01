@@ -14,7 +14,7 @@
 
 All target-repository claims in this artifact are based on the local checkout at exact commit `be545794aab8972d8c3327fa526f7e96daad7d30`; no default-branch, search-result, or clone-state claim is used.
 
-- Governing spec: `specs/0059_AUTONOMOUS_SCHEDULER_ROUTINE_DERIVATION_ACTIVE_INTENTION_AUTHORITY_HARDENING_SPEC.md`
+- Governing spec: `archive/specs/0059_AUTONOMOUS_SCHEDULER_ROUTINE_DERIVATION_ACTIVE_INTENTION_AUTHORITY_HARDENING_SPEC.md`
 - Template: `docs/4-specs/0003_ACCEPTANCE_ARTIFACT_TEMPLATE.md`
 - Archival workflow: `docs/archival-workflow.md`
 - Implementation evidence tickets: `archive/tickets/0059AUTSCHROU-001.md`, `archive/tickets/0059AUTSCHROU-002.md`, `archive/tickets/0059AUTSCHROU-003.md`, `archive/tickets/0059AUTSCHROU-004.md`, `archive/tickets/0059AUTSCHROU-005.md`, `archive/tickets/0059AUTSCHROU-007.md`
@@ -95,12 +95,12 @@ Total final focused mutation denominator: 77 tested, 67 caught, 10 unviable, 0 m
 
 ## Non-certification wording
 
-This artifact is a scoped 0059 acceptance packet only. It does not claim latest-main verification, whole-project certification, P0/SPINE/EPI/ORD-LIFE/FIRST-PROOF certification, Phase-4 scope, second-proof scope, or any new invariant/gate/glossary/risk id. `docs/4-specs/SPEC_LEDGER.md` and the `specs/` to `archive/specs/` move are deferred to spec acceptance/archival per `docs/archival-workflow.md`; 006 itself does not edit the ledger or move the spec.
+This artifact is a scoped 0059 acceptance packet only. It does not claim latest-main verification, whole-project certification, P0/SPINE/EPI/ORD-LIFE/FIRST-PROOF certification, Phase-4 scope, second-proof scope, or any new invariant/gate/glossary/risk id. Ticket 006 authored the capstone artifact; the subsequent final spec closeout completed the `docs/4-specs/SPEC_LEDGER.md` row and moved the spec/report to `archive/` per `docs/archival-workflow.md`.
 
 ## Computed result
 
 ```tracewake-acceptance-status
-artifact: reports/0059_autonomous_scheduler_routine_derivation_acceptance.md
+artifact: archive/reports/0059_autonomous_scheduler_routine_derivation_acceptance.md
 spec_id: 0059_AUTONOMOUS_SCHEDULER_ROUTINE_DERIVATION_ACTIVE_INTENTION_AUTHORITY_HARDENING_SPEC
 target_commit: be545794aab8972d8c3327fa526f7e96daad7d30
 baseline_commit: 68d26483501ad1962d350ea69a0c174f189a8ffd
@@ -130,4 +130,3 @@ computed_result: pass
 ```
 
 Computed result: pass for scoped 0059 requirements at exact commit `be545794aab8972d8c3327fa526f7e96daad7d30`.
-
