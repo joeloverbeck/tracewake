@@ -368,7 +368,7 @@ where
     }
 }
 
-fn focused_pane_label(pane: FocusedPane) -> &'static str {
+pub(crate) fn focused_pane_label(pane: FocusedPane) -> &'static str {
     match pane {
         FocusedPane::Place => "place",
         FocusedPane::Exits => "exits",

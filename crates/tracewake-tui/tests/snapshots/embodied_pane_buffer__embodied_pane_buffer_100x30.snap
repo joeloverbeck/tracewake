@@ -1,0 +1,34 @@
+---
+source: crates/tracewake-tui/tests/embodied_pane_buffer.rs
+expression: "buffer_text_for_size(100, 30)"
+---
+[Header / Mode]
+actor=actor_tomas mode=Embodied focus=place debug_available=false
+[Place / Situation]                                [Details / Why-not]
+place:                                             why_not:
+Tomas home (home_tomas)                            - none
+exits:
+- workshop_tomas
+... 6 more; focus details to inspect
+[Co-present Actors]
+actors:
+- none
+                                                   [Actions / Affordances]
+                                                   actions:
+                                                   1. Continue routine [continue.routine.intention_t
+                                                   2. Move to workshop_tomas [move.to.workshop_tomas
+[Notebook / Leads]                                 3. Sleep here [sleep.here]
+notebook:                                          4. Wait [wait.1_tick]
+viewer=actor_tomas
+Beliefs:
+- none
+Observations:                                      [Self / Body / Routine]
+... 7 more; focus details to inspect               status:
+[Recent Actor-known Changes]                       Needs:
+actor_known_interval:                              - fatigue band=comfortable cause=fixture_initial
+- none                                             - hunger band=comfortable cause=fixture_initial
+                                                   - safety band=comfortable cause=fixture_initial
+                                                   Intention: active:routine_tomas_go_to_work:move
+                                                   Routine: routine:routine_tomas_go_to_work
+                                                   ... 2 more; focus details to inspect
+[Input Hints]

@@ -1362,12 +1362,22 @@ const WORKSPACE_DEPENDENCY_ALLOWLIST: &[(&str, &str, &str)] = &[
     (
         "crates/tracewake-tui/Cargo.toml",
         "dependencies",
+        concat!("rata", "tui"),
+    ),
+    (
+        "crates/tracewake-tui/Cargo.toml",
+        "dependencies",
         "tracewake-content",
     ),
     (
         "crates/tracewake-tui/Cargo.toml",
         "dependencies",
         "tracewake-core",
+    ),
+    (
+        "crates/tracewake-tui/Cargo.toml",
+        "dev-dependencies",
+        "insta",
     ),
     (
         "crates/tracewake-tui/Cargo.toml",
@@ -1537,8 +1547,11 @@ const WORKSPACE_SOURCE_CLASSIFICATIONS: &[WorkspaceSourceClassification] = &[
     WorkspaceSourceClassification { path: "crates/tracewake-tui/src/main.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-tui/src/render.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-tui/src/run.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-tui/src/screen/buffer_render.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-tui/src/screen/mod.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-tui/src/screen/model.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-tui/src/screen/pane_bindings.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
+    WorkspaceSourceClassification { path: "crates/tracewake-tui/src/screen/pane_layout.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-tui/src/screen/struct_dump.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-tui/src/screen/text_dump.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
     WorkspaceSourceClassification { path: "crates/tracewake-tui/src/transcript.rs", class: WorkspaceSourceClass::Exempt { rationale: TUI_RATIONALE } },
