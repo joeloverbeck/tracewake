@@ -10,6 +10,10 @@ use crate::render::render_notebook;
 
 const PROMPT: &str = "tracewake>";
 
+/// Runs the non-interactive line driver used by scripted tests and automation.
+///
+/// The fullscreen crossterm shell is the interactive terminal adapter; this
+/// loop remains a stable stdin/stdout command path for regression coverage.
 pub fn run_command_loop<R, W>(app: &mut TuiApp, reader: R, mut writer: W) -> std::io::Result<()>
 where
     R: BufRead,

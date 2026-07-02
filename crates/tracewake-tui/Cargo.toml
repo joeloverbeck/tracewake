@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+crossterm = "0.29"
 ratatui = { version = "0.29.0", default-features = false }
 tracewake-core = { path = "../tracewake-core" }
 tracewake-content = { path = "../tracewake-content" }

@@ -10,6 +10,7 @@ pub enum Launch {
         golden: Box<GoldenFixture>,
         actor_id: ActorId,
         mode: LaunchMode,
+        fullscreen: bool,
     },
     List,
     Help,
@@ -48,10 +49,42 @@ pub fn resolve(args: &[String]) -> Result<Launch, LaunchError> {
                 golden: Box::new(golden),
                 actor_id,
                 mode: LaunchMode::Embodied,
+                fullscreen: false,
             })
         }
         [flag] if flag == "--list" || flag == "-l" => Ok(Launch::List),
         [flag] if flag == "--help" || flag == "-h" => Ok(Launch::Help),
+        [flag] if flag == "--fullscreen" => {
+            let golden = fixtures::by_id(DEFAULT_FIXTURE_ID)
+                .expect("default fixture must exist in fixture catalog");
+            let actor_id = ActorId::new(DEFAULT_ACTOR_ID).expect("default actor id must be valid");
+            Ok(Launch::Run {
+                golden: Box::new(golden),
+                actor_id,
+                mode: LaunchMode::Embodied,
+                fullscreen: true,
+            })
+        }
+        [flag, fixture_id] if flag == "--fullscreen" => {
+            let golden = resolve_fixture(fixture_id)?;
+            let actor_id = first_actor(&golden).expect("golden fixtures must author actors");
+            Ok(Launch::Run {
+                golden: Box::new(golden),
+                actor_id,
+                mode: LaunchMode::Embodied,
+                fullscreen: true,
+            })
+        }
+        [flag, fixture_id, actor_id] if flag == "--fullscreen" => {
+            let golden = resolve_fixture(fixture_id)?;
+            let actor_id = resolve_actor(&golden, fixture_id, actor_id)?;
+            Ok(Launch::Run {
+                golden: Box::new(golden),
+                actor_id,
+                mode: LaunchMode::Embodied,
+                fullscreen: true,
+            })
+        }
         [flag, fixture_id] if flag == "--operator-debug" => {
             let golden = resolve_fixture(fixture_id)?;
             let actor_id = first_actor(&golden).expect("golden fixtures must author actors");
@@ -59,28 +92,17 @@ pub fn resolve(args: &[String]) -> Result<Launch, LaunchError> {
                 golden: Box::new(golden),
                 actor_id,
                 mode: LaunchMode::OperatorDebug,
+                fullscreen: false,
             })
         }
         [flag, fixture_id, actor_id] if flag == "--operator-debug" => {
             let golden = resolve_fixture(fixture_id)?;
-            let actor_id = ActorId::new(actor_id.clone())
-                .map_err(|err| LaunchError::BadActorId(err.to_string()))?;
-            if !golden
-                .fixture
-                .actors
-                .iter()
-                .any(|actor| actor.actor_id == actor_id)
-            {
-                return Err(LaunchError::UnknownActor {
-                    fixture_id: fixture_id.clone(),
-                    actor_id: actor_id.to_string(),
-                    available: actor_ids(&golden),
-                });
-            }
+            let actor_id = resolve_actor(&golden, fixture_id, actor_id)?;
             Ok(Launch::Run {
                 golden: Box::new(golden),
                 actor_id,
                 mode: LaunchMode::OperatorDebug,
+                fullscreen: false,
             })
         }
         [fixture_id] => {
@@ -90,28 +112,17 @@ pub fn resolve(args: &[String]) -> Result<Launch, LaunchError> {
                 golden: Box::new(golden),
                 actor_id,
                 mode: LaunchMode::Embodied,
+                fullscreen: false,
             })
         }
         [fixture_id, actor_id] => {
             let golden = resolve_fixture(fixture_id)?;
-            let actor_id = ActorId::new(actor_id.clone())
-                .map_err(|err| LaunchError::BadActorId(err.to_string()))?;
-            if !golden
-                .fixture
-                .actors
-                .iter()
-                .any(|actor| actor.actor_id == actor_id)
-            {
-                return Err(LaunchError::UnknownActor {
-                    fixture_id: fixture_id.clone(),
-                    actor_id: actor_id.to_string(),
-                    available: actor_ids(&golden),
-                });
-            }
+            let actor_id = resolve_actor(&golden, fixture_id, actor_id)?;
             Ok(Launch::Run {
                 golden: Box::new(golden),
                 actor_id,
                 mode: LaunchMode::Embodied,
+                fullscreen: false,
             })
         }
         _ => Err(LaunchError::TooManyArgs),
@@ -137,6 +148,7 @@ pub fn usage() -> String {
         "Usage:",
         "  cargo run -p tracewake-tui",
         "  cargo run -p tracewake-tui -- <fixture_id> [actor_id]",
+        "  cargo run -p tracewake-tui -- --fullscreen [fixture_id] [actor_id]",
         "  cargo run -p tracewake-tui -- --operator-debug <fixture_id> [actor_id]",
         "  cargo run -p tracewake-tui -- --list",
         "  cargo run -p tracewake-tui -- --help",
@@ -168,6 +180,28 @@ pub fn render_error(error: &LaunchError) -> String {
 
 fn resolve_fixture(fixture_id: &str) -> Result<GoldenFixture, LaunchError> {
     fixtures::by_id(fixture_id).ok_or_else(|| LaunchError::UnknownFixture(fixture_id.to_string()))
+}
+
+fn resolve_actor(
+    golden: &GoldenFixture,
+    fixture_id: &str,
+    actor_id: &str,
+) -> Result<ActorId, LaunchError> {
+    let actor_id = ActorId::new(actor_id.to_string())
+        .map_err(|err| LaunchError::BadActorId(err.to_string()))?;
+    if !golden
+        .fixture
+        .actors
+        .iter()
+        .any(|actor| actor.actor_id == actor_id)
+    {
+        return Err(LaunchError::UnknownActor {
+            fixture_id: fixture_id.to_string(),
+            actor_id: actor_id.to_string(),
+            available: actor_ids(golden),
+        });
+    }
+    Ok(actor_id)
 }
 
 fn first_actor(golden: &GoldenFixture) -> Option<ActorId> {
@@ -204,10 +238,12 @@ mod tests {
                 golden,
                 actor_id,
                 mode,
+                fullscreen,
             } => {
                 assert_eq!(golden.fixture.fixture_id.as_str(), "strongbox_001");
                 assert_eq!(actor_id.as_str(), "actor_tomas");
                 assert_eq!(mode, LaunchMode::Embodied);
+                assert!(!fullscreen);
             }
             other => panic!("expected run launch, got {other:?}"),
         }
@@ -222,10 +258,12 @@ mod tests {
                 golden,
                 actor_id,
                 mode,
+                fullscreen,
             } => {
                 assert_eq!(golden.fixture.fixture_id.as_str(), "ordinary_workday_001");
                 assert_eq!(actor_id, golden.fixture.actors.first().unwrap().actor_id);
                 assert_eq!(mode, LaunchMode::Embodied);
+                assert!(!fullscreen);
             }
             other => panic!("expected run launch, got {other:?}"),
         }
@@ -240,10 +278,12 @@ mod tests {
                 golden,
                 actor_id,
                 mode,
+                fullscreen,
             } => {
                 assert_eq!(golden.fixture.fixture_id.as_str(), "debug_attach_001");
                 assert_eq!(actor_id.as_str(), "actor_jules");
                 assert_eq!(mode, LaunchMode::Embodied);
+                assert!(!fullscreen);
             }
             other => panic!("expected run launch, got {other:?}"),
         }
@@ -263,10 +303,12 @@ mod tests {
                 golden,
                 actor_id,
                 mode,
+                fullscreen,
             } => {
                 assert_eq!(golden.fixture.fixture_id.as_str(), "debug_attach_001");
                 assert_eq!(actor_id.as_str(), "actor_jules");
                 assert_eq!(mode, LaunchMode::OperatorDebug);
+                assert!(!fullscreen);
             }
             other => panic!("expected run launch, got {other:?}"),
         }
@@ -308,6 +350,40 @@ mod tests {
         assert_eq!(resolve(&args(&["-l"])), Ok(Launch::List));
         assert_eq!(resolve(&args(&["--help"])), Ok(Launch::Help));
         assert_eq!(resolve(&args(&["-h"])), Ok(Launch::Help));
+    }
+
+    #[test]
+    fn resolve_fullscreen_fixture_and_actor_binds_named_actor() {
+        let launch = resolve(&args(&["--fullscreen", "debug_attach_001", "actor_jules"])).unwrap();
+
+        match launch {
+            Launch::Run {
+                golden,
+                actor_id,
+                mode,
+                fullscreen,
+            } => {
+                assert_eq!(golden.fixture.fixture_id.as_str(), "debug_attach_001");
+                assert_eq!(actor_id.as_str(), "actor_jules");
+                assert_eq!(mode, LaunchMode::Embodied);
+                assert!(fullscreen);
+            }
+            other => panic!("expected run launch, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn usage_mentions_fullscreen_without_changing_default() {
+        let usage = usage();
+
+        assert!(usage.contains("--fullscreen [fixture_id] [actor_id]"));
+        assert!(matches!(
+            resolve(&[]).unwrap(),
+            Launch::Run {
+                fullscreen: false,
+                ..
+            }
+        ));
     }
 
     #[test]

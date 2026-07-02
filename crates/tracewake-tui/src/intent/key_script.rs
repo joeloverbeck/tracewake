@@ -12,7 +12,7 @@ pub fn parse_key_script(script: &str) -> Result<Vec<UiIntent>, KeyScriptError> {
         .collect::<Result<Vec<_>, _>>()
 }
 
-fn parse_key_token(token: &str) -> Result<UiIntent, KeyScriptError> {
+pub(crate) fn parse_key_token(token: &str) -> Result<UiIntent, KeyScriptError> {
     match token {
         "Tab" => Ok(UiIntent::FocusNext),
         "Up" => Ok(UiIntent::MoveSelection(Direction::Up)),
