@@ -8,6 +8,7 @@ pub mod launch;
 pub mod render;
 pub mod run;
 pub mod screen;
+pub mod shell;
 pub mod transcript;
 
 pub fn startup_message() -> &'static str {
