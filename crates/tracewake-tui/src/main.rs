@@ -12,6 +12,7 @@ fn main() {
         golden,
         actor_id,
         mode,
+        fullscreen,
     } = launch
     else {
         match launch {
@@ -40,11 +41,17 @@ fn main() {
             app
         }
     };
-    println!("{}", tracewake_tui::startup_message());
-    tracewake_tui::run::run_command_loop(
-        &mut app,
-        std::io::stdin().lock(),
-        std::io::stdout().lock(),
-    )
-    .expect("command loop runs");
+    if fullscreen {
+        let _terminal_guard =
+            tracewake_tui::shell::TerminalGuard::enter_crossterm().expect("terminal enters");
+        tracewake_tui::shell::event_loop::run_fullscreen_shell(&mut app).expect("shell runs");
+    } else {
+        println!("{}", tracewake_tui::startup_message());
+        tracewake_tui::run::run_command_loop(
+            &mut app,
+            std::io::stdin().lock(),
+            std::io::stdout().lock(),
+        )
+        .expect("command loop runs");
+    }
 }

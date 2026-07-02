@@ -181,7 +181,7 @@ pub fn draw_buffer<W: Write>(output: &mut W, buffer: &Buffer) -> io::Result<()> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::screen::buffer_to_plain_text;
+    use crate::screen::{buffer_to_plain_text, FocusedPane};
     use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers};
     use tracewake_content::fixtures;
     use tracewake_core::ids::ActorId;
@@ -233,6 +233,86 @@ mod tests {
             .expect("quit key reduces");
 
         assert_eq!(step, ShellStep::Quit);
+    }
+
+    #[test]
+    fn wait_key_matches_direct_wait_submission() {
+        let mut direct_app = bound_app();
+        let view = direct_app.current_view().unwrap();
+        let wait_action = view
+            .semantic_actions
+            .iter()
+            .find(|entry| entry.action_id.as_str() == "wait")
+            .expect("fixture exposes wait action")
+            .semantic_action_id
+            .clone();
+        direct_app
+            .submit_semantic_action(&wait_action)
+            .expect("direct wait succeeds");
+
+        let mut shell_app = bound_app();
+        let mut state = ShellState::new(TerminalSize::new(80, 24));
+        let step = apply_key_event(&mut shell_app, &mut state, key(KeyCode::Char('w')))
+            .expect("wait key reduces");
+
+        assert_eq!(step, ShellStep::Continue);
+        assert_eq!(
+            shell_app.physical_checksum(),
+            direct_app.physical_checksum()
+        );
+    }
+
+    #[test]
+    fn continue_key_matches_direct_runtime_advance() {
+        let mut direct_app = bound_app();
+        direct_app
+            .advance_until(64)
+            .expect("direct continue succeeds");
+
+        let mut shell_app = bound_app();
+        let mut state = ShellState::new(TerminalSize::new(80, 24));
+        let step = apply_key_event(&mut shell_app, &mut state, key(KeyCode::Char('c')))
+            .expect("continue key reduces");
+
+        assert_eq!(step, ShellStep::Continue);
+        assert_eq!(
+            shell_app.physical_checksum(),
+            direct_app.physical_checksum()
+        );
+    }
+
+    #[test]
+    fn enter_on_selected_action_matches_direct_submission() {
+        let mut direct_app = bound_app();
+        let view = direct_app.current_view().unwrap();
+        let selected_index = view
+            .semantic_actions
+            .iter()
+            .position(|entry| entry.action_id.as_str() == "open")
+            .expect("fixture exposes open action");
+        let selected_action = view.semantic_actions[selected_index]
+            .semantic_action_id
+            .clone();
+        direct_app
+            .submit_semantic_action(&selected_action)
+            .expect("direct action succeeds");
+
+        let mut shell_app = bound_app();
+        let mut state = ShellState::new(TerminalSize::new(80, 24));
+        state
+            .presentation_mut()
+            .set_focused_pane(FocusedPane::Actions);
+        state
+            .presentation_mut()
+            .set_selection_index(FocusedPane::Actions, selected_index);
+        let step = apply_key_event(&mut shell_app, &mut state, key(KeyCode::Enter))
+            .expect("enter key reduces");
+
+        assert_eq!(step, ShellStep::Continue);
+        assert_eq!(
+            shell_app.physical_checksum(),
+            direct_app.physical_checksum()
+        );
     }
 
     fn bound_app() -> TuiApp {

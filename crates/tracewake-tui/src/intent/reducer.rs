@@ -47,7 +47,7 @@ pub fn reduce(
             move_selection(state, direction);
             Ok(ReduceOutcome::PresentationChanged)
         }
-        UiIntent::ActivateSelection => Ok(ReduceOutcome::PresentationChanged),
+        UiIntent::ActivateSelection => activate_selection(app, state),
         UiIntent::SubmitSemanticAction(semantic_action_id) => app
             .submit_semantic_action(&semantic_action_id)
             .map(Box::new)
@@ -99,6 +99,26 @@ fn move_selection(state: &mut PresentationState, direction: Direction) {
         Direction::Down => current.saturating_add(1),
     };
     state.set_selection_index(pane, next);
+}
+
+fn activate_selection(
+    app: &mut TuiApp,
+    state: &PresentationState,
+) -> Result<ReduceOutcome, ReduceError> {
+    if state.focused_pane() != FocusedPane::Actions {
+        return Ok(ReduceOutcome::PresentationChanged);
+    }
+    let view = app.current_view()?;
+    let Some(entry) = view
+        .semantic_actions
+        .get(state.selection_index(FocusedPane::Actions))
+    else {
+        return Ok(ReduceOutcome::PresentationChanged);
+    };
+    app.submit_semantic_action(&entry.semantic_action_id)
+        .map(Box::new)
+        .map(ReduceOutcome::ActionSubmitted)
+        .map_err(ReduceError::from)
 }
 
 fn next_pane(current: FocusedPane) -> FocusedPane {
@@ -183,6 +203,40 @@ mod tests {
 
         let ReduceOutcome::ActionSubmitted(reduced) = reduced else {
             panic!("semantic action returns action receipt");
+        };
+        assert_eq!(reduced.report.status, direct.report.status);
+        assert_eq!(reduced.report.action_id, direct.report.action_id);
+        assert_eq!(
+            reduced_app.physical_checksum(),
+            direct_app.physical_checksum()
+        );
+    }
+
+    #[test]
+    fn activate_selection_submits_selected_action_through_authorized_path() {
+        let mut direct_app = bound_app();
+        let view = direct_app.current_view().unwrap();
+        let selected_index = view
+            .semantic_actions
+            .iter()
+            .position(|entry| entry.action_id.as_str() == "open")
+            .expect("fixture exposes open action");
+        let selected_action = view.semantic_actions[selected_index]
+            .semantic_action_id
+            .clone();
+        let direct = direct_app
+            .submit_semantic_action(&selected_action)
+            .expect("direct submit succeeds");
+
+        let mut reduced_app = bound_app();
+        let mut state = PresentationState::default();
+        state.set_focused_pane(FocusedPane::Actions);
+        state.set_selection_index(FocusedPane::Actions, selected_index);
+        let reduced = reduce(&mut reduced_app, &mut state, UiIntent::ActivateSelection)
+            .expect("activate selection reduces");
+
+        let ReduceOutcome::ActionSubmitted(reduced) = reduced else {
+            panic!("activate selection submits selected action");
         };
         assert_eq!(reduced.report.status, direct.report.status);
         assert_eq!(reduced.report.action_id, direct.report.action_id);
