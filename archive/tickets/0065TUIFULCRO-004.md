@@ -14,7 +14,7 @@ Spec 0065 §7 requires a review artifact recording key→intent equivalence, the
 
 1. The three witnesses land in prior tickets: restore-on-exit/panic in 001 (`shell::terminal` tests), key→intent equivalence in 002 (`shell::key_map` test vs `parse_key_script`), no-semantic-fork regression in 003 (shell-path-vs-line/script-path parity). This ticket runs them plus the workspace gates and records results — no production or test logic is added here. Report-path convention is `reports/NNNN_<slug>_acceptance.md` (siblings `archive/reports/0064_tui_embodied_pane_layout_acceptance.md`, `archive/reports/0062_tui_deterministic_intent_acceptance.md`).
 2. Spec 0065 §6 (required fixtures and tests), §7 (acceptance artifact and evidence), §4.4 (no TTY required for CI; headless tests authoritative).
-3. Shared boundary under audit: the acceptance artifact `reports/0065_tui_fullscreen_crossterm_shell_acceptance.md` and the three witness surfaces it consolidates (restore guard, key→intent mapping, shell-vs-script parity); no code contract is modified.
+3. Shared boundary under audit: the acceptance artifact `archive/reports/0065_tui_fullscreen_crossterm_shell_acceptance.md` and the three witness surfaces it consolidates (restore guard, key→intent mapping, shell-vs-script parity); no code contract is modified.
 4. INV-108 / INV-018 / INV-065: the acceptance lane proves cognition-neutral input (same intents as scripts), replay-safety (the shell holds no world state), and a reachable, robust primary interface.
 5. Evidence-consumer basis: this ticket audits the actor-knowledge (`current_view`), no-fork, and restore surfaces rather than modifying them — confirm the recorded evidence introduces no leakage and that the authoritative lane is headless (no acceptance step depends on a TTY).
 
@@ -34,16 +34,16 @@ Spec 0065 §7 requires a review artifact recording key→intent equivalence, the
 
 ### 1. Author the acceptance artifact
 
-`reports/0065_tui_fullscreen_crossterm_shell_acceptance.md`: record the three witnesses (named tests + results), the four workspace gates, the exact implementation commit, and the headless-authoritative note (§4.4). Follow the sibling artifact structure.
+`archive/reports/0065_tui_fullscreen_crossterm_shell_acceptance.md`: record the three witnesses (named tests + results), the four workspace gates, the exact implementation commit, and the headless-authoritative note (§4.4). Follow the sibling artifact structure.
 
 ## Files to Touch
 
-- `reports/0065_tui_fullscreen_crossterm_shell_acceptance.md` (new)
+- `archive/reports/0065_tui_fullscreen_crossterm_shell_acceptance.md` (archived at final spec closeout)
 
 ## Out of Scope
 
 - Any production or test code change (evidence-only; the witnesses live in 001–003).
-- The `docs/4-specs/SPEC_LEDGER.md` row and the `archive/specs/` move (deferred to spec acceptance per `docs/archival-workflow.md`).
+- The `docs/4-specs/SPEC_LEDGER.md` row and the `archive/specs/` move (completed by the final spec closeout, not by this ticket's evidence step).
 
 ## Acceptance Criteria
 
@@ -72,7 +72,7 @@ Spec 0065 §7 requires a review artifact recording key→intent equivalence, the
 
 Completed: 2026-07-02
 
-Added `reports/0065_tui_fullscreen_crossterm_shell_acceptance.md`, recording
+Added `archive/reports/0065_tui_fullscreen_crossterm_shell_acceptance.md`, recording
 the terminal restore, key-intent equivalence, redraw, launch, and no-fork
 shell-path witnesses for Spec 0065. The report names implementation commits
 `43e06fa`, `cd6f162`, and `1df5719`, and records the evidence/report commit
